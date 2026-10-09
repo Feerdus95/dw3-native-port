@@ -50,6 +50,30 @@ int menu_event(const union SDL_Event *e); /* 1: the menu's */
 void menu_draw(struct SDL_Renderer *r);
 void set_fps(int sixty); /* the game's 60 Hz mode on or off */
 
+/* The drawing on the graphics card (gl.c), render_scale times finer than
+   VRAM; the GTE keeps each vertex's fraction for it (gte.c) */
+extern int g_res_scale;  /* render_scale = 1-8 */
+typedef struct {
+    float x, y, u, v;  /* VRAM pixels (fractions kept), texels */
+    uint8_t r, g, b, a;
+    uint16_t clut_x, clut_y, tx, ty;
+    uint16_t umin, vmin, umax, vmax;
+    uint16_t twmx, twmy, twox, twoy; /* texture window: mask, offset */
+    uint32_t mode;     /* gl.c's MAIN_FS */
+} GVtx;
+struct SDL_Surface;
+extern uint16_t g_vram_dirty[8]; /* 64x64 blocks the CPU wrote, a bit each */
+int gl_init(struct SDL_Window *window);
+void gl_sync(int force);         /* follows render_scale; force: VRAM was replaced */
+void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi);
+void gl_vram_dirty(int x, int y, int w, int h);
+void gl_refresh(int x, int y, int w, int h); /* the copy from VRAM, after the CPU wrote it */
+void gl_copy(int sx, int sy, int w, int h, int dx, int dy);
+void gl_present(const struct SDL_Surface *menu, struct SDL_Surface **shot);
+int gte_precise(const uint32_t *word, float *x, float *y);
+void gte_precise_copy(void *dst, const void *src); /* the game's own code calls it too */
+void gte_precise_frame(void);
+
 /* --- sound: platform/spu.c, audio.c --- */
 #define SPU_VOICES 24
 #define AUDIO_RATE 44100

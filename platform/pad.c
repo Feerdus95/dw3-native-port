@@ -33,7 +33,7 @@ static const struct {
     {SDL_GAMEPAD_BUTTON_SOUTH, B_CROSS}, {SDL_GAMEPAD_BUTTON_EAST, B_CIRCLE},
     {SDL_GAMEPAD_BUTTON_WEST, B_SQUARE}, {SDL_GAMEPAD_BUTTON_NORTH, B_TRIANGLE},
     {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, B_L1}, {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, B_R1},
-    {SDL_GAMEPAD_BUTTON_BACK, B_SELECT}, {SDL_GAMEPAD_BUTTON_START, B_START},
+    {SDL_GAMEPAD_BUTTON_START, B_START}, /* Back opens the options menu (menu.c); Select is Backspace */
     {SDL_GAMEPAD_BUTTON_LEFT_STICK, B_L3}, {SDL_GAMEPAD_BUTTON_RIGHT_STICK, B_R3},
     {SDL_GAMEPAD_BUTTON_DPAD_UP, B_UP}, {SDL_GAMEPAD_BUTTON_DPAD_DOWN, B_DOWN},
     {SDL_GAMEPAD_BUTTON_DPAD_LEFT, B_LEFT}, {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, B_RIGHT},
@@ -90,7 +90,7 @@ static void open_gamepad(void) {
     SDL_JoystickID *ids;
 
     if (s_gamepad != NULL && !SDL_GamepadConnected(s_gamepad)) {
-        LOG("pad: %s unplugged", SDL_GetGamepadName(s_gamepad));
+        LOGC(LOG_PAD, "pad: %s unplugged", SDL_GetGamepadName(s_gamepad));
         SDL_CloseGamepad(s_gamepad);
         s_gamepad = NULL;
     }
@@ -98,7 +98,7 @@ static void open_gamepad(void) {
         return;
     }
     if (ids[0] != 0 && (s_gamepad = SDL_OpenGamepad(ids[0])) != NULL) {
-        LOG("pad: %s%s", SDL_GetGamepadName(s_gamepad),
+        LOGC(LOG_PAD, "pad: %s%s", SDL_GetGamepadName(s_gamepad),
             SDL_GetBooleanProperty(SDL_GetGamepadProperties(s_gamepad), SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "" : " (no rumble)");
     }
     SDL_free(ids);

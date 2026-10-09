@@ -59,7 +59,7 @@ GAME_CFLAGS = [
     f"-I{DECOMP / 'external/psyq_headers/psyq_lib47/include'}", f"-I{DECOMP / 'src/stages'}",
     "-DVERSION_EU", "-D_LANGUAGE_C", "-DLANGUAGE_C", "-DSKIP_ASM", '-DASM_DIR="asm/eu"', *SAN_FLAGS,
 ]
-PLATFORM_CFLAGS = ["-std=c11", "-c", "-O1", "-g", "-Wall", "-Wno-unused-parameter", f"-I{SDL / 'include'}", *SAN_FLAGS]
+PLATFORM_CFLAGS = ["-std=c11", "-c", "-O2", "-g", "-Wall", "-Wno-unused-parameter", f"-I{SDL / 'include'}", *SAN_FLAGS]
 # fixed image base (no ASLR): the GPU tags keep 24-bit addresses, so the
 # game's memory has to stay below 16 MB (TODO.md, design decisions)
 LDFLAGS = ["-g", "-Wl,--no-dynamicbase",

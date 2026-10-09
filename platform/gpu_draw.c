@@ -1,6 +1,8 @@
 /* The GPU, in software: GP0 packets (what the game's primitives already are)
-   rasterised into the 1024x512 16-bit VRAM, as the PSX GPU draws them.
-   Reference: the PSX GPU as documented in psx-spx (nocash). */
+   rasterised into the 1024x512 16-bit VRAM, as the PSX GPU draws them; the
+   same primitives go to the graphics card (gl.c), which draws what the
+   screen shows, finer. Reference: the PSX GPU as documented in psx-spx
+   (nocash). */
 #include <stdlib.h>
 #include <string.h>
 #include "platform.h"
@@ -44,6 +46,7 @@ static void plot(int x, int y, int c, int semi) {
         return;
     }
     p = &g_vram[(y & 511) * VRAM_W + (x & 1023)];
+    g_vram_dirty[(y & 511) >> 6] |= (uint16_t)(1u << ((x & 1023) >> 6));
     if (g.check_mask && (*p & 0x8000)) {
         return;
     }
@@ -125,6 +128,9 @@ static void gp0_env(uint32_t w) {
 
 /* --- triangles --- */
 
+static int sx(uint32_t w) { return ((int)(w << 21) >> 21); }
+static int sy(uint32_t w) { return ((int)(w << 5) >> 21); }
+
 typedef struct {
     int x, y, r, g, b, u, v;
 } Vtx;
@@ -199,11 +205,98 @@ static void triangle(Vtx a, Vtx b, Vtx c, int flags, int clut) {
     }
 }
 
+/* --- the card's copy --- */
+
+static int too_big(const Vtx *a, const Vtx *b, const Vtx *c) {
+    int minx = a->x < b->x ? a->x : b->x, maxx = a->x > b->x ? a->x : b->x;
+    int miny = a->y < b->y ? a->y : b->y, maxy = a->y > b->y ? a->y : b->y;
+
+    if (c->x < minx) minx = c->x;
+    if (c->x > maxx) maxx = c->x;
+    if (c->y < miny) miny = c->y;
+    if (c->y > maxy) maxy = c->y;
+    return maxx - minx >= 1024 || maxy - miny >= 512;
+}
+
+/* A vertex for the card with the drawing state; flags as triangle()'s */
+static GVtx gvtx(float x, float y, int r, int gg, int b, int u, int v, int clut, int flags, int dither) {
+    GVtx o;
+
+    o.x = x;
+    o.y = y;
+    o.u = (float)u;
+    o.v = (float)v;
+    o.r = (uint8_t)r;
+    o.g = (uint8_t)gg;
+    o.b = (uint8_t)b;
+    o.a = 0;
+    o.clut_x = (uint16_t)((clut & 0x3F) << 4);
+    o.clut_y = (uint16_t)(clut >> 6 & 0x1FF);
+    o.tx = (uint16_t)g.tx;
+    o.ty = (uint16_t)g.ty;
+    o.umin = o.vmin = 0;
+    o.umax = o.vmax = 255;
+    o.twmx = (uint16_t)g.tw_mask_x;
+    o.twmy = (uint16_t)g.tw_mask_y;
+    o.twox = (uint16_t)g.tw_off_x;
+    o.twoy = (uint16_t)g.tw_off_y;
+    o.mode = (uint32_t)((flags & 2) | (flags & 6) | (flags & 8) | g.depth << 4 | (dither ? 64 : 0) | (g.set_mask ? 256 : 0));
+    return o;
+}
+
+/* Three vertices, their texture coordinates kept between theirs (the card
+   samples finer: past the edge it would reach the next texel) */
+static void gl_tri(GVtx a, GVtx b, GVtx c) {
+    GVtx t[3] = {a, b, c};
+    int i, umin = 255, vmin = 255, umax = 0, vmax = 0;
+
+    for (i = 0; i < 3; i++) {
+        umin = t[i].u < umin ? (int)t[i].u : umin;
+        vmin = t[i].v < vmin ? (int)t[i].v : vmin;
+        umax = t[i].u > umax ? (int)t[i].u : umax;
+        vmax = t[i].v > vmax ? (int)t[i].v : vmax;
+    }
+    for (i = 0; i < 3; i++) {
+        t[i].umin = (uint16_t)umin, t[i].vmin = (uint16_t)vmin, t[i].umax = (uint16_t)umax, t[i].vmax = (uint16_t)vmax;
+    }
+    gl_triangles(t, 3, g.x1, g.y1, g.x2, g.y2, g.semi);
+}
+
+/* A rectangle for the card: the texels from (u0, v0), one per VRAM pixel */
+static void gl_rect(int x, int y, int w, int h, int r, int gg, int b, int flags, int u0, int v0, int clut) {
+    GVtx q[6];
+    int i;
+
+    for (i = 0; i < 6; i++) {
+        static const int CX[6] = {0, 1, 0, 1, 1, 0}, CY[6] = {0, 0, 1, 0, 1, 1};
+
+        q[i] = gvtx((float)(x + CX[i] * w), (float)(y + CY[i] * h), r, gg, b, u0 + CX[i] * w, v0 + CY[i] * h, clut, flags, 0);
+        q[i].umin = (uint16_t)u0, q[i].vmin = (uint16_t)v0;
+        q[i].umax = (uint16_t)(u0 + w - 1), q[i].vmax = (uint16_t)(v0 + h - 1);
+    }
+    gl_triangles(q, 6, g.x1, g.y1, g.x2, g.y2, g.semi);
+}
+
+/* A vertex word where the card puts it: with the GTE's fraction, when it
+   made that word */
+static void precise(const uint32_t *w, float *x, float *y) {
+    if (!gte_precise(w, x, y)) {
+        *x = (float)sx(*w);
+        *y = (float)sy(*w);
+    }
+    *x += (float)g.ox;
+    *y += (float)g.oy;
+}
+
 /* --- rectangles and lines --- */
 
 static void rect(int x, int y, int w, int h, int col, int textured, int raw, int semi, int u0, int v0, int clut) {
     int i, j;
     int r = col & 255, gg = col >> 8 & 255, b = col >> 16 & 255;
+
+    if (w > 0 && h > 0) {
+        gl_rect(x, y, w, h, r, gg, b, (textured ? 2 : 0) | (textured && raw ? 4 : 0) | (semi ? 8 : 0), u0, v0, clut);
+    }
 
     for (j = 0; j < h; j++) {
         for (i = 0; i < w; i++) {
@@ -243,13 +336,11 @@ static void line(int x0, int y0, int c0, int x1, int y1, int c1, int gouraud, in
             c = r | gg << 8 | b << 16;
         }
         plot(x, y, rgb15(c & 255, c >> 8 & 255, c >> 16 & 255, d), semi);
+        gl_rect(x, y, 1, 1, c & 255, c >> 8 & 255, c >> 16 & 255, semi ? 8 : 0, 0, 0, 0);
     }
 }
 
 /* --- packets --- */
-
-static int sx(uint32_t w) { return ((int)(w << 21) >> 21); }
-static int sy(uint32_t w) { return ((int)(w << 5) >> 21); }
 
 /* One GP0 packet of n words; returns how many it used */
 void gpu_gp0(const uint32_t *p, int n) {
@@ -259,6 +350,7 @@ void gpu_gp0(const uint32_t *p, int n) {
         int gouraud = cmd & 0x10, quad = cmd & 8, tex = cmd & 4, semi = cmd & 2, raw = cmd & 1;
         int nv = quad ? 4 : 3, i, k = 0, clut = 0;
         Vtx v[4];
+        float fx[4], fy[4];
         uint32_t color = p[k++] & 0xFFFFFF;
 
         for (i = 0; i < nv; i++) {
@@ -270,6 +362,7 @@ void gpu_gp0(const uint32_t *p, int n) {
             v[i].b = color >> 16 & 255;
             v[i].x = sx(p[k]) + g.ox;
             v[i].y = sy(p[k]) + g.oy;
+            precise(&p[k], &fx[i], &fy[i]);
             k++;
             if (tex) {
                 v[i].u = p[k] & 255;
@@ -291,6 +384,20 @@ void gpu_gp0(const uint32_t *p, int n) {
         triangle(v[0], v[1], v[2], i, clut);
         if (quad) {
             triangle(v[1], v[2], v[3], i, clut);
+        }
+        {
+            int dither = g.dither && g_dither_on && (gouraud || (tex && !raw));
+            GVtx gv[4];
+
+            for (k = 0; k < nv; k++) {
+                gv[k] = gvtx(fx[k], fy[k], v[k].r, v[k].g, v[k].b, v[k].u, v[k].v, clut, i, dither);
+            }
+            if (!too_big(&v[0], &v[1], &v[2])) {
+                gl_tri(gv[0], gv[1], gv[2]);
+            }
+            if (quad && !too_big(&v[1], &v[2], &v[3])) {
+                gl_tri(gv[1], gv[2], gv[3]);
+            }
         }
     } else if (cmd >= 0x60 && cmd < 0x80) {
         int size = cmd >> 3 & 3, tex = cmd & 4, semi = cmd & 2, raw = cmd & 1;
@@ -341,6 +448,8 @@ void gpu_gp0(const uint32_t *p, int n) {
                 g_vram[((y + j) & 511) * VRAM_W + ((x + i) & 1023)] = (uint16_t)c;
             }
         }
+        gl_vram_dirty(x, y, w, h);
+        gl_refresh(x, y, w, h);
     } else if (cmd >= 0x80 && cmd < 0xA0) { /* VRAM to VRAM */
         int sx0 = p[1] & 1023, sy0 = p[1] >> 16 & 511, dx = p[2] & 1023, dy = p[2] >> 16 & 511;
         int w = p[3] & 0xFFFF, h = p[3] >> 16, i, j;
@@ -356,6 +465,8 @@ void gpu_gp0(const uint32_t *p, int n) {
         for (j = 0; j < h; j++)
             for (i = 0; i < w; i++)
                 g_vram[((dy + j) & 511) * VRAM_W + ((dx + i) & 1023)] = tmp[j * w + i];
+        gl_vram_dirty(dx, dy, w, h);
+        gl_copy(sx0, sy0, w, h, dx, dy);
     } else if (cmd >= 0xE1 && cmd <= 0xE6) {
         gp0_env(p[0]);
     } else if (cmd > 0x02) {
@@ -396,6 +507,7 @@ void gpu_packet(const uint32_t *p, int n) {
 void DrawOTag(uint32_t *p) {
     int guard = 0;
 
+    gl_sync(0);
     while (p != NULL && guard++ < 1000000) {
         uint32_t tag = *p;
         int n = tag >> 24;

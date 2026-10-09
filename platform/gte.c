@@ -2,6 +2,7 @@
    functions built on it. Fixed point as the hardware does it (psx-spx,
    "Geometry Transformation Engine"), so results match closely. */
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 #include "platform.h"
 
@@ -34,6 +35,9 @@ SAVED static int16_t RT[3][3], LM[3][3], LCM[3][3];
 SAVED static int32_t TR[3], BK[3];
 SAVED static int32_t OFX, OFY, H = 1000, DQA, DQB, ZSF3 = 0x155, ZSF4 = 0x100;
 
+/* MAC1-3 before their shift, for the render scale's fractions */
+static double s_exact[3];
+
 static int32_t clamp(int64_t v, int32_t lo, int32_t hi) {
     return v < lo ? lo : v > hi ? hi : (int32_t)v;
 }
@@ -47,6 +51,7 @@ static void mvmva(int16_t m[3][3], const int32_t v[3], const int32_t *t, int lm)
 
         s += (int64_t)m[i][0] * v[0] + (int64_t)m[i][1] * v[1] + (int64_t)m[i][2] * v[2];
         MAC[i + 1] = (int32_t)(s >> 12);
+        s_exact[i] = s / 4096.0;
         IR[i + 1] = clamp(MAC[i + 1], lm ? 0 : -0x8000, 0x7FFF);
     }
 }
@@ -104,6 +109,92 @@ void psx_gte_ldlv0(const int32_t *p) {
     V0[2] = (int16_t)p[2];
 }
 
+/* The render scale's sub-pixel vertices (in the spirit of PGXP): where each
+   projected SXY fell before its fraction went. Kept by the address the game
+   stores it to (stsxy) and the addresses it is copied on to (gte_precise_copy,
+   FIGHTSTG's meshes), the value checked; and by the packed value alone, for
+   the rest. The GPU looks its vertex words up (gpu_draw.c). By value, two
+   vertices in one pixel share a fraction: off by less than the pixel they
+   already were */
+typedef struct {
+    uintptr_t key; /* an address, or the value */
+    uint32_t value;
+    int frame;
+    float x, y;
+} Precise;
+
+#define PRECISE_BITS 16
+static Precise *s_by_addr, *s_by_value; /* malloc'd: the image stays under 16 MB */
+static int s_frame = 1;
+static int s_sxy2_ok;      /* SXY2 has its fraction in s_sxy2 */
+static float s_sxy2[2];
+
+void gte_precise_frame(void) {
+    s_frame++;
+}
+
+static Precise *slot(Precise **table, uintptr_t key) {
+    if (*table == NULL && (*table = calloc(1u << PRECISE_BITS, sizeof(Precise))) == NULL) {
+        return NULL;
+    }
+    return &(*table)[(uint32_t)(key * 2654435761u) >> (32 - PRECISE_BITS)];
+}
+
+static void put(Precise **table, uintptr_t key, uint32_t value, float x, float y) {
+    Precise *p = slot(table, key);
+
+    if (p != NULL) {
+        p->key = key, p->value = value, p->frame = s_frame, p->x = x, p->y = y;
+    }
+}
+
+static int get(Precise **table, uintptr_t key, uint32_t value, float *x, float *y) {
+    Precise *p = slot(table, key);
+
+    if (p == NULL || p->key != key || p->value != value || s_frame - p->frame > 2) {
+        return 0;
+    }
+    *x = p->x;
+    *y = p->y;
+    return 1;
+}
+
+/* A vertex word in a packet: by where it is, else by what it holds */
+int gte_precise(const uint32_t *word, float *x, float *y) {
+    return get(&s_by_addr, (uintptr_t)word, *word, x, y) || get(&s_by_value, *word, *word, x, y);
+}
+
+/* The game copied a vertex word from src to dst: its fraction goes along */
+void gte_precise_copy(void *dst, const void *src) {
+    float x, y;
+    uint32_t v;
+
+    memcpy(&v, dst, 4);
+    if (get(&s_by_addr, (uintptr_t)src, v, &x, &y)) {
+        put(&s_by_addr, (uintptr_t)dst, v, x, y);
+    }
+}
+
+static void remember(void) {
+    uint32_t key = (uint16_t)SX[2] | (uint32_t)(uint16_t)SY[2] << 16;
+    double x, y;
+
+    s_sxy2_ok = 0;
+    if (s_exact[2] <= H / 2.0) {
+        return;
+    }
+    x = H * s_exact[0] / s_exact[2] + OFX / 65536.0;
+    y = H * s_exact[1] / s_exact[2] + OFY / 65536.0;
+    /* the GTE's own clamps and rounding: only a fraction away */
+    if (fabs(x - SX[2] - 0.5) > 1.5 || fabs(y - SY[2] - 0.5) > 1.5) {
+        return;
+    }
+    s_sxy2_ok = 1;
+    s_sxy2[0] = (float)x;
+    s_sxy2[1] = (float)y;
+    put(&s_by_value, key, key, (float)x, (float)y);
+}
+
 /* V0 through RT and TR, then the perspective into SXY2/SZ3 and the depth cue into IR0 */
 void psx_gte_rtps(void) {
     int32_t v[3];
@@ -130,6 +221,7 @@ void psx_gte_rtps(void) {
     SX[2] = clamp(mac0 >> 16, -0x400, 0x3FF);
     mac0 = h_sz * IR[2] + OFY;
     SY[2] = clamp(mac0 >> 16, -0x400, 0x3FF);
+    remember();
     mac0 = h_sz * DQA + DQB;
     MAC[0] = (int32_t)mac0;
     IR[0] = clamp(mac0 >> 12, 0, 0x1000);
@@ -167,7 +259,12 @@ void psx_gte_stclmv(int16_t *p) {
     p[6] = (int16_t)IR[3];
 }
 
-void psx_gte_stsxy(uint32_t *p) { *p = (uint16_t)SX[2] | (uint32_t)(uint16_t)SY[2] << 16; }
+void psx_gte_stsxy(uint32_t *p) {
+    *p = (uint16_t)SX[2] | (uint32_t)(uint16_t)SY[2] << 16;
+    if (s_sxy2_ok) {
+        put(&s_by_addr, (uintptr_t)p, *p, s_sxy2[0], s_sxy2[1]);
+    }
+}
 void psx_gte_stflg(uint32_t *p) { *p = FLAG; }
 
 void psx_gte_stlvnl(int32_t *p) {
@@ -199,6 +296,7 @@ void psx_gte_ncs(void) {
 void psx_gte_strgb(uint32_t *p) { *p = RGB2; }
 
 void psx_gte_ldsxy3(uint32_t a, uint32_t b, uint32_t c) {
+    s_sxy2_ok = 0;
     SX[0] = (int16_t)a; SY[0] = (int16_t)(a >> 16);
     SX[1] = (int16_t)b; SY[1] = (int16_t)(b >> 16);
     SX[2] = (int16_t)c; SY[2] = (int16_t)(c >> 16);

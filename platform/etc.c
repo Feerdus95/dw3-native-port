@@ -28,6 +28,7 @@ static void vblank(void) {
     }
     s_next_ns += period_ns();
     s_vsyncs++;
+    gte_precise_frame();
     if (!pump_events()) {
         exit(0);
     }

@@ -53,6 +53,8 @@ static void fill(const RECT *r, uint16_t c) {
             g_vram[y * VRAM_W + x] = c;
         }
     }
+    gl_vram_dirty(r->x, r->y, r->w, r->h);
+    gl_refresh(r->x, r->y, r->w, r->h);
 }
 
 int ClearImage(RECT *r, uint8_t red, uint8_t green, uint8_t blue) {
@@ -72,6 +74,8 @@ int LoadImage(RECT *r, uint32_t *p) {
     for (y = 0; y < r->h && r->y + y < VRAM_H; y++) {
         memcpy(&g_vram[(r->y + y) * VRAM_W + r->x], src + y * r->w, (size_t)r->w * 2);
     }
+    gl_vram_dirty(r->x, r->y, r->w, r->h);
+    gl_refresh(r->x, r->y, r->w, r->h);
     return 0;
 }
 
@@ -89,6 +93,8 @@ int MoveImage(RECT *r, int x, int y) {
     for (j = 0; j < r->h; j++) {
         memcpy(&g_vram[(y + j) * VRAM_W + x], &tmp[j * r->w], (size_t)r->w * 2);
     }
+    gl_vram_dirty(x, y, r->w, r->h);
+    gl_copy(r->x, r->y, r->w, r->h, x, y);
     return 0;
 }
 

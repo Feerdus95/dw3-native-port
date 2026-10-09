@@ -1,4 +1,4 @@
-/* The options menu: Esc, or Back + Start on the gamepad. The game stops
+/* The options menu: Esc, or Back on the gamepad. The game stops
    while it is open; what changes there goes to native.ini when it closes. */
 #include <SDL3/SDL.h>
 #include "platform.h"
@@ -6,10 +6,10 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, DITHER, MOVIES, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, CLOSE, ITEMS };
+enum { FPS, SCALE, DITHER, MOVIES, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, CLOSE, ITEMS };
 
 static const char *LABELS[ITEMS] = {
-    "Frame rate", "Dithering", "Smooth movies", "Fullscreen", "Window size", "Vibration", "Stick deadzone", "Close",
+    "Frame rate", "Resolution", "Dithering", "Smooth movies", "Fullscreen", "Window size", "Vibration", "Stick deadzone", "Close",
 };
 
 static int s_open, s_cursor, s_changed;
@@ -37,6 +37,7 @@ static void value(int item, char *out, size_t size) {
 
     switch (item) {
     case FPS: SDL_snprintf(out, size, NTSC_MODE ? "60 Hz" : "50 Hz (original)"); return;
+    case SCALE: SDL_snprintf(out, size, g_res_scale > 1 ? "%dx%d" : "%dx%d (original)", 320 * g_res_scale, 240 * g_res_scale); return;
     case WINDOW: SDL_snprintf(out, size, "%dx%d", 320 * window_scale(), 240 * window_scale()); return;
     case DEADZONE: SDL_snprintf(out, size, "%d%%", (g_deadzone * 100 + 16383) / 32767); return;
     case CLOSE: out[0] = 0; return;
@@ -54,6 +55,7 @@ static void change(int item, int dir) {
 
     switch (item) {
     case FPS: set_fps(!NTSC_MODE); break;
+    case SCALE: g_res_scale = (g_res_scale + (dir < 0 ? 6 : 0)) % 8 + 1; break; /* 1-8, round */
     case DITHER: g_dither_on = !g_dither_on; break;
     case MOVIES: g_smooth_movies = !g_smooth_movies; break;
     case FULLSCREEN: SDL_SetWindowFullscreen(video_window(), !(SDL_GetWindowFlags(video_window()) & SDL_WINDOW_FULLSCREEN)); break;
@@ -73,20 +75,21 @@ static void change(int item, int dir) {
 
 /* native.ini's "key = value" lines get the new values; missing keys are added */
 static void save(void) {
-    char path[1100], line[1200], key[32], vals[8][16];
-    static const char *KEYS[] = {"fps", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone"};
-    int done[8] = {0}, i, n = SDL_arraysize(KEYS);
+    char path[1100], line[1200], key[32], vals[9][16];
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone"};
+    int done[9] = {0}, i, n = SDL_arraysize(KEYS);
     size_t len = 0;
     char *out = SDL_malloc(65536);
     FILE *f;
 
     SDL_snprintf(vals[0], 16, "%d", NTSC_MODE ? 60 : 50);
-    SDL_snprintf(vals[1], 16, "%d", g_dither_on);
-    SDL_snprintf(vals[2], 16, "%d", g_smooth_movies);
-    SDL_snprintf(vals[3], 16, "%d", (SDL_GetWindowFlags(video_window()) & SDL_WINDOW_FULLSCREEN) != 0);
-    SDL_snprintf(vals[4], 16, "%d", window_scale());
-    SDL_snprintf(vals[5], 16, "%d", g_rumble);
-    SDL_snprintf(vals[6], 16, "%d", g_deadzone);
+    SDL_snprintf(vals[1], 16, "%d", g_res_scale);
+    SDL_snprintf(vals[2], 16, "%d", g_dither_on);
+    SDL_snprintf(vals[3], 16, "%d", g_smooth_movies);
+    SDL_snprintf(vals[4], 16, "%d", (SDL_GetWindowFlags(video_window()) & SDL_WINDOW_FULLSCREEN) != 0);
+    SDL_snprintf(vals[5], 16, "%d", window_scale());
+    SDL_snprintf(vals[6], 16, "%d", g_rumble);
+    SDL_snprintf(vals[7], 16, "%d", g_deadzone);
     SDL_snprintf(path, sizeof path, "%snative.ini", SDL_GetBasePath());
     out[0] = 0;
     if ((f = fopen(path, "r")) != NULL) {
@@ -136,12 +139,9 @@ int menu_event(const SDL_Event *e) {
         return 1;
     }
     if (e->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) {
-        SDL_Gamepad *g = SDL_GetGamepadFromID(e->gbutton.which);
         int b = e->gbutton.button;
 
-        if ((b == SDL_GAMEPAD_BUTTON_START && SDL_GetGamepadButton(g, SDL_GAMEPAD_BUTTON_BACK)) ||
-            (b == SDL_GAMEPAD_BUTTON_BACK && SDL_GetGamepadButton(g, SDL_GAMEPAD_BUTTON_START)) ||
-            (s_open && b == SDL_GAMEPAD_BUTTON_EAST)) {
+        if (b == SDL_GAMEPAD_BUTTON_BACK || (s_open && b == SDL_GAMEPAD_BUTTON_EAST)) {
             menu_toggle();
             return 1;
         }

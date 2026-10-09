@@ -1,28 +1,35 @@
-/* The window: shows the display area of VRAM (the last PutDispEnv) through
-   an SDL streaming texture. */
+/* The window: an OpenGL one, where gl.c draws the display area (the last
+   PutDispEnv) and the options menu over it. */
 #include <SDL3/SDL.h>
 #include "platform.h"
 
 static SDL_Window *s_window;
-static SDL_Renderer *s_renderer;
-static SDL_Texture *s_texture;
-static uint32_t *s_pixels;
+static SDL_Surface *s_menu;            /* the menu, drawn by SDL in software */
+static SDL_Renderer *s_menu_renderer;
 
 int video_init(int scale, int fullscreen) {
-    s_pixels = SDL_calloc(VRAM_W * VRAM_H, 4);
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         LOG("SDL_Init: %s", SDL_GetError());
         return 0;
     }
-    if (!SDL_CreateWindowAndRenderer("Digimon World 2003", 320 * scale, 240 * scale,
-                                     SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0), &s_window, &s_renderer)) {
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    s_window = SDL_CreateWindow("Digimon World 2003", 320 * scale, 240 * scale,
+                                SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0));
+    if (s_window == NULL) {
         LOG("window: %s", SDL_GetError());
         return 0;
     }
-    /* 4:3, in the PSX's 320x240: the menu draws in those units */
-    SDL_SetRenderLogicalPresentation(s_renderer, 320, 240, SDL_LOGICAL_PRESENTATION_LETTERBOX);
-    s_texture = SDL_CreateTexture(s_renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, VRAM_W, VRAM_H);
-    SDL_SetTextureScaleMode(s_texture, SDL_SCALEMODE_NEAREST);
+    if (!gl_init(s_window)) {
+        LOG("this needs OpenGL 3.3");
+        return 0;
+    }
+    /* the menu in 320x240 units, twice as fine */
+    s_menu = SDL_CreateSurface(640, 480, SDL_PIXELFORMAT_ABGR8888);
+    s_menu_renderer = SDL_CreateSoftwareRenderer(s_menu);
+    SDL_SetRenderScale(s_menu_renderer, 2, 2);
     return 1;
 }
 
@@ -52,15 +59,11 @@ int pump_events(void) {
 }
 
 /* DW3_DUMP="N[:from:to]" writes the whole VRAM to vram_<vsync>.bmp every N
-   vsyncs, what is on the screen to screen_<vsync>.bmp and the window as
-   drawn (the menu too) to window_<vsync>.bmp: a look at it without a
-   screenshot of the desktop */
-static void dump_vram(void) {
+   vsyncs, and the window as drawn (the menu too) to window_<vsync>.bmp: a
+   look at it without a screenshot of the desktop */
+static int dump_due(void) {
     static int n, every = -1, from, to = 0x7FFFFFFF;
-    SDL_Surface *s;
     const char *env;
-    char name[32];
-    int i;
 
     if (every < 0) {
         env = SDL_getenv("DW3_DUMP");
@@ -69,15 +72,14 @@ static void dump_vram(void) {
             SDL_sscanf(env, "%d:%d:%d", &every, &from, &to);
         }
     }
-    if (every <= 0 || ++n % every != 0 || n < from || n > to) {
-        return;
-    }
-    if ((s = SDL_RenderReadPixels(s_renderer, NULL)) != NULL) {
-        SDL_snprintf(name, sizeof(name), "window_%05d.bmp", n);
-        SDL_SaveBMP(s, name);
-        SDL_DestroySurface(s);
-    }
-    s = SDL_CreateSurface(VRAM_W, VRAM_H, SDL_PIXELFORMAT_XRGB8888);
+    return every > 0 && ++n % every == 0 && n >= from && n <= to ? n : 0;
+}
+
+static void dump_vram(int n, SDL_Surface *shot) {
+    SDL_Surface *s = SDL_CreateSurface(VRAM_W, VRAM_H, SDL_PIXELFORMAT_XRGB8888);
+    char name[32];
+    int i;
+
     for (i = 0; i < VRAM_W * VRAM_H; i++) {
         uint16_t p = g_vram[i];
         ((uint32_t *)s->pixels)[i] = (uint32_t)((p & 31) << 19 | (p >> 5 & 31) << 11 | (p >> 10 & 31) << 3);
@@ -85,51 +87,26 @@ static void dump_vram(void) {
     SDL_snprintf(name, sizeof(name), "vram_%05d.bmp", n);
     SDL_SaveBMP(s, name);
     SDL_DestroySurface(s);
-    if (g_disp_on && g_disp.disp.w > 0 && g_disp.disp.h > 0) {
-        s = SDL_CreateSurfaceFrom(g_disp.disp.w, g_disp.disp.h, SDL_PIXELFORMAT_XRGB8888,
-                                  &s_pixels[g_disp.disp.y * VRAM_W + g_disp.disp.x], VRAM_W * 4);
-        SDL_snprintf(name, sizeof(name), "screen_%05d.bmp", n);
-        SDL_SaveBMP(s, name);
-        SDL_DestroySurface(s);
+    if (shot != NULL) {
+        SDL_snprintf(name, sizeof(name), "window_%05d.bmp", n);
+        SDL_SaveBMP(shot, name);
+        SDL_DestroySurface(shot);
     }
 }
 
-/* 15-bit BGR VRAM to 32-bit, only the display area */
 void present_frame(void) {
-    RECT d = g_disp.disp;
-    SDL_FRect src;
-    int x, y;
+    SDL_Surface *shot = NULL;
+    int n = dump_due();
 
-    SDL_SetRenderDrawColor(s_renderer, 0, 0, 0, 255);
-    SDL_RenderClear(s_renderer);
-    if (g_disp_on && d.w > 0 && d.h > 0) {
-        if (d.x + d.w > VRAM_W) d.w = VRAM_W - d.x;
-        if (d.y + d.h > VRAM_H) d.h = VRAM_H - d.y;
-        for (y = d.y; y < d.y + d.h && g_disp.isrgb24; y++) {
-            /* 24-bit (the movies): d.w pixels of 3 bytes from d.x on */
-            const uint8_t *b = (const uint8_t *)&g_vram[y * VRAM_W + d.x];
-
-            for (x = 0; x < d.w && (d.x * 2 + x * 3 + 3) <= VRAM_W * 2; x++) {
-                s_pixels[y * VRAM_W + d.x + x] = (uint32_t)(b[x * 3] << 16 | b[x * 3 + 1] << 8 | b[x * 3 + 2]);
-            }
-        }
-        for (y = d.y; y < d.y + d.h && !g_disp.isrgb24; y++) {
-            for (x = d.x; x < d.x + d.w; x++) {
-                uint16_t p = g_vram[y * VRAM_W + x];
-                uint32_t r = (p & 31) << 3, g = (p >> 5 & 31) << 3, b = (p >> 10 & 31) << 3;
-                s_pixels[y * VRAM_W + x] = r << 16 | g << 8 | b;
-            }
-        }
-        SDL_UpdateTexture(s_texture, NULL, s_pixels, VRAM_W * 4);
-        /* the movies (24-bit), smoothed when scaled up; the game's pixels stay sharp */
-        SDL_SetTextureScaleMode(s_texture, g_disp.isrgb24 && g_smooth_movies ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST);
-        src.x = d.x;
-        src.y = d.y;
-        src.w = d.w;
-        src.h = d.h;
-        SDL_RenderTexture(s_renderer, s_texture, &src, NULL);
+    gl_sync(0);
+    if (menu_active()) {
+        SDL_SetRenderDrawColor(s_menu_renderer, 0, 0, 0, 0);
+        SDL_RenderClear(s_menu_renderer);
+        menu_draw(s_menu_renderer);
+        SDL_RenderPresent(s_menu_renderer);
     }
-    menu_draw(s_renderer);
-    dump_vram(); /* before the present, which leaves the back buffer undefined */
-    SDL_RenderPresent(s_renderer);
+    gl_present(menu_active() ? s_menu : NULL, n ? &shot : NULL);
+    if (n) {
+        dump_vram(n, shot);
+    }
 }

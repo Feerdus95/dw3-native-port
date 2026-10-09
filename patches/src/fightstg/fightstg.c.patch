@@ -1,0 +1,72 @@
+--- a/src/fightstg/fightstg.c
++++ b/src/fightstg/fightstg.c
+@@ -536,6 +536,24 @@
+     }
+ }
+ 
++#ifdef NATIVE
++/* Where the polygon being added got its points (state->screen's words): their
++   fractions go to the packet with them, for the render scale (platform/gte.c) */
++static s32 *FIGHTSTG_sxyFrom[4];
++void gte_precise_copy(void *dst, const void *src);
++#define NATIVE_PRECISE3(prim)                                \
++    do {                                                      \
++        gte_precise_copy(&(prim)->x0, FIGHTSTG_sxyFrom[0]);   \
++        gte_precise_copy(&(prim)->x1, FIGHTSTG_sxyFrom[1]);   \
++        gte_precise_copy(&(prim)->x2, FIGHTSTG_sxyFrom[2]);   \
++    } while (0)
++#define NATIVE_PRECISE4(prim)                                \
++    do {                                                      \
++        NATIVE_PRECISE3(prim);                                \
++        gte_precise_copy(&(prim)->x3, FIGHTSTG_sxyFrom[3]);   \
++    } while (0)
++#endif
++
+ /* The screen positions of a Mesh's vertices and their depths in the layer's
+    ordering table */
+ void FIGHTSTG_projectMesh(Mesh *mesh, Layer *layer) {
+@@ -599,9 +617,15 @@
+         }
+         *(s32 *)&state->prim.gt4->x3 = state->sxy[3];
+         *(u16 *)&state->prim.gt4->u3 = *(u16 *)state->uv[3];
++#ifdef NATIVE
++        NATIVE_PRECISE4(state->prim.gt4);
++#endif
+         addPrim(state->ot, state->prim.gt4);
+         state->prim.gt4++;
+     } else {
++#ifdef NATIVE
++        NATIVE_PRECISE3(state->prim.gt3);
++#endif
+         setPolyGT3(state->prim.gt3);
+         if (state->abr) {
+             setSemiTrans(state->prim.gt3, 1);
+@@ -629,9 +653,15 @@
+         }
+         *(s32 *)&state->prim.ft4->x3 = state->sxy[3];
+         *(u16 *)&state->prim.ft4->u3 = *(u16 *)state->uv[3];
++#ifdef NATIVE
++        NATIVE_PRECISE4(state->prim.ft4);
++#endif
+         addPrim(state->ot, state->prim.ft4);
+         state->prim.ft4++;
+     } else {
++#ifdef NATIVE
++        NATIVE_PRECISE3(state->prim.ft3);
++#endif
+         setPolyFT3(state->prim.ft3);
+         if (state->abr) {
+             setSemiTrans(state->prim.ft3, 1);
+@@ -736,6 +766,12 @@
+         if (state->quad) {
+             state->sxy[3] = state->screen[i3];
+         }
++#ifdef NATIVE
++        FIGHTSTG_sxyFrom[0] = &state->screen[i0];
++        FIGHTSTG_sxyFrom[1] = &state->screen[i1];
++        FIGHTSTG_sxyFrom[2] = &state->screen[i2];
++        FIGHTSTG_sxyFrom[3] = &state->screen[i3];
++#endif
+         /* the checks and drawing are a do-while with breaks: its loop
+            notes weigh their references 4 instead of 3, so the screen
+            points outrank the screen base and the depth base outranks z1 */

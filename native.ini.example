@@ -21,6 +21,10 @@ deadzone = 3277
 # 0: no vibration
 rumble = 1
 
+# 1-8: the game drawn on the graphics card (OpenGL 3.3) that many times
+# finer than the PSX's 320x240, the 3D vertices with their fractions
+render_scale = 1
+
 # 50 as the European original, or 60: the game's own 60 Hz mode (its NTSC
 # timing). Esc in game opens the options menu, which writes this file back
 fps = 50
