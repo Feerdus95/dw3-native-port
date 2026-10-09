@@ -1,0 +1,18 @@
+--- a/main/task/registry.c
++++ b/main/task/registry.c
+@@ -62,9 +62,15 @@
+ }
+ 
+ /* The update runs with its stack in the scratchpad */
++#ifdef NATIVE
++/* native: the host stack is used as it is */
++#define SetSpadStack(addr)
++#define ResetSpadStack()
++#else
+ #define SetSpadStack(addr) \
+     __asm__ volatile("move $8,%0\n\tsw $29,0($8)\n\taddiu $8,$8,-16\n\tmove $29,$8" : : "r"(addr) : "$8", "memory")
+ #define ResetSpadStack() __asm__ volatile("addiu $29,$29,16\n\tlw $29,0($29)" : : : "memory")
++#endif
+ 
+ /* One frame of a task and its children; returns NULL once the task is gone */
+ Task *executeTask(Task *task) {

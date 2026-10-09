@@ -1,0 +1,9 @@
+build/
+build-san/
+dist/
+data/
+saves/
+third_party/
+__pycache__/
+*.tmp
+native.ini

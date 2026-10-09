@@ -1,0 +1,14 @@
+--- a/src/fieldstg/field.c
++++ b/src/fieldstg/field.c
+@@ -490,7 +490,11 @@
+     s32 mode;
+ 
+     if (FIELDSTG_keepsFileCache() == 0) {
++#ifdef NATIVE
++        FILE_CACHE.freeFrom(NATIVE_PSX_HEAP(0x8015C674));
++#else
+         FILE_CACHE.freeFrom(0x8015C674);
++#endif
+     }
+     setUpFieldScreen();
+     if (FIELDSTG_keepsFileCache() == 0) {

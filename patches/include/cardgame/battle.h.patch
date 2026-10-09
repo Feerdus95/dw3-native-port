@@ -1,0 +1,15 @@
+--- a/include/cardgame/battle.h
++++ b/include/cardgame/battle.h
+@@ -316,7 +316,12 @@
+ extern s32 CARDGAME_discardPositions[][2]; /* x, y per side */
+ extern u8 CARDGAME_slotMoves[2][6][2]; /* per side, the slot moves (from, to) of CARDGAME_removeMarkedSlots */
+ extern u8 CARDGAME_slotMoveCounts[]; /* per side, the entries of CARDGAME_slotMoves */
++#ifdef NATIVE
++/* native: the decomp's symbol file makes it an alias, which a COFF link can't */
++#define CARDGAME_markedCounts (CARDGAME_slotMoveCounts + 2)
++#else
+ extern u8 CARDGAME_markedCounts[2]; /* per side, the marked slots */
++#endif
+ void CARDGAME_returnOpponentHand(CardBattle *battle, CardBattleItems *items);
+ s32 CARDGAME_canPlayCard(CardBattle *battle, u8 *arg1, s32 card);
+ s32 CARDGAME_stepColorValue(CardBattle *battle, CardScreen *screen, s32 side, s32 color);

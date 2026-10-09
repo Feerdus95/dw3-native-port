@@ -1,0 +1,15 @@
+--- a/include/dw3/heap.h
++++ b/include/dw3/heap.h
+@@ -9,7 +9,12 @@
+ #include <libgpu.h>
+ 
+ /* The heap: a doubly linked list of blocks from HEAP_START to HEAP_END */
++#ifdef NATIVE
++/* native: the heap is an arena of NATIVE_HEAP_SIZE bytes at HEAP_BASE (platform/memory.c) */
++#define HEAP_END ((MemBlock *)((u8 *)HEAP_BASE + NATIVE_HEAP_SIZE))
++#else
+ #define HEAP_END ((MemBlock *)0x801FF000)
++#endif
+ 
+ /* MemBlock.tag */
+ #define MEM_FREE 0

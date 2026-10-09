@@ -1,0 +1,10 @@
+# Copy to native.ini, next to dw2003.exe. Every line is optional.
+
+# Where the extracted game is (tools/extract_iso.py); relative to the exe's folder
+data = data
+
+# 1: start in fullscreen (F11 or Alt+Enter switches while playing)
+fullscreen = 0
+
+# The window's size, in 320x240 steps (3 = 960x720)
+scale = 3

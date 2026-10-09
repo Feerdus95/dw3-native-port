@@ -1,0 +1,15 @@
+--- a/src/fieldstg/file_loader.c
++++ b/src/fieldstg/file_loader.c
+@@ -27,7 +27,12 @@
+     s32 drops = 0;
+     s32 gauges = 0;
+ 
++#ifdef NATIVE
++    /* a stage may have no slots: the PSX read low RAM through the NULL */
++    for (; entry != NULL && entry->type != 0; entry++) {
++#else
+     for (; entry->type != 0; entry++) {
++#endif
+         switch (entry->type) {
+         case SLOT_CLIMB_UP:
+         case SLOT_CLIMB_DOWN:

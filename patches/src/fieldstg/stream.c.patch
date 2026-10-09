@@ -1,0 +1,381 @@
+--- a/src/fieldstg/stream.c
++++ b/src/fieldstg/stream.c
+@@ -1,186 +1,192 @@
+-/* The tasks that read a tile of the map from the CD and draw it */
+-
+-#include "fieldstg.h"
+-
+-/* Marks a stream task used now (FIELDSTG_findOldestStream) */
+-void FIELDSTG_touchStream(StreamTask *task) {
+-    task->time = GFX.funcs.getTime();
+-}
+-
+-/* Reads a frame of the map file, a tile, from the CD, unless it has it
+-   already */
+-void FIELDSTG_seekStream(StreamTask *task, s32 frame, s32 size) {
+-    if (task->frame != frame) {
+-        task->frame = frame;
+-        task->loaded = 0;
+-        task->loadedSlot = -1;
+-        task->sector = frame * task->frameSectors + 1;
+-        CD_READER.read(task->file, task->sector, size, task->buffer, &task->loaded);
+-        task->loadedTime = 0;
+-    }
+-    FIELDSTG_touchStream(task);
+-}
+-
+-/* Whether a stream task's read is done */
+-s32 FIELDSTG_isStreamLoaded(StreamTask *task) {
+-    return task->loaded;
+-}
+-
+-/* Draws a stream task's tile at (x, y) on a layer: its sprites at the three
+-   depths */
+-void FIELDSTG_drawStream(StreamTask *task, Layer *layer, s32 x, s32 y) {
+-    Point scroll;
+-    PrimPtr prim;
+-    u_long *ot;
+-    s32 i;
+-    s32 j;
+-
+-    layer->getScroll(layer, &scroll);
+-    prim.any = GFX.funcs.getPrim();
+-    for (i = 0; i < 3; i++) {
+-        ot = (u_long *)layer->getOtEntry(layer, FIELDSTG_spriteDepths[i]);
+-        for (j = 0; j < 5; j++) {
+-            if (task->sprites[i][j].visible) {
+-                SetSprt(prim.sprt);
+-                if (i == 2 || FIELDSTG_state.spriteColor.cd != 0) {
+-                    prim.sprt->r0 = FIELDSTG_state.spriteColor.r;
+-                    prim.sprt->g0 = FIELDSTG_state.spriteColor.g;
+-                    prim.sprt->b0 = FIELDSTG_state.spriteColor.b;
+-                } else {
+-                    prim.sprt->r0 = 0x80;
+-                    prim.sprt->g0 = 0x80;
+-                    prim.sprt->b0 = 0x80;
+-                }
+-                prim.sprt->x0 = task->sprites[i][j].x + x - scroll.x;
+-                prim.sprt->y0 = task->sprites[i][j].y + y - scroll.y;
+-                prim.sprt->w = task->sprites[i][j].w;
+-                prim.sprt->h = task->sprites[i][j].h;
+-                prim.sprt->clut = getClut(task->clutX, task->clutY);
+-                prim.sprt->u0 = task->sprites[i][j].u;
+-                prim.sprt->v0 = task->imageY + task->sprites[i][j].v;
+-                addPrim(ot, prim.any);
+-                prim.sprt++;
+-            }
+-        }
+-        SetDrawTPage(prim.tpage, 0, 1, GetTPage(1, 0, task->imageX, task->imageY));
+-        addPrim(ot, prim.any);
+-        prim.tpage++;
+-    }
+-    GFX.funcs.setPrim(prim.any);
+-    FIELDSTG_touchStream(task);
+-}
+-
+-/* Decompresses a stream task's tile into slot */
+-void FIELDSTG_setStreamSource(StreamTask *task, s32 slot, Decompressor *source) {
+-    task->slot = slot;
+-    task->source = source;
+-    source->start(source, task->buffer, 0x2800);
+-    task->setSubstate(task, 1);
+-}
+-
+-/* Takes a decompressed tile's sprites and loads its image into its slot's
+-   VRAM */
+-void FIELDSTG_loadStreamSprites(StreamTask *task) {
+-    TimLoader loader;
+-    s32 i;
+-    s32 j;
+-    s32 count;
+-    s32 *data = task->data;
+-    s32 slot = task->slot;
+-    s16 *p = (s16 *)(data + 1); /* the sprites of the three depths, after the first word */
+-
+-    for (i = 0; i < 3; i++) {
+-        count = *(s32 *)p; /* a word: how many, then six halfwords each */
+-        p += 2;
+-        for (j = 0; j < count; j++) {
+-            task->sprites[i][j].visible = 1;
+-            task->sprites[i][j].x = *p++;
+-            task->sprites[i][j].y = *p++;
+-            task->sprites[i][j].u = *p++;
+-            task->sprites[i][j].v = *p++;
+-            task->sprites[i][j].w = *p++;
+-            task->sprites[i][j].h = *p++;
+-        }
+-        for (; j < 5; j++) {
+-            task->sprites[i][j].visible = 0;
+-        }
+-    }
+-    task->loadedSlot = slot;
+-    task->imageX = FIELDSTG_slotImages[slot].x;
+-    task->imageY = FIELDSTG_slotImages[slot].y;
+-    task->clutX = 0;
+-    task->clutY = slot + 0xF0;
+-    initTimLoader(&loader);
+-    loader.setImagePos(task->imageX, task->imageY);
+-    loader.setClutPos(task->clutX, task->clutY);
+-    loader.load(FILE_CACHE.getArchiveEntry(0, data));
+-    FIELDSTG_touchStream(task);
+-}
+-
+-/* Forgets a stream task's slot */
+-void FIELDSTG_clearStreamSlot(StreamTask *task) {
+-    task->loadedSlot = -1;
+-}
+-
+-/* A stream task's slot, or -1 */
+-s32 FIELDSTG_getStreamSlot(StreamTask *task) {
+-    return task->loadedSlot;
+-}
+-
+-/* A stream task's frame, the tile it holds */
+-s32 FIELDSTG_getStreamFrame(StreamTask *task) {
+-    return task->frame;
+-}
+-
+-/* A stream task's update: takes its tile once decompressed, and notes when
+-   its read ends */
+-void FIELDSTG_updateStream(StreamTask *task) {
+-    switch (task->state) {
+-    case TASK_INIT:
+-    default:
+-        task->nextState(task);
+-        break;
+-    case TASK_RUN:
+-        switch (task->substate) {
+-        case 0:
+-            break;
+-        case 1:
+-            task->data = task->source->getData(task->source);
+-            if (task->data != NULL) {
+-                FIELDSTG_loadStreamSprites(task);
+-                task->setSubstate(task, 0);
+-            }
+-            break;
+-        }
+-        if (task->loadedTime == 0 && task->loaded != 0) {
+-            task->loadedTime = GFX.funcs.getTime();
+-        }
+-        break;
+-    case TASK_DONE:
+-        break;
+-    case TASK_KILL:
+-        HEAP.free(task->buffer);
+-        break;
+-    }
+-}
+-
+-/* Creates a stream task of a file, with a buffer of size */
+-StreamTask *FIELDSTG_createStream(s32 size, s32 file) {
+-    StreamTask *task = createTask(FIELDSTG_updateStream, sizeof(StreamTask), 0);
+-
+-    task->seek = FIELDSTG_seekStream;
+-    task->draw = FIELDSTG_drawStream;
+-    task->setSource = FIELDSTG_setStreamSource;
+-    task->getFrame = FIELDSTG_getStreamFrame;
+-    task->isLoaded = FIELDSTG_isStreamLoaded;
+-    task->getSlot = FIELDSTG_getStreamSlot;
+-    task->clearSlot = FIELDSTG_clearStreamSlot;
+-    task->updateTime = FIELDSTG_touchStream;
+-    task->file = file;
+-    task->frameSectors = size / 2048;
+-    task->buffer = HEAP.allocHigh(size, 2);
+-    task->frame = -1;
+-    task->loadedSlot = -1;
+-    task->loaded = 1;
+-    return task;
+-}
++/* The tasks that read a tile of the map from the CD and draw it */
++
++#include "fieldstg.h"
++
++/* Marks a stream task used now (FIELDSTG_findOldestStream) */
++void FIELDSTG_touchStream(StreamTask *task) {
++    task->time = GFX.funcs.getTime();
++}
++
++/* Reads a frame of the map file, a tile, from the CD, unless it has it
++   already */
++void FIELDSTG_seekStream(StreamTask *task, s32 frame, s32 size) {
++    if (task->frame != frame) {
++        task->frame = frame;
++        task->loaded = 0;
++        task->loadedSlot = -1;
++        task->sector = frame * task->frameSectors + 1;
++        CD_READER.read(task->file, task->sector, size, task->buffer, &task->loaded);
++        task->loadedTime = 0;
++    }
++    FIELDSTG_touchStream(task);
++}
++
++/* Whether a stream task's read is done */
++s32 FIELDSTG_isStreamLoaded(StreamTask *task) {
++    return task->loaded;
++}
++
++/* Draws a stream task's tile at (x, y) on a layer: its sprites at the three
++   depths */
++void FIELDSTG_drawStream(StreamTask *task, Layer *layer, s32 x, s32 y) {
++    Point scroll;
++    PrimPtr prim;
++    u_long *ot;
++    s32 i;
++    s32 j;
++
++    layer->getScroll(layer, &scroll);
++    prim.any = GFX.funcs.getPrim();
++    for (i = 0; i < 3; i++) {
++        ot = (u_long *)layer->getOtEntry(layer, FIELDSTG_spriteDepths[i]);
++        for (j = 0; j < 5; j++) {
++            if (task->sprites[i][j].visible) {
++                SetSprt(prim.sprt);
++                if (i == 2 || FIELDSTG_state.spriteColor.cd != 0) {
++                    prim.sprt->r0 = FIELDSTG_state.spriteColor.r;
++                    prim.sprt->g0 = FIELDSTG_state.spriteColor.g;
++                    prim.sprt->b0 = FIELDSTG_state.spriteColor.b;
++                } else {
++                    prim.sprt->r0 = 0x80;
++                    prim.sprt->g0 = 0x80;
++                    prim.sprt->b0 = 0x80;
++                }
++                prim.sprt->x0 = task->sprites[i][j].x + x - scroll.x;
++                prim.sprt->y0 = task->sprites[i][j].y + y - scroll.y;
++                prim.sprt->w = task->sprites[i][j].w;
++                prim.sprt->h = task->sprites[i][j].h;
++                prim.sprt->clut = getClut(task->clutX, task->clutY);
++                prim.sprt->u0 = task->sprites[i][j].u;
++                prim.sprt->v0 = task->imageY + task->sprites[i][j].v;
++                addPrim(ot, prim.any);
++                prim.sprt++;
++            }
++        }
++        SetDrawTPage(prim.tpage, 0, 1, GetTPage(1, 0, task->imageX, task->imageY));
++        addPrim(ot, prim.any);
++        prim.tpage++;
++    }
++    GFX.funcs.setPrim(prim.any);
++    FIELDSTG_touchStream(task);
++}
++
++/* Decompresses a stream task's tile into slot */
++void FIELDSTG_setStreamSource(StreamTask *task, s32 slot, Decompressor *source) {
++    task->slot = slot;
++    task->source = source;
++#ifdef NATIVE
++    /* native: the whole tile now, not 0x2800 bytes a frame */
++    task->data = source->run(source, task->buffer);
++    FIELDSTG_loadStreamSprites(task);
++#else
++    source->start(source, task->buffer, 0x2800);
++    task->setSubstate(task, 1);
++#endif
++}
++
++/* Takes a decompressed tile's sprites and loads its image into its slot's
++   VRAM */
++void FIELDSTG_loadStreamSprites(StreamTask *task) {
++    TimLoader loader;
++    s32 i;
++    s32 j;
++    s32 count;
++    s32 *data = task->data;
++    s32 slot = task->slot;
++    s16 *p = (s16 *)(data + 1); /* the sprites of the three depths, after the first word */
++
++    for (i = 0; i < 3; i++) {
++        count = *(s32 *)p; /* a word: how many, then six halfwords each */
++        p += 2;
++        for (j = 0; j < count; j++) {
++            task->sprites[i][j].visible = 1;
++            task->sprites[i][j].x = *p++;
++            task->sprites[i][j].y = *p++;
++            task->sprites[i][j].u = *p++;
++            task->sprites[i][j].v = *p++;
++            task->sprites[i][j].w = *p++;
++            task->sprites[i][j].h = *p++;
++        }
++        for (; j < 5; j++) {
++            task->sprites[i][j].visible = 0;
++        }
++    }
++    task->loadedSlot = slot;
++    task->imageX = FIELDSTG_slotImages[slot].x;
++    task->imageY = FIELDSTG_slotImages[slot].y;
++    task->clutX = 0;
++    task->clutY = slot + 0xF0;
++    initTimLoader(&loader);
++    loader.setImagePos(task->imageX, task->imageY);
++    loader.setClutPos(task->clutX, task->clutY);
++    loader.load(FILE_CACHE.getArchiveEntry(0, data));
++    FIELDSTG_touchStream(task);
++}
++
++/* Forgets a stream task's slot */
++void FIELDSTG_clearStreamSlot(StreamTask *task) {
++    task->loadedSlot = -1;
++}
++
++/* A stream task's slot, or -1 */
++s32 FIELDSTG_getStreamSlot(StreamTask *task) {
++    return task->loadedSlot;
++}
++
++/* A stream task's frame, the tile it holds */
++s32 FIELDSTG_getStreamFrame(StreamTask *task) {
++    return task->frame;
++}
++
++/* A stream task's update: takes its tile once decompressed, and notes when
++   its read ends */
++void FIELDSTG_updateStream(StreamTask *task) {
++    switch (task->state) {
++    case TASK_INIT:
++    default:
++        task->nextState(task);
++        break;
++    case TASK_RUN:
++        switch (task->substate) {
++        case 0:
++            break;
++        case 1:
++            task->data = task->source->getData(task->source);
++            if (task->data != NULL) {
++                FIELDSTG_loadStreamSprites(task);
++                task->setSubstate(task, 0);
++            }
++            break;
++        }
++        if (task->loadedTime == 0 && task->loaded != 0) {
++            task->loadedTime = GFX.funcs.getTime();
++        }
++        break;
++    case TASK_DONE:
++        break;
++    case TASK_KILL:
++        HEAP.free(task->buffer);
++        break;
++    }
++}
++
++/* Creates a stream task of a file, with a buffer of size */
++StreamTask *FIELDSTG_createStream(s32 size, s32 file) {
++    StreamTask *task = createTask(FIELDSTG_updateStream, sizeof(StreamTask), 0);
++
++    task->seek = FIELDSTG_seekStream;
++    task->draw = FIELDSTG_drawStream;
++    task->setSource = FIELDSTG_setStreamSource;
++    task->getFrame = FIELDSTG_getStreamFrame;
++    task->isLoaded = FIELDSTG_isStreamLoaded;
++    task->getSlot = FIELDSTG_getStreamSlot;
++    task->clearSlot = FIELDSTG_clearStreamSlot;
++    task->updateTime = FIELDSTG_touchStream;
++    task->file = file;
++    task->frameSectors = size / 2048;
++    task->buffer = HEAP.allocHigh(size, 2);
++    task->frame = -1;
++    task->loadedSlot = -1;
++    task->loaded = 1;
++    return task;
++}

@@ -1,0 +1,79 @@
+--- a/src/main/memcard/memcard.c
++++ b/src/main/memcard/memcard.c
+@@ -174,7 +174,7 @@
+     return 0;
+ }
+ 
+-/* Reads a section of the save (SAVE_SECTION_*, then 2-4 for the data), a sector a call */
++/* Reads a section of the save (SAVE_SECTION_*, then 2-4 for the data), all of it at once (native: the card is a file) */
+ s32 readSave(s32 port, void *buf, s32 size, s32 section) {
+     u8 *dst;
+ 
+@@ -212,7 +212,7 @@
+                 MEMCARD.offset = MEMCARD.iconCount * CARD_SECTOR_SIZE + CARD_SECTOR_SIZE + MEMCARD.infoSize + MEMCARD.dataSize * 2;
+                 break;
+             }
+-            while (MemCardReadFile(port << 4, MEMCARD.fileName, dst, MEMCARD.offset, CARD_SECTOR_SIZE) == 0) {
++            while (MemCardReadFile(port << 4, MEMCARD.fileName, dst, MEMCARD.offset, size) == 0) {
+                 syncMemCard();
+             }
+             MEMCARD.state = MEMCARD_READING;
+@@ -226,13 +226,13 @@
+         if (syncMemCard() != 0) {
+             switch (MEMCARD.result) {
+             case CARD_ERR_NONE:
+-                MEMCARD.progress += CARD_SECTOR_SIZE;
++                MEMCARD.progress += size;
+                 if (MEMCARD.progress >= size) {
+                     MEMCARD.state = MEMCARD_IDLE;
+                     return 1;
+                 }
+                 while (1) {
+-                    if (MemCardReadFile(port << 4, MEMCARD.fileName, dst + MEMCARD.progress, MEMCARD.offset + MEMCARD.progress, CARD_SECTOR_SIZE) != 0) {
++                    if (MemCardReadFile(port << 4, MEMCARD.fileName, dst + MEMCARD.progress, MEMCARD.offset + MEMCARD.progress, size) != 0) {
+                         return 0;
+                     }
+                     syncMemCard();
+@@ -245,7 +245,7 @@
+         if (MEMCARD.restart != 0) {
+             MEMCARD.restart = 0;
+             MEMCARD.progress = 0;
+-            while (MemCardReadFile(port << 4, MEMCARD.fileName, dst, MEMCARD.offset, CARD_SECTOR_SIZE) == 0) {
++            while (MemCardReadFile(port << 4, MEMCARD.fileName, dst, MEMCARD.offset, size) == 0) {
+                 syncMemCard();
+             }
+             return 0;
+@@ -293,7 +293,7 @@
+                 MEMCARD.offset = MEMCARD.iconCount * CARD_SECTOR_SIZE + CARD_SECTOR_SIZE + MEMCARD.infoSize + MEMCARD.dataSize * 2;
+                 break;
+             }
+-            while (MemCardWriteFile(port << 4, MEMCARD.fileName, dst, MEMCARD.offset, CARD_SECTOR_SIZE) == 0) {
++            while (MemCardWriteFile(port << 4, MEMCARD.fileName, dst, MEMCARD.offset, size) == 0) {
+                 syncMemCard();
+             }
+             MEMCARD.state = MEMCARD_WRITING;
+@@ -307,13 +307,13 @@
+         if (syncMemCard() != 0) {
+             switch (MEMCARD.result) {
+             case CARD_ERR_NONE:
+-                MEMCARD.progress += CARD_SECTOR_SIZE;
++                MEMCARD.progress += size;
+                 if (MEMCARD.progress >= size) {
+                     MEMCARD.state = MEMCARD_IDLE;
+                     return 1;
+                 }
+                 while (1) {
+-                    if (MemCardWriteFile(port << 4, MEMCARD.fileName, dst + MEMCARD.progress, MEMCARD.offset + MEMCARD.progress, CARD_SECTOR_SIZE) != 0) {
++                    if (MemCardWriteFile(port << 4, MEMCARD.fileName, dst + MEMCARD.progress, MEMCARD.offset + MEMCARD.progress, size) != 0) {
+                         return 0;
+                     }
+                     syncMemCard();
+@@ -326,7 +326,7 @@
+         if (MEMCARD.restart != 0) {
+             MEMCARD.restart = 0;
+             MEMCARD.progress = 0;
+-            while (MemCardWriteFile(port << 4, MEMCARD.fileName, dst, MEMCARD.offset, CARD_SECTOR_SIZE) == 0) {
++            while (MemCardWriteFile(port << 4, MEMCARD.fileName, dst, MEMCARD.offset, size) == 0) {
+                 syncMemCard();
+             }
+             return 0;

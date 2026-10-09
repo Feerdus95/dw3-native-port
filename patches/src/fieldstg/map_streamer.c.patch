@@ -1,0 +1,785 @@
+--- a/src/fieldstg/map_streamer.c
++++ b/src/fieldstg/map_streamer.c
+@@ -1,388 +1,394 @@
+-/* The task that streams the map's tiles from the CD around the view and
+-   draws them, and the cover that fades the screen */
+-
+-#include "fieldstg.h"
+-
+-/* The stream task drawn or loaded the longest ago */
+-StreamTask *FIELDSTG_findOldestStream(StreamPool *pool) {
+-    s32 i;
+-    s32 oldest = GFX.funcs.getTime();
+-    StreamTask *found = pool->tasks[0];
+-
+-    for (i = 0; i < 30; i++) {
+-        if (pool->tasks[i]->time <= oldest) {
+-            oldest = pool->tasks[i]->time;
+-            found = pool->tasks[i];
+-        }
+-    }
+-    return found;
+-}
+-
+-/*
+- * Streams the map's tiles while the CD reader is free: a tile of viewTiles
+- * (0xFF for none) that a stream task has loaded is done, and each tile still
+- * waiting goes to the oldest task (FIELDSTG_findOldestStream), until the reader is busy.
+- * The match depends on each loop having a counter of its own.
+- */
+-void FIELDSTG_requestTiles(MapStreamer *map, StreamPool *pool) {
+-    s32 i;
+-    s32 j;
+-    s32 k;
+-    s32 frame;
+-    s32 tile;
+-    StreamTask *task;
+-
+-    if (CD_READER.isBusy() == 0) {
+-        for (i = 0; i < 30; i++) {
+-            task = pool->tasks[i];
+-            frame = task->getFrame(task);
+-            for (j = 0; j < 30; j++) {
+-                if (map->viewTiles[j] != 0xFF && map->viewTiles[j] == frame) {
+-                    map->viewTiles[j] = 0xFF;
+-                    task->updateTime(task);
+-                    break;
+-                }
+-            }
+-        }
+-        for (k = 0; k < 30; k++) {
+-            if (map->viewTiles[k] != 0xFF) {
+-                tile = map->viewTiles[k];
+-                if (map->tiles[tile].size != 0) {
+-                    task = FIELDSTG_findOldestStream(pool);
+-                    if (task->isLoaded(task)) {
+-                        task->seek(task, tile, map->tiles[tile].sectors);
+-                    }
+-                }
+-                if (CD_READER.isBusy()) {
+-                    break;
+-                }
+-            }
+-        }
+-    }
+-}
+-
+-/* Draws a 128-pixel block of the cover at (x, y), at a shade of level (8.8) */
+-void FIELDSTG_drawCoverBlock(Layer *layer, s32 x, s32 y, s32 level) {
+-    Point scroll;
+-    PrimPtr prim;
+-    u_long *ot;
+-    s32 i;
+-    s32 shade;
+-
+-    ot = (u_long *)layer->getOtEntry(layer, 0);
+-    shade = level >> 8;
+-    layer->getScroll(layer, &scroll);
+-    prim.any = GFX.funcs.getPrim();
+-    for (i = 0; i < 4; i++) {
+-        SetSprt(prim.sprt);
+-        if (shade != 0xFF) {
+-            SetSemiTrans(prim.sprt, 1);
+-        }
+-        prim.sprt->r0 = prim.sprt->g0 = prim.sprt->b0 = shade;
+-        prim.sprt->x0 = x - scroll.x + ((i & 1) << 6);
+-        prim.sprt->y0 = y - scroll.y + ((i << 5) & 0x40);
+-        prim.sprt->u0 = FIELDSTG_state.images.field->u;
+-        prim.sprt->v0 = FIELDSTG_state.images.field->v;
+-        prim.sprt->w = 0x40;
+-        prim.sprt->h = 0x40;
+-        prim.sprt->clut = GetClut(FIELDSTG_state.images.field->clutX, FIELDSTG_state.images.field->clutY);
+-        addPrim(ot, prim.any);
+-        prim.sprt++;
+-        SetDrawTPage(prim.tpage, 0, 1, GetTPage(0, 1, FIELDSTG_state.images.field->x, FIELDSTG_state.images.field->y));
+-        addPrim(ot, prim.any);
+-        prim.tpage++;
+-    }
+-    GFX.funcs.setPrim(prim.any);
+-}
+-
+-/* The stream task that holds a frame (a tile of the map), or NULL */
+-StreamTask *FIELDSTG_findStream(StreamPool *pool, s32 frame) {
+-    s32 i;
+-    StreamTask *task;
+-
+-    for (i = 0; i < 30; i++) {
+-        task = pool->tasks[i];
+-        if (task->getFrame(task) == frame) {
+-            return task;
+-        }
+-    }
+-    return NULL;
+-}
+-
+-/* A tile of the map in view (FIELDSTG_drawMapTiles) */
+-typedef struct MapSlot {
+-    /* 0x00 */ s16 loaded; /* a StreamTask has its frame */
+-    /* 0x02 */ s16 tile;
+-    /* 0x04 */ StreamTask *stream;
+-    /* 0x08 */ s32 entry; /* into MapStreamer.images, or -1 */
+-    /* 0x0C */ s32 frame;
+-    /* 0x10 */ s32 x;
+-    /* 0x14 */ s32 y;
+-} MapSlot;
+-
+-/* Draws the map's tiles in view, under a cover that fades from the new ones,
+-   and while the decompressor is free, gives the first loaded tile without an
+-   entry the oldest of the 12 */
+-void FIELDSTG_drawMapTiles(MapStreamer *task, StreamPool *pool) {
+-    Point tile;
+-    MapSlot slots[12];
+-    Layer *layer;
+-    StreamTask *stream;
+-    s32 count;
+-    s32 r;
+-    s32 c;
+-    s32 i;
+-    s32 j;
+-    s32 frame;
+-    s32 level;
+-    s32 oldest;
+-    s32 best;
+-
+-    layer = GFX.funcs.getLayer(FIELD_LAYER_MAP);
+-    count = 0;
+-    tile.x = task->scroll.x >= 0x20 ? (task->scroll.x - 0x20) / 128 : 0;
+-    tile.y = task->scroll.y >= 8 ? (task->scroll.y - 8) / 128 : 0;
+-    for (r = 0; r < 3; r++) {
+-        if (r + tile.y >= task->height) {
+-            break;
+-        }
+-        for (c = 0; c < 4; c++) {
+-            if (c + tile.x >= task->width) {
+-                break;
+-            }
+-            frame = c + tile.x + (r + tile.y) * task->width;
+-            stream = FIELDSTG_findStream(pool, frame);
+-            slots[count].tile = task->tiles[frame].size;
+-            if (stream != NULL) {
+-                slots[count].stream = stream;
+-                slots[count].frame = frame;
+-                slots[count].entry = stream->getSlot(stream);
+-                slots[count].loaded = 1;
+-            } else {
+-                slots[count].loaded = 0;
+-            }
+-            slots[count].x = (c + tile.x) * 128;
+-            slots[count].y = (r + tile.y) * 128;
+-            count++;
+-        }
+-    }
+-    for (i = 0; i < count; i++) {
+-        if (slots[i].loaded && slots[i].entry != -1) {
+-            level = task->images[slots[i].entry].cover;
+-            if (level != 0) {
+-                if (level == 0xFFFF && slots[i].stream->loadedTime < GFX.funcs.getTime() - 10) {
+-                    task->images[slots[i].entry].cover = 0;
+-                } else {
+-                    FIELDSTG_drawCoverBlock(layer, slots[i].x, slots[i].y, level);
+-                    level -= 0x2AAA;
+-                    if (level <= 0) {
+-                        level = 0;
+-                    }
+-                    task->images[slots[i].entry].cover = level;
+-                }
+-            }
+-            slots[i].stream->draw(slots[i].stream, layer, slots[i].x, slots[i].y);
+-            task->images[slots[i].entry].time = GFX.funcs.getTime();
+-        } else if (slots[i].tile != 0) {
+-            FIELDSTG_drawCoverBlock(layer, slots[i].x, slots[i].y, 0xFFFF);
+-        }
+-    }
+-    if (pool->decompressor->substate == 0) {
+-        for (i = 0; i < count; i++) {
+-                if (slots[i].loaded && slots[i].entry == -1 && slots[i].stream->isLoaded(slots[i].stream)) {
+-                best = 0;
+-                oldest = GFX.funcs.getTime();
+-                for (j = 0; j < 12; j++) {
+-                    if (task->images[j].time < oldest) {
+-                        oldest = task->images[j].time;
+-                        best = j;
+-                    }
+-                }
+-                slots[i].stream->setSource(slots[i].stream, best, pool->decompressor);
+-                if (task->images[best].frame != -1) {
+-                    stream = FIELDSTG_findStream(pool, task->images[best].frame);
+-                    if (stream != NULL) {
+-                        stream->clearSlot(stream);
+-                    }
+-                }
+-                task->images[best].frame = slots[i].frame;
+-                task->images[best].time = GFX.funcs.getTime();
+-                task->images[best].cover = 0xFFFF;
+-                return;
+-            }
+-        }
+-    }
+-}
+-
+-/*
+- * Points the slots around the view at the map's tiles: viewTiles gets, for each
+- * of the 30 slots, the index of the tile it shows (0xFF off the map), and
+- * viewX/viewY the tile of the slots' top left corner. The slots come from
+- * the layout for the leader's direction, flipped as that direction says, and
+- * for the quadrant of its tile the view is in. The match depends on the y
+- * offset being written as scrollY less its tile's start: its two reads of
+- * scrollY rank that load ahead of the x test in local-alloc. It also depends
+- * on x holding the horizontal flip before it becomes the tile column, and on
+- * col counting the slots the first loop clears.
+- */
+-void FIELDSTG_pickViewTiles(MapStreamer *task) {
+-    u8 slots[5][6];
+-    s32 quadrant;
+-    s32 set;
+-    u32 flip;
+-    s32 row;
+-    s32 col;
+-    s32 r;
+-    s32 c;
+-    s32 x;
+-    s32 y;
+-    s32 flipY;
+-    Actor *leader;
+-    s32 scrollY;
+-    s32 offset;
+-
+-    leader = TASK_REGISTRY.funcs.find(FIELD_TASK_ACTOR, -1, 0);
+-    offset = task->scroll.x & 0x7F;
+-    quadrant = offset > 0x40;
+-    set = FIELDSTG_dirLayouts[leader->dir][0];
+-    flip = FIELDSTG_dirLayouts[leader->dir][1];
+-    scrollY = task->scroll.y;
+-    offset = scrollY - (scrollY & ~0x7F);
+-    if (offset > 0x10) {
+-        quadrant |= 2;
+-    }
+-    for (row = 0; row < 5; row++) {
+-        for (col = 0; col < 6; col++) {
+-            if (flip & 2) {
+-                c = 5 - col;
+-            } else {
+-                c = col;
+-            }
+-            if (flip & 1) {
+-                r = 4 - row;
+-            } else {
+-                r = row;
+-            }
+-            slots[row][col] = FIELDSTG_slotLayouts[set][quadrant][r][c];
+-        }
+-    }
+-    x = flip >> 1;
+-    x &= 1;
+-    flipY = flip & 1;
+-    task->viewX = task->scroll.x / 128 - FIELDSTG_slotOffsets[quadrant][0][x];
+-    task->viewY = task->scroll.y / 128 - FIELDSTG_slotOffsets[quadrant][1][flipY];
+-    for (col = 0; col < 30; col++) {
+-        task->viewTiles[col] = 0xFF;
+-    }
+-    for (row = 0; row < 5; row++) {
+-        y = row + task->viewY;
+-        if (y >= 0 && y < task->height) {
+-            for (col = 0; col < 6; col++) {
+-                x = col + task->viewX;
+-                if (x >= 0 && x < task->width) {
+-                    task->viewTiles[slots[row][col]] = x + y * task->width;
+-                }
+-            }
+-        }
+-    }
+-}
+-
+-/* The map streamer's update: reads the map's header and creates the 30
+-   stream tasks, then each frame points the slots at the tiles in view, draws
+-   them and streams the missing ones */
+-void FIELDSTG_runMapStreamer(MapStreamer *task, StreamPool *pool) {
+-    MapFileHeader *header;
+-    s32 count;
+-    s32 i;
+-    s32 j;
+-    Layer *layer;
+-
+-    switch (task->state) {
+-    case TASK_INIT:
+-    default:
+-        switch (task->substate) {
+-        case 0:
+-        default:
+-            if (CD_READER.isBusy() == 0) {
+-                task->header = HEAP.alloc(0x800, 2);
+-                CD_READER.read(task->file, 0, 1, task->header, NULL);
+-                task->nextSubstate(task);
+-            }
+-            break;
+-        case 1:
+-            if (CD_READER.isBusy() != 1) {
+-                header = task->header;
+-                task->width = header->width;
+-                task->height = header->height;
+-                task->frameSectors = header->tileBytes / 2048;
+-                count = task->width * task->height;
+-                task->tiles = HEAP.alloc(count * sizeof(MapTile), 2);
+-                for (j = 0; j < count; j++) {
+-                    task->tiles[j].size = header->tileSizes[j];
+-                    task->tiles[j].sectors = header->tileSizes[j] >> 11;
+-                }
+-                HEAP.free(task->header);
+-                task->header = NULL;
+-                for (i = 0; i < 30; i++) {
+-                    pool->tasks[i] = FIELDSTG_createStream(task->frameSectors << 11, task->file);
+-                }
+-                for (i = 0; i < 12; i++) {
+-                    task->images[i].frame = -1;
+-                    task->images[i].time = 0;
+-                }
+-                pool->decompressor = createDecompressor();
+-                task->nextState(task);
+-            }
+-            break;
+-        }
+-        break;
+-    case TASK_RUN:
+-        layer = GFX.funcs.getLayer(FIELD_LAYER_MAP);
+-        layer->getScroll(layer, &task->scroll);
+-        FIELDSTG_pickViewTiles(task);
+-        FIELDSTG_drawMapTiles(task, pool);
+-        FIELDSTG_requestTiles(task, pool);
+-        break;
+-    case TASK_DONE:
+-        break;
+-    case TASK_KILL:
+-        if (task->header != NULL) {
+-            HEAP.free(task->header);
+-        }
+-        if (task->tiles != NULL) {
+-            HEAP.free(task->tiles);
+-        }
+-        break;
+-    }
+-}
+-
+-/* The map's size in pixels */
+-Point *FIELDSTG_getMapSize(MapStreamer *task) {
+-    FIELDSTG_mapSize.x = task->width << 7;
+-    FIELDSTG_mapSize.y = task->height << 7;
+-    return &FIELDSTG_mapSize;
+-}
+-
+-/* Creates the map streamer of a file */
+-MapStreamer *FIELDSTG_createMapStreamer(s32 file) {
+-    MapStreamer *task = createTaskWithId(FIELDSTG_runMapStreamer, sizeof(MapStreamer), 0x7C, FIELD_TASK_MAP);
+-
+-    task->file = file;
+-    task->getSize = FIELDSTG_getMapSize;
+-    return task;
+-}
+-
+-/* Covers the screen on the layer id at a shade of level (8.8) */
+-void FIELDSTG_drawCover(s32 id, s32 level) {
+-    Layer *layer = GFX.funcs.getLayer(id);
+-    s32 x;
+-    s32 y;
+-
+-    if (layer != NULL) {
+-        for (y = 0; y < SCREEN_HEIGHT; y += 0x80) {
+-            for (x = 0; x < SCREEN_WIDTH; x += 0x80) {
+-                FIELDSTG_drawCoverBlock(layer, x, y, level);
+-            }
+-        }
+-    }
+-}
++/* The task that streams the map's tiles from the CD around the view and
++   draws them, and the cover that fades the screen */
++
++#include "fieldstg.h"
++
++/* The stream task drawn or loaded the longest ago */
++StreamTask *FIELDSTG_findOldestStream(StreamPool *pool) {
++    s32 i;
++    s32 oldest = GFX.funcs.getTime();
++    StreamTask *found = pool->tasks[0];
++
++    for (i = 0; i < 30; i++) {
++        if (pool->tasks[i]->time <= oldest) {
++            oldest = pool->tasks[i]->time;
++            found = pool->tasks[i];
++        }
++    }
++    return found;
++}
++
++/*
++ * Streams the map's tiles while the CD reader is free: a tile of viewTiles
++ * (0xFF for none) that a stream task has loaded is done, and each tile still
++ * waiting goes to the oldest task (FIELDSTG_findOldestStream), until the reader is busy.
++ * The match depends on each loop having a counter of its own.
++ */
++void FIELDSTG_requestTiles(MapStreamer *map, StreamPool *pool) {
++    s32 i;
++    s32 j;
++    s32 k;
++    s32 frame;
++    s32 tile;
++    StreamTask *task;
++
++    if (CD_READER.isBusy() == 0) {
++        for (i = 0; i < 30; i++) {
++            task = pool->tasks[i];
++            frame = task->getFrame(task);
++            for (j = 0; j < 30; j++) {
++                if (map->viewTiles[j] != 0xFF && map->viewTiles[j] == frame) {
++                    map->viewTiles[j] = 0xFF;
++                    task->updateTime(task);
++                    break;
++                }
++            }
++        }
++        for (k = 0; k < 30; k++) {
++            if (map->viewTiles[k] != 0xFF) {
++                tile = map->viewTiles[k];
++                if (map->tiles[tile].size != 0) {
++                    task = FIELDSTG_findOldestStream(pool);
++                    if (task->isLoaded(task)) {
++                        task->seek(task, tile, map->tiles[tile].sectors);
++                    }
++                }
++                if (CD_READER.isBusy()) {
++                    break;
++                }
++            }
++        }
++    }
++}
++
++/* Draws a 128-pixel block of the cover at (x, y), at a shade of level (8.8) */
++void FIELDSTG_drawCoverBlock(Layer *layer, s32 x, s32 y, s32 level) {
++    Point scroll;
++    PrimPtr prim;
++    u_long *ot;
++    s32 i;
++    s32 shade;
++
++    ot = (u_long *)layer->getOtEntry(layer, 0);
++    shade = level >> 8;
++    layer->getScroll(layer, &scroll);
++    prim.any = GFX.funcs.getPrim();
++    for (i = 0; i < 4; i++) {
++        SetSprt(prim.sprt);
++        if (shade != 0xFF) {
++            SetSemiTrans(prim.sprt, 1);
++        }
++        prim.sprt->r0 = prim.sprt->g0 = prim.sprt->b0 = shade;
++        prim.sprt->x0 = x - scroll.x + ((i & 1) << 6);
++        prim.sprt->y0 = y - scroll.y + ((i << 5) & 0x40);
++        prim.sprt->u0 = FIELDSTG_state.images.field->u;
++        prim.sprt->v0 = FIELDSTG_state.images.field->v;
++        prim.sprt->w = 0x40;
++        prim.sprt->h = 0x40;
++        prim.sprt->clut = GetClut(FIELDSTG_state.images.field->clutX, FIELDSTG_state.images.field->clutY);
++        addPrim(ot, prim.any);
++        prim.sprt++;
++        SetDrawTPage(prim.tpage, 0, 1, GetTPage(0, 1, FIELDSTG_state.images.field->x, FIELDSTG_state.images.field->y));
++        addPrim(ot, prim.any);
++        prim.tpage++;
++    }
++    GFX.funcs.setPrim(prim.any);
++}
++
++/* The stream task that holds a frame (a tile of the map), or NULL */
++StreamTask *FIELDSTG_findStream(StreamPool *pool, s32 frame) {
++    s32 i;
++    StreamTask *task;
++
++    for (i = 0; i < 30; i++) {
++        task = pool->tasks[i];
++        if (task->getFrame(task) == frame) {
++            return task;
++        }
++    }
++    return NULL;
++}
++
++/* A tile of the map in view (FIELDSTG_drawMapTiles) */
++typedef struct MapSlot {
++    /* 0x00 */ s16 loaded; /* a StreamTask has its frame */
++    /* 0x02 */ s16 tile;
++    /* 0x04 */ StreamTask *stream;
++    /* 0x08 */ s32 entry; /* into MapStreamer.images, or -1 */
++    /* 0x0C */ s32 frame;
++    /* 0x10 */ s32 x;
++    /* 0x14 */ s32 y;
++} MapSlot;
++
++/* Draws the map's tiles in view, under a cover that fades from the new ones,
++   and while the decompressor is free, gives the first loaded tile without an
++   entry the oldest of the 12 */
++void FIELDSTG_drawMapTiles(MapStreamer *task, StreamPool *pool) {
++    Point tile;
++    MapSlot slots[12];
++    Layer *layer;
++    StreamTask *stream;
++    s32 count;
++    s32 r;
++    s32 c;
++    s32 i;
++    s32 j;
++    s32 frame;
++    s32 level;
++    s32 oldest;
++    s32 best;
++
++    layer = GFX.funcs.getLayer(FIELD_LAYER_MAP);
++    count = 0;
++    tile.x = task->scroll.x >= 0x20 ? (task->scroll.x - 0x20) / 128 : 0;
++    tile.y = task->scroll.y >= 8 ? (task->scroll.y - 8) / 128 : 0;
++    for (r = 0; r < 3; r++) {
++        if (r + tile.y >= task->height) {
++            break;
++        }
++        for (c = 0; c < 4; c++) {
++            if (c + tile.x >= task->width) {
++                break;
++            }
++            frame = c + tile.x + (r + tile.y) * task->width;
++            stream = FIELDSTG_findStream(pool, frame);
++            slots[count].tile = task->tiles[frame].size;
++            if (stream != NULL) {
++                slots[count].stream = stream;
++                slots[count].frame = frame;
++                slots[count].entry = stream->getSlot(stream);
++                slots[count].loaded = 1;
++            } else {
++                slots[count].loaded = 0;
++            }
++            slots[count].x = (c + tile.x) * 128;
++            slots[count].y = (r + tile.y) * 128;
++            count++;
++        }
++    }
++    for (i = 0; i < count; i++) {
++        if (slots[i].loaded && slots[i].entry != -1) {
++            level = task->images[slots[i].entry].cover;
++            if (level != 0) {
++                if (level == 0xFFFF && slots[i].stream->loadedTime < GFX.funcs.getTime() - 10) {
++                    task->images[slots[i].entry].cover = 0;
++                } else {
++                    FIELDSTG_drawCoverBlock(layer, slots[i].x, slots[i].y, level);
++                    level -= 0x2AAA;
++                    if (level <= 0) {
++                        level = 0;
++                    }
++                    task->images[slots[i].entry].cover = level;
++                }
++            }
++            slots[i].stream->draw(slots[i].stream, layer, slots[i].x, slots[i].y);
++            task->images[slots[i].entry].time = GFX.funcs.getTime();
++        } else if (slots[i].tile != 0) {
++            FIELDSTG_drawCoverBlock(layer, slots[i].x, slots[i].y, 0xFFFF);
++        }
++    }
++    if (pool->decompressor->substate == 0) {
++        for (i = 0; i < count; i++) {
++                if (slots[i].loaded && slots[i].entry == -1 && slots[i].stream->isLoaded(slots[i].stream)) {
++                best = 0;
++                oldest = GFX.funcs.getTime();
++                for (j = 0; j < 12; j++) {
++                    if (task->images[j].time < oldest) {
++                        oldest = task->images[j].time;
++                        best = j;
++                    }
++                }
++                slots[i].stream->setSource(slots[i].stream, best, pool->decompressor);
++                if (task->images[best].frame != -1) {
++                    stream = FIELDSTG_findStream(pool, task->images[best].frame);
++                    if (stream != NULL) {
++                        stream->clearSlot(stream);
++                    }
++                }
++                task->images[best].frame = slots[i].frame;
++                task->images[best].time = GFX.funcs.getTime();
++#ifdef NATIVE
++                /* native: every tile in view at once, and shown at once, with
++                   no cover fading from it */
++                task->images[best].cover = 0;
++#else
++                task->images[best].cover = 0xFFFF;
++                return;
++#endif
++            }
++        }
++    }
++}
++
++/*
++ * Points the slots around the view at the map's tiles: viewTiles gets, for each
++ * of the 30 slots, the index of the tile it shows (0xFF off the map), and
++ * viewX/viewY the tile of the slots' top left corner. The slots come from
++ * the layout for the leader's direction, flipped as that direction says, and
++ * for the quadrant of its tile the view is in. The match depends on the y
++ * offset being written as scrollY less its tile's start: its two reads of
++ * scrollY rank that load ahead of the x test in local-alloc. It also depends
++ * on x holding the horizontal flip before it becomes the tile column, and on
++ * col counting the slots the first loop clears.
++ */
++void FIELDSTG_pickViewTiles(MapStreamer *task) {
++    u8 slots[5][6];
++    s32 quadrant;
++    s32 set;
++    u32 flip;
++    s32 row;
++    s32 col;
++    s32 r;
++    s32 c;
++    s32 x;
++    s32 y;
++    s32 flipY;
++    Actor *leader;
++    s32 scrollY;
++    s32 offset;
++
++    leader = TASK_REGISTRY.funcs.find(FIELD_TASK_ACTOR, -1, 0);
++    offset = task->scroll.x & 0x7F;
++    quadrant = offset > 0x40;
++    set = FIELDSTG_dirLayouts[leader->dir][0];
++    flip = FIELDSTG_dirLayouts[leader->dir][1];
++    scrollY = task->scroll.y;
++    offset = scrollY - (scrollY & ~0x7F);
++    if (offset > 0x10) {
++        quadrant |= 2;
++    }
++    for (row = 0; row < 5; row++) {
++        for (col = 0; col < 6; col++) {
++            if (flip & 2) {
++                c = 5 - col;
++            } else {
++                c = col;
++            }
++            if (flip & 1) {
++                r = 4 - row;
++            } else {
++                r = row;
++            }
++            slots[row][col] = FIELDSTG_slotLayouts[set][quadrant][r][c];
++        }
++    }
++    x = flip >> 1;
++    x &= 1;
++    flipY = flip & 1;
++    task->viewX = task->scroll.x / 128 - FIELDSTG_slotOffsets[quadrant][0][x];
++    task->viewY = task->scroll.y / 128 - FIELDSTG_slotOffsets[quadrant][1][flipY];
++    for (col = 0; col < 30; col++) {
++        task->viewTiles[col] = 0xFF;
++    }
++    for (row = 0; row < 5; row++) {
++        y = row + task->viewY;
++        if (y >= 0 && y < task->height) {
++            for (col = 0; col < 6; col++) {
++                x = col + task->viewX;
++                if (x >= 0 && x < task->width) {
++                    task->viewTiles[slots[row][col]] = x + y * task->width;
++                }
++            }
++        }
++    }
++}
++
++/* The map streamer's update: reads the map's header and creates the 30
++   stream tasks, then each frame points the slots at the tiles in view, draws
++   them and streams the missing ones */
++void FIELDSTG_runMapStreamer(MapStreamer *task, StreamPool *pool) {
++    MapFileHeader *header;
++    s32 count;
++    s32 i;
++    s32 j;
++    Layer *layer;
++
++    switch (task->state) {
++    case TASK_INIT:
++    default:
++        switch (task->substate) {
++        case 0:
++        default:
++            if (CD_READER.isBusy() == 0) {
++                task->header = HEAP.alloc(0x800, 2);
++                CD_READER.read(task->file, 0, 1, task->header, NULL);
++                task->nextSubstate(task);
++            }
++            break;
++        case 1:
++            if (CD_READER.isBusy() != 1) {
++                header = task->header;
++                task->width = header->width;
++                task->height = header->height;
++                task->frameSectors = header->tileBytes / 2048;
++                count = task->width * task->height;
++                task->tiles = HEAP.alloc(count * sizeof(MapTile), 2);
++                for (j = 0; j < count; j++) {
++                    task->tiles[j].size = header->tileSizes[j];
++                    task->tiles[j].sectors = header->tileSizes[j] >> 11;
++                }
++                HEAP.free(task->header);
++                task->header = NULL;
++                for (i = 0; i < 30; i++) {
++                    pool->tasks[i] = FIELDSTG_createStream(task->frameSectors << 11, task->file);
++                }
++                for (i = 0; i < 12; i++) {
++                    task->images[i].frame = -1;
++                    task->images[i].time = 0;
++                }
++                pool->decompressor = createDecompressor();
++                task->nextState(task);
++            }
++            break;
++        }
++        break;
++    case TASK_RUN:
++        layer = GFX.funcs.getLayer(FIELD_LAYER_MAP);
++        layer->getScroll(layer, &task->scroll);
++        FIELDSTG_pickViewTiles(task);
++        FIELDSTG_drawMapTiles(task, pool);
++        FIELDSTG_requestTiles(task, pool);
++        break;
++    case TASK_DONE:
++        break;
++    case TASK_KILL:
++        if (task->header != NULL) {
++            HEAP.free(task->header);
++        }
++        if (task->tiles != NULL) {
++            HEAP.free(task->tiles);
++        }
++        break;
++    }
++}
++
++/* The map's size in pixels */
++Point *FIELDSTG_getMapSize(MapStreamer *task) {
++    FIELDSTG_mapSize.x = task->width << 7;
++    FIELDSTG_mapSize.y = task->height << 7;
++    return &FIELDSTG_mapSize;
++}
++
++/* Creates the map streamer of a file */
++MapStreamer *FIELDSTG_createMapStreamer(s32 file) {
++    MapStreamer *task = createTaskWithId(FIELDSTG_runMapStreamer, sizeof(MapStreamer), 0x7C, FIELD_TASK_MAP);
++
++    task->file = file;
++    task->getSize = FIELDSTG_getMapSize;
++    return task;
++}
++
++/* Covers the screen on the layer id at a shade of level (8.8) */
++void FIELDSTG_drawCover(s32 id, s32 level) {
++    Layer *layer = GFX.funcs.getLayer(id);
++    s32 x;
++    s32 y;
++
++    if (layer != NULL) {
++        for (y = 0; y < SCREEN_HEIGHT; y += 0x80) {
++            for (x = 0; x < SCREEN_WIDTH; x += 0x80) {
++                FIELDSTG_drawCoverBlock(layer, x, y, level);
++            }
++        }
++    }
++}

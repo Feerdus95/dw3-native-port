@@ -1,0 +1,18 @@
+--- a/src/main/file/file_cache.c
++++ b/src/main/file/file_cache.c
+@@ -103,6 +103,15 @@
+         return;
+     }
+     slot = findFreeFileSlot();
++#ifdef NATIVE
++    /* the PSX's small heap made an allocation fail, and evict the oldest file,
++       long before the slots ran out; the native heap is bigger (mods), so the
++       slots evict too, by the same rule */
++    if (slot == NULL && findOldestFile() != NULL) {
++        evictOldestFile();
++        slot = findFreeFileSlot();
++    }
++#endif
+     slot->file = file;
+     slot->data = HEAP.alloc(FILE_TABLE.getSectorCount(file) * CD_SECTOR_SIZE, MEM_FILE_CACHE);
+     slot->state = FILE_QUEUED;

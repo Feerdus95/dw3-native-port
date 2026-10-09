@@ -1,0 +1,20 @@
+--- a/src/main/file/cd_reader.c
++++ b/src/main/file/cd_reader.c
+@@ -121,8 +121,17 @@
+         } else {
+             CD_READER.sectorCount = size;
+         }
++#ifdef NATIVE
++        /* native: the whole read happens now, from data/files (platform/files.c) */
++        native_read_file(file, offset, CD_READER.sectorCount, buffer);
++        CD_READER.state = CD_READ_IDLE;
++        if (done != NULL) {
++            *done = 1;
++        }
++#else
+         FILE_TABLE.getPos(file, offset, CD_READER.loc);
+         CD_READER.sector = FILE_TABLE.getSector(file) + offset;
+         startCdRead();
++#endif
+     }
+ }

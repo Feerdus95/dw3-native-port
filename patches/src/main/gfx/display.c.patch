@@ -1,0 +1,13 @@
+--- a/src/main/gfx/display.c
++++ b/src/main/gfx/display.c
+@@ -71,6 +71,10 @@
+     DrawSync(0);
+     FLIP_PENDING = 1;
+     while (*(volatile s32 *)&FLIP_PENDING != 0) {
++#ifdef NATIVE
++        /* no interrupts natively: wait for the next vsync, which runs the callback */
++        native_wait_vblank();
++#endif
+     }
+     if (GFX.prim != NULL) {
+         for (i = 0; i < LAYER_COUNT; i++) {

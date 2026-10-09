@@ -1,0 +1,14 @@
+--- a/include/dw3/sound.h
++++ b/include/dw3/sound.h
+@@ -85,7 +85,11 @@
+     /* 0x04 */ s32 headFile; /* archive: VAB header and SEPs */
+     /* 0x08 */ s32 vhIndex; /* of the VAB header in headFile */
+     /* 0x0C */ s32 bodyEntry; /* (file << 16) | slot */
++#ifdef NATIVE
++    /* 0x10 */ s32 seps[]; /* clang drops a [0] array's initializers; a flexible one keeps them */
++#else
+     /* 0x10 */ s32 seps[0]; /* indices in headFile, 0-terminated */
++#endif
+ } SoundFiles;
+ 
+ /* SoundLoader.state: waiting for the header file, the body file, then the SPU */

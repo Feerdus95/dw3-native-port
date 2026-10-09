@@ -1,0 +1,34 @@
+--- a/src/main/file/file_table.c
++++ b/src/main/file/file_table.c
+@@ -1746,6 +1746,26 @@
+     getFilePos,
+ };
+ 
++#ifdef NATIVE
++/* Native: the files are data/files/<fid>.bin, of any size (platform/files.c).
++   A file's "sector" is its fid times FILE_SECTOR_SPAN, so sector + offset
++   still names the file and the sector in it. */
++s32 fileExists(s32 file) {
++    return native_file_exists(file);
++}
++
++u16 getFileSectorCount(s32 file) {
++    return native_file_sectors(file);
++}
++
++s32 getFileSector(s32 file) {
++    return file * NATIVE_FILE_SECTOR_SPAN;
++}
++
++void getFilePos(s32 file, s32 offset, void *pos) {
++    CdIntToPos(file * NATIVE_FILE_SECTOR_SPAN + offset, pos);
++}
++#else
+ /* Whether the disc has file `file` */
+ s32 fileExists(s32 file) {
+     return FILE_SECTORS[file] != 0;
+@@ -1765,3 +1785,4 @@
+ void getFilePos(s32 file, s32 offset, void *pos) {
+     CdIntToPos(FILE_SECTORS[file] + offset, pos);
+ }
++#endif
