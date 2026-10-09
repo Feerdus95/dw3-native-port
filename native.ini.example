@@ -15,7 +15,7 @@ dither = 1
 # 0: the movies with sharp pixels instead of smoothed when scaled up
 smooth_movies = 1
 
-# 1: debug keys. F1 (from the title on) the developers' stage select (stages, sound test, test
+# 1: debug keys. F1 the developers' stage select (stages, sound test, test
 # battles), F2 the game state to game_<n>.bin, F5 / F9 save / load a state
 # (saves/quick.state, only for this same build)
 debug = 0

@@ -21,6 +21,7 @@ extern uint8_t GAME[];  /* the game's GameState */
 int getMode(void);      /* main/game/state.c */
 void requestMode(int mode, int arg);
 int VSync(int mode);    /* etc.c */
+void loadFont(void);    /* main/text/font.c */
 
 #define GAME_DUMP_SIZE 0x26F0 /* up to its methods (EU) */
 #define MODE_STAGE_SELECT 0x1500
@@ -142,11 +143,13 @@ void state_frame(void) {
     int key = s_key;
 
     s_key = 0;
-    if (key == SDLK_F1 && getMode() >> 8 == 0x16) {
-        /* the font loads after the language select's movie (stdwtitl/movie.c) */
-        LOG("debug: the stage select works from the title on (no font loaded yet)");
-    } else if (key == SDLK_F1) {
-        LOG("debug: stage select");
+    if (key == SDLK_F1) {
+        LOG("debug: stage select (vsync %d, mode %04X)", VSync(-1), getMode());
+        if (getMode() >> 8 == 0x16) {
+            /* the language select wipes the font, which the next movie's end
+               loads again (stdwtitl/movie.c): the same here */
+            loadFont();
+        }
         requestMode(MODE_STAGE_SELECT, 0);
     } else if (key == SDLK_F2) {
         dump_game();
