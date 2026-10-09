@@ -19,10 +19,15 @@ int video_init(int scale, int fullscreen) {
         LOG("window: %s", SDL_GetError());
         return 0;
     }
-    SDL_SetRenderLogicalPresentation(s_renderer, 4, 3, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+    /* 4:3, in the PSX's 320x240: the menu draws in those units */
+    SDL_SetRenderLogicalPresentation(s_renderer, 320, 240, SDL_LOGICAL_PRESENTATION_LETTERBOX);
     s_texture = SDL_CreateTexture(s_renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, VRAM_W, VRAM_H);
     SDL_SetTextureScaleMode(s_texture, SDL_SCALEMODE_NEAREST);
     return 1;
+}
+
+SDL_Window *video_window(void) {
+    return s_window;
 }
 
 int pump_events(void) {
@@ -31,6 +36,9 @@ int pump_events(void) {
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_EVENT_QUIT) {
             return 0;
+        }
+        if (menu_event(&e)) {
+            continue;
         }
         /* F11 or Alt+Enter: fullscreen on and off */
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
@@ -44,8 +52,9 @@ int pump_events(void) {
 }
 
 /* DW3_DUMP="N[:from:to]" writes the whole VRAM to vram_<vsync>.bmp every N
-   vsyncs, and what is on the screen to screen_<vsync>.bmp: a look at it
-   without a screenshot of the desktop */
+   vsyncs, what is on the screen to screen_<vsync>.bmp and the window as
+   drawn (the menu too) to window_<vsync>.bmp: a look at it without a
+   screenshot of the desktop */
 static void dump_vram(void) {
     static int n, every = -1, from, to = 0x7FFFFFFF;
     SDL_Surface *s;
@@ -62,6 +71,11 @@ static void dump_vram(void) {
     }
     if (every <= 0 || ++n % every != 0 || n < from || n > to) {
         return;
+    }
+    if ((s = SDL_RenderReadPixels(s_renderer, NULL)) != NULL) {
+        SDL_snprintf(name, sizeof(name), "window_%05d.bmp", n);
+        SDL_SaveBMP(s, name);
+        SDL_DestroySurface(s);
     }
     s = SDL_CreateSurface(VRAM_W, VRAM_H, SDL_PIXELFORMAT_XRGB8888);
     for (i = 0; i < VRAM_W * VRAM_H; i++) {
@@ -115,6 +129,7 @@ void present_frame(void) {
         src.h = d.h;
         SDL_RenderTexture(s_renderer, s_texture, &src, NULL);
     }
+    menu_draw(s_renderer);
+    dump_vram(); /* before the present, which leaves the back buffer undefined */
     SDL_RenderPresent(s_renderer);
-    dump_vram();
 }

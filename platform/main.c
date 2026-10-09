@@ -72,8 +72,10 @@ static int load_boot_image(void) {
 
 /* native.ini next to the exe, all optional: data = <path>, fullscreen = 0/1,
    scale = <window size in 320x240 steps>, dither = 0/1, smooth_movies = 0/1,
-   debug = 0/1, log = <subsystems>, deadzone = <0..32767>, rumble = 0/1 */
+   debug = 0/1, log = <subsystems>, deadzone = <0..32767>, rumble = 0/1, fps = 50/60;
+   the options menu (menu.c) writes them back */
 static int s_fullscreen, s_scale = 3;
+extern int NTSC_MODE;
 int g_debug, g_smooth_movies = 1, g_log;
 
 /* "cd,snd" or "all" to LOG_* bits */
@@ -122,6 +124,8 @@ static void read_ini(void) {
             g_deadzone = SDL_clamp(atoi(value), 0, 32767);
         } else if (SDL_strcasecmp(key, "rumble") == 0) {
             g_rumble = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "fps") == 0) {
+            NTSC_MODE = atoi(value) == 60; /* the game's own 60 Hz mode, set before it boots */
         }
     }
     fclose(f);

@@ -21,6 +21,10 @@ deadzone = 3277
 # 0: no vibration
 rumble = 1
 
+# 50 as the European original, or 60: the game's own 60 Hz mode (its NTSC
+# timing). Esc in game opens the options menu, which writes this file back
+fps = 50
+
 # 1: debug keys. F1 the developers' stage select (stages, sound test, test
 # battles), F3 the sound test, F4 the vibration test, F2 the game state to game_<n>.bin, F5 / F9 save / load a state
 # (saves/quick.state, only for this same build)

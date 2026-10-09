@@ -118,6 +118,9 @@ static uint16_t scripted(int frame) {
         if (frame == at && name[0] == 'f') {
             state_key(SDL_GetKeyFromName(name)); /* f1, f2, f5, f9: the debug keys */
         }
+        if (frame == at && SDL_strcmp(name, "esc") == 0) {
+            menu_toggle(); /* the options menu */
+        }
         if (frame >= at && frame < at + 6) {
             for (i = 0; i < 16; i++) {
                 if (SDL_strcmp(name, names[i]) == 0) {

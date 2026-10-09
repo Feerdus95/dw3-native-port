@@ -31,6 +31,14 @@ static void vblank(void) {
     if (!pump_events()) {
         exit(0);
     }
+    while (menu_active()) { /* the game waits for the options menu */
+        present_frame();
+        SDL_Delay(16);
+        if (!pump_events()) {
+            exit(0);
+        }
+        s_next_ns = 0;
+    }
     present_frame();
     pad_update();
     if (s_vsync_cb != NULL && !s_in_cb) {

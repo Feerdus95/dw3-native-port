@@ -39,6 +39,16 @@ const char *data_dir(void);
 void native_log(const char *fmt, ...);
 void present_frame(void); /* platform/video.c */
 int pump_events(void);    /* 0 once the user closed the window */
+struct SDL_Window *video_window(void);
+
+/* The options menu (platform/menu.c) */
+union SDL_Event;
+struct SDL_Renderer;
+int menu_active(void);   /* the game waits while it is open */
+void menu_toggle(void);
+int menu_event(const union SDL_Event *e); /* 1: the menu's */
+void menu_draw(struct SDL_Renderer *r);
+void set_fps(int sixty); /* the game's 60 Hz mode on or off */
 
 /* --- sound: platform/spu.c, audio.c --- */
 #define SPU_VOICES 24
