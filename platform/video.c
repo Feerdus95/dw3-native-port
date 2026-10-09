@@ -36,6 +36,8 @@ int pump_events(void) {
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
             (e.key.key == SDLK_F11 || (e.key.key == SDLK_RETURN && (e.key.mod & SDL_KMOD_ALT)))) {
             SDL_SetWindowFullscreen(s_window, !(SDL_GetWindowFlags(s_window) & SDL_WINDOW_FULLSCREEN));
+        } else if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && g_debug) {
+            state_key((int)e.key.key);
         }
     }
     return 1;
@@ -105,6 +107,8 @@ void present_frame(void) {
             }
         }
         SDL_UpdateTexture(s_texture, NULL, s_pixels, VRAM_W * 4);
+        /* the movies (24-bit), smoothed when scaled up; the game's pixels stay sharp */
+        SDL_SetTextureScaleMode(s_texture, g_disp.isrgb24 && g_smooth_movies ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST);
         src.x = d.x;
         src.y = d.y;
         src.w = d.w;

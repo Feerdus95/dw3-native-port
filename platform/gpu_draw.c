@@ -6,7 +6,7 @@
 #include "platform.h"
 
 /* Drawing state (GP0 E1-E6) */
-static struct {
+SAVED static struct {
     int tx, ty;        /* texture page base, in pixels */
     int semi;          /* semi-transparency mode 0-3 */
     int depth;         /* 0: 4 bpp, 1: 8 bpp, 2: 15 bpp */
@@ -74,18 +74,22 @@ static int texel(int u, int v, int clut) {
     }
 }
 
-/* Texel times vertex color (128 = 1.0), saturated */
-static int modulate(int t, int r, int gg, int b) {
-    int tr = (t & 31) * r >> 7, tg = (t >> 5 & 31) * gg >> 7, tb = (t >> 10 & 31) * b >> 7;
+/* The GPU's 4x4 dither, added to 8-bit colors before they drop to 5 bits */
+static const int8_t DITHER[4][4] = {{-4, 0, -3, 1}, {2, -2, 3, -1}, {-3, 1, -4, 0}, {3, -1, 2, -2}};
+int g_dither_on = 1; /* native.ini: dither = 0 turns it off */
 
-    if (tr > 31) tr = 31;
-    if (tg > 31) tg = 31;
-    if (tb > 31) tb = 31;
-    return tr | tg << 5 | tb << 10 | (t & 0x8000);
+static int to5(int v, int d) {
+    v += d;
+    return v < 0 ? 0 : v > 255 ? 31 : v >> 3;
 }
 
-static int rgb15(int r, int gg, int b) {
-    return (r >> 3) | (gg >> 3) << 5 | (b >> 3) << 10;
+/* Texel times vertex color (128 = 1.0) at 8 bits, dithered by d, saturated */
+static int modulate(int t, int r, int gg, int b, int d) {
+    return to5((t & 31) * r >> 4, d) | to5((t >> 5 & 31) * gg >> 4, d) << 5 | to5((t >> 10 & 31) * b >> 4, d) << 10 | (t & 0x8000);
+}
+
+static int rgb15(int r, int gg, int b, int d) {
+    return to5(r, d) | to5(gg, d) << 5 | to5(b, d) << 10;
 }
 
 /* --- state --- */
@@ -98,12 +102,11 @@ static void set_tpage(uint32_t w) {
     if (g.depth == 3) {
         g.depth = 2;
     }
-    g.dither = w >> 9 & 1;
 }
 
 static void gp0_env(uint32_t w) {
     switch (w >> 24) {
-    case 0xE1: set_tpage(w); break;
+    case 0xE1: set_tpage(w); g.dither = w >> 9 & 1; break;
     case 0xE2:
         g.tw_mask_x = (w & 31) * 8;
         g.tw_mask_y = (w >> 5 & 31) * 8;
@@ -158,7 +161,7 @@ static void triangle(Vtx a, Vtx b, Vtx c, int flags, int clut) {
         for (x = minx; x < maxx; x++) {
             /* pixel centres, top-left rule: right and bottom edges are left out */
             int64_t w0 = edge(&b, &c, x, y), w1 = edge(&c, &a, x, y), w2 = edge(&a, &b, x, y);
-            int r, gg, bb, col, semi;
+            int r, gg, bb, col, semi, d;
 
             if (w0 < 0 || w1 < 0 || w2 < 0) {
                 continue;
@@ -175,6 +178,8 @@ static void triangle(Vtx a, Vtx b, Vtx c, int flags, int clut) {
             } else {
                 r = a.r; gg = a.g; bb = a.b;
             }
+            /* dithered: shaded or texture-blended polygons, while E1 asks for it */
+            d = g.dither && g_dither_on && (flags & 1 || (flags & 6) == 2) ? DITHER[y & 3][x & 3] : 0;
             semi = flags & 8;
             if (flags & 2) {
                 int u = (int)((w0 * a.u + w1 * b.u + w2 * c.u) / area);
@@ -185,9 +190,9 @@ static void triangle(Vtx a, Vtx b, Vtx c, int flags, int clut) {
                     continue;
                 }
                 semi = semi && (tex & 0x8000);
-                col = (flags & 4) ? tex : modulate(tex, r, gg, bb);
+                col = (flags & 4) ? tex : modulate(tex, r, gg, bb, d);
             } else {
-                col = rgb15(r, gg, bb);
+                col = rgb15(r, gg, bb, d);
             }
             plot(x, y, col, semi);
         }
@@ -211,9 +216,9 @@ static void rect(int x, int y, int w, int h, int col, int textured, int raw, int
                     continue;
                 }
                 s = semi && (tex & 0x8000);
-                c = raw ? tex : modulate(tex, r, gg, b);
+                c = raw ? tex : modulate(tex, r, gg, b, 0);
             } else {
-                c = rgb15(r, gg, b);
+                c = rgb15(r, gg, b, 0);
             }
             plot(x + i, y + j, c, s);
         }
@@ -229,7 +234,7 @@ static void line(int x0, int y0, int c0, int x1, int y1, int c1, int gouraud, in
     }
     for (i = 0; i <= n; i++) {
         int x = n ? x0 + dx * i / n : x0, y = n ? y0 + dy * i / n : y0;
-        int c = c0;
+        int c = c0, d = gouraud && g.dither && g_dither_on ? DITHER[y & 3][x & 3] : 0;
 
         if (gouraud && n) {
             int r = (c0 & 255) + ((c1 & 255) - (c0 & 255)) * i / n;
@@ -237,7 +242,7 @@ static void line(int x0, int y0, int c0, int x1, int y1, int c1, int gouraud, in
             int b = (c0 >> 16 & 255) + ((c1 >> 16 & 255) - (c0 >> 16 & 255)) * i / n;
             c = r | gg << 8 | b << 16;
         }
-        plot(x, y, rgb15(c & 255, c >> 8 & 255, c >> 16 & 255), semi);
+        plot(x, y, rgb15(c & 255, c >> 8 & 255, c >> 16 & 255, d), semi);
     }
 }
 
@@ -329,7 +334,7 @@ void gpu_gp0(const uint32_t *p, int n) {
         }
     } else if (cmd == 0x02) { /* fill, no clip or offset; x in steps of 16 */
         int x = p[1] & 0x3F0, y = p[1] >> 16 & 0x1FF, w = ((p[2] & 0x3FF) + 15) & ~15, h = p[2] >> 16 & 0x1FF, i, j;
-        int c = rgb15(p[0] & 255, p[0] >> 8 & 255, p[0] >> 16 & 255);
+        int c = rgb15(p[0] & 255, p[0] >> 8 & 255, p[0] >> 16 & 255, 0);
 
         for (j = 0; j < h; j++) {
             for (i = 0; i < w; i++) {
@@ -353,6 +358,8 @@ void gpu_gp0(const uint32_t *p, int n) {
                 g_vram[((dy + j) & 511) * VRAM_W + ((dx + i) & 1023)] = tmp[j * w + i];
     } else if (cmd >= 0xE1 && cmd <= 0xE6) {
         gp0_env(p[0]);
+    } else if (cmd > 0x02) {
+        LOGC(LOG_GPU, "gpu: GP0 %02X not drawn", cmd);
     }
     /* 0x00 nop, 0x01 cache flush, 0x1F irq: nothing to do */
 }

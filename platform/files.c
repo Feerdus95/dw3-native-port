@@ -57,6 +57,7 @@ void native_read_file(int fid, int sector, int count, void *dst) {
     FILE *f = open_file(fid);
     size_t got = 0;
 
+    LOGC(LOG_CD, "cd: file %d, %d sectors from %d", fid, count, sector);
     if (f == NULL) {
         LOG("files: no file %d", fid);
     } else {

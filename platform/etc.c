@@ -8,9 +8,9 @@
 extern int NTSC_MODE; /* the game's, src/main/data/eu_settings.c */
 void pad_update(void);
 
-static void (*s_vsync_cb)(void);
+SAVED static void (*s_vsync_cb)(void);
 static uint64_t s_next_ns;  /* when the next vsync is due */
-static int s_vsyncs;        /* since boot */
+SAVED static int s_vsyncs;        /* since boot */
 static int s_in_cb;
 
 static uint64_t period_ns(void) {
@@ -42,8 +42,11 @@ static void vblank(void) {
     audio_vblank(NTSC_MODE ? 60 : 50);
 }
 
+/* The frame's end (display.c's flip): the one place the game waits for a
+   vsync once it runs, with nothing on the stack but main and drawFrame */
 void native_wait_vblank(void) {
     vblank();
+    state_frame();
 }
 
 int ResetCallback(void) {
@@ -60,7 +63,7 @@ int VSyncCallback(void (*f)(void)) {
    wait; < 0: the vsyncs since boot. Returns the vsyncs since boot otherwise
    (the PSX returned the hblanks since the last one; nothing here reads it). */
 int VSync(int mode) {
-    static int s_last;
+    SAVED static int s_last;
     int n;
 
     if (mode < 0) {

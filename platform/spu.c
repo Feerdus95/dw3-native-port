@@ -26,9 +26,9 @@ typedef struct {
     int reverb;           /* feeds the reverb unit (the VAB tone's mode bit 2) */
 } Voice;
 
-static uint8_t s_ram[RAM_SIZE];
-static Voice s_voice[SPU_VOICES];
-static int16_t s_main_l = 0x3FFF, s_main_r = 0x3FFF, s_cd_l = 0x3FFF, s_cd_r = 0x3FFF;
+SAVED static uint8_t s_ram[RAM_SIZE];
+SAVED static Voice s_voice[SPU_VOICES];
+SAVED static int16_t s_main_l = 0x3FFF, s_main_r = 0x3FFF, s_cd_l = 0x3FFF, s_cd_r = 0x3FFF;
 static int16_t s_cd[CD_FIFO][2];
 static int s_cd_head, s_cd_count;
 
@@ -262,10 +262,10 @@ enum {
     vLIN, vRIN, REVERB_REGS
 };
 
-static uint16_t s_rv[REVERB_REGS]; /* the preset's registers */
-static uint32_t s_rv_base = RAM_SIZE, s_rv_addr = RAM_SIZE; /* work area, bytes */
-static int s_rv_on, s_rv_phase;
-static int16_t s_rv_depth_l, s_rv_depth_r;
+SAVED static uint16_t s_rv[REVERB_REGS]; /* the preset's registers */
+SAVED static uint32_t s_rv_base = RAM_SIZE, s_rv_addr = RAM_SIZE; /* work area, bytes */
+SAVED static int s_rv_on, s_rv_phase;
+SAVED static int16_t s_rv_depth_l, s_rv_depth_r;
 
 /* The 39-tap FIR the chip resamples the reverb's input and output with
    (psx-spx, "Reverb Buffer Resampling"; hardware data). Its taps sum to
@@ -278,8 +278,8 @@ static const int16_t FIR[FIR_TAPS] = {
 };
 /* per side: the last FIR_TAPS inputs and outputs, twice over so a window is
    contiguous at any position */
-static int16_t s_rv_in[2][FIR_TAPS * 2], s_rv_out[2][FIR_TAPS * 2];
-static int s_rv_pos;
+SAVED static int16_t s_rv_in[2][FIR_TAPS * 2], s_rv_out[2][FIR_TAPS * 2];
+SAVED static int s_rv_pos;
 
 /* A register as a signed volume, or (for the d and m ones) a byte offset */
 #define RV(r) ((int32_t)(int16_t)s_rv[r])

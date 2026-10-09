@@ -22,17 +22,17 @@ typedef struct {
 } VECTOR;
 
 /* --- registers --- */
-static int16_t V0[3];
-static int32_t IR[4];  /* IR0-IR3 */
-static int32_t MAC[4]; /* MAC0-MAC3 */
-static int32_t SX[3], SY[3]; /* SXY0-SXY2 */
-static int32_t SZ[4];  /* SZ0-SZ3 */
-static uint32_t RGB2, RGBC;
-static uint32_t OTZ, FLAG;
+SAVED static int16_t V0[3];
+SAVED static int32_t IR[4];  /* IR0-IR3 */
+SAVED static int32_t MAC[4]; /* MAC0-MAC3 */
+SAVED static int32_t SX[3], SY[3]; /* SXY0-SXY2 */
+SAVED static int32_t SZ[4];  /* SZ0-SZ3 */
+SAVED static uint32_t RGB2, RGBC;
+SAVED static uint32_t OTZ, FLAG;
 
-static int16_t RT[3][3], LM[3][3], LCM[3][3];
-static int32_t TR[3], BK[3];
-static int32_t OFX, OFY, H = 1000, DQA, DQB, ZSF3 = 0x155, ZSF4 = 0x100;
+SAVED static int16_t RT[3][3], LM[3][3], LCM[3][3];
+SAVED static int32_t TR[3], BK[3];
+SAVED static int32_t OFX, OFY, H = 1000, DQA, DQB, ZSF3 = 0x155, ZSF4 = 0x100;
 
 static int32_t clamp(int64_t v, int32_t lo, int32_t hi) {
     return v < lo ? lo : v > hi ? hi : (int32_t)v;
@@ -406,8 +406,8 @@ typedef struct {
     uint8_t r, g, b;
 } GsF_LIGHT;
 
-MATRIX GsWSMATRIX;      /* world to screen, from GsSetRefView2 */
-MATRIX GsLIGHTWSMATRIX; /* the flat lights' directions, one per row */
+SAVED MATRIX GsWSMATRIX;      /* world to screen, from GsSetRefView2 */
+SAVED MATRIX GsLIGHTWSMATRIX; /* the flat lights' directions, one per row */
 
 void GsInit3D(void) {}
 void GsSetLightMode(int mode) {}

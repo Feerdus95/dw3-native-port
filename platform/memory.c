@@ -17,7 +17,10 @@ uint8_t STAGE_VRAM[512 * 1024];
 
 /* Each overlay's variables (.data and .bss) sit between these markers: the
    mode overlays in .data$dw3m1, the stages and WFIGHTMN/TS in .data$dw3s1
-   (build.py's overlay_sections). The linker sorts .data$* by name. */
+   (build.py's overlay_sections). The linker sorts .data$* by name, so with
+   main's (.data$dw3g1, and the platform's SAVED) before them, game_vars_begin
+   to ovl_sub_end is all of the game's state (state.c). */
+__attribute__((section(".data$dw3g0"))) uint8_t game_vars_begin[1] = {1};
 __attribute__((section(".data$dw3m0"))) uint8_t ovl_mode_begin[1] = {1};
 __attribute__((section(".data$dw3m2"))) uint8_t ovl_mode_end[1] = {1};
 __attribute__((section(".data$dw3s0"))) uint8_t ovl_sub_begin[1] = {1};
@@ -38,6 +41,7 @@ void native_reset_overlays(int sub) {
     if (getenv("DW3_NORESET") != NULL) { /* debug: is a bug the reset's? */
         return;
     }
+    LOGC(LOG_OVL, "ovl: %s variables reset", sub ? "stage" : "mode overlay");
     if (sub) {
         memcpy(ovl_sub_begin, s_initial[1], ovl_sub_end - ovl_sub_begin);
     } else {

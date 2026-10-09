@@ -67,4 +67,22 @@ void movie_vblank(int rate); /* platform/movie.c: the CD streams on */
 void log_once(const char *what);
 #define LOG(...) (fprintf(stderr, __VA_ARGS__), fputc('\n', stderr))
 
+/* Per subsystem, off unless DW3_LOG (or native.ini's log) names it:
+   DW3_LOG=cd,snd,pad,mc,ovl,gpu or all */
+enum { LOG_GPU = 1, LOG_CD = 2, LOG_SND = 4, LOG_PAD = 8, LOG_MC = 16, LOG_OVL = 32 };
+extern int g_log;
+#define LOGC(cat, ...) do { if (g_log & (cat)) LOG(__VA_ARGS__); } while (0)
+
+/* native.ini switches (main.c) */
+extern int g_debug;         /* debug = 1: the debug keys (state.c) */
+extern int g_dither_on;     /* dither = 0: no GPU dithering (gpu_draw.c) */
+extern int g_smooth_movies; /* smooth_movies = 0: movies scaled by nearest pixel (video.c) */
+
+/* Platform state that is the console's, saved with the game's in a
+   savestate (state.c): it sits in the game's variables' section */
+#define SAVED __attribute__((section(".data$dw3g1")))
+void state_key(int key);  /* a debug key (SDL keycode), from pump_events */
+void state_frame(void);   /* at the frame's end (native_wait_vblank): runs what the keys asked */
+int movie_playing(void);  /* movie.c */
+
 #endif /* PLATFORM_H */

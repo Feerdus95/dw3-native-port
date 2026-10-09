@@ -118,6 +118,10 @@ static void xa_sector(const uint8_t *sub, const uint8_t *data) {
 
 /* --- the stream --- */
 
+int movie_playing(void) {
+    return s_file != NULL;
+}
+
 void movie_stream_stop(void) {
     if (s_file != NULL) {
         fclose(s_file);
@@ -138,9 +142,7 @@ void movie_stream_start(int pos) {
         LOG("no movie %s: run native/tools/extract_iso.py again", path);
         return;
     }
-    if (getenv("DW3_SNDLOG") != NULL) {
-        LOG("movie %04d from sector %d", pos / SPAN, pos % SPAN);
-    }
+    LOGC(LOG_CD, "cd: movie %04d from sector %d", pos / SPAN, pos % SPAN);
     fseek(s_file, (long)(pos % SPAN) * RAW_SECTOR, SEEK_SET);
     s_due = 0;
     s_ended = 0;

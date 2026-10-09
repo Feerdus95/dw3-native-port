@@ -9,6 +9,8 @@ gets a stub that logs once and returns 0; native/build/report.md lists them.
                                            dw2003.exe is open and playing)
     python native/build.py --sanitize      bounds/null checks (UBSan) into
                                            native/build-san, logging and going on
+    python native/build.py --O2            the game optimised, into native/build-o2
+                                           (to become the default once played through)
 """
 import collections
 import concurrent.futures as cf
@@ -32,7 +34,14 @@ SAN_FLAGS = ["-fsanitize=bounds,null", "-fsanitize-recover=bounds,null",
 # the checks bloat -O0 code past the 16 MB too: that build is -O1, with the
 # PSX GCC's leniency on type punning and overflow kept
 GAME_OPT = ["-O1", "-fno-strict-aliasing", "-fwrapv"] if SANITIZE else ["-O0"]
-OUT = NATIVE / ("build-san" if SANITIZE else "build")
+# --O2: the PSX GCC's leniency kept (type punning, overflow, reads through
+# NULL), and the IR emitted unoptimised so the rewrites below see the game's
+# own operations before -O2 works on them
+O2 = "--O2" in sys.argv and not SANITIZE
+LENIENT = ["-fno-strict-aliasing", "-fwrapv", "-fno-delete-null-pointer-checks"]
+EMIT_OPT = ["-O0", "-Xclang", "-disable-O0-optnone", *LENIENT] if O2 else GAME_OPT
+GAME_OPT = ["-O2", *LENIENT] if O2 else GAME_OPT
+OUT = NATIVE / ("build-san" if SANITIZE else "build-o2" if O2 else "build")
 PATCHED = OUT / "patched"
 TC = Path(os.environ["LOCALAPPDATA"]) / "retcomm/toolchains/cmake-clang-v1/1.0.14/bin"
 CC = TC / "i686-w64-mingw32-clang.exe"
@@ -42,7 +51,7 @@ SDL = NATIVE / "third_party/SDL3-3.4.16/i686-w64-mingw32"
 STAGE = re.compile(r"(wstag\d+)(_head)?\.c$")
 
 GAME_CFLAGS = [
-    "-std=gnu89", *GAME_OPT, "-g", "-fcommon", "-Wno-everything", "-fsigned-char", "-fno-builtin", "-nostdinc",
+    "-std=gnu89", *EMIT_OPT, "-g", "-fcommon", "-Wno-everything", "-fsigned-char", "-fno-builtin", "-nostdinc",
     "-ferror-limit=0", "-DNATIVE", "-Werror=excess-initializers", "-Dmain=psx_main", "-include", "native.h",
     # K&R-style calls through `()` pointers and loose casts the PSX GCC took
     "-Wno-error=incompatible-function-pointer-types", "-Wno-error=incompatible-pointer-types",
@@ -126,9 +135,12 @@ SUB_OVERLAYS = {"stages", "wfightmn", "wfightts"}
 def overlay_sections(ll, group):
     """An overlay's variables go to .data$dw3<group>1, between the markers of
     platform/memory.c, so a load can put them back to their initial values
-    as the PSX did by copying the file again. .bss too: zeros in the file."""
+    as the PSX did by copying the file again. .bss too: zeros in the file.
+    Group g is main's, m the mode overlays', s the stages'. A common symbol
+    (main's game_bss.c, sound.c: each defined once) would ignore the section,
+    so it becomes a plain definition."""
     sect = f', section ".data$dw3{group}1"'
-    return "".join(m.group(1) + sect + m.group(2) + "\n" if (m := GLOBAL.match(line)) and " external " not in line
+    return "".join(m.group(1).replace(" = common ", " = ", 1) + sect + m.group(2) + "\n" if (m := GLOBAL.match(line)) and " external " not in line
                    and " section " not in line else line + "\n" for line in ll.splitlines())
 
 
@@ -183,8 +195,9 @@ def compile_game(src, force):
     if r.returncode != 0:
         return rel, None, r.stderr, True
     ll_text = mips_divisions(widen_returns(ll.read_text()))
-    if rel.parts[0] != "main":
-        ll_text = overlay_sections(ll_text, "s" if rel.parts[0] in SUB_OVERLAYS else "m")
+    # main's variables in .data$dw3g1: with the overlays' after them, the
+    # game's whole state is one range (platform/state.c's savestates)
+    ll_text = overlay_sections(ll_text, "g" if rel.parts[0] == "main" else "s" if rel.parts[0] in SUB_OVERLAYS else "m")
     ll.write_text(ll_text)
     r = run([CC, "-c", *GAME_OPT, "-g", "-Wno-override-module", *SAN_FLAGS, ll, "-o", obj])
     return rel, obj if r.returncode == 0 else None, r.stderr, True
@@ -319,10 +332,12 @@ def selftest():
     want = "define dso_local i32 @k(i8 noundef %0, i16 noundef %1) #0 {\n  ret i32 0\n}\n"
     assert widen_returns(ll) == want, widen_returns(ll)
     ll = ("@a = dso_local global i32 1, align 4, !dbg !0\n@b = internal global [2 x i8] zeroinitializer, align 1\n"
-          "@c = dso_local constant i32 2, align 4\n@d = external dso_local global i32, align 4\n")
+          "@c = dso_local constant i32 2, align 4\n@d = external dso_local global i32, align 4\n"
+          "@e = common dso_local global [2 x i32] zeroinitializer, align 4\n")
     want = ('@a = dso_local global i32 1, section ".data$dw3m1", align 4, !dbg !0\n'
             '@b = internal global [2 x i8] zeroinitializer, section ".data$dw3m1", align 1\n'
-            "@c = dso_local constant i32 2, align 4\n@d = external dso_local global i32, align 4\n")
+            "@c = dso_local constant i32 2, align 4\n@d = external dso_local global i32, align 4\n"
+            '@e = dso_local global [2 x i32] zeroinitializer, section ".data$dw3m1", align 4\n')
     assert overlay_sections(ll, "m") == want, overlay_sections(ll, "m")
     ll = "  %5 = srem i32 %3, %4, !dbg !7\n  %6 = sdiv i32 %3, 10\n  %7 = udiv exact i32 %3, 0\n"
     want = ("  %5 = call i32 @native_srem(i32 %3, i32 %4), !dbg !7\n  %6 = sdiv i32 %3, 10\n"

@@ -5,10 +5,10 @@
 #include "platform.h"
 
 uint16_t *g_vram;
-DISPENV g_disp;
-int g_disp_on;
+SAVED DISPENV g_disp;
+SAVED int g_disp_on;
 
-static int s_video_mode;
+SAVED static int s_video_mode;
 
 int ResetGraph(int mode) {
     if (g_vram == NULL) {

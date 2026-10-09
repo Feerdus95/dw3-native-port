@@ -43,7 +43,7 @@ static uint8_t axis(SDL_GamepadAxis a) {
     return (uint8_t)((SDL_GetGamepadAxis(s_gamepad, a) + 32768) >> 8);
 }
 
-/* DW3_PRESS="300:cross,500:start": holds a button for 6 vsyncs at a vsync
+/* DW3_PRESS="300:cross,500:start,600:f5": holds a button for 6 vsyncs at a vsync
    count, to drive the game in tests without anyone at the keyboard */
 static uint16_t scripted(int frame) {
     static const char *names[16] = {"select", "l3", "r3", "start", "up", "right", "down", "left",
@@ -54,6 +54,9 @@ static uint16_t scripted(int frame) {
     char name[16];
 
     for (p = env; p != NULL && SDL_sscanf(p, "%d:%15[a-z0-9]", &at, name) == 2; p = SDL_strchr(p, ',') ? SDL_strchr(p, ',') + 1 : NULL) {
+        if (frame == at && name[0] == 'f') {
+            state_key(SDL_GetKeyFromName(name)); /* f1, f2, f5, f9: the debug keys */
+        }
         if (frame >= at && frame < at + 6) {
             for (i = 0; i < 16; i++) {
                 if (SDL_strcmp(name, names[i]) == 0) {
@@ -63,6 +66,43 @@ static uint16_t scripted(int frame) {
         }
     }
     return held;
+}
+
+/* DW3_RECORD=<file> writes every vsync's input from boot (buttons, 2 bytes,
+   then the sticks, 4); DW3_REPLAY=<file> plays one back instead of the keys,
+   and hands them back at its end. The game runs the same from boot: its
+   random numbers and loads go by frames (the card image has to be the same) */
+static void record_replay(uint16_t *held, uint8_t *sticks) {
+    static FILE *rec, *rep;
+    static int opened;
+    uint8_t f[6];
+
+    if (!opened) {
+        opened = 1;
+        if (SDL_getenv("DW3_REPLAY") != NULL && (rep = fopen(SDL_getenv("DW3_REPLAY"), "rb")) == NULL) {
+            LOG("replay: can't open %s", SDL_getenv("DW3_REPLAY"));
+        }
+        if (SDL_getenv("DW3_RECORD") != NULL && (rec = fopen(SDL_getenv("DW3_RECORD"), "wb")) == NULL) {
+            LOG("record: can't create %s", SDL_getenv("DW3_RECORD"));
+        }
+    }
+    if (rep != NULL) {
+        if (fread(f, sizeof f, 1, rep) == 1) {
+            *held = (uint16_t)(f[0] | f[1] << 8);
+            SDL_memcpy(sticks, f + 2, 4);
+        } else {
+            fclose(rep);
+            rep = NULL;
+            LOG("replay: ended, the keys are back");
+        }
+    }
+    if (rec != NULL) {
+        f[0] = (uint8_t)*held;
+        f[1] = (uint8_t)(*held >> 8);
+        SDL_memcpy(f + 2, sticks, 4);
+        fwrite(f, sizeof f, 1, rec);
+        fflush(rec); /* a crash keeps what led to it */
+    }
 }
 
 /* Called every vsync (etc.c) */
@@ -102,6 +142,15 @@ void pad_update(void) {
         b[5] = axis(SDL_GAMEPAD_AXIS_RIGHTY);
         b[6] = axis(SDL_GAMEPAD_AXIS_LEFTX);
         b[7] = axis(SDL_GAMEPAD_AXIS_LEFTY);
+    }
+    record_replay(&held, b + 4);
+    {
+        static uint16_t last;
+
+        if (held != last) {
+            LOGC(LOG_PAD, "pad: %04X", held);
+            last = held;
+        }
     }
     b[0] = 0;    /* answered */
     b[1] = 0x73; /* analog, 3 halfwords */

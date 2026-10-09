@@ -22,8 +22,8 @@ typedef struct DirEntry {
 
 static uint8_t s_card[CARD_SIZE];
 static char s_path[1100];
-static long s_cmd, s_result;
-static int s_pending;
+SAVED static long s_cmd, s_result;
+SAVED static int s_pending;
 
 static void save_card(void) {
     FILE *f = fopen(s_path, "wb");
@@ -109,6 +109,7 @@ static long file_io(const char *name, uint8_t *buf, long ofs, long bytes, int wr
 }
 
 static long finish(long cmd, long chan, long result) {
+    LOGC(LOG_MC, "mc: command %ld on port %ld: %ld", cmd, chan, result);
     s_cmd = cmd;
     s_result = chan == 0 ? result : ERR_NO_CARD;
     s_pending = 1;

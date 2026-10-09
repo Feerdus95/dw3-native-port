@@ -7,11 +7,11 @@
 void movie_stream_start(int pos); /* movie.c */
 void movie_stream_stop(void);
 
-static int s_loc; /* the last CdlSetloc */
+SAVED static int s_loc; /* the last CdlSetloc */
 
 typedef void (*CdlCB)(uint8_t, uint8_t *);
 
-static CdlCB s_sync_cb, s_ready_cb;
+SAVED static CdlCB s_sync_cb, s_ready_cb;
 
 int CdInit(void) {
     return 1;

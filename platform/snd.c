@@ -81,11 +81,11 @@ typedef struct {
     uint32_t age;
 } VoiceOwner;
 
-static Vab s_vab[MAX_VABS];
-static Sep s_sep[MAX_SEPS];
-static VoiceOwner s_owner[SPU_VOICES];
-static uint32_t s_age;
-static int s_tick_rate = 60;
+SAVED static Vab s_vab[MAX_VABS];
+SAVED static Sep s_sep[MAX_SEPS];
+SAVED static VoiceOwner s_owner[SPU_VOICES];
+SAVED static uint32_t s_age;
+SAVED static int s_tick_rate = 60;
 
 static uint32_t be(const uint8_t *p, int n) {
     uint32_t v = 0;
@@ -179,7 +179,7 @@ static int start_voice(Seq *seq, int ch, int vab, int prog, int tone, int note, 
     o->vel_r = vel_r;
     o->age = s_age++;
     update_voice(n);
-    if (getenv("DW3_SNDLOG")) {
+    if (g_log & LOG_SND) {
         LOG("keyon v%d seq %p ch %d vab %d prog %d tone %d note %d vel %d vag %d addr %x adsr %04x %04x vol %d pan %d center %d", n, (void *)seq, ch, vab, prog, tone, note, vel_l, t->vag, s_vab[vab].vag_addr[t->vag & 255], t->adsr1, t->adsr2, t->vol, t->pan, t->center);
     }
     spu_set_voice_reverb(n, t->mode & 4); /* the tone's reverb bit */

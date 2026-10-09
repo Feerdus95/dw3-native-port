@@ -7,3 +7,4 @@ third_party/
 __pycache__/
 *.tmp
 native.ini
+build-o2/

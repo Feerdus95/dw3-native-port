@@ -1,0 +1,30 @@
+--- a/src/stagslct/stagslct.c
++++ b/src/stagslct/stagslct.c
+@@ -757,7 +757,11 @@
+     if (sel->biosShown == 0) {
+         win->bios = createTextWindow(SCREEN_LAYER, 1, 0x10, 0x20);
+         /* the BIOS version string in the ROM, in full-width Shift-JIS */
++#ifdef NATIVE
++        src = (u8 *)"PC-NATIVE "; /* no ROM */
++#else
+         src = (u8 *)0x1FC0012C;
++#endif
+         for (i = 0; i < 10; i++, src++) {
+             /* the match depends on the breaks out of a do/while (0): loop.c
+                moves the letter's and the dash's blocks up after the digit's,
+@@ -1063,7 +1067,15 @@
+ 
+ /* Creates the stage select */
+ Task *STAGSLCT_createStageSelect(void) {
++#ifdef NATIVE
++    /* the retail asks for 0 bytes and no children: the task lands on the
++       heap's next block header and its windows (task->children, never set)
++       on whatever was there, and they never run, so nothing is drawn. The
++       windows are text window tasks: as children they run and die with it */
++    return createTask(STAGSLCT_updateStageSelect, sizeof(StageSelect), sizeof(StageSelectWindows));
++#else
+     return createTask(STAGSLCT_updateStageSelect, 0, 0);
++#endif
+ }
+ 
+ #if VERSION_EU

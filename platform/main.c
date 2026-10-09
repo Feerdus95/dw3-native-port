@@ -71,8 +71,23 @@ static int load_boot_image(void) {
 }
 
 /* native.ini next to the exe, all optional: data = <path>, fullscreen = 0/1,
-   scale = <window size in 320x240 steps> */
+   scale = <window size in 320x240 steps>, dither = 0/1, smooth_movies = 0/1,
+   debug = 0/1, log = <subsystems> */
 static int s_fullscreen, s_scale = 3;
+int g_debug, g_smooth_movies = 1, g_log;
+
+/* "cd,snd" or "all" to LOG_* bits */
+static int log_bits(const char *names) {
+    static const char *NAMES[] = {"gpu", "cd", "snd", "pad", "mc", "ovl"};
+    int bits = 0, i;
+
+    for (i = 0; i < 6; i++) {
+        if (SDL_strstr(names, NAMES[i]) != NULL || SDL_strstr(names, "all") != NULL) {
+            bits |= 1 << i;
+        }
+    }
+    return bits;
+}
 
 static void read_ini(void) {
     char path[1100], line[1200], key[32], value[1100];
@@ -95,6 +110,14 @@ static void read_ini(void) {
             s_fullscreen = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "scale") == 0 && atoi(value) >= 1) {
             s_scale = atoi(value);
+        } else if (SDL_strcasecmp(key, "dither") == 0) {
+            g_dither_on = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "smooth_movies") == 0) {
+            g_smooth_movies = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "debug") == 0) {
+            g_debug = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "log") == 0) {
+            g_log = log_bits(value);
         }
     }
     fclose(f);
@@ -106,6 +129,9 @@ int main(int argc, char **argv) {
     install_crash_handler();
     native_snapshot_overlays();
     read_ini();
+    if (getenv("DW3_LOG") != NULL) {
+        g_log = log_bits(getenv("DW3_LOG"));
+    }
     if (env != NULL) {
         snprintf(s_data, sizeof s_data, "%s", env);
     } else if (s_data[0] == 0) {
