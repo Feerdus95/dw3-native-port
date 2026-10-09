@@ -1,5 +1,5 @@
 /* libpad: a DualShock in port 1, in analog mode, from the keyboard or the
-   first SDL gamepad. Each vsync fills the receive buffer the game gave
+   first SDL gamepad (its motors too). Each vsync fills the receive buffer the game gave
    PadInitDirect, as libpad did in its interrupt. */
 #include <SDL3/SDL.h>
 #include "platform.h"
@@ -39,8 +39,69 @@ static const struct {
     {SDL_GAMEPAD_BUTTON_DPAD_LEFT, B_LEFT}, {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, B_RIGHT},
 };
 
-static uint8_t axis(SDL_GamepadAxis a) {
-    return (uint8_t)((SDL_GetGamepadAxis(s_gamepad, a) + 32768) >> 8);
+int VSync(int mode);
+
+int g_deadzone = 3277, g_rumble = 1; /* native.ini */
+
+/* A stick's two axes to DualShock bytes with a round deadzone: inside it the
+   stick is centred, past it the push is scaled back to the full range along
+   its own direction (a square one per axis would snap diagonals) */
+static void stick(SDL_GamepadAxis ax, SDL_GamepadAxis ay, uint8_t *out) {
+    float x = SDL_GetGamepadAxis(s_gamepad, ax), y = SDL_GetGamepadAxis(s_gamepad, ay);
+    float mag = SDL_sqrtf(x * x + y * y), k;
+
+    out[0] = out[1] = 0x80;
+    if (mag <= g_deadzone || g_deadzone >= 32767) {
+        return;
+    }
+    /* a full diagonal is past 32767: capped, as the stick's round gate */
+    k = ((SDL_min(mag, 32767.0f) - g_deadzone) / (32767.0f - g_deadzone)) * 127.0f / mag;
+    out[0] = (uint8_t)SDL_clamp(128.0f + x * k, 0.0f, 255.0f);
+    out[1] = (uint8_t)SDL_clamp(128.0f + y * k, 0.0f, 255.0f);
+}
+
+/* The motors: the game's two bytes go where PadSetActAlign put them; the
+   small one only spins or not, the large one has a strength */
+static SAVED uint8_t s_align[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+static SAVED uint8_t s_small, s_large;
+
+/* Every vsync, while a motor runs, for 100 ms: a crash or a pulled pad
+   doesn't leave it spinning */
+static void rumble(void) {
+    static uint8_t last_small, last_large;
+
+    if (s_gamepad == NULL || !g_rumble) {
+        return;
+    }
+    if (s_small || s_large || last_small || last_large) {
+        if (!SDL_RumbleGamepad(s_gamepad, (Uint16)(s_large * 257), s_small ? 0xFFFF : 0, s_small || s_large ? 100 : 0)) {
+            LOGC(LOG_PAD, "pad: no rumble: %s", SDL_GetError());
+        }
+    }
+    if (s_small != last_small || s_large != last_large) {
+        LOGC(LOG_PAD, "pad: motors %02X %02X (vsync %d)", s_small, s_large, VSync(-1));
+    }
+    last_small = s_small;
+    last_large = s_large;
+}
+
+/* The first gamepad, again when it's plugged back or another one is */
+static void open_gamepad(void) {
+    SDL_JoystickID *ids;
+
+    if (s_gamepad != NULL && !SDL_GamepadConnected(s_gamepad)) {
+        LOG("pad: %s unplugged", SDL_GetGamepadName(s_gamepad));
+        SDL_CloseGamepad(s_gamepad);
+        s_gamepad = NULL;
+    }
+    if (s_gamepad != NULL || (ids = SDL_GetGamepads(NULL)) == NULL) {
+        return;
+    }
+    if (ids[0] != 0 && (s_gamepad = SDL_OpenGamepad(ids[0])) != NULL) {
+        LOG("pad: %s%s", SDL_GetGamepadName(s_gamepad),
+            SDL_GetBooleanProperty(SDL_GetGamepadProperties(s_gamepad), SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "" : " (no rumble)");
+    }
+    SDL_free(ids);
 }
 
 /* DW3_PRESS="300:cross,500:start,600:f5": holds a button for 6 vsyncs at a vsync
@@ -116,14 +177,8 @@ void pad_update(void) {
     if (b == NULL) {
         return;
     }
-    if (s_gamepad == NULL) {
-        SDL_JoystickID *ids = SDL_GetGamepads(NULL);
-
-        if (ids != NULL && ids[0] != 0) {
-            s_gamepad = SDL_OpenGamepad(ids[0]);
-        }
-        SDL_free(ids);
-    }
+    open_gamepad();
+    rumble();
     for (i = 0; i < SDL_arraysize(KEYS); i++) {
         if (keys[KEYS[i].key]) {
             held |= 1 << KEYS[i].bit;
@@ -136,12 +191,10 @@ void pad_update(void) {
                 held |= 1 << BUTTONS[i].bit;
             }
         }
-        if (SDL_GetGamepadAxis(s_gamepad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > 16000) held |= 1 << B_L2;
-        if (SDL_GetGamepadAxis(s_gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > 16000) held |= 1 << B_R2;
-        b[4] = axis(SDL_GAMEPAD_AXIS_RIGHTX);
-        b[5] = axis(SDL_GAMEPAD_AXIS_RIGHTY);
-        b[6] = axis(SDL_GAMEPAD_AXIS_LEFTX);
-        b[7] = axis(SDL_GAMEPAD_AXIS_LEFTY);
+        if (SDL_GetGamepadAxis(s_gamepad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > g_deadzone) held |= 1 << B_L2;
+        if (SDL_GetGamepadAxis(s_gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > g_deadzone) held |= 1 << B_R2;
+        stick(SDL_GAMEPAD_AXIS_RIGHTX, SDL_GAMEPAD_AXIS_RIGHTY, b + 4);
+        stick(SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY, b + 6);
     }
     record_replay(&held, b + 4);
     {
@@ -164,6 +217,12 @@ void pad_update(void) {
 void PadInitDirect(uint8_t *a, uint8_t *b) {
     s_buf[0] = a;
     s_buf[1] = b;
+    /* As the recomp: SDL's own HIDAPI drivers, Xbox pads included, rather
+       than RawInput, whose XInput pairing for the motors can miss */
+    SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI, "1");
+    SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, "0");
+    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_XBOX, "1");
     SDL_InitSubSystem(SDL_INIT_GAMEPAD);
 }
 
@@ -196,14 +255,37 @@ int PadInfoMode(int port, int term, int offs) {
     }
 }
 
-/* No vibration yet: no actuators */
+/* A DualShock's two actuators, as its command 46h tells them: 0 the small
+   motor (on/off), 1 the large one (a byte of strength) */
 int PadInfoAct(int port, int act, int term) {
-    return 0;
+    static const uint8_t INFO[2][4] = {{1, 2, 0, 10}, {1, 1, 1, 20}}; /* func, sub, size, current */
+
+    if (port != 0) {
+        return 0;
+    }
+    if (act == -1) {
+        return 2;
+    }
+    return act >= 0 && act < 2 && term >= 1 && term <= 4 ? INFO[act][term - 1] : 0;
 }
 
-void PadSetAct(int port, uint8_t *data, int len) {}
+/* The game's motor bytes, routed by the alignment: 0 small, 1 large */
+void PadSetAct(int port, uint8_t *data, int len) {
+    int i;
+
+    for (i = 0; i < len && i < 6 && port == 0; i++) {
+        if (s_align[i] == 0) {
+            s_small = data[i];
+        } else if (s_align[i] == 1) {
+            s_large = data[i];
+        }
+    }
+}
 
 int PadSetActAlign(int port, uint8_t *data) {
+    if (port == 0) {
+        SDL_memcpy(s_align, data, 6);
+    }
     return 1;
 }
 

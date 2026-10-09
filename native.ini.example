@@ -15,6 +15,12 @@ dither = 1
 # 0: the movies with sharp pixels instead of smoothed when scaled up
 smooth_movies = 1
 
+# The gamepad (the first one plugged; an Xbox 360 pad or any SDL knows).
+# deadzone: how far the sticks and triggers move before they count, 0-32767
+deadzone = 3277
+# 0: no vibration
+rumble = 1
+
 # 1: debug keys. F1 the developers' stage select (stages, sound test, test
 # battles), F3 the sound test, F4 the vibration test, F2 the game state to game_<n>.bin, F5 / F9 save / load a state
 # (saves/quick.state, only for this same build)

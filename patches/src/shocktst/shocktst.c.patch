@@ -60,21 +60,34 @@
          win->help[1] = createTextWindow(SCREEN_LAYER, 1, 0xDC, 0xC8);
          win->help[1]->setText(win->help[1], SHOCKTST_STR_START_BACK);
          task->text = HEAP.allocZeroed(0x4000, 2);
-@@ -511,7 +522,13 @@
+@@ -511,7 +522,26 @@
          }
          fd = open(SHOCKTST_textPath, 1);
          if (fd == -1) {
 +#ifdef NATIVE
 +            /* the patterns came from the developers' PC (sim:): without
-+               them, the editor's empty patterns, as when there's no file */
-+            win->test = SHOCKTST_createEditor(10);
++               them, a few to try the motors with, a second each: the fast
++               one, the slow one at full and half power, both */
++            {
++                static const u8 PATTERNS[4][4] = {{60, 1, 0, 0}, {0, 0, 60, 255}, {0, 0, 60, 128}, {60, 1, 60, 255}};
++                ShockTest *editor = SHOCKTST_createEditor(10);
++                s32 i;
++
++                for (i = 0; i < 4; i++) {
++                    editor->steps[0][i].time = PATTERNS[i][0];
++                    editor->steps[0][i].power = PATTERNS[i][1];
++                    editor->steps[1][i].time = PATTERNS[i][2];
++                    editor->steps[1][i].power = PATTERNS[i][3];
++                }
++                win->test = editor;
++            }
 +#else
              task->setState(task, TASK_KILL);
 +#endif
              break;
          }
          read(fd, task->text, 0x4000);
-@@ -538,6 +555,11 @@
+@@ -538,6 +568,11 @@
          if (task->text != NULL) {
              HEAP.free(task->text);
          }
@@ -86,7 +99,7 @@
          GAME.funcs.requestMode(MODE_STAGE_SELECT, 0);
          break;
      }
-@@ -551,9 +573,13 @@
+@@ -551,9 +586,13 @@
  /* "ＳＴＡＲＴ：もどる" (START: back), padded to a word: the USA file's
     padding isn't zeros but what the assembler left there; the size leaves
     out the closing NUL */

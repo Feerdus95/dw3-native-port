@@ -311,7 +311,9 @@ def main():
     r = run([CC, f"@{rsp}", "-o", exe, *LDFLAGS])
     if r.returncode != 0:
         sys.exit(f"link failed:\n{r.stderr[:4000]}")
-    shutil.copy2(SDL / "bin/SDL3.dll", OUT / "SDL3.dll")
+    dll = OUT / "SDL3.dll"
+    if not dll.exists() or dll.read_bytes() != (SDL / "bin/SDL3.dll").read_bytes():  # a running game locks it
+        shutil.copy2(SDL / "bin/SDL3.dll", dll)
 
     with open(OUT / "report.md", "w", encoding="utf-8") as f:
         f.write(f"# Native build\n\n{len(srcs)} game files, {len(platform)} platform files, "

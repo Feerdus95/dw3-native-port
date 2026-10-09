@@ -35,6 +35,9 @@ if you copy it there.
 | Backspace | Select |
 | F11 or Alt+Enter | Fullscreen |
 
+A gamepad works too (Xbox 360 or any SDL knows: A cross, B circle, X square, Y triangle, triggers L2 / R2, sticks
+analog), with vibration. It can be plugged in or swapped while playing.
+
 ## Options
 
 Optional: a `native.ini` next to `dw2003.exe` (see `native.ini.example`):
@@ -44,6 +47,8 @@ Optional: a `native.ini` next to `dw2003.exe` (see `native.ini.example`):
     scale = 3            ; window size in 320x240 steps
     dither = 1           ; 0 turns off the PlayStation's dithering
     smooth_movies = 1    ; 0 shows the movies with sharp pixels
+    deadzone = 3277      ; how far the sticks and triggers move before they count (0-32767)
+    rumble = 1           ; 0: no vibration
     debug = 0            ; 1: F1 debug stage select, F3 sound test, F4 vibration test, F2 dump of the game state,
                          ;    F5 / F9 save / load a state (saves/quick.state)
 
