@@ -1,6 +1,8 @@
 /* The debug keys (native.ini: debug = 1), run at the frame's end:
-     F1  the stage select (STAGSLCT), the developers' menu: stages, the sound
-         and vibration tests (SOUNDTST, SHOCKTST), test battles
+     F1  the stage select (STAGSLCT), the developers' menu: stages, scenes,
+         test battles
+     F3  the sound test (SOUNDTST), F4 the vibration test (SHOCKTST): the
+         European stage select has no lines for them
      F2  GAME (the save data and the mode) to game_<vsync>.bin, to compare
          with the recomp on the same save
      F5  savestate to saves/quick.state, F9 load it
@@ -25,6 +27,8 @@ void loadFont(void);    /* main/text/font.c */
 
 #define GAME_DUMP_SIZE 0x26F0 /* up to its methods (EU) */
 #define MODE_STAGE_SELECT 0x1500
+#define MODE_SOUND_TEST 0x800     /* SOUNDTST */
+#define MODE_VIBRATION_TEST 0x900 /* SHOCKTST */
 
 typedef struct {
     char magic[4];
@@ -34,7 +38,7 @@ typedef struct {
 static int s_key;
 
 void state_key(int key) {
-    if (key == SDLK_F1 || key == SDLK_F2 || key == SDLK_F5 || key == SDLK_F9) {
+    if (key == SDLK_F1 || key == SDLK_F2 || key == SDLK_F3 || key == SDLK_F4 || key == SDLK_F5 || key == SDLK_F9) {
         s_key = key;
     }
 }
@@ -143,14 +147,16 @@ void state_frame(void) {
     int key = s_key;
 
     s_key = 0;
-    if (key == SDLK_F1) {
-        LOG("debug: stage select (vsync %d, mode %04X)", VSync(-1), getMode());
+    if (key == SDLK_F1 || key == SDLK_F3 || key == SDLK_F4) {
+        int mode = key == SDLK_F1 ? MODE_STAGE_SELECT : key == SDLK_F3 ? MODE_SOUND_TEST : MODE_VIBRATION_TEST;
+
+        LOG("debug: mode %04X (vsync %d, from mode %04X)", mode, VSync(-1), getMode());
         if (getMode() >> 8 == 0x16) {
             /* the language select wipes the font, which the next movie's end
                loads again (stdwtitl/movie.c): the same here */
             loadFont();
         }
-        requestMode(MODE_STAGE_SELECT, 0);
+        requestMode(mode, 0);
     } else if (key == SDLK_F2) {
         dump_game();
     } else if ((key == SDLK_F5 || key == SDLK_F9) && movie_playing()) {

@@ -44,7 +44,7 @@ Optional: a `native.ini` next to `dw2003.exe` (see `native.ini.example`):
     scale = 3            ; window size in 320x240 steps
     dither = 1           ; 0 turns off the PlayStation's dithering
     smooth_movies = 1    ; 0 shows the movies with sharp pixels
-    debug = 0            ; 1: F1 debug stage select, F2 dump of the game state,
+    debug = 0            ; 1: F1 debug stage select, F3 sound test, F4 vibration test, F2 dump of the game state,
                          ;    F5 / F9 save / load a state (saves/quick.state)
 
 ---

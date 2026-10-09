@@ -1,0 +1,102 @@
+--- a/src/shocktst/shocktst.c
++++ b/src/shocktst/shocktst.c
+@@ -9,9 +9,11 @@
+ 
+ /* The strings of the pattern, time and power windows (setString) */
+ char SHOCKTST_numberFormats[3][0x40] = {
+-    "\xC3\xB1\xE8\xE3\x01\x07\x02\x05\x01",
+-    "\xC7\xDE\xE8\xD2\x01\x07\x02\x05\x01",
+-    "\x65\x89\x56\x01\x07\x02\x05\x01",
++    /* native: "Pattern", "Frames", "Power" for "パターン", "フレーム", "つよさ";
++       then the colon icon and the number */
++    "\x1D\x28\x3B\x3B\x2C\x39\x35\x01\x07\x02\x05\x01",
++    "\x13\x39\x28\x34\x2C\x3A\x01\x07\x02\x05\x01",
++    "\x1D\x36\x3E\x2C\x39\x01\x07\x02\x05\x01",
+ };
+ 
+ #define SCENE_TASK Task
+@@ -276,10 +278,10 @@
+     return 0;
+ }
+ 
+-/* The names of the motors: "こうそく" (fast) and "ていそく" (slow) */
++/* The names of the motors: "Fast" and "Slow" (native: in English) */
+ char *SHOCKTST_motorNames[2] = {
+-    "\x82\xB1\x82\xA4\x82\xBB\x82\xAD",
+-    "\x82\xC4\x82\xA2\x82\xBB\x82\xAD",
++    "\x82\x65\x82\x81\x82\x93\x82\x94",
++    "\x82\x72\x82\x8C\x82\x8F\x82\x97",
+ };
+ 
+ /* The editor's task: creates its windows, then edits and plays the patterns
+@@ -309,7 +311,7 @@
+             win->powers[i]->setNumber(win->powers[i], 1, task->steps[i][0].power);
+         }
+         win->play = createTextWindow(task->windowId, 1, 0x28, 0x8C);
+-        win->play->setText(win->play, "\x83\x70\x83\x5E\x81\x5B\x83\x93\x82\xB6\x82\xC1\x82\xB1\x82\xA4"); /* "パターンじっこう" */
++        win->play->setText(win->play, "\x82\x71\x82\x95\x82\x8E\x81\x40\x82\x6F\x82\x81\x82\x94\x82\x94\x82\x85\x82\x92\x82\x8E"); /* "Run Pattern" (native: in English) */
+         break;
+     case TASK_RUN:
+         switch (task->substate) {
+@@ -497,10 +499,19 @@
+     case TASK_INIT:
+     default:
+         task->nextState(task);
++#ifdef NATIVE
++        /* black is "no clear" to a layer: the previous screen showed
++           through (on the PSX too). A near-black clears it */
++        {
++            Layer *layer = GFX.funcs.getLayer(SCREEN_LAYER);
++
++            layer->setBgColor(layer, 1, 1, 1);
++        }
++#endif
+         win->title = createTextWindow(SCREEN_LAYER, 0, 0x14, 0x1E);
+-        win->title->setText(win->title, "\x82\xB5\x82\xF1\x82\xC7\x82\xA4\x83\x65\x83\x58\x83\x67"); /* "しんどうテスト" */
++        win->title->setText(win->title, "\x82\x75\x82\x89\x82\x82\x82\x92\x82\x81\x82\x94\x82\x89\x82\x8F\x82\x8E\x81\x40\x82\x73\x82\x85\x82\x93\x82\x94"); /* "Vibration Test" (native: in English) */
+         win->help[0] = createTextWindow(SCREEN_LAYER, 1, 0xDC, 0xB4);
+-        win->help[0]->setText(win->help[0], "\x81\x7E\x81\x46\x82\xB6\x82\xC1\x82\xB1\x82\xA4\x82\xC4\x82\xA2\x82\xB5"); /* "×：じっこうていし" */
++        win->help[0]->setText(win->help[0], "\x81\x7E\x81\x46\x82\x72\x82\x94\x82\x8F\x82\x90"); /* "×：Stop" (native: in English) */
+         win->help[1] = createTextWindow(SCREEN_LAYER, 1, 0xDC, 0xC8);
+         win->help[1]->setText(win->help[1], SHOCKTST_STR_START_BACK);
+         task->text = HEAP.allocZeroed(0x4000, 2);
+@@ -511,7 +522,13 @@
+         }
+         fd = open(SHOCKTST_textPath, 1);
+         if (fd == -1) {
++#ifdef NATIVE
++            /* the patterns came from the developers' PC (sim:): without
++               them, the editor's empty patterns, as when there's no file */
++            win->test = SHOCKTST_createEditor(10);
++#else
+             task->setState(task, TASK_KILL);
++#endif
+             break;
+         }
+         read(fd, task->text, 0x4000);
+@@ -538,6 +555,11 @@
+         if (task->text != NULL) {
+             HEAP.free(task->text);
+         }
++#ifdef NATIVE
++        if (GAME.funcs.isModeChangePending()) { /* a debug key's mode (platform/state.c) */
++            break;
++        }
++#endif
+         GAME.funcs.requestMode(MODE_STAGE_SELECT, 0);
+         break;
+     }
+@@ -551,9 +573,13 @@
+ /* "ＳＴＡＲＴ：もどる" (START: back), padded to a word: the USA file's
+    padding isn't zeros but what the assembler left there; the size leaves
+    out the closing NUL */
++#ifdef NATIVE
++const char SHOCKTST_STR_START_BACK[] = "\x82\x72\x82\x73\x82\x60\x82\x71\x82\x73\x81\x46\x82\x61\x82\x81\x82\x83\x82\x8B"; /* "ＳＴＡＲＴ：Back" */
++#else
+ const char SHOCKTST_STR_START_BACK[20] =
+ #if VERSION_US
+     "\x82\x72\x82\x73\x82\x60\x82\x71\x82\x73\x81\x46\x82\xE0\x82\xC7\x82\xE9\0\x03";
+ #elif VERSION_EU
+     "\x82\x72\x82\x73\x82\x60\x82\x71\x82\x73\x81\x46\x82\xE0\x82\xC7\x82\xE9\0\0";
+ #endif
++#endif

@@ -1,0 +1,32 @@
+--- a/src/soundtst/soundtst.c
++++ b/src/soundtst/soundtst.c
+@@ -729,7 +729,7 @@
+         while (SOUNDTST_banks[task->bankCount].id != 0) {
+             task->bankCount++;
+         }
+-        win->header->setText(win->header, "\x81\x7C\x82\xC4\x82\xF1\x82\xBB\x82\xA4\x82\xB7\x82\xE9\x82\x75\x82\x60\x82\x61\x82\xF0\x82\xB9\x82\xF1\x82\xBD\x82\xAD\x82\xB5\x82\xC4\x82\xAD\x82\xBE\x82\xB3\x82\xA2\x81\x7C"); /* "－てんそうするＶＡＢをせんたくしてください－" */
++        win->header->setText(win->header, "\x81\x5C\x82\x72\x82\x85\x82\x8C\x82\x85\x82\x83\x82\x94\x81\x40\x82\x94\x82\x88\x82\x85\x81\x40\x82\x75\x82\x60\x82\x61\x81\x40\x82\x94\x82\x8F\x81\x40\x82\x93\x82\x85\x82\x8E\x82\x84\x81\x5C"); /* "-Select the VAB to send-" (native: in English) */
+         task->nextStep(task);
+     case 1:
+         break;
+@@ -768,7 +768,7 @@
+         res = GFX.funcs.createLayer(&SOUNDTST_screenRect, 1, SCREEN_LAYER);
+         res->setBgColor(res, 0x1F, 0x1F, 0x1F);
+         win->title = createTextWindow(SCREEN_LAYER, 1, 0x10, 0x1E);
+-        win->title->setText(win->title, "\x83\x54\x83\x45\x83\x93\x83\x68\x83\x65\x83\x58\x83\x67"); /* "サウンドテスト" */
++        win->title->setText(win->title, "\x82\x72\x82\x8F\x82\x95\x82\x8E\x82\x84\x81\x40\x82\x73\x82\x85\x82\x93\x82\x94"); /* "Sound Test" (native: in English) */
+         win->header = createTextWindow(SCREEN_LAYER, 1, 0x20, 0x32);
+         for (i = 0; i < 8; i++) {
+             win->lines[i] = createTextWindow(SCREEN_LAYER, 1, 0x30, i * 16 + 0x46);
+@@ -794,6 +794,11 @@
+     case TASK_DONE:
+         break;
+     case TASK_KILL:
++#ifdef NATIVE
++        if (GAME.funcs.isModeChangePending()) { /* a debug key's mode (platform/state.c) */
++            break;
++        }
++#endif
+         GAME.funcs.requestMode(MODE_STAGE_SELECT, 0);
+         break;
+     }

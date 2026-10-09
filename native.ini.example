@@ -16,7 +16,7 @@ dither = 1
 smooth_movies = 1
 
 # 1: debug keys. F1 the developers' stage select (stages, sound test, test
-# battles), F2 the game state to game_<n>.bin, F5 / F9 save / load a state
+# battles), F3 the sound test, F4 the vibration test, F2 the game state to game_<n>.bin, F5 / F9 save / load a state
 # (saves/quick.state, only for this same build)
 debug = 0
 
