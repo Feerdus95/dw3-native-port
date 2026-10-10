@@ -42,6 +42,7 @@ static int s_key;
    that story point (GAME.progress) if given; for the field editor's Test */
 int g_field_mode, g_field_progress = -1;
 #define GAME_PROGRESS 0x263C
+#define GAME_MODE 0x26C4 /* EU */
 #define MODE_TITLE 0xE00
 #define MODE_LANGUAGE 0x1600
 
@@ -157,6 +158,8 @@ void state_frame(void) {
 
     s_key = 0;
     if (g_field_mode != 0 && (getMode() >> 8 == MODE_TITLE >> 8 || getMode() >> 8 == MODE_LANGUAGE >> 8)) {
+        int title = MODE_TITLE;
+
         LOG("field: mode %04X%s", g_field_mode, g_field_progress >= 0 ? ", with a story point" : "");
         if (getMode() >> 8 == MODE_LANGUAGE >> 8) {
             loadFont(); /* as F1: the language select wipes the font */
@@ -164,6 +167,10 @@ void state_frame(void) {
         if (g_field_progress >= 0) {
             memcpy(GAME + GAME_PROGRESS, &g_field_progress, 4);
         }
+        /* as if from the title: from another mode the field puts the player
+           back where a field was left (GAME.fieldPos, 0, 0 here), not at
+           its start (fieldstg/field.c startField) */
+        memcpy(GAME + GAME_MODE, &title, 4);
         requestMode(g_field_mode, 0);
         g_field_mode = 0;
     }
