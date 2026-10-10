@@ -29,6 +29,10 @@ void native_wait_vblank(void);
    or the stages and WFIGHTMN/TS (sub 1) (platform/memory.c) */
 void native_reset_overlays(int sub);
 
+/* After a stage's setup: the field editor's changes to its tables, from
+   data/mods/stages/<stage>.json (platform/stagemods.c) */
+void native_apply_stage_mod(void);
+
 /* printf to stderr, for probes (platform/main.c) */
 void native_log(const char *fmt, ...);
 

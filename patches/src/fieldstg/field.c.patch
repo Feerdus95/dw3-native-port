@@ -12,3 +12,13 @@
      }
      setUpFieldScreen();
      if (FIELDSTG_keepsFileCache() == 0) {
+@@ -507,6 +511,9 @@
+     if (FIELDSTG_state.stageInit != NULL) {
+         children->stage = FIELDSTG_state.stageInit(task);
+     }
++#ifdef NATIVE
++    native_apply_stage_mod(); /* the field editor's changes (platform/stagemods.c) */
++#endif
+     FLAGS_00.updateModeFlags();
+     FLAGS_00.applyAction(FIELD_VISITED_FLAG(GAME.funcs.getMode()), 1);
+     mode = GAME.funcs.getPrevMode();

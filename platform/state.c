@@ -37,6 +37,14 @@ typedef struct {
 
 static int s_key;
 
+/* --field MODE [--progress N] (main.c): the field to jump to once the game
+   reaches the language select or the title, as the stage select does, at
+   that story point (GAME.progress) if given; for the field editor's Test */
+int g_field_mode, g_field_progress = -1;
+#define GAME_PROGRESS 0x263C
+#define MODE_TITLE 0xE00
+#define MODE_LANGUAGE 0x1600
+
 void state_key(int key) {
     if (key == SDLK_F1 || key == SDLK_F2 || key == SDLK_F3 || key == SDLK_F4 || key == SDLK_F5 || key == SDLK_F9) {
         s_key = key;
@@ -148,6 +156,17 @@ void state_frame(void) {
     int key = s_key;
 
     s_key = 0;
+    if (g_field_mode != 0 && (getMode() >> 8 == MODE_TITLE >> 8 || getMode() >> 8 == MODE_LANGUAGE >> 8)) {
+        LOG("field: mode %04X%s", g_field_mode, g_field_progress >= 0 ? ", with a story point" : "");
+        if (getMode() >> 8 == MODE_LANGUAGE >> 8) {
+            loadFont(); /* as F1: the language select wipes the font */
+        }
+        if (g_field_progress >= 0) {
+            memcpy(GAME + GAME_PROGRESS, &g_field_progress, 4);
+        }
+        requestMode(g_field_mode, 0);
+        g_field_mode = 0;
+    }
     if (key == SDLK_F1 || key == SDLK_F3 || key == SDLK_F4) {
         int mode = key == SDLK_F1 ? MODE_STAGE_SELECT : key == SDLK_F3 ? MODE_SOUND_TEST : MODE_VIBRATION_TEST;
 

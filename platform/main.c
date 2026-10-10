@@ -157,6 +157,16 @@ int main(int argc, char **argv) {
         LOG("the game's memory is above 16 MB: the GPU's 24-bit tags can't reach it");
         return 1;
     }
+    if (argc == 3 && SDL_strcmp(argv[1], "--dump-stages") == 0) {
+        return stage_dump(argv[2]);
+    }
+    for (int i = 1; i + 1 < argc; i++) {
+        if (SDL_strcmp(argv[i], "--field") == 0) {
+            g_field_mode = SDL_atoi(argv[++i]);
+        } else if (SDL_strcmp(argv[i], "--progress") == 0) {
+            g_field_progress = (int)SDL_strtol(argv[++i], NULL, 0);
+        }
+    }
     if (!load_boot_image() || !video_init(s_scale, s_fullscreen)) {
         return 1;
     }

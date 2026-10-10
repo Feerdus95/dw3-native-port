@@ -275,13 +275,27 @@ def main():
     for src in sorted((NATIVE / "platform").glob("*.c")):
         obj = OUT / "platform" / src.with_suffix(".o").name
         obj.parent.mkdir(parents=True, exist_ok=True)
-        if clean or not obj.exists() or obj.stat().st_mtime < max(src.stat().st_mtime, (NATIVE / "platform/platform.h").stat().st_mtime):
+        if clean or not obj.exists() or obj.stat().st_mtime < max(src.stat().st_mtime, *(h.stat().st_mtime for h in (NATIVE / "platform").glob("*.h"))):
             r = run([CC, *PLATFORM_CFLAGS, src, "-o", obj])
             if r.returncode != 0:
                 sys.exit(f"FAILED {src.name}\n{r.stderr}")
             if r.stderr:
                 print(r.stderr)
         platform.append(obj)
+
+    # the stages' setups, by name, for --dump-stages (platform/stagedump.c)
+    stage_list = OUT / "stage_list.c"
+    names = sorted(p.stem for p in (OUT / "obj").glob("wstag*.syms") if "_setupStage " in p.read_text())
+    with open(stage_list, "w") as f:
+        f.writelines(f"void {n.upper()}_setupStage(void); void {n.upper()}_startStage(void);\n" for n in names)
+        f.write("struct { const char *name; void (*setup)(void); void *start; } native_stage_list[] = {\n")
+        f.writelines(f'    {{"{n}", {n.upper()}_setupStage, (void *){n.upper()}_startStage}},\n' for n in names)
+        f.write("    {0, 0, 0},\n};\n")
+    stage_list_obj = OUT / "stage_list.o"
+    r = run([CC, *PLATFORM_CFLAGS, stage_list, "-o", stage_list_obj])
+    if r.returncode != 0:
+        sys.exit(r.stderr)
+    platform.append(stage_list_obj)
 
     game_objs = [obj for _, obj, _, _ in results]
     defined, undefined = set(), collections.defaultdict(int)

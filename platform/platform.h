@@ -120,5 +120,7 @@ extern int g_rumble;        /* rumble = 0: the gamepad doesn't vibrate (pad.c) *
 void state_key(int key);  /* a debug key (SDL keycode), from pump_events */
 void state_frame(void);   /* at the frame's end (native_wait_vblank): runs what the keys asked */
 int movie_playing(void);  /* movie.c */
+int stage_dump(const char *dir); /* stagedump.c: --dump-stages DIR */
+extern int g_field_mode, g_field_progress; /* state.c: --field MODE --progress N */
 
 #endif /* PLATFORM_H */
