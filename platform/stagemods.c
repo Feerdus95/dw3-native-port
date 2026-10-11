@@ -448,7 +448,7 @@ int native_field_names(int mode, int *area, int *place) {
     return 1;
 }
 
-void native_apply_stage_mod(void) {
+static void apply_mod_file(void) {
     const StageFuncs *stage = native_current_stage();
     char path[1200];
     Json *mod;
@@ -467,4 +467,14 @@ void native_apply_stage_mod(void) {
     apply(&FIELDSTG_state, mod);
     json_free(mod);
     LOG("stage mod: %s", path);
+}
+
+void native_apply_stage_mod(void) {
+    apply_mod_file();
+    /* --at X,Y (the field editor's test): the player starts there, once */
+    if (g_field_at_x >= 0) {
+        FIELDSTG_state.startX = g_field_at_x << 8;
+        FIELDSTG_state.startY = g_field_at_y << 8;
+        g_field_at_x = -1;
+    }
 }

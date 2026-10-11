@@ -40,7 +40,7 @@ static int s_key;
 /* --field MODE [--progress N] (main.c): the field to jump to once the game
    reaches the language select or the title, as the stage select does, at
    that story point (GAME.progress) if given; for the field editor's Test */
-int g_field_mode, g_field_progress = -1, g_field_event;
+int g_field_mode, g_field_progress = -1, g_field_event, g_field_at_x = -1, g_field_at_y;
 #define GAME_PROGRESS 0x263C
 #define GAME_MODE 0x26C4 /* EU */
 #define MODE_TITLE 0xE00

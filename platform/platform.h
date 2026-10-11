@@ -122,5 +122,6 @@ void state_frame(void);   /* at the frame's end (native_wait_vblank): runs what 
 int movie_playing(void);  /* movie.c */
 int stage_dump(const char *dir); /* stagedump.c: --dump-stages DIR */
 extern int g_field_mode, g_field_progress; /* state.c: --field MODE --progress N */
+extern int g_field_at_x, g_field_at_y; /* --at X,Y: the player's start in the first field (map pixels), x -1 for none */
 
 #endif /* PLATFORM_H */
