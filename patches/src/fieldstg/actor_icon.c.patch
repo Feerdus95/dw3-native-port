@@ -1,0 +1,18 @@
+--- a/src/fieldstg/actor_icon.c
++++ b/src/fieldstg/actor_icon.c
+@@ -93,7 +93,15 @@
+ ActorIcon *FIELDSTG_createActorIcon(Actor *actor) {
+     ActorIcon *task;
+ 
++#ifdef NATIVE
++    s32 area;
++    s32 place;
++
++    /* and in the field editor's new fields, whose events may show it */
++    if (GAME.funcs.getMode() < MODE_NEW_GAME || native_field_names(GAME.funcs.getMode(), &area, &place)) {
++#else
+     if (GAME.funcs.getMode() < MODE_NEW_GAME) {
++#endif
+         task = createTaskWithId(FIELDSTG_updateActorIcon, sizeof(ActorIcon), 0, FIELD_TASK_ICON);
+         task->actor = actor;
+         return task;

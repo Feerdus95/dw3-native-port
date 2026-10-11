@@ -22,3 +22,30 @@
      FLAGS_00.updateModeFlags();
      FLAGS_00.applyAction(FIELD_VISITED_FLAG(GAME.funcs.getMode()), 1);
      mode = GAME.funcs.getPrevMode();
+@@ -628,6 +635,13 @@
+         switch (task->substate) {
+         case 0:
+         default:
++#ifdef NATIVE
++            /* --event ID (the field editor's test): the event, once the field runs */
++            if (g_field_event != 0 && children->event == NULL) {
++                children->event = FIELDSTG_startEvent(g_field_event);
++                g_field_event = 0;
++            }
++#endif
+             openFieldMenu(task, children);
+             break;
+         case 1:
+@@ -1012,7 +1026,12 @@
+     FieldTask *field = TASK_REGISTRY.funcs.find(FIELD_TASK_FIELD, -1, -1);
+     FieldChildren *children = field->children;
+ 
++#ifdef NATIVE
++    /* past the table, the field editor's events: START_EVENT(0x100 + n) starts event 9000 + n */
++    children->event = FIELDSTG_startEvent(index >= 0x100 ? 9000 + index - 0x100 : FIELDSTG_eventIds[index]);
++#else
+     children->event = FIELDSTG_startEvent(FIELDSTG_eventIds[index]);
++#endif
+ }
+ 
+ /* Opens the inn: the field task waits for it (the executable calls it) */

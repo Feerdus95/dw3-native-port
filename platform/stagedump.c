@@ -147,10 +147,19 @@ static void dump(FILE *f, const StageFuncs *s) {
     fputs("],\n\"places\":", f);
     places(f, s_places != NULL ? s_places : st->battles, s_places != NULL);
 
-    /* the events end with id -1: only what they are, their scripts stay code */
+    /* the events end with id -1: each one's script (the words FIELDSTG_runEvent
+       reads, up to its end) and whether code starts or ends it */
     fputs(",\n\"events\":[", f);
     for (FieldEvent *e = st->events; e != NULL && e->id != -1; e++) {
-        fprintf(f, "%s[%d,%d,%d]", e == st->events ? "" : ",", e->id, e->script != NULL, e->text);
+        fprintf(f, "%s\n{\"id\":%d,\"text\":%d,\"start\":%d,\"end\":%d,\"script\":", e == st->events ? "" : ",", e->id,
+                e->text, e->start != NULL, e->end != NULL);
+        if (e->script == NULL) {
+            fputs("null}", f);
+            continue;
+        }
+        int n = native_script_length(e->script);
+        for (int i = 0; i < n; i++) fprintf(f, "%s%d", i ? "," : "[", e->script[i]);
+        fputs("]}", f);
     }
     fputs("]}\n", f);
 }

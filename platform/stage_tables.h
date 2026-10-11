@@ -101,6 +101,10 @@ extern uint8_t FIELDSTG_actorWidths[];
 extern const StageFuncs native_stage_list[]; /* build.py's stage_list.c, up to name NULL */
 void native_reset_overlays(int sub);
 
+/* An event script's words, its end (0) included: each command's length by
+   its kind and sub (FIELDSTG_runEvent) */
+int native_script_length(const int16_t *script);
+
 /* the stage whose start is FIELDSTG_state.stageInit, or NULL */
 const StageFuncs *native_current_stage(void);
 

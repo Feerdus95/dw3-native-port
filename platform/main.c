@@ -163,6 +163,8 @@ int main(int argc, char **argv) {
     for (int i = 1; i + 1 < argc; i++) {
         if (SDL_strcmp(argv[i], "--field") == 0) {
             g_field_mode = SDL_atoi(argv[++i]);
+        } else if (SDL_strcmp(argv[i], "--event") == 0 && i + 1 < argc) {
+            g_field_event = (int)SDL_strtol(argv[++i], NULL, 0);
         } else if (SDL_strcmp(argv[i], "--progress") == 0) {
             g_field_progress = (int)SDL_strtol(argv[++i], NULL, 0);
         }

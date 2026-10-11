@@ -1,0 +1,24 @@
+--- a/src/fieldstg/banner.c
++++ b/src/fieldstg/banner.c
+@@ -10,6 +10,21 @@
+     s16 mode = GAME.funcs.getMode();
+     s32 i;
+ 
++#ifdef NATIVE
++    s32 area;
++    s32 place;
++
++    /* a new field of the field editor's: the names its file gives */
++    if (native_field_names(mode, &area, &place)) {
++        windows->area = createTextWindow(FIELD_LAYER_BANNER, 1, 0x80, 0x1A);
++        windows->area->setString(windows->area, FILE_CACHE.load(TEXT_FILE(TEXT_AREA_NAMES)), area);
++        windows->area->setTypeDelay(windows->area, 5);
++        windows->place = createTextWindow(FIELD_LAYER_BANNER, 1, 0x28, 0x44);
++        windows->place->setString(windows->place, FILE_CACHE.load(TEXT_FILE(TEXT_STAGE_NAMES)), place);
++        windows->place->setTypeDelay(windows->place, 5);
++        return;
++    }
++#endif
+     for (i = 0; FIELDSTG_areaNames[i].mode != 0; i++) {
+         if (FIELDSTG_areaNames[i].mode == mode) {
+             windows->area = createTextWindow(FIELD_LAYER_BANNER, 1, 0x80, 0x1A);

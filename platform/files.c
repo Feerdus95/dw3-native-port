@@ -6,7 +6,7 @@
 #include "platform.h"
 
 #define SECTOR 2048
-#define MAX_FILES 4096
+#define MAX_FILES 8192 /* the disc's, then the field editor's new ones (3000 on) */
 
 static long s_size[MAX_FILES]; /* bytes; 0 unknown, -1 missing */
 

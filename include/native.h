@@ -32,6 +32,13 @@ void native_reset_overlays(int sub);
 /* After a stage's setup: the field editor's changes to its tables, from
    data/mods/stages/<stage>.json (platform/stagemods.c) */
 void native_apply_stage_mod(void);
+/* a new field of the field editor's for a mode no stage has: 1 once
+   FIELDSTG_state has its template's code (FIELDSTG's pickStage) */
+int native_pick_new_field(int mode);
+/* the banner's names of a new field's mode, 1 if it is one */
+int native_field_names(int mode, int *area, int *place);
+/* --event ID: the event FIELDSTG starts once the field runs, then 0 */
+extern int g_field_event;
 
 /* printf to stderr, for probes (platform/main.c) */
 void native_log(const char *fmt, ...);

@@ -2,11 +2,21 @@
    applied after the stage's setup (native_apply_stage_mod, from FIELDSTG's
    startField). The file has the stage dump's form (stagedump.c), with only
    the parts the editor changed: "objects", "slots", "actors" (and "images"
-   for them), "start" and "startDir", "places" (the battles), "music" and
+   for them), "start" and "startDir", "places" (the battles), "events" (their
+   scripts; code that starts or ends one stays, by its id), "music" and
    "soundBank". Each one present replaces the stage's own table; the tables
    are built here, as the game reads them (stage_tables.h), and live until
    the next field. The map itself (its tiles and logic maps) is a file the
-   editor writes to data/mods/<fid>.bin, which files.c already prefers. */
+   editor writes to data/mods/<fid>.bin, which files.c already prefers; a
+   field whose background grew gets a file of its own ("mapFile"), as the
+   game's are shared between story copies, and so do its objects' images
+   once it has pictures of its own ("imageFile", "imageEntry").
+
+   A new field is data/mods/stages/new<mode>.json (new2f0.json), a mode no
+   stage has: it runs the code of an existing stage, its "template", with
+   the whole of its tables from the file, its own files ("mapFile",
+   "sheetEntry", "mapFiles") and the banner's names ("modes"). FIELDSTG's
+   pickStage asks native_pick_new_field for it. */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,13 +26,15 @@
 
 extern uint8_t GAME[]; /* the game's GameState */
 #define GAME_PLACE 0x44 /* GAME.place, u16: the place that picks a stage's battles */
+int getMode(void);
 
 /* --- a small JSON reader: numbers, strings, arrays and objects --- */
 
 typedef struct Json {
     int type; /* 'n' number, 's' string, '[' array, '{' object, 0 null */
     double num;
-    char *str;           /* a string, or an object member's key */
+    char *str;           /* a string */
+    char *key;           /* an object member's key */
     struct Json *child;  /* the first item of an array or object */
     struct Json *next;   /* the next item */
 } Json;
@@ -38,6 +50,7 @@ static void json_free(Json *j) {
         Json *next = j->next;
         json_free(j->child);
         free(j->str);
+        free(j->key);
         free(j);
         j = next;
     }
@@ -94,8 +107,7 @@ static Json *json_value(const char **p) {
                 free(key);
                 goto bad;
             }
-            v->str = v->type == 's' ? v->str : key;
-            if (v->type == 's' && key != NULL) free(key); /* keys of string members aren't needed */
+            v->key = key;
             *tail = v;
             tail = &v->next;
             json_ws(p);
@@ -128,7 +140,7 @@ bad:
 
 static Json *json_get(Json *obj, const char *key) {
     for (Json *c = obj != NULL ? obj->child : NULL; c != NULL; c = c->next) {
-        if (c->type != 's' && c->str != NULL && strcmp(c->str, key) == 0) return c;
+        if (c->key != NULL && strcmp(c->key, key) == 0) return c;
     }
     return NULL;
 }
@@ -245,8 +257,40 @@ static void apply(FieldState *st, Json *mod) {
         st->startY = json_int(json_at(j, 1));
     }
     if ((j = json_get(mod, "startDir")) != NULL) st->startDir = json_int(j);
+    if ((j = json_get(mod, "mapFile")) != NULL) st->mapFile = json_int(j);
+    if ((j = json_get(mod, "sheetEntry")) != NULL) st->sheetEntry = json_int(j);
+    if ((j = json_get(mod, "imageEntry")) != NULL) st->imageEntry = json_int(j);
+    if ((j = json_get(mod, "imageFile")) != NULL) st->imageFile = json_int(j);
+    if ((j = json_get(mod, "mapFiles")) != NULL) {
+        for (int i = 0; i < 8; i++) FIELDSTG_map.files[i] = json_int(json_at(j, i));
+    }
     if ((j = json_get(mod, "music")) != NULL) st->music = json_int(j);
     if ((j = json_get(mod, "soundBank")) != NULL) st->soundBank = json_int(j);
+    if ((j = json_get(mod, "events")) != NULL) {
+        /* the whole list: an event the stage had keeps the code that starts
+           or ends it, by its id */
+        int n = json_len(j);
+        FieldEvent *list = alloc((n + 1) * sizeof(FieldEvent));
+        for (int i = 0; i < n; i++) {
+            Json *e = json_at(j, i), *script = json_get(e, "script");
+            list[i].id = json_int(json_get(e, "id"));
+            list[i].text = json_int(json_get(e, "text"));
+            for (FieldEvent *o = st->events; o != NULL && o->id != -1; o++) {
+                if (o->id == list[i].id) {
+                    list[i].start = o->start;
+                    list[i].end = o->end;
+                }
+            }
+            if (script != NULL && script->type == '[') {
+                int k = json_len(script);
+                int16_t *w = alloc((k + 1) * sizeof(int16_t)); /* a 0 after: it always ends */
+                for (int m = 0; m < k; m++) w[m] = (int16_t)json_int(json_at(script, m));
+                list[i].script = w;
+            }
+        }
+        list[n].id = -1;
+        st->events = list;
+    }
     if ((j = json_get(mod, "places")) != NULL) {
         int n = json_len(j);
         FieldBattles *list = alloc((n + 1) * sizeof(FieldBattles));
@@ -276,6 +320,22 @@ static void apply(FieldState *st, Json *mod) {
     }
 }
 
+int native_script_length(const int16_t *s) {
+    int i = 0;
+
+    for (;;) {
+        int kind = s[i] >> 8, sub = s[i] & 0xFF;
+
+        switch (kind) {
+        case 1: i += sub == 2 ? 5 : 4; break;
+        case 2: i += 5; break;
+        case 3: i += sub == 1 ? 1 : sub == 4 ? 5 : 2; break;
+        case 6: i += sub == 1 ? 4 : 3; break;
+        default: return i + 1; /* 0, or what the interpreter ends at */
+        }
+    }
+}
+
 const StageFuncs *native_current_stage(void) {
     for (const StageFuncs *s = native_stage_list; s->name != NULL; s++) {
         if (s->start == FIELDSTG_state.stageInit) return s;
@@ -283,20 +343,18 @@ const StageFuncs *native_current_stage(void) {
     return NULL;
 }
 
-void native_apply_stage_mod(void) {
-    const StageFuncs *stage = native_current_stage();
-    char path[1200];
-    FILE *f;
+/* The new field running now: its mode (0 for none), name and banner's names */
+static int s_new_mode, s_new_area, s_new_place;
+static char s_new_name[16];
+
+static Json *read_json(const char *path) {
+    FILE *f = fopen(path, "rb");
     long size;
     char *text;
     const char *p;
-    Json *mod;
+    Json *j;
 
-    for (int i = 0; i < s_count; i++) free(s_blocks[i]);
-    s_count = 0;
-    if (stage == NULL) return;
-    snprintf(path, sizeof path, "%s/mods/stages/%s.json", data_dir(), stage->name);
-    if ((f = fopen(path, "rb")) == NULL) return;
+    if (f == NULL) return NULL;
     fseek(f, 0, SEEK_END);
     size = ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -304,13 +362,72 @@ void native_apply_stage_mod(void) {
     text[fread(text, 1, size, f)] = 0;
     fclose(f);
     p = text;
-    mod = json_value(&p);
+    j = json_value(&p);
     free(text);
-    if (mod == NULL || mod->type != '{') {
-        LOG("stage mod %s: not a JSON object, left out", path);
-        json_free(mod);
+    if (j != NULL && j->type != '{') {
+        json_free(j);
+        j = NULL;
+    }
+    if (j == NULL) LOG("stage mod %s: not a JSON object, left out", path);
+    return j;
+}
+
+int native_pick_new_field(int mode) {
+    char path[1200];
+    Json *j, *t, *m;
+    const StageFuncs *s;
+
+    snprintf(s_new_name, sizeof s_new_name, "new%03x", mode & 0xFFFF);
+    snprintf(path, sizeof path, "%s/mods/stages/%s.json", data_dir(), s_new_name);
+    if ((j = read_json(path)) == NULL) return 0;
+    t = json_get(j, "template");
+    m = json_at(json_get(j, "modes"), 0);
+    s_new_area = json_int(json_at(m, 2));
+    s_new_place = json_int(json_at(m, 3));
+    for (s = native_stage_list; s->name != NULL; s++) {
+        if (t != NULL && t->type == 's' && strcmp(s->name, t->str) == 0) break;
+    }
+    json_free(j);
+    if (s->name == NULL) {
+        LOG("new field %s: no template stage", path);
+        return 0;
+    }
+    /* the template's overlay file, as its modes have it */
+    FIELDSTG_state.stageFile = 0;
+    for (const StageEntry *e = FIELDSTG_euStages; e->mode != 0 && !FIELDSTG_state.stageFile; e++) {
+        if (e->init == s->start) FIELDSTG_state.stageFile = e->file;
+    }
+    for (const StageEntry *e = FIELDSTG_stages; e->mode != 0 && !FIELDSTG_state.stageFile; e++) {
+        if (e->init == s->start) FIELDSTG_state.stageFile = e->file;
+    }
+    FIELDSTG_state.stageInit = s->start;
+    s_new_mode = mode;
+    LOG("new field %s, on %s's code", s_new_name, s->name);
+    return 1;
+}
+
+int native_field_names(int mode, int *area, int *place) {
+    if (mode != s_new_mode) return 0;
+    *area = s_new_area;
+    *place = s_new_place;
+    return 1;
+}
+
+void native_apply_stage_mod(void) {
+    const StageFuncs *stage = native_current_stage();
+    char path[1200];
+    Json *mod;
+
+    for (int i = 0; i < s_count; i++) free(s_blocks[i]);
+    s_count = 0;
+    if (s_new_mode != 0 && getMode() == s_new_mode) {
+        snprintf(path, sizeof path, "%s/mods/stages/%s.json", data_dir(), s_new_name);
+    } else if (stage != NULL) {
+        snprintf(path, sizeof path, "%s/mods/stages/%s.json", data_dir(), stage->name);
+    } else {
         return;
     }
+    if ((mod = read_json(path)) == NULL) return;
     apply(&FIELDSTG_state, mod);
     json_free(mod);
     LOG("stage mod: %s", path);

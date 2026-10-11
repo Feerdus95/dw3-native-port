@@ -1,0 +1,14 @@
+--- a/src/fieldstg/state.c
++++ b/src/fieldstg/state.c
+@@ -41,6 +41,11 @@
+         }
+     }
+     if (entry->mode == 0) {
++#ifdef NATIVE
++        if (native_pick_new_field(mode)) {
++            return; /* the field editor's new field (platform/stagemods.c) */
++        }
++#endif
+         while (1) {
+         }
+     }
