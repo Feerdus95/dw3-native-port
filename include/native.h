@@ -39,6 +39,9 @@ int native_pick_new_field(int mode);
 int native_field_names(int mode, int *area, int *place);
 /* --event ID: the event FIELDSTG starts once the field runs, then 0 */
 extern int g_field_event;
+/* a character of the field editor's, past the game's table (CHARACTERS):
+   1 with its animation file entry and width (data/mods/characters.json) */
+int native_character(int id, int *file, int *width);
 
 /* printf to stderr, for probes (platform/main.c) */
 void native_log(const char *fmt, ...);

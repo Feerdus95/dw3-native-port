@@ -1,6 +1,35 @@
 --- a/src/fieldstg/state.c
 +++ b/src/fieldstg/state.c
-@@ -41,6 +41,11 @@
+@@ -5,11 +5,28 @@
+ 
+ /* The file entry index of FIELDSTG_fileEntries */
+ s32 FIELDSTG_getFileEntry(s32 index) {
++#ifdef NATIVE
++    s32 file;
++    s32 width;
++
++    /* past the table, the field editor's characters (platform/stagemods.c) */
++    if (native_character(index, &file, &width)) {
++        return file;
++    }
++#endif
+     return FIELDSTG_fileEntries[index];
+ }
+ 
+ /* The width of character index */
+ s32 FIELDSTG_getActorWidth(s32 index) {
++#ifdef NATIVE
++    s32 file;
++    s32 width;
++
++    if (native_character(index, &file, &width)) {
++        return width;
++    }
++#endif
+     return FIELDSTG_actorWidths[index];
+ }
+ 
+@@ -41,6 +58,11 @@
          }
      }
      if (entry->mode == 0) {

@@ -406,6 +406,41 @@ int native_pick_new_field(int mode) {
     return 1;
 }
 
+/* data/mods/characters.json: {"characters": [[id, animFile, width], ...]},
+   ids from CHARACTERS on; read again at each field's start */
+static int s_chars[256][3], s_char_count = -1;
+
+static void load_characters(void) {
+    char path[1200];
+    Json *j, *list;
+
+    s_char_count = 0;
+    snprintf(path, sizeof path, "%s/mods/characters.json", data_dir());
+    if ((j = read_json(path)) == NULL) return;
+    list = json_get(j, "characters");
+    for (int i = 0; i < json_len(list) && s_char_count < 256; i++) {
+        Json *c = json_at(list, i);
+        if (json_int(json_at(c, 0)) < CHARACTERS) continue; /* the game's stay the game's */
+        for (int k = 0; k < 3; k++) s_chars[s_char_count][k] = json_int(json_at(c, k));
+        s_char_count++;
+    }
+    json_free(j);
+}
+
+int native_character(int id, int *file, int *width) {
+    if (id < CHARACTERS) return 0;
+    if (s_char_count < 0) load_characters();
+    for (int i = 0; i < s_char_count; i++) {
+        if (s_chars[i][0] == id) {
+            *file = s_chars[i][1];
+            *width = s_chars[i][2];
+            return 1;
+        }
+    }
+    *file = 0, *width = 32; /* unknown: drawn as nobody, as the game's empty entries */
+    return 1;
+}
+
 int native_field_names(int mode, int *area, int *place) {
     if (mode != s_new_mode) return 0;
     *area = s_new_area;
@@ -420,6 +455,7 @@ void native_apply_stage_mod(void) {
 
     for (int i = 0; i < s_count; i++) free(s_blocks[i]);
     s_count = 0;
+    s_char_count = -1; /* the editor may have added characters */
     if (s_new_mode != 0 && getMode() == s_new_mode) {
         snprintf(path, sizeof path, "%s/mods/stages/%s.json", data_dir(), s_new_name);
     } else if (stage != NULL) {
