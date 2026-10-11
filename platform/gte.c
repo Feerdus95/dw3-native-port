@@ -133,30 +133,51 @@ void gte_precise_frame(void) {
     s_frame++;
 }
 
-static Precise *slot(Precise **table, uintptr_t key) {
+/* A key's set of WAYS entries: a key that hashes where a live one is takes
+   the set's oldest, so a battle's thousands of vertices don't push each
+   other out (one that lost its fraction would snap to its pixel, a flicker
+   at the render scale) */
+#define WAYS 4
+
+static Precise *set(Precise **table, uintptr_t key) {
     if (*table == NULL && (*table = calloc(1u << PRECISE_BITS, sizeof(Precise))) == NULL) {
         return NULL;
     }
-    return &(*table)[(uint32_t)(key * 2654435761u) >> (32 - PRECISE_BITS)];
+    return &(*table)[((uint32_t)(key * 2654435761u) >> (32 - PRECISE_BITS)) & ~(WAYS - 1u)];
 }
 
 static void put(Precise **table, uintptr_t key, uint32_t value, float x, float y) {
-    Precise *p = slot(table, key);
+    Precise *s = set(table, key), *p;
+    int i;
 
-    if (p != NULL) {
-        p->key = key, p->value = value, p->frame = s_frame, p->x = x, p->y = y;
+    if (s == NULL) {
+        return;
     }
+    p = s;
+    for (i = 0; i < WAYS; i++) {
+        if (s[i].key == key) {
+            p = &s[i];
+            break;
+        }
+        if (s[i].frame < p->frame) {
+            p = &s[i];
+        }
+    }
+    p->key = key, p->value = value, p->frame = s_frame, p->x = x, p->y = y;
 }
 
 static int get(Precise **table, uintptr_t key, uint32_t value, float *x, float *y) {
-    Precise *p = slot(table, key);
+    Precise *s = set(table, key);
+    int i;
 
-    if (p == NULL || p->key != key || p->value != value || s_frame - p->frame > 2) {
-        return 0;
+    for (i = 0; s != NULL && i < WAYS; i++) {
+        if (s[i].key == key && s[i].value == value && s_frame - s[i].frame <= 2) {
+            *x = s[i].x;
+            *y = s[i].y;
+            return 1;
+        }
     }
-    *x = p->x;
-    *y = p->y;
-    return 1;
+    return 0;
 }
 
 /* A vertex word in a packet: by where it is, else by what it holds */
