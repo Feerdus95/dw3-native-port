@@ -70,7 +70,7 @@ static void modes(FILE *f, const StageEntry *e, void *start) {
 
 static void dump(FILE *f, const StageFuncs *s) {
     FieldState *st = &FIELDSTG_state;
-    int images = 2;
+    int images = 6; /* the field's two, the player's and the partners' (FIELDSTG_createActor's 0 to 3) */
 
     native_reset_overlays(1);
     memset(st, 0, 0x64);
@@ -131,12 +131,13 @@ static void dump(FILE *f, const StageFuncs *s) {
             }
         }
         fputs("]}", f);
-        if (e->image + 1 > images) {
-            images = e->image + 1;
+        /* FIELDSTG_createActor takes images.actors[image + 2] */
+        if (e->image + 3 > images) {
+            images = e->image + 3;
         }
     }
 
-    /* the images: the field's two, then the characters' as far as they use */
+    /* the images: the field's two, then the characters' as far as they use, the party's first */
     fputs("],\n\"images\":[", f);
     for (int i = 0; st->images != NULL && i < images; i++) {
         ActorImage *m = &st->images[i];
