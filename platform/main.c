@@ -169,6 +169,11 @@ int main(int argc, char **argv) {
             SDL_sscanf(argv[++i], "%d,%d", &g_field_at_x, &g_field_at_y);
         } else if (SDL_strcmp(argv[i], "--progress") == 0) {
             g_field_progress = (int)SDL_strtol(argv[++i], NULL, 0);
+        } else if (SDL_strcmp(argv[i], "--set") == 0 && g_field_set_count < 64) {
+            int *s = g_field_sets[g_field_set_count];
+            if (SDL_sscanf(argv[++i], "%x=%d", &s[0], &s[1]) == 2) {
+                g_field_set_count++;
+            }
         }
     }
     if (!load_boot_image() || !video_init(s_scale, s_fullscreen)) {
