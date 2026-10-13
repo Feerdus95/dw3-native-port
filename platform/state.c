@@ -44,7 +44,10 @@ int g_field_mode, g_field_progress = -1, g_field_event, g_field_at_x = -1, g_fie
 /* --set CODE=VALUE: the flags and items the editor's story point assumes, set as
    actions (main/game/events.c's codes) before the field */
 int g_field_sets[64][2], g_field_set_count;
+int g_field_party; /* --party N: the starter set (0-2) given when there is no party */
 void applyAction(int code, int value); /* main/game/events.c */
+void setParty(int set);                /* main/game/party.c */
+#define GAME_PARTY 0x70
 #define GAME_PROGRESS 0x263C
 #define GAME_MODE 0x26C4 /* EU */
 #define MODE_TITLE 0xE00
@@ -170,6 +173,10 @@ void state_frame(void) {
         }
         if (g_field_progress >= 0) {
             memcpy(GAME + GAME_PROGRESS, &g_field_progress, 4);
+        }
+        /* no save: the party a new game is given (a starter set), which battles need */
+        if (*(int32_t *)(GAME + GAME_PARTY) < 0) {
+            setParty(g_field_party);
         }
         for (int i = 0; i < g_field_set_count; i++) {
             applyAction(g_field_sets[i][0], g_field_sets[i][1]);

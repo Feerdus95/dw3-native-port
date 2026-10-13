@@ -167,6 +167,8 @@ int main(int argc, char **argv) {
             g_field_event = (int)SDL_strtol(argv[++i], NULL, 0);
         } else if (SDL_strcmp(argv[i], "--at") == 0) {
             SDL_sscanf(argv[++i], "%d,%d", &g_field_at_x, &g_field_at_y);
+        } else if (SDL_strcmp(argv[i], "--party") == 0 && i + 1 < argc) {
+            g_field_party = SDL_clamp(SDL_atoi(argv[++i]), 0, 2);
         } else if (SDL_strcmp(argv[i], "--progress") == 0) {
             g_field_progress = (int)SDL_strtol(argv[++i], NULL, 0);
         } else if (SDL_strcmp(argv[i], "--set") == 0 && g_field_set_count < 64) {
