@@ -1,0 +1,29 @@
+name: Idea
+description: Something the port could do that the PlayStation game doesn't
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: English or Spanish, either is fine. Check `TODO.md` (After the port) first, it may be planned already.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What it would do, and when in the game you'd use it.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What's missing or awkward today.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Graphics or sound
+        - Controls or options
+        - Gameplay (quality of life)
+        - Modding or the field editor
+        - Something else

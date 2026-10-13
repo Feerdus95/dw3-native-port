@@ -140,6 +140,8 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 - **No sound in the movies**: the disc was read from a plain `.iso`. Delete `data/` and read it again from a
   `.cue`/`.bin`.
 - **The window doesn't open**: the graphics card needs OpenGL 3.3; update its driver.
+- **It crashed**: `crash.txt` next to `dw2003.exe` says where. Please open an issue with it (the form asks for what
+  helps), and a memory card from just before if you can. Never attach the game's files.
 
 For scripts: `dw2003.exe --extract "path/to/image.cue"` reads the disc without the window, and the `DW3_DATA`
 environment variable points the port at a `data/` elsewhere.

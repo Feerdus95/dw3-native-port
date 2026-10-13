@@ -17,6 +17,7 @@ FILES = {
     "dw2003.fill": NATIVE / "build/dw2003.fill",
     "README.md": NATIVE / "README.md",
     "CREDITS.md": NATIVE / "CREDITS.md",
+    "CHANGELOG.md": NATIVE / "CHANGELOG.md",
     "native.ini.example": NATIVE / "native.ini.example",
     "LICENSE": NATIVE / "LICENSE",
 }

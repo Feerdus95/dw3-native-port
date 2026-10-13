@@ -1,0 +1,77 @@
+name: Bug report
+description: Something works differently from the PlayStation game, or the port crashes
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing. English or Spanish, either is fine.
+        **Never attach the game's files**: no disc images, nothing from `data/`. A memory card (`saves/card1.mcd`) is fine.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: And what the PlayStation game does there instead, if you know.
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Where and how
+      description: The place in the game (area, battle, menu) and the steps to get there.
+      placeholder: |
+        1. Load the save in slot 2 (Asuka City)
+        2. Talk to ...
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: emulator
+    attributes:
+      label: Does it happen on an emulator too?
+      description: The same moment on DuckStation or another emulator tells a port bug from the game's own.
+      options:
+        - I haven't tried
+        - No, only in the port
+        - Yes, the original game does it too
+    validations:
+      required: true
+  - type: textarea
+    id: crash
+    attributes:
+      label: crash.txt
+      description: If it crashed, the contents of `crash.txt` next to `dw2003.exe` (the last lines).
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Port version
+      placeholder: v0.9.0
+    validations:
+      required: true
+  - type: dropdown
+    id: image
+    attributes:
+      label: Disc image the game was read from
+      options:
+        - .cue/.bin
+        - .iso
+        - Other / I don't know
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Windows and graphics card
+      placeholder: Windows 11, NVIDIA GTX 1060
+  - type: input
+    id: options
+    attributes:
+      label: Options that differ from the defaults
+      description: From the options menu (Esc), or paste `native.ini`.
+      placeholder: Resolution 8x, 60 Hz, Depth buffer off
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Screenshots, video or a memory card
+      description: A save just before the problem helps the most (`saves/card1.mcd`).
