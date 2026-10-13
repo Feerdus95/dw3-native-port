@@ -117,6 +117,9 @@ extern int g_dither_on;     /* dither = 0: no GPU dithering (gpu_draw.c) */
 extern int g_smooth_movies; /* smooth_movies = 0: movies scaled by nearest pixel (video.c) */
 extern int g_deadzone;      /* deadzone = <0..32767>: the sticks' and triggers' (pad.c) */
 extern int g_rumble;        /* rumble = 0: the gamepad doesn't vibrate (pad.c) */
+extern int g_fast_text;     /* fast_text = 0: X held doesn't advance the texts (mods.c) */
+extern int g_ff_speed;      /* fast forward: the game's ticks a frame shown, 1 normal (mods.c, etc.c) */
+void ff_cycle(void);        /* Tab / R3: the next speed */
 
 /* Platform state that is the console's, saved with the game's in a
    savestate (state.c): it sits in the game's variables' section */

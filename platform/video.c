@@ -47,6 +47,11 @@ int pump_events(void) {
         if (menu_event(&e)) {
             continue;
         }
+        /* Tab or R3: fast forward's next speed */
+        if ((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && e.key.key == SDLK_TAB) ||
+            (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN && e.gbutton.button == SDL_GAMEPAD_BUTTON_RIGHT_STICK)) {
+            ff_cycle();
+        }
         /* F11 or Alt+Enter: fullscreen on and off */
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
             (e.key.key == SDLK_F11 || (e.key.key == SDLK_RETURN && (e.key.mod & SDL_KMOD_ALT)))) {
@@ -98,14 +103,27 @@ void present_frame(void) {
     SDL_Surface *shot = NULL;
     int n = dump_due();
 
+    int ff = !menu_active() && g_ff_speed > 1;
+
     gl_sync(0);
-    if (menu_active()) {
+    if (menu_active() || ff) {
         SDL_SetRenderDrawColor(s_menu_renderer, 0, 0, 0, 0);
         SDL_RenderClear(s_menu_renderer);
         menu_draw(s_menu_renderer);
+        if (ff) { /* fast forward's speed, in a corner */
+            char text[8];
+            SDL_FRect bg = {320 - 54, 6, 48, 14};
+
+            SDL_snprintf(text, sizeof text, ">> x%d", g_ff_speed);
+            SDL_SetRenderDrawBlendMode(s_menu_renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(s_menu_renderer, 0, 0, 0, 160);
+            SDL_RenderFillRect(s_menu_renderer, &bg);
+            SDL_SetRenderDrawColor(s_menu_renderer, 255, 255, 255, 255);
+            SDL_RenderDebugText(s_menu_renderer, bg.x + 4, bg.y + 3, text);
+        }
         SDL_RenderPresent(s_menu_renderer);
     }
-    gl_present(menu_active() ? s_menu : NULL, n ? &shot : NULL);
+    gl_present(menu_active() || ff ? s_menu : NULL, n ? &shot : NULL);
     if (n) {
         dump_vram(n, shot);
     }

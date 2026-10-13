@@ -24,6 +24,8 @@ void native_read_file(int fid, int sector, int count, void *dst);
 
 /* Waits for the next vsync and runs what an interrupt would have (platform/etc.c) */
 void native_wait_vblank(void);
+/* 0 for a vsync fast forward adds (the game's ticks between frames shown) */
+int native_real_vsync(void);
 
 /* Overlay variables back to their initial values: the mode overlays (sub 0)
    or the stages and WFIGHTMN/TS (sub 1) (platform/memory.c) */
@@ -42,6 +44,17 @@ extern int g_field_event;
 /* a character of the field editor's, past the game's table (CHARACTERS):
    1 with its animation file entry and width (data/mods/characters.json) */
 int native_character(int id, int *file, int *width);
+
+/* The port's own options (native.ini, the options menu), mods of the game
+   that were byte patches for the PSX:
+   fast text: the text boxes take X held as well as pressed, outside battles
+   (FIGHTSTG, 6) and card games (CARDGAME, 7), where X confirms commands.
+   Based on Dmw2003FastText by markisha64 (MIT) */
+extern int g_fast_text;
+#define NATIVE_TEXT_BUTTONS()                                                                  \
+    (PAD.getPressed(0) |                                                                       \
+     (g_fast_text && OVERLAY_LOADER.mode != 6 && OVERLAY_LOADER.mode != 7 ? PAD.getHeld(0) : 0))
+#define NATIVE_TEXT_PRESSED(button) ((NATIVE_TEXT_BUTTONS() >> PAD.getButtonBit(0, button)) & 1)
 
 /* printf to stderr, for probes (platform/main.c) */
 void native_log(const char *fmt, ...);

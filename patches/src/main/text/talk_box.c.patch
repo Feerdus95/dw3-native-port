@@ -1,0 +1,14 @@
+--- a/src/main/text/talk_box.c
++++ b/src/main/text/talk_box.c
+@@ -295,7 +295,11 @@
+             children->frame->setState(children->frame, TASK_DONE);
+             children->windows[0]->setVisible(children->windows[0], 0);
+             children->windows[1]->setVisible(children->windows[1], 0);
++#ifdef NATIVE
++        } else if (NATIVE_TEXT_PRESSED(PAD_CROSS)) {
++#else
+         } else if (PAD_PRESSED(PAD_CROSS)) {
++#endif
+             children->windows[1]->showPage(children->windows[1]);
+         }
+         if (children->windows[1]->isWaitingForButton(children->windows[1]) != 0) {

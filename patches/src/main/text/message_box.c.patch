@@ -1,0 +1,14 @@
+--- a/src/main/text/message_box.c
++++ b/src/main/text/message_box.c
+@@ -116,7 +116,11 @@
+                 SOUND.playSound(SOUND_MENU_CLOSE);
+                 break;
+             }
++#ifdef NATIVE
++            if (NATIVE_TEXT_PRESSED(PAD_CROSS)) {
++#else
+             if (PAD_PRESSED(PAD_CROSS)) {
++#endif
+                 data->window->showPage(data->window);
+             }
+             if (data->window->isWaitingForButton(data->window) != 0) {

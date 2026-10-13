@@ -1,0 +1,14 @@
+--- a/src/main/text/text_window.c
++++ b/src/main/text/text_window.c
+@@ -790,7 +790,11 @@
+             }
+             break;
+         case 1:
++#ifdef NATIVE
++            if (NATIVE_TEXT_PRESSED(TEXT_WAIT_BUTTONS[obj->step])) {
++#else
+             if ((PAD.getPressed(0) >> PAD.getButtonBit(0, TEXT_WAIT_BUTTONS[obj->step])) & 1) {
++#endif
+                 obj->text[0].data[obj->counter] = 5;
+                 obj->typeTimer = obj->typeDelay;
+                 obj->setState(obj, TASK_RUN);

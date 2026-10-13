@@ -32,6 +32,10 @@ rumble = 1
 # timing). Esc in game opens the options menu, which writes this file back
 fps = 50
 
+# 1: holding X advances the texts (outside battles and card games, where X
+# confirms commands). Tab or R3 cycles fast forward (x2, x3, x5), not saved
+fast_text = 1
+
 # 1: debug keys. F1 the developers' stage select (stages, sound test, test
 # battles), F3 the sound test, F4 the vibration test, F2 the game state to game_<n>.bin, F5 / F9 save / load a state
 # (saves/quick.state, only for this same build)

@@ -5,6 +5,8 @@ The native port of Digimon World 2003 builds on the work of others:
 - **[dw3_decomp](https://github.com/ReGame-Labs/dw3_decomp)** (MIT License, Copyright (c) 2026 juandav, ReGame-Labs). It is the
   decompiled C of the game that this port compiles for the PC, with our patches in `native/patches/`. Without it there
   would be no port.
+- **[Dmw2003FastText](https://github.com/markisha64/Dmw2003FastText)** (MIT License, by markisha64). The idea of
+  Fast text: the text boxes reading X held as well as pressed, outside battles.
 - **[SDL 3](https://libsdl.org)** (zlib License, Copyright (C) 1997-2026 Sam Lantinga). The window, input and audio.
   `SDL3.dll` ships as it comes.
 - **[psx-spx](https://psx-spx.consoledev.net)** (the PlayStation specifications, after Martin Korth's nocash docs).

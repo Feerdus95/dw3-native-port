@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Fast text** (options menu, on by default): holding X advances the texts, outside battles and card games. After
+  markisha64's Dmw2003FastText.
+- **Fast forward:** Tab or R3 cycles x2, x3, x5 and off, with ">> xN" in a corner. The music and the movies keep
+  their speed.
+
 ## v0.9.0 (first public release, beta)
 
 Digimon World 2003 (Europe, SLES-03936) as a native Windows program, built from the

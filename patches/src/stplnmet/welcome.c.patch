@@ -1,0 +1,14 @@
+--- a/src/stplnmet/welcome.c
++++ b/src/stplnmet/welcome.c
+@@ -64,7 +64,11 @@
+                 windows->arrow->setVisible(windows->arrow, 1);
+                 task->step = GFX.funcs.getTime();
+             }
++#ifdef NATIVE
++            if (NATIVE_TEXT_PRESSED(PAD_CROSS)) {
++#else
+             if (PAD_PRESSED(PAD_CROSS)) {
++#endif
+                 windows->text->showPage(windows->text);
+             }
+             break;

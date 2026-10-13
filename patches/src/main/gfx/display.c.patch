@@ -1,6 +1,17 @@
 --- a/src/main/gfx/display.c
 +++ b/src/main/gfx/display.c
-@@ -71,6 +71,10 @@
+@@ -34,6 +34,10 @@
+         GFX.dispBuffer = !GFX.dispBuffer;
+         PutDispEnv(&GFX.disp[GFX.dispBuffer]);
+     }
++#ifdef NATIVE
++    /* fast forward: the music keeps its time */
++    if (native_real_vsync())
++#endif
+     SsSeqCalledTbyT();
+     FLIP_PENDING = 0;
+ }
+@@ -71,6 +75,10 @@
      DrawSync(0);
      FLIP_PENDING = 1;
      while (*(volatile s32 *)&FLIP_PENDING != 0) {

@@ -96,6 +96,7 @@ you copy it there.
 | Enter | Start |
 | Backspace | Select |
 | F11 or Alt+Enter | Fullscreen |
+| Tab (gamepad: R3) | Fast forward: x2, x3, x5, off |
 | Esc (gamepad: Back) | Options menu |
 
 A gamepad works too (an Xbox pad or any SDL knows: A cross, B circle, X square, Y triangle, triggers L2 / R2, analog
@@ -115,6 +116,8 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 | Smooth movies | the movies smoothed when scaled up, or with sharp pixels |
 | Fullscreen, Window size | |
 | Vibration, Stick deadzone | the gamepad |
+| Fast text | holding X advances the texts, outside battles and card games |
+| Fast forward | x2, x3 or x5 (Tab or R3 while playing); the music keeps its speed. Not saved |
 
 `native.ini` can also be written by hand (see `native.ini.example`); every line is optional:
 
@@ -127,6 +130,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
     smooth_movies = 1    ; 0 shows the movies with sharp pixels
     deadzone = 3277      ; how far the sticks and triggers move before they count (0-32767)
     rumble = 1           ; 0: no vibration
+    fast_text = 1        ; 0: holding X doesn't advance the texts
     debug = 0            ; 1: F1 debug stage select, F3 sound test, F4 vibration test, F2 dump of the game state,
                          ;    F5 / F9 save / load a state (saves/quick.state)
     log =                ; console logs: cd, snd, pad, mc, ovl, gpu or all

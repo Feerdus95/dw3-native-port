@@ -17,16 +17,28 @@ static uint64_t period_ns(void) {
     return NTSC_MODE ? 1000000000ull / 60 : 1000000000ull / 50;
 }
 
+/* Fast forward: of every g_ff_speed vsyncs one is real (waited for, shown,
+   heard), the rest run the game at once; movies keep their time */
+static int s_real = 1, s_ff_tick;
+
+int native_real_vsync(void) {
+    return s_real;
+}
+
 /* One vsync: wait for its time, run the callback, show the frame */
 static void vblank(void) {
     uint64_t now = SDL_GetTicksNS();
 
-    if (s_next_ns == 0 || now > s_next_ns + 100000000ull) {
-        s_next_ns = now; /* first one, or we fell behind (debugger): don't catch up */
-    } else if (now < s_next_ns) {
-        SDL_DelayPrecise(s_next_ns - now);
+    s_real = g_ff_speed <= 1 || movie_playing() || ++s_ff_tick >= g_ff_speed;
+    if (s_real) {
+        s_ff_tick = 0;
+        if (s_next_ns == 0 || now > s_next_ns + 100000000ull) {
+            s_next_ns = now; /* first one, or we fell behind (debugger): don't catch up */
+        } else if (now < s_next_ns) {
+            SDL_DelayPrecise(s_next_ns - now);
+        }
+        s_next_ns += period_ns();
     }
-    s_next_ns += period_ns();
     s_vsyncs++;
     gte_precise_frame();
     if (!pump_events()) {
@@ -40,7 +52,9 @@ static void vblank(void) {
         }
         s_next_ns = 0;
     }
-    present_frame();
+    if (s_real) {
+        present_frame();
+    }
     pad_update();
     if (s_vsync_cb != NULL && !s_in_cb) {
         s_in_cb = 1;
@@ -48,7 +62,9 @@ static void vblank(void) {
         s_in_cb = 0;
     }
     movie_vblank(NTSC_MODE ? 60 : 50);
-    audio_vblank(NTSC_MODE ? 60 : 50);
+    if (s_real) {
+        audio_vblank(NTSC_MODE ? 60 : 50);
+    }
 }
 
 /* The frame's end (display.c's flip): the one place the game waits for a
