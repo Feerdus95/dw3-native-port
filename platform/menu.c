@@ -6,10 +6,10 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, DITHER, MOVIES, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, CLOSE, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, DITHER, MOVIES, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, CLOSE, ITEMS };
 
 static const char *LABELS[ITEMS] = {
-    "Frame rate", "Resolution", "Dithering", "Smooth movies", "Fullscreen", "Window size", "Vibration", "Stick deadzone", "Close",
+    "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Dithering", "Smooth movies", "Fullscreen", "Window size", "Vibration", "Stick deadzone", "Close",
 };
 
 static int s_open, s_cursor, s_changed;
@@ -42,6 +42,8 @@ static void value(int item, char *out, size_t size) {
     case DEADZONE: SDL_snprintf(out, size, "%d%%", (g_deadzone * 100 + 16383) / 32767); return;
     case CLOSE: out[0] = 0; return;
     case DITHER: on = g_dither_on; break;
+    case SUBPIXEL: on = g_subpixel; break;
+    case DEPTH: on = g_depth; break;
     case MOVIES: on = g_smooth_movies; break;
     case FULLSCREEN: on = (SDL_GetWindowFlags(video_window()) & SDL_WINDOW_FULLSCREEN) != 0; break;
     case RUMBLE: on = g_rumble; break;
@@ -57,6 +59,8 @@ static void change(int item, int dir) {
     case FPS: set_fps(!NTSC_MODE); break;
     case SCALE: g_res_scale = (g_res_scale + (dir < 0 ? 6 : 0)) % 8 + 1; break; /* 1-8, round */
     case DITHER: g_dither_on = !g_dither_on; break;
+    case SUBPIXEL: g_subpixel = !g_subpixel; break;
+    case DEPTH: g_depth = !g_depth; break;
     case MOVIES: g_smooth_movies = !g_smooth_movies; break;
     case FULLSCREEN: SDL_SetWindowFullscreen(video_window(), !(SDL_GetWindowFlags(video_window()) & SDL_WINDOW_FULLSCREEN)); break;
     case RUMBLE: g_rumble = !g_rumble; break;

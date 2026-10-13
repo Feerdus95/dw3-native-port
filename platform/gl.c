@@ -21,7 +21,9 @@
     X(glGetUniformLocation) X(glUniform1i) X(glUniform1f) X(glUniform2f) X(glGenVertexArrays) X(glBindVertexArray)  \
     X(glGenBuffers) X(glBindBuffer) X(glBufferData) X(glEnableVertexAttribArray) X(glVertexAttribPointer)           \
     X(glVertexAttribIPointer) X(glGenFramebuffers) X(glDeleteFramebuffers) X(glBindFramebuffer)                     \
-    X(glFramebufferTexture2D) X(glCheckFramebufferStatus) X(glBlitFramebuffer)
+    X(glFramebufferTexture2D) X(glCheckFramebufferStatus) X(glBlitFramebuffer)                                  \
+    X(glGenRenderbuffers) X(glDeleteRenderbuffers) X(glBindRenderbuffer) X(glRenderbufferStorage)                \
+    X(glFramebufferRenderbuffer) X(glDepthFunc) X(glDepthMask) X(glClearDepth)
 
 #define X(f) static __typeof__(f) *p_##f;
 GL_FUNCS(X)
@@ -38,13 +40,15 @@ static const char *MAIN_VS =
     "layout(location = 3) in uvec4 limits;\n" /* u, v min, max */
     "layout(location = 4) in uvec4 window;\n" /* texture window mask x, y, offset x, y */
     "layout(location = 5) in uint mode;\n"
+    "layout(location = 6) in float z;\n" /* view depth, 0: none */
     "uniform vec2 size;\n" /* VRAM's, 1024x512 */
     "noperspective out vec2 uv;\n"
     "noperspective out vec3 col;\n"
     "flat out uvec4 t, lim, tw;\n"
     "flat out uint md;\n"
     "void main() {\n"
-    "    gl_Position = vec4(pos_uv.xy / size * 2.0 - 1.0, 0.0, 1.0);\n"
+    /* linear in 1/z, as depth goes across the screen; the depth test is off without one */
+    "    gl_Position = vec4(pos_uv.xy / size * 2.0 - 1.0, z > 0.0 ? clamp(1.0 - 64.0 / z, 0.0, 1.0) * 2.0 - 1.0 : 0.0, 1.0);\n"
     "    uv = pos_uv.zw; col = color; t = tex; lim = limits; tw = window; md = mode;\n"
     "}\n";
 
@@ -125,6 +129,9 @@ static GLuint s_main, s_blit, s_vao, s_vbo, s_quad_vao, s_quad_vbo;
 static GLint s_pass_loc, s_scale_loc, s_size_loc;
 static GLuint s_vram_tex;            /* the 1x VRAM, R16UI */
 static GLuint s_fbo, s_fbo_tex;      /* the copy, render_scale times bigger */
+static GLuint s_fbo_depth;           /* its depth buffer, for the 3D models (g_depth) */
+int g_depth = 1;
+static int s_deep;                   /* the batch is by the depth buffer */
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
 static GLuint s_movie_tex, s_menu_tex;
 int g_res_scale = 1; /* native.ini, the menu */
@@ -258,8 +265,14 @@ static void flush(void) {
     GL(glBindTexture)(GL_TEXTURE_2D, s_vram_tex);
     GL(glUniform1f)(s_scale_loc, (float)s);
     GL(glDisable)(GL_BLEND);
+    if (s_deep) {
+        GL(glEnable)(GL_DEPTH_TEST);
+        GL(glDepthFunc)(GL_LEQUAL);
+        GL(glDepthMask)(GL_TRUE);
+    }
     GL(glUniform1i)(s_pass_loc, s_semi < 0 ? 0 : 1);
     GL(glDrawArrays)(GL_TRIANGLES, 0, s_count);
+    GL(glDepthMask)(GL_FALSE); /* the blended pixels test, don't hide what's behind */
     if (s_semi >= 0) {
         GL(glEnable)(GL_BLEND);
         GL(glBlendColor)(0.25f, 0.25f, 0.25f, 0.5f);
@@ -286,6 +299,7 @@ static void flush(void) {
         GL(glDisable)(GL_BLEND);
         GL(glBlendEquation)(GL_FUNC_ADD);
     }
+    GL(glDisable)(GL_DEPTH_TEST);
     GL(glDisable)(GL_SCISSOR_TEST);
     s_count = 0;
     s_semi = -1;
@@ -294,15 +308,16 @@ static void flush(void) {
 /* Triangles (n a multiple of 3) for the copy, with gpu_draw.c's state: the
    drawing area, the semi-transparency mode */
 void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {
-    int semi_prim = (v[0].mode & 8) != 0;
+    int semi_prim = (v[0].mode & 8) != 0, deep = v[0].z > 0;
 
     if (s_scale == 0) {
         return;
     }
-    if (s_count + n > BATCH || x1 != s_clip[0] || y1 != s_clip[1] || x2 != s_clip[2] || y2 != s_clip[3] ||
+    if (s_count + n > BATCH || deep != s_deep || x1 != s_clip[0] || y1 != s_clip[1] || x2 != s_clip[2] || y2 != s_clip[3] ||
         (semi_prim && s_semi >= 0 && semi != s_semi) || (!semi_prim && s_semi >= 0)) {
         flush();
         s_clip[0] = x1, s_clip[1] = y1, s_clip[2] = x2, s_clip[3] = y2;
+        s_deep = deep;
     }
     if (v[0].mode & 2) {
         /* the page and the CLUT as the card has them: what the CPU drew there
@@ -323,6 +338,19 @@ void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi
     }
     SDL_memcpy(&s_batch[s_count], v, n * sizeof(GVtx));
     s_count += n;
+}
+
+/* The depth buffer emptied: an ordering table's 3D models are drawn by their
+   depth among themselves, over what earlier tables drew */
+void gl_depth_clear(void) {
+    if (s_scale == 0 || !s_fbo_depth) {
+        return;
+    }
+    flush();
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fbo);
+    GL(glDepthMask)(GL_TRUE);
+    GL(glClearDepth)(1.0);
+    GL(glClear)(GL_DEPTH_BUFFER_BIT);
 }
 
 /* A quad of the copy that shows the 1x VRAM under it: after the CPU wrote
@@ -386,12 +414,18 @@ void gl_sync(int force) {
         if (s_fbo) {
             GL(glDeleteFramebuffers)(1, &s_fbo);
             GL(glDeleteTextures)(1, &s_fbo_tex);
+            GL(glDeleteRenderbuffers)(1, &s_fbo_depth);
             GL(glDeleteFramebuffers)(1, &s_tmp_fbo);
             GL(glDeleteTextures)(1, &s_tmp_tex);
         }
         s_scale = want;
         s_fbo_tex = texture(GL_RGBA8, VRAM_W * want, VRAM_H * want, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
         s_fbo = framebuffer(s_fbo_tex);
+        GL(glGenRenderbuffers)(1, &s_fbo_depth);
+        GL(glBindRenderbuffer)(GL_RENDERBUFFER, s_fbo_depth);
+        GL(glRenderbufferStorage)(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, VRAM_W * want, VRAM_H * want);
+        GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fbo);
+        GL(glFramebufferRenderbuffer)(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, s_fbo_depth);
         s_tmp_tex = texture(GL_RGBA8, VRAM_W * want, VRAM_H * want, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST);
         s_tmp_fbo = framebuffer(s_tmp_tex);
         GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
@@ -448,6 +482,8 @@ int gl_init(SDL_Window *window) {
     GL(glVertexAttribIPointer)(4, 4, GL_UNSIGNED_SHORT, sizeof(GVtx), (void *)offsetof(GVtx, twmx));
     GL(glEnableVertexAttribArray)(5);
     GL(glVertexAttribIPointer)(5, 1, GL_UNSIGNED_INT, sizeof(GVtx), (void *)offsetof(GVtx, mode));
+    GL(glEnableVertexAttribArray)(6);
+    GL(glVertexAttribPointer)(6, 1, GL_FLOAT, GL_FALSE, sizeof(GVtx), (void *)offsetof(GVtx, z));
 
     GL(glGenVertexArrays)(1, &s_quad_vao);
     GL(glBindVertexArray)(s_quad_vao);

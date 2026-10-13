@@ -120,17 +120,31 @@ typedef struct {
     uintptr_t key; /* an address, or the value */
     uint32_t value;
     int frame;
-    float x, y;
+    float x, y, z; /* z: the view depth, for the card's depth buffer */
 } Precise;
 
-#define PRECISE_BITS 16
+/* 1M entries a table (24 MB): a battle's six models put tens of thousands a frame */
+#define PRECISE_BITS 20
 static Precise *s_by_addr, *s_by_value; /* malloc'd: the image stays under 16 MB */
+int g_subpixel = 1;
 static int s_frame = 1;
 static int s_sxy2_ok;      /* SXY2 has its fraction in s_sxy2 */
-static float s_sxy2[2];
+static float s_sxy2[3];
+
+/* DW3_LOG=gpu: each second, how FIGHTSTG's polygons were decided
+   (gte_precise_faces) and why points had no fraction */
+static int s_stat[8]; /* faced, culled, no entry, other value, stale; projections near, clamped */
+enum { ST_FACED, ST_CULLED, ST_NONE, ST_VALUE, ST_STALE, ST_NEAR, ST_CLAMP };
 
 void gte_precise_frame(void) {
     s_frame++;
+    if (s_frame % 60 == 0 && (g_log & LOG_GPU) && (s_stat[ST_FACED] || s_stat[ST_CULLED] || s_stat[ST_NONE])) {
+        LOG("faces: %d drawn, %d culled; by the game's rule: %d no entry, %d other value, %d stale; "
+            "projections without a fraction: %d near, %d clamped",
+            s_stat[ST_FACED], s_stat[ST_CULLED], s_stat[ST_NONE], s_stat[ST_VALUE], s_stat[ST_STALE], s_stat[ST_NEAR],
+            s_stat[ST_CLAMP]);
+        memset(s_stat, 0, sizeof s_stat);
+    }
 }
 
 /* A key's set of WAYS entries: a key that hashes where a live one is takes
@@ -146,7 +160,7 @@ static Precise *set(Precise **table, uintptr_t key) {
     return &(*table)[((uint32_t)(key * 2654435761u) >> (32 - PRECISE_BITS)) & ~(WAYS - 1u)];
 }
 
-static void put(Precise **table, uintptr_t key, uint32_t value, float x, float y) {
+static void put(Precise **table, uintptr_t key, uint32_t value, float x, float y, float z) {
     Precise *s = set(table, key), *p;
     int i;
 
@@ -163,16 +177,17 @@ static void put(Precise **table, uintptr_t key, uint32_t value, float x, float y
             p = &s[i];
         }
     }
-    p->key = key, p->value = value, p->frame = s_frame, p->x = x, p->y = y;
+    p->key = key, p->value = value, p->frame = s_frame, p->x = x, p->y = y, p->z = z;
 }
 
-static int get(Precise **table, uintptr_t key, uint32_t value, float *x, float *y) {
+static int get(Precise **table, uintptr_t key, uint32_t value, float *x, float *y, float *z) {
     Precise *s = set(table, key);
     int i;
 
     for (i = 0; s != NULL && i < WAYS; i++) {
         if (s[i].key == key && s[i].value == value && s_frame - s[i].frame <= 2) {
             *x = s[i].x;
+            *z = s[i].z;
             *y = s[i].y;
             return 1;
         }
@@ -181,18 +196,50 @@ static int get(Precise **table, uintptr_t key, uint32_t value, float *x, float *
 }
 
 /* A vertex word in a packet: by where it is, else by what it holds */
-int gte_precise(const uint32_t *word, float *x, float *y) {
-    return get(&s_by_addr, (uintptr_t)word, *word, x, y) || get(&s_by_value, *word, *word, x, y);
+int gte_precise(const uint32_t *word, float *x, float *y, float *z) {
+    return g_subpixel && (get(&s_by_addr, (uintptr_t)word, *word, x, y, z) || get(&s_by_value, *word, *word, x, y, z));
+}
+
+/* FIGHTSTG's mesh polygon from the points at from[0..2] (and [3]): 1 if it
+   faces the camera by their sub-pixel places (NCLIP's sign, on a
+   triangle), 0 if not, -1 if a point has none (the game's own checks then) */
+int gte_precise_faces(int32_t *const from[4], int32_t quad) {
+    float x[4], y[4], z;
+    int i;
+
+    if (!g_subpixel) {
+        return -1;
+    }
+    for (i = 0; i < 3 + (quad != 0); i++) {
+        if (!get(&s_by_addr, (uintptr_t)from[i], (uint32_t)*from[i], &x[i], &y[i], &z)) {
+            /* why, for the log */
+            Precise *e = set(&s_by_addr, (uintptr_t)from[i]);
+            int why = ST_NONE, k;
+            for (k = 0; e != NULL && k < WAYS; k++) {
+                if (e[k].key == (uintptr_t)from[i]) {
+                    why = e[k].value != (uint32_t)*from[i] ? ST_VALUE : ST_STALE;
+                }
+            }
+            s_stat[why]++;
+            return -1;
+        }
+    }
+    /* a quad that isn't flat (a joint as it bends) can face by its other
+       half (1-3-2) alone: it shows while either does */
+    i = (x[1] - x[0]) * (y[2] - y[0]) - (x[2] - x[0]) * (y[1] - y[0]) > 1e-4f ||
+        (quad && (x[3] - x[1]) * (y[2] - y[1]) - (x[2] - x[1]) * (y[3] - y[1]) > 1e-4f);
+    s_stat[i ? ST_FACED : ST_CULLED]++;
+    return i;
 }
 
 /* The game copied a vertex word from src to dst: its fraction goes along */
 void gte_precise_copy(void *dst, const void *src) {
-    float x, y;
+    float x, y, z;
     uint32_t v;
 
     memcpy(&v, dst, 4);
-    if (get(&s_by_addr, (uintptr_t)src, v, &x, &y)) {
-        put(&s_by_addr, (uintptr_t)dst, v, x, y);
+    if (get(&s_by_addr, (uintptr_t)src, v, &x, &y, &z)) {
+        put(&s_by_addr, (uintptr_t)dst, v, x, y, z);
     }
 }
 
@@ -202,18 +249,21 @@ static void remember(void) {
 
     s_sxy2_ok = 0;
     if (s_exact[2] <= H / 2.0) {
+        s_stat[ST_NEAR]++;
         return;
     }
     x = H * s_exact[0] / s_exact[2] + OFX / 65536.0;
     y = H * s_exact[1] / s_exact[2] + OFY / 65536.0;
     /* the GTE's own clamps and rounding: only a fraction away */
     if (fabs(x - SX[2] - 0.5) > 1.5 || fabs(y - SY[2] - 0.5) > 1.5) {
+        s_stat[ST_CLAMP]++;
         return;
     }
     s_sxy2_ok = 1;
     s_sxy2[0] = (float)x;
     s_sxy2[1] = (float)y;
-    put(&s_by_value, key, key, (float)x, (float)y);
+    s_sxy2[2] = (float)s_exact[2];
+    put(&s_by_value, key, key, (float)x, (float)y, s_sxy2[2]);
 }
 
 /* V0 through RT and TR, then the perspective into SXY2/SZ3 and the depth cue into IR0 */
@@ -283,7 +333,7 @@ void psx_gte_stclmv(int16_t *p) {
 void psx_gte_stsxy(uint32_t *p) {
     *p = (uint16_t)SX[2] | (uint32_t)(uint16_t)SY[2] << 16;
     if (s_sxy2_ok) {
-        put(&s_by_addr, (uintptr_t)p, *p, s_sxy2[0], s_sxy2[1]);
+        put(&s_by_addr, (uintptr_t)p, *p, s_sxy2[0], s_sxy2[1], s_sxy2[2]);
     }
 }
 void psx_gte_stflg(uint32_t *p) { *p = FLAG; }

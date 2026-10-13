@@ -240,6 +240,7 @@ static GVtx gvtx(float x, float y, int r, int gg, int b, int u, int v, int clut,
     o.twmy = (uint16_t)g.tw_mask_y;
     o.twox = (uint16_t)g.tw_off_x;
     o.twoy = (uint16_t)g.tw_off_y;
+    o.z = 0;
     o.mode = (uint32_t)((flags & 2) | (flags & 6) | (flags & 8) | g.depth << 4 | (dither ? 64 : 0) | (g.set_mask ? 256 : 0));
     return o;
 }
@@ -279,8 +280,9 @@ static void gl_rect(int x, int y, int w, int h, int r, int gg, int b, int flags,
 
 /* A vertex word where the card puts it: with the GTE's fraction, when it
    made that word */
-static void precise(const uint32_t *w, float *x, float *y) {
-    if (!gte_precise(w, x, y)) {
+static void precise(const uint32_t *w, float *x, float *y, float *z) {
+    if (!gte_precise(w, x, y, z)) {
+        *z = 0;
         *x = (float)sx(*w);
         *y = (float)sy(*w);
     }
@@ -350,7 +352,7 @@ void gpu_gp0(const uint32_t *p, int n) {
         int gouraud = cmd & 0x10, quad = cmd & 8, tex = cmd & 4, semi = cmd & 2, raw = cmd & 1;
         int nv = quad ? 4 : 3, i, k = 0, clut = 0;
         Vtx v[4];
-        float fx[4], fy[4];
+        float fx[4], fy[4], fz[4];
         uint32_t color = p[k++] & 0xFFFFFF;
 
         for (i = 0; i < nv; i++) {
@@ -362,7 +364,7 @@ void gpu_gp0(const uint32_t *p, int n) {
             v[i].b = color >> 16 & 255;
             v[i].x = sx(p[k]) + g.ox;
             v[i].y = sy(p[k]) + g.oy;
-            precise(&p[k], &fx[i], &fy[i]);
+            precise(&p[k], &fx[i], &fy[i], &fz[i]);
             k++;
             if (tex) {
                 v[i].u = p[k] & 255;
@@ -389,8 +391,12 @@ void gpu_gp0(const uint32_t *p, int n) {
             int dither = g.dither && g_dither_on && (gouraud || (tex && !raw));
             GVtx gv[4];
 
+            /* by the depth buffer when the GTE gave every point its depth */
+            int deep = g_depth && fz[0] > 0 && fz[1] > 0 && fz[2] > 0 && (!quad || fz[3] > 0);
+
             for (k = 0; k < nv; k++) {
                 gv[k] = gvtx(fx[k], fy[k], v[k].r, v[k].g, v[k].b, v[k].u, v[k].v, clut, i, dither);
+                gv[k].z = deep ? fz[k] : 0;
             }
             if (!too_big(&v[0], &v[1], &v[2])) {
                 gl_tri(gv[0], gv[1], gv[2]);
@@ -508,6 +514,7 @@ void DrawOTag(uint32_t *p) {
     int guard = 0;
 
     gl_sync(0);
+    gl_depth_clear();
     while (p != NULL && guard++ < 1000000) {
         uint32_t tag = *p;
         int n = tag >> 24;
