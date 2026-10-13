@@ -1,6 +1,6 @@
 /* The memory the PSX had at fixed places: the heap and the two overlay areas.
    All of it static, so it sits in the exe's image below 16 MB: the GPU's
-   ordering tables keep 24-bit addresses (TODO.md, design decisions). */
+   ordering tables keep 24-bit addresses (main.c checks it at startup). */
 #include "platform.h"
 #include <stdlib.h>
 #include <string.h>

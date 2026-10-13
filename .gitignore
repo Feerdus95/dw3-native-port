@@ -8,3 +8,6 @@ __pycache__/
 *.tmp
 native.ini
 build-o2/
+# the maintainer's own notes
+TODO.md
+tools/todo_summary.py

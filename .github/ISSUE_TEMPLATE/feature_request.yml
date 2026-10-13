@@ -4,7 +4,7 @@ labels: [enhancement]
 body:
   - type: markdown
     attributes:
-      value: English or Spanish, either is fine. Check `TODO.md` (After the port) first, it may be planned already.
+      value: English or Spanish, either is fine. Check the open issues first, it may be planned already.
   - type: textarea
     id: idea
     attributes:

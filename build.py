@@ -76,7 +76,7 @@ GAME_CFLAGS = [
 ]
 PLATFORM_CFLAGS = ["-std=c11", "-c", "-O2", "-g", "-Wall", "-Wno-unused-parameter", f"-I{SDL / 'include'}", *SAN_FLAGS]
 # fixed image base (no ASLR): the GPU tags keep 24-bit addresses, so the
-# game's memory has to stay below 16 MB (TODO.md, design decisions)
+# game's memory has to stay below 16 MB (main.c checks it at startup)
 LDFLAGS = ["-g", "-Wl,--no-dynamicbase",
            f"-L{SDL / 'lib'}", "-lSDL3", *SAN_FLAGS]
 
