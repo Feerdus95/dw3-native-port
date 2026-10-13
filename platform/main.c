@@ -79,7 +79,7 @@ static int load_boot_image(void) {
    debug = 0/1, log = <subsystems>, deadzone = <0..32767>, rumble = 0/1, fps = 50/60,
    render_scale = 1-8;
    the options menu (menu.c) writes them back */
-static int s_fullscreen, s_scale = 3, s_fps60;
+static int s_fullscreen, s_scale, s_fps60, s_res_set; /* s_scale 0: from the screen */
 extern int NTSC_MODE;
 int g_debug, g_smooth_movies = 1, g_log;
 
@@ -137,6 +137,7 @@ static void read_ini(int data_only) {
             g_rumble = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "render_scale") == 0) {
             g_res_scale = SDL_clamp(atoi(value), 1, 8);
+            s_res_set = 1;
         } else if (SDL_strcasecmp(key, "fps") == 0) {
             s_fps60 = atoi(value) == 60;
         }
@@ -206,6 +207,18 @@ int main(int argc, char **argv) {
             if (SDL_sscanf(argv[++i], "%x=%d", &s[0], &s[1]) == 2) {
                 g_field_set_count++;
             }
+        }
+    }
+    if (s_scale == 0) {
+        /* the biggest whole multiple of 320x240 that fits the screen, title bar
+           and taskbar aside: the PSX's pixels even; the 3D as fine, up to 4x */
+        SDL_Rect usable = {0, 0, 960, 720};
+
+        SDL_InitSubSystem(SDL_INIT_VIDEO);
+        SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &usable);
+        s_scale = SDL_max(1, SDL_min(usable.w / 320, (usable.h - 40) / 240));
+        if (!s_res_set) {
+            g_res_scale = SDL_min(s_scale, 4);
         }
     }
     if (!load_boot_image() || !video_init(s_scale, s_fullscreen)) {

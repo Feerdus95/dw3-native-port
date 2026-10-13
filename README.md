@@ -92,8 +92,8 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 
     data = data          ; where the game read from your disc is (relative to the exe)
     fullscreen = 0       ; 1 to start in fullscreen
-    scale = 3            ; window size in 320x240 steps
-    render_scale = 1     ; 1-8: the Resolution option
+    scale = 4            ; window size in 320x240 steps (unset: the biggest that fits the screen)
+    render_scale = 4     ; 1-8: the Resolution option (unset: as the window, up to 4)
     fps = 50             ; 60: the game's own 60 Hz mode
     dither = 1           ; 0 turns off the PlayStation's dithering
     smooth_movies = 1    ; 0 shows the movies with sharp pixels

@@ -438,10 +438,15 @@ static int system_lang(void) {
 int native_extract_disc(const char *data) {
     static const SDL_DialogFileFilter FILTERS[] = {{"Disc images (.cue, .bin, .iso)", "cue;bin;iso"}};
     SDL_Window *window;
-    int done = 0, quit = 0;
+    SDL_Rect usable = {0, 0, SW * 2, SH * 2};
+    int done = 0, quit = 0, k;
 
-    if (!SDL_Init(SDL_INIT_VIDEO) ||
-        !SDL_CreateWindowAndRenderer("Digimon World 2003", SW * 2, SH * 2, SDL_WINDOW_RESIZABLE, &window, &s_r)) {
+    /* a whole multiple of 480x270, for an even font, about 3/4 of the screen's height */
+    if (SDL_Init(SDL_INIT_VIDEO)) {
+        SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &usable);
+    }
+    k = SDL_max(1, SDL_min(usable.w * 3 / 4 / SW, usable.h * 3 / 4 / SH));
+    if (!SDL_CreateWindowAndRenderer("Digimon World 2003", SW * k, SH * k, SDL_WINDOW_RESIZABLE, &window, &s_r)) {
         native_log("first-run screen: %s", SDL_GetError());
         return 0;
     }
