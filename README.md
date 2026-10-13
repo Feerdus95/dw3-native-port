@@ -4,8 +4,36 @@ The PlayStation game (Europe, SLES-03936) running natively on Windows, built fro
 [dw3_decomp](https://github.com/ReGame-Labs/dw3_decomp) C code. It is not an emulator: the game's own code runs as a
 PC program, with the console's hardware rewritten around it. It is free; donations are optional.
 
-**Bring your own disc.** Nothing from the game ships with the port: no code, no graphics, no text, no tables. You need
-your own copy of the game, read into a disc image.
+**Bring your own disc.** None of the game's content ships with the port: no graphics, sound, text or data tables. The
+exe holds the game's logic as the decompiled C describes it, compiled anew; everything else comes from your own copy
+of the game, read into a disc image.
+
+## A native port, not a recompilation
+
+There are two good ways to bring a PlayStation game to the PC, and both take a lot of work:
+
+- **A static recompilation** translates the game's original MIPS machine code into C, instruction by instruction, and
+  runs it next to an emulation of the console's hardware (GPU, sound chip, CD drive). It needs no understanding of
+  the code, so it reaches the whole game quickly and plays it 1:1 from the start. It is the faster, safer road, and
+  the projects that take it do real, valuable work.
+- **A native port**, this one, starts from a *decompilation*: the game rewritten as readable, named C
+  ([dw3_decomp](https://github.com/ReGame-Labs/dw3_decomp), someone else's work, without which this port wouldn't
+  exist). That C is compiled by a modern compiler, and the console's hardware isn't emulated: the drawing,
+  sound, files, pad and memory card are rewritten for the PC (OpenGL, SDL).
+
+What the second road gives:
+
+- **The game can be changed as source code**, not only as patched bytes: tables can grow, fields can be added (the
+  [field editor](https://github.com/Feerdus95/dw3-field-editor) makes new ones), and fixes are written in C.
+- **Files by name, of any size.** The game reads `data/files/NNNN.bin`, not sectors of a disc, so a mod's file can be
+  bigger than the original.
+- **Drawing made for the PC.** The 3D is drawn at up to 8 times the resolution with its exact points, and the battle
+  models through a depth buffer, instead of the console's pixels scaled up.
+- **Room to grow.** Nothing in it is tied to the MIPS processor, so other systems are within reach, and nothing of the
+  game's content is in the exe.
+
+The price is that every difference from the console has to be found and fixed by hand, which is why the port is
+tested by playing it through.
 
 ## Requirements
 
@@ -51,7 +79,7 @@ The port's folder then holds:
 | `saves/card1.mcd` | your memory card |
 | `native.ini` | your options, written by the options menu |
 
-Saves go to `saves/card1.mcd`, a standard memory card image. A card from an emulator (DuckStation, ePSXe...) works if
+Saves go to `saves/card1.mcd`, a standard memory card image, created formatted on the first run. A card from an emulator (DuckStation, ePSXe...) works if
 you copy it there.
 
 ## Controls
@@ -132,7 +160,17 @@ Port nativo para PC de Digimon World 2003 (Europa, SLES-03936), compilado desde 
 [dw3_decomp](https://github.com/ReGame-Labs/dw3_decomp). No es un emulador: el código del juego corre como un programa de
 PC. Es gratis; las donaciones son opcionales.
 
-**Necesitas tu propio disco.** El port no trae nada del juego: ni código, ni gráficos, ni textos, ni tablas.
+**Necesitas tu propio disco.** El port no trae contenido del juego: ni gráficos, ni sonido, ni textos, ni tablas. El
+exe tiene la lógica del juego tal como la describe el C descompilado, compilada de nuevo; todo lo demás sale de tu
+copia.
+
+**Port nativo, no recompilación.** Una recompilación estática traduce el código máquina original del juego a C,
+instrucción por instrucción, y lo corre junto a una emulación del hardware de la consola: llega antes a todo el juego y
+lo reproduce 1:1, y es un trabajo valioso. Este port parte de una *descompilación* (dw3_decomp, trabajo ajeno sin el
+que no existiría): el juego reescrito como C legible, compilado con un compilador moderno, y el hardware de la consola
+reescrito para PC en vez de emulado. Eso permite cambiar el juego como código fuente (tablas que crecen, campos nuevos
+con el editor), archivos de cualquier tamaño, 3D dibujado hasta 8 veces más fino y, a futuro, otros sistemas. El
+precio: cada diferencia con la consola hay que encontrarla y corregirla a mano, por eso se prueba jugándolo entero.
 
 **Requisitos:** Windows 10 u 11, una tarjeta gráfica con OpenGL 3.3, unos 900 MB libres y tu disco de *Digimon World
 2003 (Europe) (En,Fr,De,Es,It)* como imagen: mejor `.cue`/`.bin`; una `.iso` puede dar problemas. El disco con el que se
@@ -146,7 +184,8 @@ probó y sus sumas (CRC32, MD5, SHA-1) están en la tabla de arriba. El port com
 3. Desde entonces, `dw2003.exe` arranca el juego directamente. Deja `dw2003.fill` junto al `.exe`: el port lee de
    `data/` las tablas del juego al arrancar.
 
-Las partidas se guardan en `saves/card1.mcd`, una imagen de memory card estándar: sirven las de emuladores.
+Las partidas se guardan en `saves/card1.mcd`, una imagen de memory card estándar (se crea formateada la primera vez):
+sirven las de emuladores.
 **Esc** abre el menú de opciones (se guarda en `native.ini`); F11 o Alt+Enter, pantalla completa. Controles y
 opciones: arriba.
 

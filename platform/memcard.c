@@ -116,6 +116,8 @@ static long finish(long cmd, long chan, long result) {
     return 1;
 }
 
+long MemCardFormat(long chan);
+
 void MemCardInit(long val) {
     FILE *f;
 
@@ -124,11 +126,15 @@ void MemCardInit(long val) {
     SDL_CreateDirectory(s_path); /* a first run has none */
     snprintf(s_path, sizeof s_path, "%s/../saves/card1.mcd", data_dir());
     f = fopen(s_path, "rb");
-    if (f == NULL || fread(s_card, CARD_SIZE, 1, f) != 1) {
-        LOG("memcard: no card image at %s, a blank one is used", s_path);
-        memset(s_card, 0, CARD_SIZE);
-    }
-    if (f != NULL) {
+    if (f == NULL) {
+        /* a new player: a formatted card, so the first save doesn't ask to format */
+        LOG("memcard: a new card at %s", s_path);
+        MemCardFormat(0);
+    } else {
+        if (fread(s_card, CARD_SIZE, 1, f) != 1) { /* left as it is: it may be the player's */
+            LOG("memcard: %s isn't a card image, a blank one is used", s_path);
+            memset(s_card, 0, CARD_SIZE);
+        }
         fclose(f);
     }
 }
