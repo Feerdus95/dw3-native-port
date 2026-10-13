@@ -120,6 +120,9 @@ extern int g_rumble;        /* rumble = 0: the gamepad doesn't vibrate (pad.c) *
 extern int g_fast_text;     /* fast_text = 0: X held doesn't advance the texts (mods.c) */
 extern int g_ff_speed;      /* fast forward: the game's ticks a frame shown, 1 normal (mods.c, etc.c) */
 void ff_cycle(void);        /* Tab / R3: the next speed */
+extern int g_extra_packs;   /* extra_packs = 0: the starter choice has the game's three (packs.c) */
+const uint8_t *packs_file(int fid, long *size); /* a file the packs make anew, or NULL */
+long native_read_raw(int fid, uint8_t **out);   /* files.c: a file whole, malloc'd */
 
 /* Platform state that is the console's, saved with the game's in a
    savestate (state.c): it sits in the game's variables' section */

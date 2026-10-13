@@ -1,0 +1,61 @@
+--- a/src/fieldstg/speech.c
++++ b/src/fieldstg/speech.c
+@@ -61,6 +61,46 @@
+ 
+ /* Creates the speech of an event's text entry: a message box, or a talk box
+    of a type */
++#ifdef NATIVE
++/* The lobby's dialogue of an extra pack (native.h), whose scene is
++   Powerful's (event 11, ?SDMG200 sub 4): its lines with the greetings of the
++   pack's partners (lines 15-17, one each) from the other packs' dialogues
++   (sub, line) or the port's texts (0xFF, Veemon's). A text file's header of
++   its own pointing into the loaded one, so any translation works */
++static s32 FIELDSTG_lobbyLines[1 + 23];
++
++static void *FIELDSTG_lobbyText(s32 key, u8 *text) {
++    static const u8 GREETINGS[3][3][2] = {{{4, 16}, {5, 16}, {0xFF, 11}},
++                                          {{3, 15}, {4, 15}, {3, 17}},
++                                          {{5, 15}, {4, 17}, {0xFF, 11}}};
++    s32 *lines = (s32 *)text;
++    const u8 *greeting;
++    s32 *file;
++    s32 n;
++    s32 i;
++
++    if (GAME.partySet < 3 || GAME.partySet >= 6 || (key & 0xFFFF) != 4 || (key >> 16) != TEXT_FILE(0x113) ||
++        lines[0] < 18) {
++        return text;
++    }
++    n = lines[0] > 23 ? 23 : lines[0];
++    FIELDSTG_lobbyLines[0] = n;
++    for (i = 1; i <= n; i++) {
++        FIELDSTG_lobbyLines[i] = (s32)(text + lines[i] - (u8 *)FIELDSTG_lobbyLines);
++    }
++    for (i = 0; i < 3; i++) {
++        greeting = GREETINGS[GAME.partySet - 3][i];
++        if (greeting[0] == 0xFF) {
++            file = (s32 *)native_packs_text(LANGUAGE);
++        } else {
++            file = (s32 *)FILE_CACHE.getEntry((key & 0xFFFF0000) | greeting[0]);
++        }
++        FIELDSTG_lobbyLines[16 + i] = (s32)((u8 *)file + file[greeting[1] + 1] - (u8 *)FIELDSTG_lobbyLines);
++    }
++    return FIELDSTG_lobbyLines;
++}
++#endif
++
+ Speech *FIELDSTG_createSpeech(Actor *actor, s32 entry, s32 type, s32 isMessage) {
+     Speech *task = createTask(FIELDSTG_updateSpeech, sizeof(Speech), 4);
+ 
+@@ -68,7 +108,11 @@
+     task->entry = entry;
+     task->type = type;
+     task->isMessage = isMessage;
++#ifdef NATIVE
++    task->text = FIELDSTG_lobbyText(FIELDSTG_state.eventText, FILE_CACHE.getEntry(FIELDSTG_state.eventText));
++#else
+     task->text = FILE_CACHE.getEntry(FIELDSTG_state.eventText);
++#endif
+     return task;
+ }
+ 

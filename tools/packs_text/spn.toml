@@ -1,0 +1,16 @@
+strings = [
+	"",
+	"Pack Dragón",
+	"Pack Táctico",
+	"Pack Místico",
+	"D",
+	"E",
+	"F",
+	"Tres dragones nacidos para luchar.\nFuerza bruta, sin contenerse.",
+	"Espada, armas de fuego y curación.\nIdeal para planear cada combate.",
+	"Hielo, rayos y la velocidad de\nVeemon. Lleno de sorpresas.",
+	"Pequeño pero valiente.\nGolpea rápido y fuerte.",
+	"[name]Veemon[name]¡Bien! ¡Déjamelo\na mí, [player_name2]!\n¡Vamos a ganar![pause]",
+	"tres",
+	"seis",
+]

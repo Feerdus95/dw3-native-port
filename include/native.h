@@ -56,6 +56,18 @@ extern int g_fast_text;
      (g_fast_text && OVERLAY_LOADER.mode != 6 && OVERLAY_LOADER.mode != 7 ? PAD.getHeld(0) : 0))
 #define NATIVE_TEXT_PRESSED(button) ((NATIVE_TEXT_BUTTONS() >> PAD.getButtonBit(0, button)) & 1)
 
+/* Extra starter packs (platform/packs.c): DRAGON, TACTICAL and MYSTIC, 3-5
+   after the game's three. The choice offers them while g_extra_packs is on;
+   a game started with one plays as the pack it takes after in the lobby
+   (NATIVE_PACK_SCENE: 1, Powerful), with its own partners there */
+extern int g_extra_packs;
+extern const int NATIVE_EXTRA_PACKS[3][3]; /* their partners */
+/* their texts, a text file as the game's in its language (LANGUAGE): 1-3 the
+   names, 4-6 the labels D-F, 7-9 the packs' texts, 10 Veemon's, 11 its
+   greeting, 12-13 the word of the intro and the one replacing it */
+const void *native_packs_text(int language);
+#define NATIVE_PACK_SCENE(pack) ((pack) >= 3 ? 1 : (pack))
+
 /* printf to stderr, for probes (platform/main.c) */
 void native_log(const char *fmt, ...);
 

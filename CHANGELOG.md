@@ -6,6 +6,9 @@
   markisha64's Dmw2003FastText.
 - **Fast forward:** Tab or R3 cycles x2, x3, x5 and off, with ">> xN" in a corner. The music and the movies keep
   their speed.
+- **Extra starter packs** (options menu, on by default): Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon,
+  Monmon, Patamon) and Mystic (Kumamon, Renamon, Veemon), on a second page of the choice, with their own texts in the
+  five languages. The lobby shows the pack's partners, each with a greeting, and Veemon celebrates with the others.
 
 ## v0.9.0 (first public release, beta)
 

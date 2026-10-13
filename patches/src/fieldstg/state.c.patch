@@ -1,6 +1,6 @@
 --- a/src/fieldstg/state.c
 +++ b/src/fieldstg/state.c
-@@ -5,11 +5,28 @@
+@@ -5,11 +5,41 @@
  
  /* The file entry index of FIELDSTG_fileEntries */
  s32 FIELDSTG_getFileEntry(s32 index) {
@@ -9,8 +9,21 @@
 +    s32 width;
 +
 +    /* past the table, the field editor's characters (platform/stagemods.c) */
++    /* the lobby's scene of an extra pack (native.h) is Powerful's: its three
++       partners (Monmon, Agumon, Renamon) look like the pack's */
++    static const u8 ROLES[3] = {0xB5, 0x22, 0x41};
++    static const u8 LOOKS[3][3] = {{0x22, 0x40, 0x23}, {0xB6, 0xB5, 0x42}, {0xB4, 0x41, 0x23}};
++    s32 role;
++
 +    if (native_character(index, &file, &width)) {
 +        return file;
++    }
++    if (GAME.partySet >= 3 && GAME.partySet < 6 && GAME.progress == 2) {
++        for (role = 0; role < 3; role++) {
++            if (index == ROLES[role]) {
++                return FIELDSTG_fileEntries[LOOKS[GAME.partySet - 3][role]];
++            }
++        }
 +    }
 +#endif
      return FIELDSTG_fileEntries[index];
@@ -29,7 +42,7 @@
      return FIELDSTG_actorWidths[index];
  }
  
-@@ -41,6 +58,11 @@
+@@ -41,6 +71,11 @@
          }
      }
      if (entry->mode == 0) {

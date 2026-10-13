@@ -1,6 +1,64 @@
 --- a/src/stplnmet/welcome.c
 +++ b/src/stplnmet/welcome.c
-@@ -64,7 +64,11 @@
+@@ -1,6 +1,45 @@
+ /* The welcome message the screen opens with */
+ 
+ #include "stplnmet.h"
++
++#ifdef NATIVE
++/* The welcome's text with the extra packs (native.h): the game's, as loaded
++   (any language, translated or not), with its word for how many packs there
++   are replaced the first time it stands as a word: after a space (01 01) or a
++   line break (02 01), before the end, a space or punctuation (01 xx) or a
++   code (02 xx). As a text file of one string; the game's when it hasn't it */
++static s32 STPLNMET_introText[3 + 400];
++
++static void *STPLNMET_packsIntro(u8 *texts) {
++    const s32 *own = native_packs_text(LANGUAGE);
++    const u8 *from = texts + ((s32 *)texts)[2], *old = (const u8 *)own + own[13], *word;
++    u8 *start = (u8 *)&STPLNMET_introText[3], *to = start, *limit = start + 1500;
++    const u8 *p;
++    s32 pending = 1;
++
++    while (to < limit) {
++        if (pending && *from == old[0] && to - start >= 2 && to[-1] == 1 && (to[-2] == 1 || to[-2] == 2)) {
++            for (p = from, word = old; *word != 0 && *word == *p; word++, p++) {
++            }
++            if (*word == 0 && *p < 3) {
++                for (word = (const u8 *)own + own[14]; *word != 0 && to < limit; word++) {
++                    *to++ = *word;
++                }
++                from = p;
++                pending = 0;
++                continue;
++            }
++        }
++        if ((*to++ = *from++) == 0) {
++            break;
++        }
++    }
++    *(to < limit ? to : limit - 1) = 0;
++    STPLNMET_introText[0] = 1;
++    STPLNMET_introText[1] = STPLNMET_introText[2] = 12;
++    return STPLNMET_introText;
++}
++#endif
+ 
+ /* The welcome's task: brings its panel in through the CLUT rows, types the
+    welcome text (cross turns the pages, an arrow after it blinks while it
+@@ -33,6 +72,11 @@
+                     task->clutRow = 3;
+                     task->setSubstate(task, 2);
+                     task->step = GFX.funcs.getTime();
++#ifdef NATIVE
++                    if (g_extra_packs) {
++                        windows->text->setString(windows->text, STPLNMET_packsIntro(FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE))), 1);
++                    } else
++#endif
+                     windows->text->setString(windows->text, FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE)), 1);
+                     windows->text->setPalette(windows->text, PALETTE_BLUE);
+                     windows->text->setTypeDelay(windows->text, 6);
+@@ -64,7 +108,11 @@
                  windows->arrow->setVisible(windows->arrow, 1);
                  task->step = GFX.funcs.getTime();
              }

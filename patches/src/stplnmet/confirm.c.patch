@@ -1,0 +1,26 @@
+--- a/src/stplnmet/confirm.c
++++ b/src/stplnmet/confirm.c
+@@ -37,6 +37,11 @@
+         for (i = 0; name[i] == SJIS_SPACE; i++) {
+         }
+         windows->name->setText(windows->name, &name[i]);
++#ifdef NATIVE
++        if (task->choice >= 3) { /* an extra pack's name (native.h) */
++            windows->pack->setString(windows->pack, (void *)native_packs_text(LANGUAGE), task->choice - 2);
++        } else
++#endif
+         windows->pack->setString(windows->pack, FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE)), task->choice + 10);
+         windows->message->setString(windows->message, FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE)), 0x16);
+         windows->yes->setString(windows->yes, FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE)), 0x17);
+@@ -70,7 +75,11 @@
+     s32 i;
+     s32 j;
+ 
++#ifdef NATIVE
++    partners = task->choice < 3 ? STPLNMET_funcs.choices[task->choice] : (s32 *)NATIVE_EXTRA_PACKS[task->choice - 3];
++#else
+     partners = STPLNMET_funcs.choices[task->choice];
++#endif
+     initSpriteDrawer(&sprite);
+     sprite.setTexture(0x280, 0x100);
+     if (GFX.funcs.getTime() - task->clutTime > 4) {

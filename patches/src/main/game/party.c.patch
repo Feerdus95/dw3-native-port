@@ -1,0 +1,14 @@
+--- a/src/main/game/party.c
++++ b/src/main/game/party.c
+@@ -52,7 +52,11 @@
+     u8 partner;
+ 
+     for (i = 0; i < PARTY_SIZE; i++) {
++#ifdef NATIVE
++        partner = set >= 3 ? NATIVE_EXTRA_PACKS[set - 3][i] : STARTER_PARTIES[set][i]; /* native.h */
++#else
+         partner = STARTER_PARTIES[set][i];
++#endif
+         GAME.party[i] = partner;
+         GAME.partners[partner].unlocked = partner + 3;
+     }

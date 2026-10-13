@@ -52,12 +52,40 @@ int native_file_sectors(int fid) {
     return size > 0 ? (int)((size + SECTOR - 1) / SECTOR) : 0;
 }
 
+/* A file whole, its last sector filled out with zeroes, into *out (malloc'd):
+   its size, or 0 */
+long native_read_raw(int fid, uint8_t **out) {
+    long size = (long)native_file_sectors(fid) * SECTOR;
+    FILE *f = size > 0 ? open_file(fid) : NULL;
+
+    *out = NULL;
+    if (f == NULL || (*out = calloc(1, size)) == NULL) {
+        size = 0;
+    } else {
+        fread(*out, 1, size, f);
+    }
+    if (f != NULL) {
+        fclose(f);
+    }
+    return size;
+}
+
 /* `count` sectors from sector `sector`; past the end reads as zeroes */
 void native_read_file(int fid, int sector, int count, void *dst) {
-    FILE *f = open_file(fid);
+    FILE *f;
     size_t got = 0;
+    long size;
+    const uint8_t *made = packs_file(fid, &size); /* a file an option makes anew (packs.c) */
 
     LOGC(LOG_CD, "cd: file %d, %d sectors from %d", fid, count, sector);
+    if (made != NULL) {
+        got = (long)sector * SECTOR < size ? (size_t)(size - (long)sector * SECTOR) : 0;
+        got = got < (size_t)count * SECTOR ? got : (size_t)count * SECTOR;
+        memcpy(dst, made + (long)sector * SECTOR, got);
+        memset((char *)dst + got, 0, (size_t)count * SECTOR - got);
+        return;
+    }
+    f = open_file(fid);
     if (f == NULL) {
         LOG("files: no file %d", fid);
     } else {

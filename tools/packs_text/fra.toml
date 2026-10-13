@@ -1,0 +1,16 @@
+strings = [
+	"",
+	"Jeu Dragon",
+	"Jeu Tactique",
+	"Jeu Mystique",
+	"D",
+	"E",
+	"F",
+	"Trois dragons nés pour se battre.\nLa force brute avant tout.",
+	"Epée, armes à feu et guérison.\nPour ceux qui aiment la stratégie.",
+	"Glace, foudre et la vitesse de\nVeemon. Plein de surprises.",
+	"Petit mais courageux.\nFrappe vite et fort.",
+	"[name]Veemon[name]Ouais ! Compte\nsur moi, [player_name2] !\nOn va gagner ![pause]",
+	"trois",
+	"six",
+]

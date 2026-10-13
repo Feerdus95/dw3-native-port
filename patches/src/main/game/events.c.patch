@@ -1,0 +1,14 @@
+--- a/src/main/game/events.c
++++ b/src/main/game/events.c
+@@ -73,7 +73,11 @@
+ 
+     switch (op) {
+     case 0:
++#ifdef NATIVE
++        if (NATIVE_PACK_SCENE(GAME.partySet) == arg) { /* an extra pack's lobby scene is Powerful's */
++#else
+         if (GAME.partySet == arg) {
++#endif
+             result = 1;
+         }
+         break;

@@ -1,0 +1,90 @@
+--- a/src/stplnmet/choice.c
++++ b/src/stplnmet/choice.c
+@@ -1,6 +1,15 @@
+ /* The partners page: the choice between the sets of starting partners */
+ 
+ #include "stplnmet.h"
++
++#ifdef NATIVE
++/* The extra starter packs (native.h): pack c's partners, the texts of a page
++   of three (the second's from the port's own file) */
++#define CHOICE_PARTNERS(c) ((c) < 3 ? STPLNMET_funcs.choices[c] : (s32 *)NATIVE_EXTRA_PACKS[(c) - 3])
++#define OWN_TEXTS() ((void *)native_packs_text(LANGUAGE))
++#else
++#define CHOICE_PARTNERS(c) STPLNMET_funcs.choices[c]
++#endif
+ 
+ /* Creates the choice's windows: the title, the three labels, the partners'
+    name and text, and each partner's name and text */
+@@ -33,15 +42,33 @@
+     s32 *partners;
+ 
+     if (show != 0) {
+-        partners = STPLNMET_funcs.choices[task->choice];
++        partners = CHOICE_PARTNERS(task->choice);
+         windows->title->setString(windows->title, FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE)), 6);
++#ifdef NATIVE
++        if (task->choice >= 3) {
++            for (i = 0; i < 3; i++) {
++                windows->labels[i]->setString(windows->labels[i], OWN_TEXTS(), i + 4);
++            }
++            windows->name->setString(windows->name, OWN_TEXTS(), task->choice - 2);
++            windows->text->setString(windows->text, OWN_TEXTS(), task->choice + 4);
++        } else
++#endif
++        {
+         for (i = 0; i < 3; i++) {
+             windows->labels[i]->setString(windows->labels[i], FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE)), i + 7);
+         }
+         windows->name->setString(windows->name, FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE)), task->choice + 10);
+         windows->text->setString(windows->text, FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE)), task->choice + 26);
++        }
+         for (i = 0; i < 3; i++) {
+             windows->partners[i].name->setString(windows->partners[i].name, FILE_CACHE.load(TEXT_FILE(TEXT_DIGIMON_NAMES)), partners[i] + 1);
++#ifdef NATIVE
++            /* Veemon's text in the game is a placeholder: the port's own */
++            if (partners[i] == 4) {
++                windows->partners[i].text->setString(windows->partners[i].text, OWN_TEXTS(), 10);
++                continue;
++            }
++#endif
+             windows->partners[i].text->setString(windows->partners[i].text, FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE)), partners[i] + 13);
+         }
+         return;
+@@ -62,7 +89,7 @@
+    the blinking arrow on the choice */
+ void STPLNMET_drawChoice(PartnerChoice *task) {
+     SpriteDrawer sprite;
+-    s32 *partners = STPLNMET_funcs.choices[task->choice];
++    s32 *partners = CHOICE_PARTNERS(task->choice);
+     PartnerAnim *anim;
+     s32 i;
+ 
+@@ -95,7 +122,11 @@
+         }
+     }
+     sprite.setClutRow(STPLNMET_choiceArrowCluts[task->arrowFrame]);
++#ifdef NATIVE
++    sprite.draw(FILE_CACHE.getEntry(PLNMET_MENU), 0x32, 0x10, 0x30 + task->choice % 3 * 0x18); /* its page's row */
++#else
+     sprite.draw(FILE_CACHE.getEntry(PLNMET_MENU), 0x32, 0x10, 0x30 + task->choice * 0x18);
++#endif
+ }
+ 
+ /* Picks one of the three choices of partners (up/down); cross confirms them
+@@ -111,9 +142,15 @@
+         }
+     } else if (PAD_PRESSED(PAD_DOWN) || PAD_REPEATED(PAD_DOWN)) {
+         task->choice++;
++#ifdef NATIVE
++        if (task->choice > (g_extra_packs ? 5 : 2)) {
++            task->choice = g_extra_packs ? 5 : 2;
++        }
++#else
+         if (task->choice > 2) {
+             task->choice = 2;
+         }
++#endif
+     }
+     if (old != task->choice) {
+         SOUND.playSound(SOUND_MENU_MOVE);
