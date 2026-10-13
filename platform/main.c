@@ -13,7 +13,8 @@ void install_crash_handler(void);
 void native_snapshot_overlays(void);
 int native_fill(const char *data);
 int native_extract_disc(const char *data);
-const char *native_extract(const char *image, const char *data, void (*progress)(int percent));
+int native_extract(const char *image, const char *data, void (*progress)(int percent));
+const char *native_extract_error(int e);
 extern uint8_t STAGE_VRAM[], OVERLAY_VRAM[];
 extern uint32_t HEAP_BASE[];
 
@@ -158,9 +159,9 @@ int main(int argc, char **argv) {
         snprintf(s_data, sizeof s_data, SDL_GetPathInfo(s_data, NULL) ? "%s../data" : "%sdata", SDL_GetBasePath());
     }
     if (argc == 3 && SDL_strcmp(argv[1], "--extract") == 0) {
-        const char *why = native_extract(argv[2], s_data, NULL);
-        LOG("%s", why != NULL ? why : "OK");
-        return why != NULL;
+        int e = native_extract(argv[2], s_data, NULL);
+        LOG("%s", e ? native_extract_error(e) : "OK");
+        return e;
     }
     /* the first run reads the player's disc; then the game's tables, before
        anything touches the game's variables (fill.c) */

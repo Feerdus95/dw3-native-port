@@ -10,7 +10,7 @@ The PlayStation game (Europe, SLES-03936) running natively on Windows, built fro
 
 1. Unzip the port anywhere you can write (not `Program Files`).
 2. Run `dw2003.exe`. The first time, it asks for your disc image (`.cue`/`.bin`, dropped on the window or browsed; an
-   `.iso` works too, but its movies play without sound), checks that it is the right version and reads it into
+   `.iso` may cause issues), checks that it is the right version and reads it into
    `data/` next to the game (about 850 MB, a few seconds). From then on it starts straight away.
 
 The game's own tables (stats, scripts, file positions) aren't in the exe either: it reads them from `data/` at
@@ -65,7 +65,7 @@ emulador. Es gratis; las donaciones son opcionales.
 
 1. Descomprimí el port donde puedas escribir (no en `Program Files`).
 2. Ejecutá `dw2003.exe`. La primera vez te pide la imagen de tu disco (`.cue`/`.bin`, arrastrada a la ventana o
-   buscada; una `.iso` también sirve, pero los videos quedan sin sonido), comprueba la versión y la lee a `data/`
+   buscada; una `.iso` puede dar problemas), comprueba la versión y la lee a `data/`
    (unos 850 MB, pocos segundos). Después arranca directo. Dejá `dw2003.fill` junto al `.exe`.
 
 Las partidas se guardan en `saves/card1.mcd`, una imagen de memory card estándar: sirven las de emuladores.
