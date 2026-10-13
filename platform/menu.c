@@ -13,6 +13,8 @@ static const char *LABELS[ITEMS] = {
 };
 
 static int s_open, s_cursor, s_changed;
+static int s_top; /* the first row shown */
+#define ROWS 9    /* shown at once, the rest scrolls: the box stays inside 240 */
 
 int menu_active(void) {
     return s_open;
@@ -134,6 +136,9 @@ static void move(int up, int down, int left, int right, int ok) {
     if (up) s_cursor = (s_cursor + ITEMS - 1) % ITEMS;
     if (down) s_cursor = (s_cursor + 1) % ITEMS;
     if (left || right || ok) change(s_cursor, left ? -1 : 1);
+    /* the cursor's row in view */
+    s_top = SDL_clamp(s_top, s_cursor - ROWS + 1, s_cursor);
+    s_top = SDL_clamp(s_top, 0, SDL_max(ITEMS - ROWS, 0));
 }
 
 /* 1 when the event was the menu's */
@@ -159,14 +164,22 @@ int menu_event(const SDL_Event *e) {
 
         move(k == SDLK_UP, k == SDLK_DOWN, k == SDLK_LEFT, k == SDLK_RIGHT, k == SDLK_RETURN || k == SDLK_Z || k == SDLK_SPACE);
     }
-    return s_open && (e->type == SDL_EVENT_KEY_DOWN || e->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
+    if (s_open && e->type == SDL_EVENT_MOUSE_WHEEL && e->wheel.y != 0) {
+        float y = e->wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -e->wheel.y : e->wheel.y;
+        move(y > 0, y < 0, 0, 0, 0);
+    }
+    return s_open && (e->type == SDL_EVENT_KEY_DOWN || e->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
+                      e->type == SDL_EVENT_MOUSE_WHEEL);
 }
 
-/* Over the frame, in 320x240 */
+/* Over the frame, in 320x240, centred; ROWS rows at a time, a scrollbar for the rest */
 void menu_draw(SDL_Renderer *r) {
-    SDL_FRect box = {16, 44, 288, 24 + ITEMS * 14 + 22};
+    int rows = SDL_min(ITEMS, ROWS);
+    SDL_FRect box = {16, 0, 288, 26 + rows * 14 + 22};
     char text[32];
     int i;
+
+    box.y = (240 - box.h) / 2;
 
     if (!s_open) {
         return;
@@ -176,11 +189,11 @@ void menu_draw(SDL_Renderer *r) {
     SDL_RenderFillRect(r, &box);
     SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
     SDL_RenderDebugText(r, box.x + (box.w - 7 * 8) / 2, box.y + 8, "OPTIONS");
-    for (i = 0; i < ITEMS; i++) {
-        float y = box.y + 26 + i * 14;
+    for (i = s_top; i < s_top + rows; i++) {
+        float y = box.y + 26 + (i - s_top) * 14;
 
         if (i == s_cursor) {
-            SDL_FRect bar = {box.x + 4, y - 3, box.w - 8, 14};
+            SDL_FRect bar = {box.x + 4, y - 3, box.w - (ITEMS > rows ? 12 : 8), 14};
 
             SDL_SetRenderDrawColor(r, 60, 90, 160, 255);
             SDL_RenderFillRect(r, &bar);
@@ -188,9 +201,28 @@ void menu_draw(SDL_Renderer *r) {
         SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
         SDL_RenderDebugText(r, box.x + 10, y, LABELS[i]);
         value(i, text, sizeof text);
-        SDL_RenderDebugText(r, box.x + box.w - 10 - 8 * SDL_strlen(text), y, text);
+        SDL_RenderDebugText(r, box.x + box.w - 14 - 8 * SDL_strlen(text), y, text);
+    }
+    if (ITEMS > rows) {
+        /* the scrollbar, and arrows where more is hidden */
+        SDL_FRect track = {box.x + box.w - 5, box.y + 23, 2, rows * 14};
+        SDL_FRect thumb = {track.x, track.y + track.h * s_top / ITEMS, 2, track.h * rows / ITEMS};
+
+        SDL_SetRenderDrawColor(r, 60, 60, 70, 255);
+        SDL_RenderFillRect(r, &track);
+        SDL_SetRenderDrawColor(r, 160, 160, 160, 255);
+        SDL_RenderFillRect(r, &thumb);
+        for (i = 0; i < 3; i++) {
+            float cx = box.x + box.w / 2;
+            if (s_top > 0) {
+                SDL_RenderLine(r, cx - i, box.y + 18 + i, cx + i, box.y + 18 + i);
+            }
+            if (s_top + rows < ITEMS) {
+                SDL_RenderLine(r, cx - i, box.y + 26 + rows * 14 + 2 - i, cx + i, box.y + 26 + rows * 14 + 2 - i);
+            }
+        }
     }
     SDL_SetRenderDrawColor(r, 160, 160, 160, 255);
-    SDL_RenderDebugText(r, box.x + 10, box.y + box.h - 14, "Arrows: change    Esc / B: close");
+    SDL_RenderDebugText(r, box.x + (box.w - 8 * 35) / 2, box.y + box.h - 13, "Arrows/wheel: choose   Esc/B: close");
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
 }
