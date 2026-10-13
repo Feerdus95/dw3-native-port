@@ -1,7 +1,6 @@
 /* The movies: libcd's streaming (St*) and libpress's MDEC (DecDCT*), our own.
 
-   A movie is data/files/<fid>.str (whole 2336-byte sectors, tools/
-   extract_iso.py). Once CdRead2 starts it, the "disc" reads 150 sectors a
+   A movie is data/files/<fid>.str (whole 2336-byte sectors, extract.c). Once CdRead2 starts it, the "disc" reads 150 sectors a
    second (double speed) on each vsync (movie_vblank): video sectors (a
    32-byte StHEADER, then 2016 bytes of the frame) build up frames, and XA
    audio sectors are decoded and sent to the SPU's CD input. StGetNext waits
@@ -139,7 +138,7 @@ void movie_stream_start(int pos) {
     snprintf(path, sizeof path, "%s/files/%04d.str", data_dir(), pos / SPAN);
     s_file = fopen(path, "rb");
     if (s_file == NULL) {
-        LOG("no movie %s: run native/tools/extract_iso.py again", path);
+        LOG("no movie %s: extract the disc again, from a .bin/.cue", path);
         return;
     }
     LOGC(LOG_CD, "cd: movie %04d from sector %d", pos / SPAN, pos % SPAN);

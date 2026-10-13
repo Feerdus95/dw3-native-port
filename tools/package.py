@@ -1,8 +1,10 @@
 """Packs the port for players into native/dist/dw2003-native/ and a zip next to
-it: the exe, SDL3.dll, the extractor, the README, credits and license, an
+it: the exe and its .fill, SDL3.dll, the README, credits and license, an
 example native.ini. Nothing from the game: it refuses to finish if anything of
-the disc or a save got in. Run from anywhere: python native/tools/package.py"""
+the disc or a save got in, or if the exe has any of the game's bytes
+(asset_scan.py). Run from anywhere: python native/tools/package.py"""
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -12,14 +14,14 @@ OUT = DIST / "dw2003-native"
 FILES = {
     "dw2003.exe": NATIVE / "build/dw2003.exe",
     "SDL3.dll": NATIVE / "build/SDL3.dll",
-    "tools/extract_iso.py": NATIVE / "tools/extract_iso.py",
+    "dw2003.fill": NATIVE / "build/dw2003.fill",
     "README.md": NATIVE / "README.md",
     "CREDITS.md": NATIVE / "CREDITS.md",
     "native.ini.example": NATIVE / "native.ini.example",
     "LICENSE": NATIVE / "LICENSE",
 }
 # what the disc or a player brings, never ours to ship
-FORBIDDEN_SUFFIXES = {".bin", ".str", ".cue", ".iso", ".mcd", ".36"}
+FORBIDDEN_SUFFIXES = {".bin", ".str", ".cue", ".iso", ".mcd", ".36", ".state"}
 FORBIDDEN_DIRS = {"data", "saves"}
 
 
@@ -36,7 +38,9 @@ def check(root):
 def main():
     missing = [name for name, src in FILES.items() if not src.exists()]
     if missing:
-        sys.exit(f"missing: {', '.join(missing)} (build first; LICENSE is still to be chosen)")
+        sys.exit(f"missing: {', '.join(missing)} (build first)")
+    if subprocess.run([sys.executable, NATIVE / "tools/asset_scan.py", FILES["dw2003.exe"]]).returncode != 0:
+        sys.exit("refused: the exe has the game's bytes")
     if OUT.exists():
         shutil.rmtree(OUT)
     for name, src in FILES.items():

@@ -8,14 +8,12 @@ The PlayStation game (Europe, SLES-03936) running natively on Windows, built fro
 
 ## Setup
 
-1. Install [Python 3](https://www.python.org), used once for the extraction.
-2. Extract your disc next to the game:
+1. Unzip the port anywhere you can write (not `Program Files`).
+2. Run `dw2003.exe`. The first time, it asks for your disc image (`.cue`/`.bin`; an `.iso` lacks what the movies need), checks that it is the right version and reads it into `data/` next to the game (about 850 MB, a few
+   seconds). From then on it starts straight away.
 
-       python tools/extract_iso.py "path/to/Digimon World 2003 (Europe) (En,Fr,De,Es,It).cue"
-
-   The script checks that the image is the right version, then writes `data/` (the executable, the game's files and the
-   movies).
-3. Run `dw2003.exe`.
+The game's own tables (stats, scripts, file positions) aren't in the exe either: it reads them from `data/` at
+startup, so keep `dw2003.fill` next to `dw2003.exe`. If `data/` gets damaged, delete it and the game asks again.
 
 Saves go to `saves/card1.mcd`, a standard memory card image. A card from an emulator (DuckStation, ePSXe, etc.) works
 if you copy it there.
@@ -43,7 +41,7 @@ analog), with vibration. It can be plugged in or swapped while playing.
 
 Optional: a `native.ini` next to `dw2003.exe` (see `native.ini.example`):
 
-    data = data          ; where the extracted game is (relative to the exe)
+    data = data          ; where the game read from your disc is (relative to the exe)
     fullscreen = 0       ; 1 to start in fullscreen
     scale = 3            ; window size in 320x240 steps
     dither = 1           ; 0 turns off the PlayStation's dithering
@@ -64,9 +62,10 @@ emulador. Es gratis; las donaciones son opcionales.
 
 **Necesitás tu propio disco.** El port no trae nada del juego.
 
-1. Instalá Python 3 (solo para extraer).
-2. `python tools/extract_iso.py "ruta/a/Digimon World 2003 (Europe) (En,Fr,De,Es,It).cue"`
-3. Ejecutá `dw2003.exe`.
+1. Descomprimí el port donde puedas escribir (no en `Program Files`).
+2. Ejecutá `dw2003.exe`. La primera vez te pide la imagen de tu disco (`.cue`/`.bin`; a una `.iso` le falta lo que
+   necesitan los videos), comprueba la versión y la lee a `data/` (unos 850 MB, pocos segundos). Después arranca
+   directo. Dejá `dw2003.fill` junto al `.exe`.
 
 Las partidas se guardan en `saves/card1.mcd`, una imagen de memory card estándar: sirven las de emuladores.
 F11 o Alt+Enter: pantalla completa. Controles y opciones: arriba.

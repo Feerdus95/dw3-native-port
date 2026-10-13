@@ -1,5 +1,5 @@
 /* The game's files: data/files/<fid>.bin from the user's disc
-   (tools/extract_iso.py), read whole and at once. A mod's file in
+   (extract.c), read whole and at once. A mod's file in
    data/mods/<fid>.bin wins. Sectors stay 2048 bytes, the game's unit. */
 #include <stdlib.h>
 #include <string.h>

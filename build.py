@@ -325,6 +325,10 @@ def main():
     r = run([CC, f"@{rsp}", "-o", exe, *LDFLAGS])
     if r.returncode != 0:
         sys.exit(f"link failed:\n{r.stderr[:4000]}")
+    # the game's own tables out of the exe, read back from the player's disc (platform/fill.c)
+    sys.path.insert(0, str(NATIVE / "tools"))
+    import asset_scan
+    stripped = asset_scan.strip(exe)
     dll = OUT / "SDL3.dll"
     if not dll.exists() or dll.read_bytes() != (SDL / "bin/SDL3.dll").read_bytes():  # a running game locks it
         shutil.copy2(SDL / "bin/SDL3.dll", dll)
@@ -333,7 +337,8 @@ def main():
         f.write(f"# Native build\n\n{len(srcs)} game files, {len(platform)} platform files, "
                 f"{len(missing)} PsyQ functions still stubbed\n\n## Stubbed\n\n")
         f.writelines(f"- {n}\n" for n in missing)
-    print(f"OK {exe} ({len(missing)} stubs left, see build/report.md)")
+    print(f"OK {exe} ({len(missing)} stubs left, see build/report.md; {stripped} bytes of the game's tables "
+          f"left to the player's disc)")
 
 
 def selftest():

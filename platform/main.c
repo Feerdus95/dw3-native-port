@@ -11,10 +11,13 @@ int psx_main(void);
 int video_init(int scale, int fullscreen);
 void install_crash_handler(void);
 void native_snapshot_overlays(void);
+int native_fill(const char *data);
+int native_extract_disc(const char *data);
+const char *native_extract(const char *image, const char *data, SDL_Window *progress);
 extern uint8_t STAGE_VRAM[], OVERLAY_VRAM[];
 extern uint32_t HEAP_BASE[];
 
-/* Where the extracted game is (tools/extract_iso.py): DW3_DATA, or data/ next to the exe */
+/* Where the extracted game is (extract.c): DW3_DATA, native.ini's data, or data/ next to the exe */
 static char s_data[1024];
 
 const char *data_dir(void) {
@@ -59,7 +62,7 @@ static int load_boot_image(void) {
     snprintf(path, sizeof path, "%s/SLES_039.36", s_data);
     f = fopen(path, "rb");
     if (f == NULL) {
-        LOG("no %s: run native/tools/extract_iso.py with your disc first", path);
+        LOG("no %s", path);
         return 0;
     }
     fseek(f, 0, SEEK_END);
@@ -75,7 +78,7 @@ static int load_boot_image(void) {
    debug = 0/1, log = <subsystems>, deadzone = <0..32767>, rumble = 0/1, fps = 50/60,
    render_scale = 1-8;
    the options menu (menu.c) writes them back */
-static int s_fullscreen, s_scale = 3;
+static int s_fullscreen, s_scale = 3, s_fps60;
 extern int NTSC_MODE;
 int g_debug, g_smooth_movies = 1, g_log;
 
@@ -92,7 +95,8 @@ static int log_bits(const char *names) {
     return bits;
 }
 
-static void read_ini(void) {
+/* data_only: just the data folder, before the game's tables are filled in */
+static void read_ini(int data_only) {
     char path[1100], line[1200], key[32], value[1100];
     FILE *f;
 
@@ -105,10 +109,15 @@ static void read_ini(void) {
             continue;
         }
         if (SDL_strcasecmp(key, "data") == 0) {
+            if (!data_only) {
+                continue; /* read already, and DW3_DATA may have overridden it */
+            }
             /* relative to the exe's folder, as everything else here */
             int absolute = value[0] == '/' || value[0] == '\\' || (value[0] != 0 && value[1] == ':');
 
             snprintf(s_data, sizeof s_data, "%s%s", absolute ? "" : SDL_GetBasePath(), value);
+        } else if (data_only) {
+            continue;
         } else if (SDL_strcasecmp(key, "fullscreen") == 0) {
             s_fullscreen = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "scale") == 0 && atoi(value) >= 1) {
@@ -128,7 +137,7 @@ static void read_ini(void) {
         } else if (SDL_strcasecmp(key, "render_scale") == 0) {
             g_res_scale = SDL_clamp(atoi(value), 1, 8);
         } else if (SDL_strcasecmp(key, "fps") == 0) {
-            NTSC_MODE = atoi(value) == 60; /* the game's own 60 Hz mode, set before it boots */
+            s_fps60 = atoi(value) == 60;
         }
     }
     fclose(f);
@@ -137,20 +146,40 @@ static void read_ini(void) {
 int main(int argc, char **argv) {
     const char *env = getenv("DW3_DATA");
 
+    char exe[1100];
+
     install_crash_handler();
-    native_snapshot_overlays();
-    read_ini();
-    if (getenv("DW3_LOG") != NULL) {
-        g_log = log_bits(getenv("DW3_LOG"));
-    }
+    read_ini(1);
     if (env != NULL) {
         snprintf(s_data, sizeof s_data, "%s", env);
     } else if (s_data[0] == 0) {
         /* data/ next to the exe, or native/data from native/build */
-        snprintf(s_data, sizeof s_data, "%sdata", SDL_GetBasePath());
-        if (!SDL_GetPathInfo(s_data, NULL)) {
-            snprintf(s_data, sizeof s_data, "%s../data", SDL_GetBasePath());
-        }
+        snprintf(s_data, sizeof s_data, "%s../data/SLES_039.36", SDL_GetBasePath());
+        snprintf(s_data, sizeof s_data, SDL_GetPathInfo(s_data, NULL) ? "%s../data" : "%sdata", SDL_GetBasePath());
+    }
+    if (argc == 3 && SDL_strcmp(argv[1], "--extract") == 0) {
+        const char *why = native_extract(argv[2], s_data, NULL);
+        LOG("%s", why != NULL ? why : "OK");
+        return why != NULL;
+    }
+    /* the first run reads the player's disc; then the game's tables, before
+       anything touches the game's variables (fill.c) */
+    snprintf(exe, sizeof exe, "%s/SLES_039.36", s_data);
+    if (!SDL_GetPathInfo(exe, NULL) && (argc > 1 || !native_extract_disc(s_data))) {
+        LOG("no game in %s", s_data);
+        return 1;
+    }
+    if (!native_fill(s_data)) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Digimon World 2003",
+                                 "The game's data doesn't match this version of the port. Delete the data folder "
+                                 "and start the game again to read your disc anew.", NULL);
+        return 1;
+    }
+    native_snapshot_overlays();
+    read_ini(0);
+    NTSC_MODE = s_fps60; /* the game's own 60 Hz mode, set before it boots */
+    if (getenv("DW3_LOG") != NULL) {
+        g_log = log_bits(getenv("DW3_LOG"));
     }
     if ((uintptr_t)STAGE_VRAM + 512 * 1024 > 0x01000000 || (uintptr_t)OVERLAY_VRAM + 512 * 1024 > 0x01000000 ||
         (uintptr_t)HEAP_BASE + NATIVE_HEAP_SIZE > 0x01000000) {
