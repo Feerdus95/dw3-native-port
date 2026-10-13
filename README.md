@@ -1,23 +1,58 @@
 # Digimon World 2003: native PC port
 
 The PlayStation game (Europe, SLES-03936) running natively on Windows, built from the
-[dw3_decomp](https://github.com/ReGame-Labs/dw3_decomp) C code. It is not an emulator. It is free; donations are optional.
+[dw3_decomp](https://github.com/ReGame-Labs/dw3_decomp) C code. It is not an emulator: the game's own code runs as a
+PC program, with the console's hardware rewritten around it. It is free; donations are optional.
 
-**Bring your own disc.** Nothing from the game ships with the port. You need your own copy of
-*Digimon World 2003 (Europe) (En,Fr,De,Es,It)*, as a `.bin`/`.cue` image.
+**Bring your own disc.** Nothing from the game ships with the port: no code, no graphics, no text, no tables. You need
+your own copy of the game, read into a disc image.
+
+## Requirements
+
+- Windows 10 or 11.
+- A graphics card with OpenGL 3.3 (any from the last decade).
+- About 900 MB free: the game read from your disc goes next to the port.
+- Your disc of *Digimon World 2003 (Europe) (En,Fr,De,Es,It)*, as an image. A `.cue`/`.bin` pair is best; an `.iso`
+  may cause issues (a plain 2048-byte one loses the movies' sound).
+
+### The disc it was tested with
+
+| | |
+|---|---|
+| Title | Digimon World 2003 (Europe) (En,Fr,De,Es,It) |
+| Serial | SLES-03936 |
+| Track | 1 data track, MODE2/2352 |
+| `.bin` size | 692,146,560 bytes |
+| `.bin` CRC32 | `007df18e` |
+| `.bin` MD5 | `da76a5685b875c353343102b7587fded` |
+| `.bin` SHA-1 | `457cb233349ba841e03b33d8060f8fbcadd45cb3` |
+| `SLES_039.36` CRC32 | `3334ed7a` |
+| `SLES_039.36` SHA-1 | `d1b7e4d646e3a9c2b88fdb25d20b5f7116bbb06d` |
+
+The port checks the game's executable inside the image (`SLES_039.36`), not the image itself: another good dump of
+the same disc works even if its `.bin` hashes differ. The American (*Digimon World 3*) and Japanese versions are
+different games for the port and are refused.
 
 ## Setup
 
-1. Unzip the port anywhere you can write (not `Program Files`).
-2. Run `dw2003.exe`. The first time, it asks for your disc image (`.cue`/`.bin`, dropped on the window or browsed; an
-   `.iso` may cause issues), checks that it is the right version and reads it into
-   `data/` next to the game (about 850 MB, a few seconds). From then on it starts straight away.
+1. Unzip the port anywhere you can write (a folder of your own, not `Program Files`).
+2. Run `dw2003.exe`. The first time, a window asks for your disc image: drop the `.cue` (or `.bin`) on it, or click
+   **Browse...**. It checks the version and reads the disc into `data/` next to the game, in a few seconds. The window
+   speaks English, Spanish, French, German and Italian (top right; it starts in your system's language).
+3. From then on, `dw2003.exe` starts the game straight away. The image isn't needed any more.
 
-The game's own tables (stats, scripts, file positions) aren't in the exe either: it reads them from `data/` at
-startup, so keep `dw2003.fill` next to `dw2003.exe`. If `data/` gets damaged, delete it and the game asks again.
+The port's folder then holds:
 
-Saves go to `saves/card1.mcd`, a standard memory card image. A card from an emulator (DuckStation, ePSXe, etc.) works
-if you copy it there.
+| | |
+|---|---|
+| `dw2003.exe`, `SDL3.dll` | the port |
+| `dw2003.fill` | where the game's own tables are in `data/`: the exe reads them from there at startup. Keep it next to the exe |
+| `data/` | the game read from your disc. Yours: don't share it |
+| `saves/card1.mcd` | your memory card |
+| `native.ini` | your options, written by the options menu |
+
+Saves go to `saves/card1.mcd`, a standard memory card image. A card from an emulator (DuckStation, ePSXe...) works if
+you copy it there.
 
 ## Controls
 
@@ -33,40 +68,89 @@ if you copy it there.
 | Enter | Start |
 | Backspace | Select |
 | F11 or Alt+Enter | Fullscreen |
-| Esc (gamepad: Back) | Options menu: frame rate, dithering, window, vibration... (saved to `native.ini`) |
+| Esc (gamepad: Back) | Options menu |
 
-A gamepad works too (Xbox 360 or any SDL knows: A cross, B circle, X square, Y triangle, triggers L2 / R2, sticks
-analog), with vibration. It can be plugged in or swapped while playing.
+A gamepad works too (an Xbox pad or any SDL knows: A cross, B circle, X square, Y triangle, triggers L2 / R2, analog
+sticks), with vibration. It can be plugged in or swapped while playing.
 
 ## Options
 
-Optional: a `native.ini` next to `dw2003.exe` (see `native.ini.example`):
+**Esc** opens the options menu; the game pauses while it is open, and what you change is saved to `native.ini`:
+
+| | |
+|---|---|
+| Frame rate | 50 (the European original) or 60 (the game's own 60 Hz mode; walking speed follows at the next area) |
+| Resolution | the 3D drawn 1 to 8 times finer than the PlayStation's 320x240, on the graphics card |
+| Sub-pixel 3D | the 3D's points at their exact place at higher resolutions, without the PlayStation's wobble |
+| Depth buffer | the battle models' polygons in the right order at higher resolutions |
+| Dithering | the PlayStation's dithering on shaded polygons |
+| Smooth movies | the movies smoothed when scaled up, or with sharp pixels |
+| Fullscreen, Window size | |
+| Vibration, Stick deadzone | the gamepad |
+
+`native.ini` can also be written by hand (see `native.ini.example`); every line is optional:
 
     data = data          ; where the game read from your disc is (relative to the exe)
     fullscreen = 0       ; 1 to start in fullscreen
     scale = 3            ; window size in 320x240 steps
+    render_scale = 1     ; 1-8: the Resolution option
+    fps = 50             ; 60: the game's own 60 Hz mode
     dither = 1           ; 0 turns off the PlayStation's dithering
     smooth_movies = 1    ; 0 shows the movies with sharp pixels
     deadzone = 3277      ; how far the sticks and triggers move before they count (0-32767)
     rumble = 1           ; 0: no vibration
-    render_scale = 1     ; 1-8: drawn on the graphics card (OpenGL 3.3) that many times finer, 3D without wobble
-    fps = 50             ; 60: the game's own 60 Hz mode (the walking speed follows at the next area)
     debug = 0            ; 1: F1 debug stage select, F3 sound test, F4 vibration test, F2 dump of the game state,
                          ;    F5 / F9 save / load a state (saves/quick.state)
+    log =                ; console logs: cd, snd, pad, mc, ovl, gpu or all
+
+## Troubleshooting
+
+- **"The game's data doesn't match this version of the port"**: `data/` was read with another version of the port, or
+  got damaged. Delete `data/` and start the game: it asks for the disc again.
+- **"Can't write to the data folder"**: the port is somewhere Windows protects (`Program Files`, a read-only drive).
+  Move the folder somewhere of your own.
+- **No sound in the movies**: the disc was read from a plain `.iso`. Delete `data/` and read it again from a
+  `.cue`/`.bin`.
+- **The window doesn't open**: the graphics card needs OpenGL 3.3; update its driver.
+
+For scripts: `dw2003.exe --extract "path/to/image.cue"` reads the disc without the window, and the `DW3_DATA`
+environment variable points the port at a `data/` elsewhere.
+
+## Legal
+
+© 2026 Feerdus. The port's own code is under the MIT License (`LICENSE`); what it builds on, and their licenses, is in
+`CREDITS.md`.
+
+A fan project, not affiliated with or endorsed by Bandai Namco. Digimon World 2003 is © Bandai / Bandai Namco; Digimon
+is © Akiyoshi Hongo, Toei Animation. The port carries nothing of the game: everything comes from the disc you own.
 
 ---
 
 ## En español
 
-Port nativo para PC de Digimon World 2003 (Europa, SLES-03936), compilado desde el C de dw3_decomp. No es un
-emulador. Es gratis; las donaciones son opcionales.
+Port nativo para PC de Digimon World 2003 (Europa, SLES-03936), compilado desde el C de
+[dw3_decomp](https://github.com/ReGame-Labs/dw3_decomp). No es un emulador: el código del juego corre como un programa de
+PC. Es gratis; las donaciones son opcionales.
 
-**Necesitás tu propio disco.** El port no trae nada del juego.
+**Necesitas tu propio disco.** El port no trae nada del juego: ni código, ni gráficos, ni textos, ni tablas.
 
-1. Descomprimí el port donde puedas escribir (no en `Program Files`).
-2. Ejecutá `dw2003.exe`. La primera vez te pide la imagen de tu disco (`.cue`/`.bin`, arrastrada a la ventana o
-   buscada; una `.iso` puede dar problemas), comprueba la versión y la lee a `data/`
-   (unos 850 MB, pocos segundos). Después arranca directo. Dejá `dw2003.fill` junto al `.exe`.
+**Requisitos:** Windows 10 u 11, una tarjeta gráfica con OpenGL 3.3, unos 900 MB libres y tu disco de *Digimon World
+2003 (Europe) (En,Fr,De,Es,It)* como imagen: mejor `.cue`/`.bin`; una `.iso` puede dar problemas. El disco con el que se
+probó y sus sumas (CRC32, MD5, SHA-1) están en la tabla de arriba. El port comprueba el ejecutable del juego
+(`SLES_039.36`), no la imagen: otra copia buena del mismo disco sirve. Las versiones americana y japonesa no.
+
+1. Descomprime el port en una carpeta tuya donde se pueda escribir (no en `Program Files`).
+2. Ejecuta `dw2003.exe`. La primera vez, una ventana te pide la imagen: arrastra el `.cue` (o el `.bin`) o pulsa
+   **Buscar...**. Comprueba la versión y lee el disco a `data/`, en pocos segundos. La ventana está en español, inglés,
+   francés, alemán e italiano (arriba a la derecha).
+3. Desde entonces, `dw2003.exe` arranca el juego directamente. Deja `dw2003.fill` junto al `.exe`: el port lee de
+   `data/` las tablas del juego al arrancar.
 
 Las partidas se guardan en `saves/card1.mcd`, una imagen de memory card estándar: sirven las de emuladores.
-F11 o Alt+Enter: pantalla completa. Controles y opciones: arriba.
+**Esc** abre el menú de opciones (se guarda en `native.ini`); F11 o Alt+Enter, pantalla completa. Controles y
+opciones: arriba.
+
+Si sale **"The game's data doesn't match..."**, borra `data/` y arranca el juego: vuelve a pedir el disco.
+
+© 2026 Feerdus, licencia MIT. Proyecto de fans, sin relación con Bandai Namco. Digimon World 2003 es © Bandai /
+Bandai Namco.

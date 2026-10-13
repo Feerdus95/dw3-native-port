@@ -12,4 +12,5 @@ The native port of Digimon World 2003 builds on the work of others:
   interpolation weights and its reverb resampling filter.
 
 Digimon World 2003 is © Bandai / Bandai Namco. This project carries no game data: you supply your own disc
-(see `README.md`). The reverb presets are read at run time from your own copy of the game's executable.
+(see `README.md`). The game's own tables the decompiled C carries are taken out of the exe when it is built and
+read at run time from your own copy, as are the reverb presets.

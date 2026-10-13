@@ -1,6 +1,7 @@
 # Copy to native.ini, next to dw2003.exe. Every line is optional.
 
-# Where the extracted game is (tools/extract_iso.py); relative to the exe's folder
+# Where the game read from your disc is (the first run writes it); relative to
+# the exe's folder
 data = data
 
 # 1: start in fullscreen (F11 or Alt+Enter switches while playing)
