@@ -229,9 +229,12 @@ def cname(sym):
 
 
 def symbols(obj):
-    defined = run([NM, "--format=just-symbols", "--defined-only", "--extern-only", obj]).stdout.split()
-    undefined = run([NM, "--format=just-symbols", "--undefined-only", obj]).stdout.split()
-    return {cname(s) for s in defined}, {cname(s) for s in undefined}
+    """(defined, undefined) external symbols, from one nm: "name type ..." lines"""
+    defined, undefined = set(), set()
+    for line in run([NM, "--format=posix", "--extern-only", obj]).stdout.splitlines():
+        name, kind = line.split()[:2]
+        (undefined if kind in "Uw" else defined).add(cname(name))
+    return defined, undefined
 
 
 # The dw3_decomp commit the patches and checks were made against. To move on:
@@ -299,8 +302,9 @@ def main():
 
     game_objs = [obj for _, obj, _, _ in results]
     defined, undefined = set(), collections.defaultdict(int)
-    for obj in game_objs + platform:
-        d, u = symbols(obj)
+    with cf.ThreadPoolExecutor(os.cpu_count()) as ex:
+        syms = list(ex.map(symbols, game_objs + platform))
+    for d, u in syms:
         defined |= d
         for s in u:
             undefined[s] += 1

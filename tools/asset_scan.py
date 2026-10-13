@@ -15,6 +15,7 @@ looked at.
     python native/tools/asset_scan.py [exe]       what of the game is in it
                                                   (any disc file); 0 to ship
 """
+import multiprocessing
 import struct
 import sys
 import zlib
@@ -53,20 +54,39 @@ def index(exe, nonzero):
 
 
 def sources():
-    """(name under data/, bytes): the executable, then every disc file"""
-    yield "SLES_039.36", (DATA / "SLES_039.36").read_bytes()
-    for p in sorted((DATA / "files").glob("*.bin")):
-        yield f"files/{p.name}", p.read_bytes()
+    """names under data/: the executable, then every disc file"""
+    return ["SLES_039.36"] + [f"files/{p.name}" for p in sorted((DATA / "files").glob("*.bin"))]
+
+
+_windows = None
+
+
+def _init(windows):
+    global _windows
+    _windows = windows
+
+
+def _first_places(name):
+    """the windows of the exe this file has: [(window, offset)], each its first place"""
+    b, found = (DATA / name).read_bytes(), {}
+    for o in range(0, len(b) - W + 1, 4):
+        w = b[o:o + W]
+        if w in _windows and w not in found:
+            found[w] = o
+    return name, list(found.items())
 
 
 def owners(exe, nonzero=0):
-    """exe offset -> (source, offset) for every byte found in the game's files"""
+    """exe offset -> (source, offset) for every byte found in the game's files.
+    The files are searched on every core; a window goes to the first file, in
+    sources() order, that has it"""
     idx, own = index(exe, nonzero), {}
-    for name, b in sources():
-        for o in range(0, len(b) - W + 1, 4):
-            for e in idx.get(b[o:o + W], ()):
-                for k in range(W):
-                    own.setdefault(e + k, (name, o + k))
+    with multiprocessing.Pool(initializer=_init, initargs=(set(idx),)) as pool:
+        for name, places in pool.imap(_first_places, sources(), chunksize=8):
+            for w, o in places:
+                for e in idx.pop(w, ()):
+                    for k in range(W):
+                        own.setdefault(e + k, (name, o + k))
     return own
 
 
