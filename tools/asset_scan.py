@@ -110,7 +110,12 @@ def rva_of(exe, off):
 
 
 def strip(exe_path):
-    """zeroes the game's runs in the exe and writes <exe>.fill; returns their bytes"""
+    """zeroes the game's runs in the exe and writes <exe>.fill; returns their
+    bytes. Without data/ (a first build) the tables stay and the .fill is
+    empty: that exe extracts the disc itself, the next build strips"""
+    if not (DATA / "SLES_039.36").exists():
+        exe_path.with_suffix(".fill").write_text("crc 00000000 0\n")
+        return 0
     exe = bytearray(exe_path.read_bytes())
     rs = runs(owners(bytes(exe)))
     crc = 0

@@ -220,7 +220,7 @@ void pad_update(void) {
 void PadInitDirect(uint8_t *a, uint8_t *b) {
     s_buf[0] = a;
     s_buf[1] = b;
-    /* As the recomp: SDL's own HIDAPI drivers, Xbox pads included, rather
+    /* SDL's own HIDAPI drivers, Xbox pads included, rather
        than RawInput, whose XInput pairing for the motors can miss */
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI, "1");

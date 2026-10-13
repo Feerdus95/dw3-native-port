@@ -43,7 +43,22 @@ EMIT_OPT = ["-O0", "-Xclang", "-disable-O0-optnone", *LENIENT] if O2 else GAME_O
 GAME_OPT = ["-O2", *LENIENT] if O2 else GAME_OPT
 OUT = NATIVE / ("build-san" if SANITIZE else "build-o2" if O2 else "build")
 PATCHED = OUT / "patched"
-TC = Path(os.environ["LOCALAPPDATA"]) / "retcomm/toolchains/cmake-clang-v1/1.0.14/bin"
+
+
+def toolchain():
+    """llvm-mingw's bin/ (github.com/mstorsjo/llvm-mingw): LLVM_MINGW=<its
+    folder>, or its bin/ on the PATH, or a copy installed by a retcomm toolchain"""
+    if os.environ.get("LLVM_MINGW"):
+        return Path(os.environ["LLVM_MINGW"]) / "bin"
+    if shutil.which("i686-w64-mingw32-clang"):
+        return Path(shutil.which("i686-w64-mingw32-clang")).parent
+    local = Path(os.environ.get("LOCALAPPDATA", "")) / "retcomm/toolchains/cmake-clang-v1/1.0.14/bin"
+    if local.exists():
+        return local
+    sys.exit("no llvm-mingw: set LLVM_MINGW to its folder, or put its bin/ on the PATH (README, Building)")
+
+
+TC = toolchain()
 CC = TC / "i686-w64-mingw32-clang.exe"
 NM = TC / "llvm-nm.exe"
 OBJCOPY = TC / "llvm-objcopy.exe"

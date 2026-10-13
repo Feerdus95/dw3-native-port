@@ -144,6 +144,34 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 For scripts: `dw2003.exe --extract "path/to/image.cue"` reads the disc without the window, and the `DW3_DATA`
 environment variable points the port at a `data/` elsewhere.
 
+## Building
+
+For developers; players only need the release zip.
+
+- [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) (its `i686-w64-mingw32-clang`): set `LLVM_MINGW` to its folder,
+  or put its `bin/` on the PATH.
+- Python 3.10 or newer, and GNU `patch` on the PATH (Git for Windows has it).
+- [dw3_decomp](https://github.com/ReGame-Labs/dw3_decomp) cloned **next to** this repository, at the commit in
+  `DECOMP_COMMIT` (`build.py`):
+
+      some-folder/
+        dw3_decomp/      git checkout <DECOMP_COMMIT>
+        native/          this repository (any name)
+
+- SDL 3.4.16's MinGW development files (`SDL3-devel-3.4.16-mingw.zip` from the SDL releases), unzipped into
+  `third_party/SDL3-3.4.16/`.
+
+Then:
+
+    python build.py                      # build/dw2003.exe (incremental; --clean for all)
+    build/dw2003.exe --extract "path/to/Digimon World 2003 (Europe) (En,Fr,De,Es,It).cue"
+    python build.py                      # again: now it takes the game's tables out of the exe
+    python tools/package.py              # dist/dw2003-native.zip, refused if any of the game is in it
+
+The first build has no `data/` yet, so its exe keeps the game's tables and can read the disc into `data/`; every build
+after that takes them out (`tools/asset_scan.py`) and writes `dw2003.fill`. `python tools/smoke.py` builds and boots the
+game unattended for 20 seconds; `python build.py --sanitize` builds with UBSan into `build-san/`.
+
 ## Legal
 
 © 2026 Feerdus. The port's own code is under the MIT License (`LICENSE`); what it builds on, and their licenses, is in

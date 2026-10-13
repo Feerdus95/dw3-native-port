@@ -4,7 +4,7 @@
      F3  the sound test (SOUNDTST), F4 the vibration test (SHOCKTST): the
          European stage select has no lines for them
      F2  GAME (the save data and the mode) to game_<vsync>.bin, to compare
-         with the recomp on the same save
+         with an emulator on the same save
      F5  savestate to saves/quick.state, F9 load it
    A savestate is the game's variables (main's and the overlays', one range:
    memory.c), the heap, the overlay areas, VRAM and the platform's console
