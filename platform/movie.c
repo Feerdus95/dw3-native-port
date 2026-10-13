@@ -131,18 +131,26 @@ void movie_stream_stop(void) {
     spu_cd_clear();
 }
 
+static int s_cooked; /* the movie is a .bin: 2048-byte sectors, no subheaders */
+
 void movie_stream_start(int pos) {
     char path[1200];
 
     movie_stream_stop();
     snprintf(path, sizeof path, "%s/files/%04d.str", data_dir(), pos / SPAN);
     s_file = fopen(path, "rb");
-    if (s_file == NULL) {
-        LOG("no movie %s: extract the disc again, from a .bin/.cue", path);
-        return;
+    s_cooked = s_file == NULL;
+    if (s_cooked) {
+        /* from a plain .iso: the 2048-byte copy, its pictures without the sound */
+        snprintf(path, sizeof path, "%s/files/%04d.bin", data_dir(), pos / SPAN);
+        if ((s_file = fopen(path, "rb")) == NULL) {
+            LOG("no movie %s", path);
+            return;
+        }
+        log_once("movies without sound: the disc was read from a plain .iso");
     }
     LOGC(LOG_CD, "cd: movie %04d from sector %d", pos / SPAN, pos % SPAN);
-    fseek(s_file, (long)(pos % SPAN) * RAW_SECTOR, SEEK_SET);
+    fseek(s_file, (long)(pos % SPAN) * (s_cooked ? 2048 : RAW_SECTOR), SEEK_SET);
     s_due = 0;
     s_ended = 0;
     s_head = 0;
@@ -156,7 +164,13 @@ static int read_sector(void) {
     const StHEADER *h = (const StHEADER *)(raw + 8);
     Frame *f = &s_queue[(s_head + s_ready) % (QUEUE + 1)];
 
-    if (fread(raw, RAW_SECTOR, 1, s_file) != 1) {
+    if (s_cooked) {
+        /* no subheader: a video sector shows by its header, the audio's are lost */
+        raw[2] = 0;
+        if (fread(raw + 8, 2048, 1, s_file) != 1) {
+            return 0;
+        }
+    } else if (fread(raw, RAW_SECTOR, 1, s_file) != 1) {
         return 0;
     }
     if (raw[2] & 4) {

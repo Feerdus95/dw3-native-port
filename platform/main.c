@@ -13,7 +13,7 @@ void install_crash_handler(void);
 void native_snapshot_overlays(void);
 int native_fill(const char *data);
 int native_extract_disc(const char *data);
-const char *native_extract(const char *image, const char *data, SDL_Window *progress);
+const char *native_extract(const char *image, const char *data, void (*progress)(int percent));
 extern uint8_t STAGE_VRAM[], OVERLAY_VRAM[];
 extern uint32_t HEAP_BASE[];
 
