@@ -1,6 +1,6 @@
 --- a/src/ststatus/map_screen.c
 +++ b/src/ststatus/map_screen.c
-@@ -130,6 +130,60 @@
+@@ -130,8 +130,142 @@
      }
  }
  
@@ -56,23 +56,131 @@
 +    }
 +    return 0;
 +}
++
++/* Its question, in a banner as the area's name, on the other half of the
++   screen: the port's own text, then the status texts' yes and no, with a
++   cursor (the screen's windows 1 to 4) */
++#define ASK_YES 0x32
++#define ASK_NO 0x33
++static s32 fastTravelAsking;
++static s32 fastTravelChoice;
++static s32 fastTravelY; /* the banner's */
++
++static void showFastTravelQuestion(StatusMapScreen *screen, TextWindow **windows, s32 show) {
++    Cursor *cursor;
++    s32 i;
++
++    if (show) {
++        fastTravelY = screen->hoverY < screen->height / 2 ? 0x14 : 0xB4;
++        if (windows[1] == NULL) {
++            windows[1] = createTextWindow(screen->layer, 1, 0x10, 0);
++            windows[2] = createTextWindow(screen->layer, 1, 0xE8, 0);
++            windows[3] = createTextWindow(screen->layer, 1, 0xE8, 0);
++            windows[4] = (TextWindow *)createCursor(screen->layer, screen->depth - 1, 0xDB, 0);
++        }
++        windows[1]->setPos(windows[1], 0x10, fastTravelY + 5);
++        windows[2]->setPos(windows[2], 0xE8, fastTravelY + 5);
++        windows[3]->setPos(windows[3], 0xE8, fastTravelY + 5 + 14);
++        windows[1]->setString(windows[1], (void *)native_packs_text(LANGUAGE), 14);
++        windows[2]->setString(windows[2], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)), ASK_YES);
++        windows[3]->setString(windows[3], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)), ASK_NO);
++        fastTravelChoice = 0;
++    } else if (windows[1] != NULL) {
++        for (i = 1; i < 4; i++) {
++            windows[i]->setVisible(windows[i], 0);
++        }
++    }
++    if (windows[4] != NULL) {
++        cursor = (Cursor *)windows[4];
++        cursor->setPos(cursor, 0xDB, fastTravelY + 5 + fastTravelChoice * 14);
++        cursor->setVisible(cursor, show);
++    }
++    fastTravelAsking = show;
++}
++
++/* While it asks: up and down choose, X takes the answer, triangle is no.
++   0 when it doesn't ask */
++static s32 askFastTravel(StatusMapScreen *screen, TextWindow **windows) {
++    s32 choice = fastTravelChoice;
++
++    if (!fastTravelAsking) {
++        return 0;
++    }
++    if (PAD_PRESSED(PAD_UP) || PAD_REPEATED(PAD_UP)) {
++        choice = 0;
++    } else if (PAD_PRESSED(PAD_DOWN) || PAD_REPEATED(PAD_DOWN)) {
++        choice = 1;
++    }
++    if (choice != fastTravelChoice) {
++        SOUND.playSound(SOUND_CURSOR);
++        fastTravelChoice = choice;
++        ((Cursor *)windows[4])->setPos((Cursor *)windows[4], 0xDB, fastTravelY + 5 + choice * 14);
++    } else if (PAD_PRESSED(PAD_CROSS)) {
++        /* yes: the home mark moves there, where the menu will go back to */
++        if (choice == 0 && fastTravel(screen->spot - 1, screen->lateGame)) {
++            SOUND.playSound(SOUND_SELECT);
++            screen->homeX = STSTATUS_data.spots[screen->spot].x + 0xC;
++            screen->homeY = STSTATUS_data.spots[screen->spot].y + 0xC;
++        } else {
++            SOUND.playSound(SOUND_MENU_CANCEL);
++        }
++        showFastTravelQuestion(screen, windows, 0);
++    } else if (PAD_PRESSED(PAD_TRIANGLE)) {
++        SOUND.playSound(SOUND_MENU_CANCEL);
++        showFastTravelQuestion(screen, windows, 0);
++    }
++    return 1;
++}
 +#endif
 +
  /* Moves the cursor faster while the pad is held; triangle closes */
  void STSTATUS_runMapScreen(StatusMapScreen *screen, TextWindow **windows) {
++#ifdef NATIVE
++    if (askFastTravel(screen, windows)) {
++        return;
++    }
++#endif
      if (PAD_HELD(PAD_LEFT) || PAD_HELD(PAD_RIGHT)) {
-@@ -170,6 +224,14 @@
+         if (PAD_PRESSED(PAD_LEFT) || PAD_PRESSED(PAD_RIGHT)) {
+             screen->speedX = 2;
+@@ -170,6 +304,13 @@
          SOUND.playSound(SOUND_MENU_CANCEL);
          screen->state = TASK_KILL;
      }
 +#ifdef NATIVE
-+    /* X on an area: the home mark moves there, where the menu will go back to */
-+    if (g_fast_travel && screen->hovering && PAD_PRESSED(PAD_CROSS) && fastTravel(screen->spot - 1, screen->lateGame)) {
-+        SOUND.playSound(SOUND_SELECT);
-+        screen->homeX = STSTATUS_data.spots[screen->spot].x + 0xC;
-+        screen->homeY = STSTATUS_data.spots[screen->spot].y + 0xC;
++    /* X on an area asks whether to travel there */
++    if (g_fast_travel && screen->hovering && PAD_PRESSED(PAD_CROSS)) {
++        SOUND.playSound(SOUND_MENU_CONFIRM);
++        showFastTravelQuestion(screen, windows, 1);
 +    }
 +#endif
  }
  
  /* Draws the map, the visited areas, the towns and the cursor */
+@@ -189,6 +330,11 @@
+         } else {
+             sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x3B, 0, 0x14);
+         }
++#ifdef NATIVE
++        if (fastTravelAsking) { /* fast travel's question, in the other banner */
++            sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x3B, 0, fastTravelY);
++        }
++#endif
+     }
+     initSpriteDrawer(&sprite);
+     if (screen->ready) {
+@@ -318,7 +464,14 @@
+ /* Creates the map screen (task): the map of the first half of the game or, in the
+    late game, of the second (FILE_STATUS_BG + 2), and requests its area names */
+ Task *STSTATUS_createMapScreen(FieldMenuScreen *menu, s32 extra) {
++#ifdef NATIVE
++    /* room for fast travel's windows and cursor too */
++    StatusMapScreen *screen = createTask(STSTATUS_updateMapScreen, sizeof(StatusMapScreen), 5 * 4);
++
++    fastTravelAsking = 0;
++#else
+     StatusMapScreen *screen = createTask(STSTATUS_updateMapScreen, sizeof(StatusMapScreen), 4);
++#endif
+ 
+     screen->layer = SCREEN_LAYER;
+     screen->depth = 5;

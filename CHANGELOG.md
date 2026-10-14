@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- **Fast travel** (options menu, off by default): on the map screen, X on a visited area takes you there as the menu
-  closes; the home mark moves to it. You arrive through one of the game's own doors into the area that is open at that
+- **Fast travel** (options menu, off by default): on the map screen, X on a visited area asks whether to travel there;
+  on Yes the home mark moves to it and the menu, as it closes, takes you there. You arrive through one of the game's own doors into the area that is open at that
   point of the story (or at its start, for the two areas no door leads into). After Flawe's Fast Travel hack; no part
   of it is used.
 - The options menu in tabs, Display, Graphics, Input and Mods, turned with L1 / R1 (Q / E or Page Up / Down on the

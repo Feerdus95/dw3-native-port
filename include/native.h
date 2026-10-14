@@ -64,7 +64,8 @@ extern int g_extra_packs;
 extern const int NATIVE_EXTRA_PACKS[3][3]; /* their partners */
 /* their texts, a text file as the game's in its language (LANGUAGE): 1-3 the
    names, 4-6 the labels D-F, 7-9 the packs' texts, 10 Veemon's, 11 its
-   greeting, 12-13 the word of the intro and the one replacing it */
+   greeting, 12-13 the word of the intro and the one replacing it; and the
+   port's other texts: 14 fast travel's question */
 const void *native_packs_text(int language);
 #define NATIVE_PACK_SCENE(pack) ((pack) >= 3 ? 1 : (pack))
 
