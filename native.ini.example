@@ -39,6 +39,9 @@ battle_shadows = 1
 # disc (0)
 soft_shadows = 0
 
+# 0: no vsync: frames shown at once, which can tear in fullscreen
+vsync = 1
+
 # 0: the movies with sharp pixels instead of smoothed when scaled up
 smooth_movies = 1
 

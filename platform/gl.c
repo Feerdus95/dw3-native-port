@@ -173,6 +173,7 @@ static GLuint s_fbo_depth;           /* its depth buffer, for the 3D models (g_d
 int g_depth = 1;
 int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1; /* true_color, perspective, smooth_3d, the menu */
 int g_soft_shadows;
+int g_vsync = 1; /* vsync, the menu */
 int g_battle_shadows = 1; /* battle_shadows, the menu (native.h) */ /* soft_shadows = 1, the menu (native.h) */
 static int s_deep;                   /* the batch is by the depth buffer */
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
@@ -515,7 +516,6 @@ int gl_init(SDL_Window *window) {
     }
     GL_FUNCS(X)
 #undef X
-    SDL_GL_SetSwapInterval(0); /* the game keeps its own time (etc.c) */
     if ((s_main = program(MAIN_VS, MAIN_FS)) == 0 || (s_blit = program(BLIT_VS, BLIT_FS)) == 0) {
         return 0;
     }
@@ -594,7 +594,15 @@ void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
     int w, h, vp[4], menu_vp[4];
     int aw = gte_widescreen() ? 16 : 4, ah = gte_widescreen() ? 9 : 3; /* the picture's aspect */
 
+    static int vsync = -1;
+
     flush();
+    if (vsync != g_vsync) {
+        /* the game keeps its own time (etc.c); vsync only holds the swap for
+           the screen's refresh, so that a frame isn't shown torn */
+        vsync = g_vsync;
+        SDL_GL_SetSwapInterval(vsync);
+    }
     SDL_GetWindowSizeInPixels(s_window, &w, &h);
     vp[2] = w * ah > h * aw ? h * aw / ah : w;
     vp[3] = w * ah > h * aw ? h : w * ah / aw;

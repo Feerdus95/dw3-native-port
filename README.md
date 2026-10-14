@@ -120,7 +120,8 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 | Soft shadows | the shadows under the characters on the field darken the ground, with smooth edges, instead of the original's grey disc. Off by default |
 | Battle shadows | the Digimon in battle cast their shape on the ground, as the light from above falls (with Sub-pixel 3D and the Depth buffer) |
 | Smooth movies | the movies smoothed when scaled up, or with sharp pixels |
-| Fullscreen, Window size | |
+| VSync | each frame shown whole, at the screen's refresh: no tearing |
+| Fullscreen, Window size | the window fits the screen it is on, centred |
 | Vibration, Stick deadzone | the gamepad |
 | Fast text | holding X advances the texts, outside battles and card games |
 | Fast forward | x2, x3 or x5 (Tab or R3 while playing); the music keeps its speed. Not saved |
@@ -141,6 +142,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
     dither = 1           ; 0 turns off the PlayStation's dithering
     battle_shadows = 1   ; 0: no shadows in battle
     soft_shadows = 0     ; 1: the field's shadows see-through and smooth
+    vsync = 1            ; 0: frames shown at once, which can tear
     smooth_movies = 1    ; 0 shows the movies with sharp pixels
     deadzone = 3277      ; how far the sticks and triggers move before they count (0-32767)
     rumble = 1           ; 0: no vibration

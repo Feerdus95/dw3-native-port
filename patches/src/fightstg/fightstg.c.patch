@@ -1,24 +1,23 @@
 --- a/src/fightstg/fightstg.c
 +++ b/src/fightstg/fightstg.c
-@@ -382,6 +382,17 @@
+@@ -380,6 +380,16 @@
+                 gte_CompMatrix(bone->parentMatrix, &bone->local, &bone->world);
+             }
          }
++#ifdef NATIVE
++        {
++            Models *models = TASK_REGISTRY.funcs.find(BATTLE_TASK_MODELS, -1, -1);
++            s32 fighter = models != NULL && model->control >= &models->controls[0] && model->control < &models->controls[4];
++
++            for (d = 1; d < model->boneCount; d++) {
++                children[d + 1]->nativeShadow = fighter;
++            }
++        }
++#endif
          for (j = 0; j < 2; j++) {
              if (model->control->layers[j].enabled) {
-+#ifdef NATIVE
-+                {
-+                    Models *models = TASK_REGISTRY.funcs.find(BATTLE_TASK_MODELS, -1, -1);
-+                    s32 fighter = models != NULL && model->control >= &models->controls[0] && model->control < &models->controls[4] &&
-+                                  model->control->layers[j].layerId == BATTLE_LAYER_MODELS && !model->control->layers[j].wireframe;
-+
-+                    for (d = 1; d < model->boneCount; d++) {
-+                        children[d + 1]->nativeShadow = fighter;
-+                    }
-+                }
-+#endif
                  for (d = 0, drawn = model->bones; d < model->boneCount; d++, drawn++) {
-                     if (d != 0 && drawn->visible) {
-                         if (model->control->layers[j].wireframe) {
-@@ -536,6 +547,134 @@
+@@ -536,6 +546,134 @@
      }
  }
  
@@ -153,7 +152,7 @@
  /* The screen positions of a Mesh's vertices and their depths in the layer's
     ordering table */
  void FIGHTSTG_projectMesh(Mesh *mesh, Layer *layer) {
-@@ -599,9 +738,15 @@
+@@ -599,9 +737,15 @@
          }
          *(s32 *)&state->prim.gt4->x3 = state->sxy[3];
          *(u16 *)&state->prim.gt4->u3 = *(u16 *)state->uv[3];
@@ -169,7 +168,7 @@
          setPolyGT3(state->prim.gt3);
          if (state->abr) {
              setSemiTrans(state->prim.gt3, 1);
-@@ -629,9 +774,15 @@
+@@ -629,9 +773,15 @@
          }
          *(s32 *)&state->prim.ft4->x3 = state->sxy[3];
          *(u16 *)&state->prim.ft4->u3 = *(u16 *)state->uv[3];
@@ -185,7 +184,7 @@
          setPolyFT3(state->prim.ft3);
          if (state->abr) {
              setSemiTrans(state->prim.ft3, 1);
-@@ -736,12 +887,28 @@
+@@ -736,12 +886,28 @@
          if (state->quad) {
              state->sxy[3] = state->screen[i3];
          }
@@ -214,7 +213,7 @@
              if (state->sxy[0] == state->sxy[1] || state->sxy[0] == state->sxy[2] ||
                  state->sxy[1] == state->sxy[2]) {
                  break;
-@@ -754,6 +921,9 @@
+@@ -754,6 +920,9 @@
              if (opz <= 0) {
                  break;
              }
@@ -224,12 +223,13 @@
              if (state->lit) {
                  p = state->cmd + (state->quad + 3);
                  state->colors[0] = state->normalColors[p[0]];
-@@ -892,6 +1062,11 @@
+@@ -892,6 +1061,12 @@
          }
      }
      GFX.funcs.setPrim(state.prim.ptr);
 +#ifdef NATIVE
-+    if (g_battle_shadows && mesh->nativeShadow) {
++    /* on the models' layer: not the partner view's, where the partner is also drawn */
++    if (g_battle_shadows && mesh->nativeShadow && layer == GFX.funcs.getLayer(BATTLE_LAYER_MODELS)) {
 +        nativeDrawMeshShadow(mesh, layer);
 +    }
 +#endif

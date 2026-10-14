@@ -11,6 +11,22 @@ int video_window_width(int scale) {
     return g_widescreen ? (scale * 1280 + 1) / 3 : 320 * scale;
 }
 
+/* The window at a size in 320x240 steps (16:9 with widescreen), made smaller
+   until it fits the screen it is on, title bar and taskbar aside, and centred
+   there: a 16:9 window as tall as a 4:3 one can be wider than the screen */
+void video_resize(int scale) {
+    SDL_DisplayID display = SDL_GetDisplayForWindow(s_window);
+    SDL_Rect usable = {0, 0, 1 << 16, 1 << 16};
+
+    SDL_GetDisplayUsableBounds(display, &usable);
+    while (scale > 1 && (video_window_width(scale) > usable.w || 240 * scale > usable.h - 40)) {
+        scale--;
+    }
+    SDL_SetWindowFullscreen(s_window, false);
+    SDL_SetWindowSize(s_window, video_window_width(scale), 240 * scale);
+    SDL_SetWindowPosition(s_window, SDL_WINDOWPOS_CENTERED_DISPLAY(display), SDL_WINDOWPOS_CENTERED_DISPLAY(display));
+}
+
 int video_init(int scale, int fullscreen) {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         LOG("SDL_Init: %s", SDL_GetError());

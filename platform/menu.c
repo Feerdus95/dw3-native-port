@@ -6,10 +6,10 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, MOVIES, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, EXTRA_PACKS, BLADEGARURUMON, CLOSE, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, MOVIES, VSYNC, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, EXTRA_PACKS, BLADEGARURUMON, CLOSE, ITEMS };
 
 static const char *LABELS[ITEMS] = {
-    "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Smooth movies", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
+    "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Smooth movies", "VSync", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
     "Fast text (hold X)", "Fast forward (Tab/R3)", "Extra starter packs", "BladeGarurumon", "Close",
 };
 
@@ -55,6 +55,7 @@ static void value(int item, char *out, size_t size) {
     case SMOOTH_3D: on = g_smooth_3d; break;
     case TRUE_COLOR: on = g_true_color; break;
     case MOVIES: on = g_smooth_movies; break;
+    case VSYNC: on = g_vsync; break;
     case FULLSCREEN: on = (SDL_GetWindowFlags(video_window()) & SDL_WINDOW_FULLSCREEN) != 0; break;
     case RUMBLE: on = g_rumble; break;
     case FAST_TEXT: on = g_fast_text; break;
@@ -79,13 +80,14 @@ static void change(int item, int dir) {
     case WIDESCREEN: /* the window follows, unless fullscreen */
         g_widescreen = !g_widescreen;
         if (!(SDL_GetWindowFlags(video_window()) & SDL_WINDOW_FULLSCREEN)) {
-            SDL_SetWindowSize(video_window(), video_window_width(window_scale()), 240 * window_scale());
+            video_resize(window_scale());
         }
         break;
     case PERSPECTIVE: g_perspective = !g_perspective; break;
     case SMOOTH_3D: g_smooth_3d = !g_smooth_3d; break;
     case TRUE_COLOR: g_true_color = !g_true_color; break;
     case MOVIES: g_smooth_movies = !g_smooth_movies; break;
+    case VSYNC: g_vsync = !g_vsync; break;
     case FULLSCREEN: SDL_SetWindowFullscreen(video_window(), !(SDL_GetWindowFlags(video_window()) & SDL_WINDOW_FULLSCREEN)); break;
     case RUMBLE: g_rumble = !g_rumble; break;
     case FAST_TEXT: g_fast_text = !g_fast_text; break;
@@ -94,8 +96,7 @@ static void change(int item, int dir) {
     case FAST_FORWARD: ff_cycle(); return; /* not saved */
     case WINDOW:
         scale = SDL_clamp(window_scale() + (dir < 0 ? -1 : 1), 1, 8);
-        SDL_SetWindowFullscreen(video_window(), false);
-        SDL_SetWindowSize(video_window(), video_window_width(scale), 240 * scale);
+        video_resize(scale);
         break;
     case DEADZONE: /* 5% steps, up to 50% */
         g_deadzone = SDL_clamp(((g_deadzone * 100 + 16383) / 32767 / 5 + (dir < 0 ? -1 : 1)) * 5, 0, 50) * 32767 / 100;
@@ -107,7 +108,7 @@ static void change(int item, int dir) {
 
 /* native.ini's "key = value" lines get the new values; missing keys are added */
 static void save(void) {
-    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen"};
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync"};
     char path[1100], line[1200], key[32], vals[SDL_arraysize(KEYS)][16];
     int done[SDL_arraysize(KEYS)] = {0}, i, n = SDL_arraysize(KEYS);
     size_t len = 0;
@@ -131,6 +132,7 @@ static void save(void) {
     SDL_snprintf(vals[14], 16, "%d", g_smooth_3d);
     SDL_snprintf(vals[15], 16, "%d", g_battle_shadows);
     SDL_snprintf(vals[16], 16, "%d", g_widescreen);
+    SDL_snprintf(vals[17], 16, "%d", g_vsync);
     SDL_snprintf(path, sizeof path, "%snative.ini", SDL_GetBasePath());
     out[0] = 0;
     if ((f = fopen(path, "r")) != NULL) {

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **VSync** (options menu, on by default): frames wait for the screen's refresh, which ends the tearing in
+  fullscreen.
+- Battle shadows: the partner's shadow while its commands are chosen (its picture beside the menus turned it off).
+- The window, resized from the menu or by Widescreen battles, fits the screen it is on and is centred there.
 - **Widescreen battles** (options menu, off by default): battles shown 16:9 with the 3D a third wider, the way
   emulators' widescreen hacks do it (the battle's 2D stretched); the fields stay 4:3. The window turns 16:9 with it.
 - **Battle shadows** (options menu, on by default): the Digimon in battle cast their own shape on the ground, along a

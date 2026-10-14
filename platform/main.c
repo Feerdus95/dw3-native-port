@@ -79,7 +79,8 @@ static int load_boot_image(void) {
    debug = 0/1, log = <subsystems>, deadzone = <0..32767>, rumble = 0/1, fps = 50/60,
    render_scale = 1-8, fast_text = 0/1, extra_packs = 0/1,
    bladegarurumon = 0/1, soft_shadows = 0/1, true_color = 0/1, perspective = 0/1,
-   smooth_3d = 0/1, battle_shadows = 0/1, widescreen = 0/1;
+   smooth_3d = 0/1, battle_shadows = 0/1, widescreen = 0/1,
+   vsync = 0/1;
    the options menu (menu.c) writes them back */
 static int s_fullscreen, s_scale, s_fps60, s_res_set; /* s_scale 0: from the screen */
 extern int NTSC_MODE;
@@ -129,6 +130,8 @@ static void read_ini(int data_only) {
             g_dither_on = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "true_color") == 0) {
             g_true_color = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "vsync") == 0) {
+            g_vsync = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "widescreen") == 0) {
             g_widescreen = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "battle_shadows") == 0) {
