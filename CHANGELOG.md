@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Objective on map** (options menu, off by default): the map screen blinks the area where the story's next step
+  happens, read from the stages' own story events.
 - **Fast travel** (options menu, off by default): on the map screen, X on a visited area asks whether to travel there;
   on Yes the home mark moves to it and the menu, as it closes, takes you there. Once you have been to Amaterasu,
   Square switches between the two servers' maps, to travel from one to the other. You arrive through one of the game's own doors into the area that is open at that

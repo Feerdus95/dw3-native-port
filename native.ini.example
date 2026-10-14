@@ -68,6 +68,9 @@ fast_text = 1
 # (through a door into it that is open at that point of the story)
 fast_travel = 0
 
+# 1: the map screen blinks the area where the story's next step happens
+map_objective = 0
+
 # 1: three more starter packs to choose from in a new game (Dragon, Tactical,
 # Mystic)
 extra_packs = 1

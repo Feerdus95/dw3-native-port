@@ -1,6 +1,6 @@
 --- a/src/ststatus/map_screen.c
 +++ b/src/ststatus/map_screen.c
-@@ -130,8 +130,213 @@
+@@ -130,8 +130,236 @@
      }
  }
  
@@ -55,6 +55,29 @@
 +        }
 +    }
 +    return 0;
++}
++
++/* Objective on map (native.h): by GAME.progress, a field where the story's
++   next step happens (the stage whose event moves it on), 0 for none */
++static const u16 objectiveModes[] = {
++    0,     0x207, 0x204, 0x200, 0x22E, 0x22C, 0x232, 0x23A, 0x227, 0x239, 0x240, 0x204,
++    0x20B, 0x204, 0x236, 0x260, 0x25C, 0x252, 0x254, 0x255, 0x255, 0x21C, 0x218, 0x203,
++    0x260, 0x240, 0x246, 0x29C, 0x2AD, 0x2AE, 0x26E, 0x26D, 0x26D, 0x218, 0x2C7, 0x2D5,
++    0x272, 0x276, 0x219, 0x288,
++};
++
++/* The spot of the objective's area on this half's map, or 0 */
++static s32 objectiveSpot(StatusMapScreen *screen) {
++    s32 mode;
++
++    if (!g_map_objective || GAME.progress < 0 || GAME.progress >= (s32)(sizeof objectiveModes / sizeof objectiveModes[0])) {
++        return 0;
++    }
++    mode = objectiveModes[GAME.progress];
++    if (mode == 0 || screen->lateGame != (mode >= 0x270)) {
++        return 0;
++    }
++    return (STSTATUS_mapAreas[mode & 0xFF] & 0x7F) + 1;
 +}
 +
 +/* Its question, in a banner as the area's name, on the other half of the
@@ -214,7 +237,7 @@
      if (PAD_HELD(PAD_LEFT) || PAD_HELD(PAD_RIGHT)) {
          if (PAD_PRESSED(PAD_LEFT) || PAD_PRESSED(PAD_RIGHT)) {
              screen->speedX = 2;
-@@ -169,7 +374,26 @@
+@@ -169,7 +397,26 @@
      if (PAD_PRESSED(PAD_TRIANGLE)) {
          SOUND.playSound(SOUND_MENU_CANCEL);
          screen->state = TASK_KILL;
@@ -241,7 +264,17 @@
  }
  
  /* Draws the map, the visited areas, the towns and the cursor */
-@@ -189,6 +413,11 @@
+@@ -179,6 +426,9 @@
+     s32 x;
+     s32 frame;
+     s32 i;
++#ifdef NATIVE
++    s32 goal;
++#endif
+ 
+     if (screen->hovering) {
+         initSpriteDrawer(&sprite);
+@@ -189,6 +439,11 @@
          } else {
              sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x3B, 0, 0x14);
          }
@@ -253,7 +286,7 @@
      }
      initSpriteDrawer(&sprite);
      if (screen->ready) {
-@@ -229,6 +458,9 @@
+@@ -229,14 +484,25 @@
  #else
          frame = 0x35;
  #endif
@@ -263,7 +296,23 @@
          sprite.draw(FILE_CACHE.getEntry(screen->archive2), frame + screen->homeFrame, screen->homeX + screen->scrollX,
                      screen->homeY + screen->scrollY + screen->top);
      }
-@@ -318,7 +550,18 @@
+     sprite.setLayerId(screen->layer, screen->depth - 1);
+     if (screen->ready) {
+         sprite.setTexture(0x300, 0x100);
++#ifdef NATIVE
++        goal = objectiveSpot(screen);
++#endif
+         for (i = 1; i < 47; i++) {
++#ifdef NATIVE
++            /* the objective's area blinks, visited or not */
++            if (i == goal ? (GFX.funcs.getTime() & 0x10) != 0 : screen->visited[i - 1]) {
++#else
+             if (screen->visited[i - 1]) {
++#endif
+                 sprite.draw(FILE_CACHE.getEntry(screen->archive2), STSTATUS_data.spots[i].sprite,
+                             STSTATUS_data.spots[i].x + screen->scrollX,
+                             STSTATUS_data.spots[i].y + screen->scrollY + screen->top);
+@@ -318,7 +584,18 @@
  /* Creates the map screen (task): the map of the first half of the game or, in the
     late game, of the second (FILE_STATUS_BG + 2), and requests its area names */
  Task *STSTATUS_createMapScreen(FieldMenuScreen *menu, s32 extra) {

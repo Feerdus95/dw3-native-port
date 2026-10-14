@@ -126,6 +126,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 | Vibration, Stick deadzone | the gamepad |
 | Fast text | holding X advances the texts, outside battles and card games |
 | Fast travel | on the map screen (the field menu's Map), X on a visited area asks, and Yes takes you there as the menu closes, through one of the game's own doors into it that is open at that point of the story. Once you have been to Amaterasu, Square switches between the two servers' maps. Off by default. After Flawe's Fast Travel hack |
+| Objective on map | the map screen blinks the area where the story's next step happens (visited or not); on the other server's map when the step is there. Off by default |
 | Fast forward | x2, x3 or x5 (Tab or R3 while playing); the music keeps its speed. Not saved |
 | Extra starter packs | three more packs to pick in a new game: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon), Mystic (Kumamon, Renamon, Veemon) |
 | BladeGarurumon | a 45th Digimon every partner can learn, with Growlmon and Grizzmon at level 40: its own model (made at start from your disc's), techniques and signature, Solar Laser. Saves stay standard memory cards |
@@ -150,6 +151,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
     rumble = 1           ; 0: no vibration
     fast_text = 1        ; 0: holding X doesn't advance the texts
     fast_travel = 0      ; 1: X on the map screen travels to the area
+    map_objective = 0    ; 1: the map screen blinks the story's next area
     extra_packs = 1      ; 0: only the game's three starter packs
     bladegarurumon = 1   ; 0: partners don't learn BladeGarurumon
                          ; F12 in game saves the picture to screenshots/ by the exe

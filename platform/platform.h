@@ -134,6 +134,7 @@ extern int g_rumble;        /* rumble = 0: the gamepad doesn't vibrate (pad.c) *
 extern int g_fast_text;     /* fast_text = 0: X held doesn't advance the texts (mods.c) */
 extern int g_ff_speed;      /* fast forward: the game's ticks a frame shown, 1 normal (mods.c, etc.c) */
 void ff_cycle(void);        /* Tab / R3: the next speed */
+extern int g_map_objective; /* map_objective = 1: the map blinks the story's next area (mods.c) */
 extern int g_fast_travel;   /* fast_travel = 1: X on the map screen travels there (mods.c) */
 extern int g_extra_packs;   /* extra_packs = 0: the starter choice has the game's three (packs.c) */
 extern int g_bladegarurumon; /* bladegarurumon = 0: partners don't learn it (mods.c) */

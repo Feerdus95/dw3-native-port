@@ -93,6 +93,9 @@ typedef struct NativeExit {
     unsigned short place, placeArg, conditions[2][2];
 } NativeExit;
 extern int g_fast_travel;
+/* Objective on map (map_objective, the options menu): the map screen blinks
+   the area where the story's next step happens */
+extern int g_map_objective;
 void native_fast_travel_setup(void);
 const NativeExit *native_exits(int *count);
 /* where MODE's stage starts the player (x, y in 256ths of a pixel), 0 without one */

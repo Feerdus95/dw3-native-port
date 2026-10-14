@@ -9,11 +9,11 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, MOVIES, VSYNC, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FAST_TRAVEL, EXTRA_PACKS, BLADEGARURUMON, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, MOVIES, VSYNC, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FAST_TRAVEL, MAP_OBJECTIVE, EXTRA_PACKS, BLADEGARURUMON, ITEMS };
 
 static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Smooth movies", "VSync", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
-    "Fast text (hold X)", "Fast forward (Tab/R3)", "Fast travel (map, X)", "Extra starter packs", "BladeGarurumon",
+    "Fast text (hold X)", "Fast forward (Tab/R3)", "Fast travel (map, X)", "Objective on map", "Extra starter packs", "BladeGarurumon",
 };
 
 /* the tabs and their options, each list ending with -1 */
@@ -24,7 +24,7 @@ static const int TAB_ITEMS[TABS][ROWS + 1] = {
     {FPS, FULLSCREEN, WINDOW, WIDESCREEN, VSYNC, MOVIES, -1},
     {SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, -1},
     {RUMBLE, DEADZONE, -1},
-    {FAST_TEXT, FAST_FORWARD, FAST_TRAVEL, EXTRA_PACKS, BLADEGARURUMON, -1},
+    {FAST_TEXT, FAST_FORWARD, FAST_TRAVEL, MAP_OBJECTIVE, EXTRA_PACKS, BLADEGARURUMON, -1},
 };
 
 static int s_open, s_tab, s_cursor[TABS], s_changed;
@@ -80,6 +80,7 @@ static void value(int item, char *out, size_t size) {
     case RUMBLE: on = g_rumble; break;
     case FAST_TEXT: on = g_fast_text; break;
     case FAST_TRAVEL: on = g_fast_travel; break;
+    case MAP_OBJECTIVE: on = g_map_objective; break;
     case EXTRA_PACKS: on = g_extra_packs; break;
     case BLADEGARURUMON: on = g_bladegarurumon; break;
     }
@@ -113,6 +114,7 @@ static void change(int item, int dir) {
     case RUMBLE: g_rumble = !g_rumble; break;
     case FAST_TEXT: g_fast_text = !g_fast_text; break;
     case FAST_TRAVEL: g_fast_travel = !g_fast_travel; break;
+    case MAP_OBJECTIVE: g_map_objective = !g_map_objective; break;
     case EXTRA_PACKS: g_extra_packs = !g_extra_packs; break;
     case BLADEGARURUMON: g_bladegarurumon = !g_bladegarurumon; break;
     case FAST_FORWARD: ff_cycle(); return; /* not saved */
@@ -129,7 +131,7 @@ static void change(int item, int dir) {
 
 /* native.ini's "key = value" lines get the new values; missing keys are added */
 static void save(void) {
-    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel"};
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective"};
     char path[1100], line[1200], key[32], vals[SDL_arraysize(KEYS)][16];
     int done[SDL_arraysize(KEYS)] = {0}, i, n = SDL_arraysize(KEYS);
     size_t len = 0;
@@ -155,6 +157,7 @@ static void save(void) {
     SDL_snprintf(vals[16], 16, "%d", g_widescreen);
     SDL_snprintf(vals[17], 16, "%d", g_vsync);
     SDL_snprintf(vals[18], 16, "%d", g_fast_travel);
+    SDL_snprintf(vals[19], 16, "%d", g_map_objective);
     SDL_snprintf(path, sizeof path, "%snative.ini", SDL_GetBasePath());
     out[0] = 0;
     if ((f = fopen(path, "r")) != NULL) {
