@@ -74,13 +74,13 @@
 +        fastTravelY = screen->hoverY < screen->height / 2 ? 0x14 : 0xB4;
 +        if (windows[1] == NULL) {
 +            windows[1] = createTextWindow(screen->layer, 1, 0x10, 0);
-+            windows[2] = createTextWindow(screen->layer, 1, 0xE8, 0);
-+            windows[3] = createTextWindow(screen->layer, 1, 0xE8, 0);
-+            windows[4] = (TextWindow *)createCursor(screen->layer, screen->depth - 1, 0xDB, 0);
++            windows[2] = createTextWindow(screen->layer, 1, 0xC8, 0);
++            windows[3] = createTextWindow(screen->layer, 1, 0xC8, 0);
++            windows[4] = (TextWindow *)createCursor(screen->layer, screen->depth - 3, 0xBB, 0); /* over the banner */
 +        }
 +        windows[1]->setPos(windows[1], 0x10, fastTravelY + 5);
-+        windows[2]->setPos(windows[2], 0xE8, fastTravelY + 5);
-+        windows[3]->setPos(windows[3], 0xE8, fastTravelY + 5 + 14);
++        windows[2]->setPos(windows[2], 0xC8, fastTravelY + 5);
++        windows[3]->setPos(windows[3], 0xC8, fastTravelY + 5 + 14);
 +        windows[1]->setString(windows[1], (void *)native_packs_text(LANGUAGE), 14);
 +        windows[2]->setString(windows[2], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)), ASK_YES);
 +        windows[3]->setString(windows[3], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)), ASK_NO);
@@ -92,7 +92,7 @@
 +    }
 +    if (windows[4] != NULL) {
 +        cursor = (Cursor *)windows[4];
-+        cursor->setPos(cursor, 0xDB, fastTravelY + 5 + fastTravelChoice * 14);
++        cursor->setPos(cursor, 0xBB, fastTravelY + 5 + fastTravelChoice * 14);
 +        cursor->setVisible(cursor, show);
 +    }
 +    fastTravelAsking = show;
@@ -114,7 +114,7 @@
 +    if (choice != fastTravelChoice) {
 +        SOUND.playSound(SOUND_CURSOR);
 +        fastTravelChoice = choice;
-+        ((Cursor *)windows[4])->setPos((Cursor *)windows[4], 0xDB, fastTravelY + 5 + choice * 14);
++        ((Cursor *)windows[4])->setPos((Cursor *)windows[4], 0xBB, fastTravelY + 5 + choice * 14);
 +    } else if (PAD_PRESSED(PAD_CROSS)) {
 +        /* yes: the home mark moves there, where the menu will go back to */
 +        if (choice == 0 && fastTravel(screen->spot - 1, screen->lateGame)) {
