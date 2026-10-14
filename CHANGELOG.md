@@ -4,6 +4,8 @@
 
 - **Perspective 3D** (options menu, on by default): the 3D's textures in perspective, by the depth the GTE gave each
   point, without the PlayStation's warping as the camera moves.
+- **Smooth 3D textures** (options menu, on by default): the 3D models' textures filtered between their texels when
+  enlarged, their see-through texels left out; sprites, text and the backgrounds stay sharp.
 - **True colour** (options menu, on by default): the graphics card keeps the colours at 8 bits a channel, without the
   PlayStation's 5-bit banding in shading and blending.
 - **Soft shadows** (options menu, off by default): the shadows under the characters on the field darken the ground

@@ -113,6 +113,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 | Sub-pixel 3D | the 3D's points at their exact place at higher resolutions, without the PlayStation's wobble |
 | Depth buffer | the battle models' polygons in the right order at higher resolutions |
 | Perspective 3D | the 3D's textures in perspective, without the PlayStation's warping (with Sub-pixel 3D) |
+| Smooth 3D textures | the 3D models' textures smoothed when enlarged, not in blocks; sprites and text stay sharp (with Sub-pixel 3D) |
 | True colour | the colours at 8 bits a channel, without the PlayStation's 5-bit banding (dithering then has no use) |
 | Dithering | the PlayStation's dithering on shaded polygons |
 | Soft shadows | the shadows under the characters on the field darken the ground, with smooth edges, instead of the original's grey disc. Off by default |
@@ -132,6 +133,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
     render_scale = 4     ; 1-8: the Resolution option (unset: as the window, up to 4)
     fps = 50             ; 60: the game's own 60 Hz mode
     perspective = 1      ; 0: the 3D's textures warp as on the PlayStation
+    smooth_3d = 1        ; 0: the 3D's textures in sharp blocks
     true_color = 1       ; 0: the colours at the PlayStation's 5 bits a channel
     dither = 1           ; 0 turns off the PlayStation's dithering
     soft_shadows = 0     ; 1: the field's shadows see-through and smooth

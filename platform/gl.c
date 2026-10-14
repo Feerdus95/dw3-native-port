@@ -47,12 +47,12 @@ static const char *MAIN_VS =
     "out vec2 uv;\n" /* in perspective by w, or straight across the screen (w 1) */
     "out vec3 col;\n"
     "flat out uvec4 t, lim, tw;\n"
-    "flat out uint md;\n"
+    "flat out uint md, deep;\n" /* deep: a 3D polygon, the GTE gave its points their depth */
     "void main() {\n"
     /* linear in 1/z, as depth goes across the screen; the depth test is off without one */
     "    gl_Position = vec4(pos_uv.xy / size * 2.0 - 1.0, z > 0.0 ? clamp(1.0 - 64.0 / z, 0.0, 1.0) * 2.0 - 1.0 : 0.0, 1.0);\n"
     "    gl_Position *= persp != 0 && w > 0.0 ? w : 1.0;\n"
-    "    uv = pos_uv.zw; col = color; t = tex; lim = limits; tw = window; md = mode;\n"
+    "    uv = pos_uv.zw; col = color; t = tex; lim = limits; tw = window; md = mode; deep = w > 0.0 ? 1u : 0u;\n"
     "}\n";
 
 /* mode: 2 textured, 4 raw texture, 8 semi-transparent, 16-48 texel depth,
@@ -64,16 +64,34 @@ static const char *MAIN_FS =
     "uniform int pass;\n" /* 0 everything, 1 all but the semi-transparent, 2 only those */
     "uniform float scale;\n"
     "uniform int truecolor;\n" /* the colours at 8 bits, undithered */
+    "uniform int smooth3d;\n" /* the 3D's textures smoothed */
     "in vec2 uv;\n"
     "in vec3 col;\n"
     "flat in uvec4 t, lim, tw;\n"
-    "flat in uint md;\n"
+    "flat in uint md, deep;\n"
     "out vec4 frag;\n"
     "const float DITHER[16] = float[16](-4.0, 0.0, -3.0, 1.0, 2.0, -2.0, 3.0, -1.0, -3.0, 1.0, -4.0, 0.0, 3.0, -1.0, 2.0, -2.0);\n"
     "uint fetch(int x, int y) { return texelFetch(vram, ivec2(x & 1023, y & 511), 0).r; }\n"
     "vec3 rgb5(uint p) { return vec3(p & 31u, (p >> 5) & 31u, (p >> 10) & 31u); }\n"
+    /* the texel at (u, v), kept inside the polygon's and through the texture window and the CLUT */
+    "uint texel(int u, int v) {\n"
+    "    u = clamp(u, int(lim.x), int(lim.z)) & 255;\n"
+    "    v = clamp(v, int(lim.y), int(lim.w)) & 255;\n"
+    "    u = (u & ~int(tw.x)) | (int(tw.z) & int(tw.x));\n"
+    "    v = (v & ~int(tw.y)) | (int(tw.w) & int(tw.y));\n"
+    "    uint depth = (md >> 4) & 3u;\n"
+    "    if (depth == 0u) {\n"
+    "        uint w = fetch(int(t.z) + u / 4, int(t.w) + v);\n"
+    "        return fetch(int(t.x) + int((w >> uint((u & 3) * 4)) & 15u), int(t.y));\n"
+    "    } else if (depth == 1u) {\n"
+    "        uint w = fetch(int(t.z) + u / 2, int(t.w) + v);\n"
+    "        return fetch(int(t.x) + int((w >> uint((u & 1) * 8)) & 255u), int(t.y));\n"
+    "    }\n"
+    "    return fetch(int(t.z) + u, int(t.w) + v);\n"
+    "}\n"
     "void main() {\n"
     "    uint pix = 0u;\n"
+    "    vec3 tex = vec3(0.0);\n"
     "    bool semi = (md & 8u) != 0u;\n"
     "    vec3 c8 = col, c5;\n"
     "    float cover = 1.0;\n"
@@ -92,27 +110,29 @@ static const char *MAIN_FS =
     "            if (cover <= 0.0) discard;\n"
     "            at = mid;\n"
     "        }\n"
-    "        int u = clamp(int(floor(at.x + 0.002)), int(lim.x), int(lim.z)) & 255;\n"
-    "        int v = clamp(int(floor(at.y + 0.002)), int(lim.y), int(lim.w)) & 255;\n"
-    "        u = (u & ~int(tw.x)) | (int(tw.z) & int(tw.x));\n"
-    "        v = (v & ~int(tw.y)) | (int(tw.w) & int(tw.y));\n"
-    "        uint depth = (md >> 4) & 3u;\n"
-    "        if (depth == 0u) {\n"
-    "            uint w = fetch(int(t.z) + u / 4, int(t.w) + v);\n"
-    "            pix = fetch(int(t.x) + int((w >> uint((u & 3) * 4)) & 15u), int(t.y));\n"
-    "        } else if (depth == 1u) {\n"
-    "            uint w = fetch(int(t.z) + u / 2, int(t.w) + v);\n"
-    "            pix = fetch(int(t.x) + int((w >> uint((u & 1) * 8)) & 255u), int(t.y));\n"
-    "        } else {\n"
-    "            pix = fetch(int(t.z) + u, int(t.w) + v);\n"
+    "        pix = texel(int(floor(at.x + 0.002)), int(floor(at.y + 0.002)));\n"
+    "        tex = rgb5(pix);\n"
+    /* smoothed (a 3D polygon's, by its depth): the four texels around, the
+       see-through ones (0) left out of the mix; the nearest's flags kept */
+    "        if (smooth3d != 0 && deep != 0u && (md & 512u) == 0u) {\n"
+    "            vec2 p = uv - 0.5;\n"
+    "            ivec2 i = ivec2(floor(p));\n"
+    "            vec2 f = p - vec2(i);\n"
+    "            uint a = texel(i.x, i.y), b = texel(i.x + 1, i.y), c = texel(i.x, i.y + 1), e = texel(i.x + 1, i.y + 1);\n"
+    "            vec4 k = vec4((1.0 - f.x) * (1.0 - f.y), f.x * (1.0 - f.y), (1.0 - f.x) * f.y, f.x * f.y) *\n"
+    "                     vec4(a != 0u, b != 0u, c != 0u, e != 0u);\n"
+    "            float sum = k.x + k.y + k.z + k.w;\n"
+    "            if (sum < 0.5) discard;\n"
+    "            tex = (rgb5(a) * k.x + rgb5(b) * k.y + rgb5(c) * k.z + rgb5(e) * k.w) / sum;\n"
+    "            if (pix == 0u) pix = a != 0u ? a : b != 0u ? b : c != 0u ? c : e;\n"
     "        }\n"
     "        if (pix == 0u) discard;\n"
     "        semi = semi && (pix & 0x8000u) != 0u;\n"
-    "        c8 = floor(rgb5(pix) * col / 16.0);\n"
+    "        c8 = floor(tex * col / 16.0);\n"
     "    }\n"
     "    if ((pass == 1 && semi) || (pass == 2 && !semi)) discard;\n"
     "    if ((md & 6u) == 6u) {\n"
-    "        c5 = rgb5(pix);\n"
+    "        c5 = tex;\n"
     "    } else {\n"
     "        float d = (md & 64u) != 0u ? DITHER[(int(gl_FragCoord.y) & 3) * 4 + (int(gl_FragCoord.x) & 3)] : 0.0;\n"
     "        c5 = truecolor != 0 ? clamp(c8 / 8.0, 0.0, 31.0) : clamp(floor((c8 + d) / 8.0), 0.0, 31.0);\n"
@@ -140,12 +160,12 @@ static const char *BLIT_FS =
 static SDL_Window *s_window;
 static SDL_GLContext s_ctx;
 static GLuint s_main, s_blit, s_vao, s_vbo, s_quad_vao, s_quad_vbo;
-static GLint s_pass_loc, s_scale_loc, s_size_loc, s_true_loc, s_persp_loc;
+static GLint s_pass_loc, s_scale_loc, s_size_loc, s_true_loc, s_persp_loc, s_smooth_loc;
 static GLuint s_vram_tex;            /* the 1x VRAM, R16UI */
 static GLuint s_fbo, s_fbo_tex;      /* the copy, render_scale times bigger */
 static GLuint s_fbo_depth;           /* its depth buffer, for the 3D models (g_depth) */
 int g_depth = 1;
-int g_true_color = 1, g_perspective = 1; /* true_color, perspective, the menu */
+int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1; /* true_color, perspective, smooth_3d, the menu */
 int g_soft_shadows; /* soft_shadows = 1, the menu (native.h) */
 static int s_deep;                   /* the batch is by the depth buffer */
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
@@ -282,6 +302,7 @@ static void flush(void) {
     GL(glUniform1f)(s_scale_loc, (float)s);
     GL(glUniform1i)(s_true_loc, g_true_color);
     GL(glUniform1i)(s_persp_loc, g_perspective);
+    GL(glUniform1i)(s_smooth_loc, g_smooth_3d);
     GL(glDisable)(GL_BLEND);
     if (s_deep) {
         GL(glEnable)(GL_DEPTH_TEST);
@@ -484,6 +505,7 @@ int gl_init(SDL_Window *window) {
     s_size_loc = GL(glGetUniformLocation)(s_main, "size");
     s_true_loc = GL(glGetUniformLocation)(s_main, "truecolor");
     s_persp_loc = GL(glGetUniformLocation)(s_main, "persp");
+    s_smooth_loc = GL(glGetUniformLocation)(s_main, "smooth3d");
     GL(glUseProgram)(s_main);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_main, "vram"), 0);
     GL(glUniform2f)(s_size_loc, VRAM_W, VRAM_H);

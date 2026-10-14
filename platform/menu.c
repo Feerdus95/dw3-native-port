@@ -6,10 +6,10 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, TRUE_COLOR, DITHER, SOFT_SHADOWS, MOVIES, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, EXTRA_PACKS, BLADEGARURUMON, CLOSE, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, MOVIES, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, EXTRA_PACKS, BLADEGARURUMON, CLOSE, ITEMS };
 
 static const char *LABELS[ITEMS] = {
-    "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Perspective 3D", "True colour", "Dithering", "Soft shadows", "Smooth movies", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
+    "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Smooth movies", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
     "Fast text (hold X)", "Fast forward (Tab/R3)", "Extra starter packs", "BladeGarurumon", "Close",
 };
 
@@ -50,6 +50,7 @@ static void value(int item, char *out, size_t size) {
     case SUBPIXEL: on = g_subpixel; break;
     case DEPTH: on = g_depth; break;
     case PERSPECTIVE: on = g_perspective; break;
+    case SMOOTH_3D: on = g_smooth_3d; break;
     case TRUE_COLOR: on = g_true_color; break;
     case MOVIES: on = g_smooth_movies; break;
     case FULLSCREEN: on = (SDL_GetWindowFlags(video_window()) & SDL_WINDOW_FULLSCREEN) != 0; break;
@@ -73,6 +74,7 @@ static void change(int item, int dir) {
     case SUBPIXEL: g_subpixel = !g_subpixel; break;
     case DEPTH: g_depth = !g_depth; break;
     case PERSPECTIVE: g_perspective = !g_perspective; break;
+    case SMOOTH_3D: g_smooth_3d = !g_smooth_3d; break;
     case TRUE_COLOR: g_true_color = !g_true_color; break;
     case MOVIES: g_smooth_movies = !g_smooth_movies; break;
     case FULLSCREEN: SDL_SetWindowFullscreen(video_window(), !(SDL_GetWindowFlags(video_window()) & SDL_WINDOW_FULLSCREEN)); break;
@@ -96,7 +98,7 @@ static void change(int item, int dir) {
 
 /* native.ini's "key = value" lines get the new values; missing keys are added */
 static void save(void) {
-    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective"};
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d"};
     char path[1100], line[1200], key[32], vals[SDL_arraysize(KEYS)][16];
     int done[SDL_arraysize(KEYS)] = {0}, i, n = SDL_arraysize(KEYS);
     size_t len = 0;
@@ -117,6 +119,7 @@ static void save(void) {
     SDL_snprintf(vals[11], 16, "%d", g_soft_shadows);
     SDL_snprintf(vals[12], 16, "%d", g_true_color);
     SDL_snprintf(vals[13], 16, "%d", g_perspective);
+    SDL_snprintf(vals[14], 16, "%d", g_smooth_3d);
     SDL_snprintf(path, sizeof path, "%snative.ini", SDL_GetBasePath());
     out[0] = 0;
     if ((f = fopen(path, "r")) != NULL) {
