@@ -1,0 +1,60 @@
+--- a/src/main/game/digimon.c
++++ b/src/main/game/digimon.c
+@@ -127,8 +127,57 @@
+             return i;
+         }
+     }
++#ifdef NATIVE
++    /* and BladeGarurumon's, a partner's Digimon in the port (native.h) */
++    if (id == NATIVE_BLADEGARURUMON) {
++        return NATIVE_BLADEGARURUMON_DATA;
++    }
++#endif
+     return -1;
+ }
++
++#ifdef NATIVE
++/* BladeGarurumon as a partner's Digimon (native.h): its DNA form's record,
++   1s, made MetalGarurumon's with a model of its own (471, which the port
++   makes: platform/bladegaru.c), a fast wolf's stats (speed and spirit high,
++   defense low), techniques and the signature Solar Laser: technique 443,
++   "?????", which nothing uses, made Metal Wolf Claw's with a cost, power and
++   element of its own. Once the game's tables are read (platform/main.c) */
++void native_bladegarurumon_setup(void) {
++    static const u16 STATS[5] = {30, 15, 55, 35, 65}; /* strength, defense, spirit, wisdom, speed */
++    static const u16 RESISTS[7] = {0, 0, 40, 40, 80, 80, 40};
++    static const u16 SKILLS[6] = {41, 156, 202, 158, 203, 111}; /* Thunder Bolt, Speed Up, Electro Bolt, Mega Boost, Lightning Slash */
++    static const u8 STATUS[5] = {20, 40, 10, 20, 30};
++    static const u8 LEARN[6] = {10, 25, 40, 65, 90, 70};
++    static const u8 KNOWN[5] = {30, 45, 60, 80, 99};
++    DigimonData *d = &DIGIMON_DATA[NATIVE_BLADEGARURUMON_DATA];
++    u8 nameId = d->nameId;
++    s32 i;
++
++    *d = DIGIMON_DATA[40]; /* MetalGarurumon */
++    d->id = NATIVE_BLADEGARURUMON;
++    d->nameId = nameId;
++    for (i = 0; i < 5; i++) {
++        d->battleStats[i] = STATS[i];
++        d->statusResists[i] = STATUS[i];
++        d->knownLevels[i] = KNOWN[i];
++    }
++    for (i = 0; i < 7; i++) {
++        d->resistances[i] = RESISTS[i];
++    }
++    for (i = 0; i < 6; i++) {
++        d->skills[i] = SKILLS[i];
++        d->skillLevels[i] = LEARN[i];
++    }
++    d->skills[6] = 443;
++    d->pairTech = 0;
++    d->pairPartner = 0; /* MetalGarurumon's is WarGreymon */
++    TECHS[442] = TECHS[92];
++    TECHS[442].mp = 55;
++    TECHS[442].power = 350;
++    TECHS[442].element = 7;
++}
++#endif
+ 
+ /* The DIGIMON_DATA entry of Digimon `id`, or NULL */
+ DigimonData *getDigimon(s32 id) {

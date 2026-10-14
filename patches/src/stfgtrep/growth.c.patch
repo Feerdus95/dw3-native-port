@@ -1,0 +1,26 @@
+--- a/src/stfgtrep/growth.c
++++ b/src/stfgtrep/growth.c
+@@ -139,7 +139,23 @@
+     s32 j;
+ 
+     list = STFGTREP_evolutions[partner];
++#ifdef NATIVE
++    /* and BladeGarurumon past the 44 (native.h): Growlmon's and Grizzmon's
++       DNA partner, learnt with both at level 40 */
++    {
++        static Evolution all[45];
++
++        memcpy(all, list, 44 * sizeof(Evolution));
++        all[44].digimon = NATIVE_BLADEGARURUMON_DATA + 1;
++        all[44].needs[0].digimon = 14, all[44].needs[0].level = 40; /* Growlmon */
++        all[44].needs[1].digimon = 11, all[44].needs[1].level = 40; /* Grizzmon */
++        all[44].stat = 0, all[44].value = 1;
++        list = all;
++    }
++    for (n = 0; n < (g_bladegarurumon ? 45 : 44); n++) {
++#else
+     for (n = 0; n < 44; n++) {
++#endif
+         id = DIGIMON_DATA[list[n].digimon - 1].id;
+         if (GAME.funcs.getPartnerEntry(partner, id, &entry) >= 0 || id <= 0) {
+             continue;

@@ -68,6 +68,18 @@ extern const int NATIVE_EXTRA_PACKS[3][3]; /* their partners */
 const void *native_packs_text(int language);
 #define NATIVE_PACK_SCENE(pack) ((pack) >= 3 ? 1 : (pack))
 
+/* BladeGarurumon as a partner's Digimon: model 471 (made by
+   platform/bladegaru.c), DIGIMON_DATA[53] and technique 443 made its own
+   (native_bladegarurumon_setup, main/game/digimon.c), a 45th entry past each
+   partner's 44 (main/game/partner.c) that partners learn while
+   g_bladegarurumon is on (stfgtrep/growth.c) */
+#define NATIVE_BLADEGARURUMON 471
+#define NATIVE_BLADEGARURUMON_DATA 53
+extern int g_bladegarurumon;
+void native_bladegarurumon_setup(void);
+/* listPartnerEntries into room for max ids, BladeGarurumon included when there is */
+int native_list_partner_entries(int partner, unsigned short *out, int max);
+
 /* printf to stderr, for probes (platform/main.c) */
 void native_log(const char *fmt, ...);
 

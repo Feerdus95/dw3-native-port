@@ -1,0 +1,191 @@
+--- a/src/main/game/partner.c
++++ b/src/main/game/partner.c
+@@ -1,4 +1,57 @@
+ #include "game.h"
++
++#ifdef NATIVE
++/* BladeGarurumon (native.h): every partner can have it past its 44 Digimon,
++   as entry PARTNER_ENTRY_COUNT, kept where the save has bytes nothing uses,
++   so a card stays the game's (a PSX just doesn't see it): its level (0
++   while the partner hasn't it) and exp in the partner's pad, and which of
++   its six skills it has, known and marked, 3 bits each, in GAME.pad10 (3
++   bytes a partner). A skill is its own (DigimonData.skills[i + 1]) */
++#define BG_ENTRY PARTNER_ENTRY_COUNT
++
++static s32 hasBladeGarurumon(s32 partner) {
++    return GAME.partners[partner].pad[0] != 0;
++}
++
++static void getBladeGarurumon(s32 partner, PartnerEntry *out) {
++    u8 *p = GAME.partners[partner].pad;
++    u8 *f = &GAME.pad10[partner * 3];
++    DigimonData *d = &DIGIMON_DATA[NATIVE_BLADEGARURUMON_DATA];
++    u32 bits = f[0] | f[1] << 8 | f[2] << 16;
++    s32 i;
++
++    out->id = NATIVE_BLADEGARURUMON;
++    out->level = p[0];
++    out->exp = p[1] | p[2] << 8 | p[3] << 16;
++    for (i = 0; i < 6; i++, bits >>= 3) {
++        out->skills[i] = !(bits & 1) ? 0
++                                     : d->skills[i + 1] | (bits & 2 ? SKILL_KNOWN : 0) | (bits & 4 ? SKILL_MARKED : 0) |
++                                           (i == 5 ? SKILL_LAST : 0);
++    }
++}
++
++static void setBladeGarurumon(s32 partner, PartnerEntry *in) {
++    u8 *p = GAME.partners[partner].pad;
++    u8 *f = &GAME.pad10[partner * 3];
++    DigimonData *d = &DIGIMON_DATA[NATIVE_BLADEGARURUMON_DATA];
++    u32 bits = 0;
++    s32 i;
++
++    p[0] = in->level < 1 ? 1 : in->level;
++    p[1] = in->exp, p[2] = in->exp >> 8, p[3] = in->exp >> 16; /* up to 9999999: 24 bits */
++    for (i = 0; i < 6; i++) {
++        if (in->skills[i] != 0 && (in->skills[i] & SKILL_ID) == (d->skills[i + 1] & SKILL_ID)) {
++            bits |= (1 | (in->skills[i] & SKILL_KNOWN ? 2 : 0) | (in->skills[i] & SKILL_MARKED ? 4 : 0)) << (i * 3);
++        }
++    }
++    f[0] = bits, f[1] = bits >> 8, f[2] = bits >> 16;
++}
++
++/* an entry's id, BladeGarurumon's past the 44 */
++static s32 entryId(s32 partner, s32 index) {
++    return index == BG_ENTRY ? NATIVE_BLADEGARURUMON : GAME.partners[partner].info.entries[index].id;
++}
++#endif
+ 
+ /* The index of Digimon `id` among a partner's entries, or -1 */
+ s32 findPartnerEntry(s32 partner, s32 id) {
+@@ -12,6 +65,11 @@
+             return i;
+         }
+     }
++#ifdef NATIVE
++    if (id == NATIVE_BLADEGARURUMON && hasBladeGarurumon(partner)) {
++        return BG_ENTRY;
++    }
++#endif
+     return -1;
+ }
+ 
+@@ -24,10 +82,17 @@
+     for (i = 0, n = 0; i < PARTNER_SLOT_COUNT; i++) {
+         if (GAME.partners[partner].info.slots[i] >= FIRST_ENTRY_ID) {
+             index = findPartnerEntry(partner, GAME.partners[partner].info.slots[i]);
++#ifdef NATIVE
++            if (index >= 0 && entryId(partner, index) >= FIRST_ENTRY_ID) {
++                out[n] = entryId(partner, index);
++                n++;
++            }
++#else
+             if (index >= 0 && GAME.partners[partner].info.entries[index].id >= FIRST_ENTRY_ID) {
+                 out[n] = GAME.partners[partner].info.entries[index].id;
+                 n++;
+             }
++#endif
+         }
+     }
+     for (i = n; i < PARTNER_SLOT_COUNT; i++) {
+@@ -44,18 +109,23 @@
+     for (i = 0; i < PARTNER_SLOT_COUNT; i++) {
+         index = findPartnerEntry(partner, ids[i]);
+         if (index >= 0) {
++#ifdef NATIVE
++            GAME.partners[partner].info.slots[i] = entryId(partner, index);
++#else
+             GAME.partners[partner].info.slots[i] = GAME.partners[partner].info.entries[index].id;
++#endif
+         } else {
+             GAME.partners[partner].info.slots[i] = -1;
+         }
+     }
+ }
+ 
+-/* Copies the ids of a partner's Digimon, zero-filled; returns how many there are */
+-s32 listPartnerEntries(s32 partner, u16 *out) {
++#ifdef NATIVE
++/* listPartnerEntries into room for max ids: PARTNER_ENTRY_COUNT, or one more
++   for BladeGarurumon past a partner's 44 */
++s32 native_list_partner_entries(s32 partner, u16 *out, s32 max) {
+     s32 i;
+     s32 n;
+-    s32 count;
+ 
+     for (n = i = 0; i < PARTNER_ENTRY_COUNT; i++) {
+         if (GAME.partners[partner].info.entries[i].id >= FIRST_ENTRY_ID) {
+@@ -63,6 +133,31 @@
+             n++;
+         }
+     }
++    if (hasBladeGarurumon(partner) && n < max) {
++        out[n++] = NATIVE_BLADEGARURUMON;
++    }
++    for (i = n; i < max; i++) {
++        out[i] = 0;
++    }
++    return n;
++}
++#endif
++
++/* Copies the ids of a partner's Digimon, zero-filled; returns how many there are */
++s32 listPartnerEntries(s32 partner, u16 *out) {
++    s32 i;
++    s32 n;
++    s32 count;
++
++#ifdef NATIVE
++    return native_list_partner_entries(partner, out, PARTNER_ENTRY_COUNT);
++#endif
++    for (n = i = 0; i < PARTNER_ENTRY_COUNT; i++) {
++        if (GAME.partners[partner].info.entries[i].id >= FIRST_ENTRY_ID) {
++            out[n] = GAME.partners[partner].info.entries[i].id;
++            n++;
++        }
++    }
+     count = n;
+     for (; n < PARTNER_ENTRY_COUNT; n++) {
+         out[n] = 0;
+@@ -78,6 +173,15 @@
+     if (findPartnerEntry(partner, id) != -1) {
+         return 0;
+     }
++#ifdef NATIVE
++    if (id == NATIVE_BLADEGARURUMON) { /* past the 44, at level 1 */
++        PartnerEntry entry = {0};
++
++        entry.level = 1;
++        setBladeGarurumon(partner, &entry);
++        return 1;
++    }
++#endif
+     for (i = 0, index = -1; i < PARTNER_ENTRY_COUNT; i++) {
+         if (GAME.partners[partner].info.entries[i].id == 0) {
+             index = i;
+@@ -97,6 +201,12 @@
+ s32 getPartnerEntry(s32 partner, s32 id, PartnerEntry *out) {
+     s32 i = findPartnerEntry(partner, id);
+ 
++#ifdef NATIVE
++    if (i == BG_ENTRY) {
++        getBladeGarurumon(partner, out);
++        return i;
++    }
++#endif
+     if (i != -1) {
+         *out = GAME.partners[partner].info.entries[i];
+     }
+@@ -107,6 +217,12 @@
+ s32 setPartnerEntry(s32 partner, s32 id, PartnerEntry *in) {
+     s32 i = findPartnerEntry(partner, id);
+ 
++#ifdef NATIVE
++    if (i == BG_ENTRY) {
++        setBladeGarurumon(partner, in);
++        return i;
++    }
++#endif
+     if (i != -1) {
+         GAME.partners[partner].info.entries[i] = *in;
+     }

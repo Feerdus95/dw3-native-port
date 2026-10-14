@@ -6,11 +6,11 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, DITHER, MOVIES, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, EXTRA_PACKS, CLOSE, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, DITHER, MOVIES, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, EXTRA_PACKS, BLADEGARURUMON, CLOSE, ITEMS };
 
 static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Dithering", "Smooth movies", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
-    "Fast text (hold X)", "Fast forward (Tab/R3)", "Extra starter packs", "Close",
+    "Fast text (hold X)", "Fast forward (Tab/R3)", "Extra starter packs", "BladeGarurumon", "Close",
 };
 
 static int s_open, s_cursor, s_changed;
@@ -53,6 +53,7 @@ static void value(int item, char *out, size_t size) {
     case RUMBLE: on = g_rumble; break;
     case FAST_TEXT: on = g_fast_text; break;
     case EXTRA_PACKS: on = g_extra_packs; break;
+    case BLADEGARURUMON: on = g_bladegarurumon; break;
     }
     SDL_snprintf(out, size, on ? "On" : "Off");
 }
@@ -72,6 +73,7 @@ static void change(int item, int dir) {
     case RUMBLE: g_rumble = !g_rumble; break;
     case FAST_TEXT: g_fast_text = !g_fast_text; break;
     case EXTRA_PACKS: g_extra_packs = !g_extra_packs; break;
+    case BLADEGARURUMON: g_bladegarurumon = !g_bladegarurumon; break;
     case FAST_FORWARD: ff_cycle(); return; /* not saved */
     case WINDOW:
         scale = SDL_clamp(window_scale() + (dir < 0 ? -1 : 1), 1, 8);
@@ -88,7 +90,7 @@ static void change(int item, int dir) {
 
 /* native.ini's "key = value" lines get the new values; missing keys are added */
 static void save(void) {
-    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs"};
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon"};
     char path[1100], line[1200], key[32], vals[SDL_arraysize(KEYS)][16];
     int done[SDL_arraysize(KEYS)] = {0}, i, n = SDL_arraysize(KEYS);
     size_t len = 0;
@@ -105,6 +107,7 @@ static void save(void) {
     SDL_snprintf(vals[7], 16, "%d", g_deadzone);
     SDL_snprintf(vals[8], 16, "%d", g_fast_text);
     SDL_snprintf(vals[9], 16, "%d", g_extra_packs);
+    SDL_snprintf(vals[10], 16, "%d", g_bladegarurumon);
     SDL_snprintf(path, sizeof path, "%snative.ini", SDL_GetBasePath());
     out[0] = 0;
     if ((f = fopen(path, "r")) != NULL) {

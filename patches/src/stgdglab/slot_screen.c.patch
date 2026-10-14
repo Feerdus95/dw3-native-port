@@ -1,0 +1,15 @@
+--- a/src/stgdglab/slot_screen.c
++++ b/src/stgdglab/slot_screen.c
+@@ -102,7 +102,12 @@
+ 
+     member = GAME.funcs.getPartyMember(screen->lab->member);
+     GAME.funcs.getPartnerSlots(member, screen->slots);
++#ifdef NATIVE
++    /* entries[47]: room for BladeGarurumon past a partner's 44 (native.h) */
++    screen->entryCount = native_list_partner_entries(member, (u16 *)screen->entries, PARTNER_ENTRY_COUNT + 1);
++#else
+     screen->entryCount = GAME.funcs.listPartnerEntries(member, screen->entries);
++#endif
+     STGDGLAB_data.funcs.startFade(&screen->panels[0], 1);
+     STGDGLAB_data.funcs.startFade(&screen->panels[1], 1);
+     STGDGLAB_data.funcs.startFade(&screen->panels[2], 1);

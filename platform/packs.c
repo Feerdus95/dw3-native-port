@@ -40,7 +40,9 @@ static uint8_t *celebrating_veemon(long *size) {
     static const int FRAMES[7][4] = {{3, 0x10, -16, -27}, {4, -1, -16, -31}, {3, -1, -16, -35}, {37, -2, -16, -27},
                                      {4, -1, -16, -30}, {5, -1, -16, -27}, {4, 0x10, -16, -27}};
     uint8_t *npc, *par, *out = NULL;
-    long nsize = native_read_raw(NPC_VEEMON, &npc), psize = native_read_raw(PARTNER_VEEMON, &par);
+    /* both whole sectors, as the game loads them */
+    long nsize = (native_read_raw(NPC_VEEMON, &npc) + 2047) / 2048 * 2048;
+    long psize = (native_read_raw(PARTNER_VEEMON, &par) + 2047) / 2048 * 2048;
     uint32_t n, pn, end, at, k, s47, s59, fl, sub[64 + 4][2];
     int i, j;
 
@@ -106,7 +108,7 @@ done:
     return out;
 }
 
-/* A file the packs make anew, whole, or NULL for the game's (files.c) */
+/* A file the packs make anew, whole, or NULL for the game's (mods.c) */
 const uint8_t *packs_file(int fid, long *size) {
     static uint8_t *veemon;
     static long veemon_size;

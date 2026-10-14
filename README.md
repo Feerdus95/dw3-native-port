@@ -119,6 +119,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 | Fast text | holding X advances the texts, outside battles and card games |
 | Fast forward | x2, x3 or x5 (Tab or R3 while playing); the music keeps its speed. Not saved |
 | Extra starter packs | three more packs to pick in a new game: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon), Mystic (Kumamon, Renamon, Veemon) |
+| BladeGarurumon | a 45th Digimon every partner can learn, with Growlmon and Grizzmon at level 40: its own model (made at start from your disc's), techniques and signature, Solar Laser. Saves stay standard memory cards |
 
 `native.ini` can also be written by hand (see `native.ini.example`); every line is optional:
 
@@ -133,6 +134,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
     rumble = 1           ; 0: no vibration
     fast_text = 1        ; 0: holding X doesn't advance the texts
     extra_packs = 1      ; 0: only the game's three starter packs
+    bladegarurumon = 1   ; 0: partners don't learn BladeGarurumon
     debug = 0            ; 1: F1 debug stage select, F3 sound test, F4 vibration test, F2 dump of the game state,
                          ;    F5 / F9 save / load a state (saves/quick.state)
     log =                ; console logs: cd, snd, pad, mc, ovl, gpu or all

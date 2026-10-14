@@ -23,7 +23,8 @@ static FILE *open_file(int fid) {
     return f;
 }
 
-static long file_size(int fid) {
+/* the size on disk, without the files options make (made_file) */
+static long disk_size(int fid) {
     FILE *f;
 
     if (fid < 0 || fid >= MAX_FILES) {
@@ -42,6 +43,12 @@ static long file_size(int fid) {
     return s_size[fid];
 }
 
+static long file_size(int fid) {
+    long size;
+
+    return made_file(fid, &size) != NULL ? size : disk_size(fid);
+}
+
 int native_file_exists(int fid) {
     return file_size(fid) > 0;
 }
@@ -52,14 +59,14 @@ int native_file_sectors(int fid) {
     return size > 0 ? (int)((size + SECTOR - 1) / SECTOR) : 0;
 }
 
-/* A file whole, its last sector filled out with zeroes, into *out (malloc'd):
-   its size, or 0 */
+/* A file on disk whole into *out (malloc'd, its last sector filled out with
+   zeroes): its size in bytes, or 0 */
 long native_read_raw(int fid, uint8_t **out) {
-    long size = (long)native_file_sectors(fid) * SECTOR;
+    long size = disk_size(fid);
     FILE *f = size > 0 ? open_file(fid) : NULL;
 
     *out = NULL;
-    if (f == NULL || (*out = calloc(1, size)) == NULL) {
+    if (f == NULL || (*out = calloc(1, (size + SECTOR - 1) / SECTOR * SECTOR)) == NULL) {
         size = 0;
     } else {
         fread(*out, 1, size, f);
@@ -75,7 +82,7 @@ void native_read_file(int fid, int sector, int count, void *dst) {
     FILE *f;
     size_t got = 0;
     long size;
-    const uint8_t *made = packs_file(fid, &size); /* a file an option makes anew (packs.c) */
+    const uint8_t *made = made_file(fid, &size); /* a file an option makes anew (mods.c) */
 
     LOGC(LOG_CD, "cd: file %d, %d sectors from %d", fid, count, sector);
     if (made != NULL) {

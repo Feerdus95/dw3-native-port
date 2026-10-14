@@ -1,0 +1,15 @@
+--- a/src/stgdglab/entry_panel.c
++++ b/src/stgdglab/entry_panel.c
+@@ -397,7 +397,12 @@
+         panel->fades[0].duration = 10;
+         STGDGLAB_data.funcs.startFade(panel->fades, 1);
+         GAME.funcs.getPartnerSlots(panel->partner, panel->slots);
++#ifdef NATIVE
++        /* entries[45]: room for BladeGarurumon past a partner's 44 (native.h) */
++        panel->entryCount = native_list_partner_entries(panel->partner, (u16 *)panel->entries, PARTNER_ENTRY_COUNT + 1);
++#else
+         panel->entryCount = GAME.funcs.listPartnerEntries(panel->partner, panel->entries);
++#endif
+         STGDGLAB_createEntryPanelWindows(panel, windows);
+         panel->fades[1].duration = 10;
+         break;

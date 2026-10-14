@@ -40,6 +40,10 @@ fast_text = 1
 # Mystic)
 extra_packs = 1
 
+# 1: partners can learn BladeGarurumon, a 45th Digimon (Growlmon and Grizzmon
+# at level 40), with its signature Solar Laser
+bladegarurumon = 1
+
 # 1: debug keys. F1 the developers' stage select (stages, sound test, test
 # battles), F3 the sound test, F4 the vibration test, F2 the game state to game_<n>.bin, F5 / F9 save / load a state
 # (saves/quick.state, only for this same build)

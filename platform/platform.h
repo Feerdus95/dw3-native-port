@@ -121,8 +121,13 @@ extern int g_fast_text;     /* fast_text = 0: X held doesn't advance the texts (
 extern int g_ff_speed;      /* fast forward: the game's ticks a frame shown, 1 normal (mods.c, etc.c) */
 void ff_cycle(void);        /* Tab / R3: the next speed */
 extern int g_extra_packs;   /* extra_packs = 0: the starter choice has the game's three (packs.c) */
-const uint8_t *packs_file(int fid, long *size); /* a file the packs make anew, or NULL */
-long native_read_raw(int fid, uint8_t **out);   /* files.c: a file whole, malloc'd */
+extern int g_bladegarurumon; /* bladegarurumon = 0: partners don't learn it (mods.c) */
+/* a file an option makes anew, whole, or NULL for the game's (mods.c; packs.c, bladegaru.c) */
+const uint8_t *made_file(int fid, long *size);
+void native_bladegarurumon_setup(void); /* the game's main/game/digimon.c (patched) */
+const uint8_t *packs_file(int fid, long *size);
+const uint8_t *bladegaru_file(int fid, long *size);
+long native_read_raw(int fid, uint8_t **out); /* files.c: a file on disk whole, malloc'd; its size */
 
 /* Platform state that is the console's, saved with the game's in a
    savestate (state.c): it sits in the game's variables' section */
