@@ -158,6 +158,8 @@ typedef struct StageFx {
     float horizon;     /* the painted horizon's radius, 0: none */
     int leaves;        /* falling leaves in the arena, how many */
     float wind;        /* how hard the wind blows them */
+    float clouds;      /* the painted sky's turn, degrees a second */
+    float sway;        /* how far the props (trees) bend in the wind */
     int on;            /* 0: the stage is left as it is */
 } StageFx;
 void stagefx_draw(int ox, int oy, int x1, int y1, int x2, int y2); /* the particles, after the fighters (stagefx.c) */

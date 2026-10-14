@@ -45,13 +45,17 @@ static void set(StageFx *fx, const char *key, const char *v) {
         fx->leaves = SDL_clamp(atoi(v), 0, 200);
     } else if (SDL_strcasecmp(key, "wind") == 0) {
         fx->wind = (float)SDL_atof(v);
+    } else if (SDL_strcasecmp(key, "clouds") == 0) {
+        fx->clouds = (float)SDL_atof(v);
+    } else if (SDL_strcasecmp(key, "sway") == 0) {
+        fx->sway = (float)SDL_atof(v);
     }
 }
 
 /* stages.ini: kinds first, each stage a copy of its kind with its own keys
    on top (the keys before a stage's "kind" line are lost to it) */
 static void load(void) {
-    static const StageFx NONE = {0, {-1, -1, -1}, 0, 0.45f, {-1, -1, -1}, 20000, 0, 1, 0};
+    static const StageFx NONE = {0, {-1, -1, -1}, 0, 0.45f, {-1, -1, -1}, 20000, 0, 1, 0, 0, 0};
     static Kind kinds[KINDS];
     int nkinds = 0, i;
     StageFx *cur = NULL;
@@ -283,4 +287,40 @@ void stagefx_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
     }
     leaves_step(n, fx->wind);
     leaves_draw(n, bright, ox, oy, x1, y1, x2, y2);
+}
+
+/* --- the stage's own meshes: drifting clouds, swaying trees ---
+   FIGHTSTG's patch (fightstg.c) asks for each stage mesh as it is drawn */
+
+/* The painted sky's turn now: its cosine and sine, 0 when it doesn't */
+int native_stage_drift(float *c, float *s) {
+    float bright, a;
+    const StageFx *fx = stagefx_current(&bright);
+
+    if (fx == NULL || fx->clouds == 0) {
+        return 0;
+    }
+    a = fmodf(s_now / 60.0f * fx->clouds, 360.0f) * 0.017453293f;
+    *c = cosf(a), *s = sinf(a);
+    return 1;
+}
+
+/* How far a prop's point at x, y, z moves in the wind now: as the square of
+   its height (none at the ground, ~160 units at a tree's top, 6000 up for
+   sway 1), leaning with the wind and swinging with its gusts, each place in
+   its own time */
+int native_stage_sway(float x, float y, float z, float *dx, float *dz) {
+    float bright, w[2], h, amp, swing, t = (float)s_now;
+    const StageFx *fx = stagefx_current(&bright);
+
+    if (fx == NULL || fx->sway <= 0 || y > -400.0f) {
+        return 0;
+    }
+    h = SDL_min(-y / 6000.0f, 1.5f);
+    wind_at(t, 1.0f, w); /* 18 a frame at a full gust: the direction and the gust */
+    amp = fx->sway * 160.0f * h * h / 18.0f;
+    swing = 0.55f + 0.45f * sinf(t * 0.05f + (x + z) * 0.0005f);
+    *dx = w[0] * amp * swing;
+    *dz = w[1] * amp * swing;
+    return 1;
 }

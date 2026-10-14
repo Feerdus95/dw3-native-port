@@ -9,7 +9,8 @@
   distance (the stages' painted horizon kept clear), so the arena's edge no longer ends against a flat colour. Each
   stage takes its kind's look from `stages.ini` by the exe: open air, night, rooms (fog toward black), water;
   digital, space and the techniques' backdrops are left as they are. Leaves fall through the forests and parks, carried
-  by a gusting wind, among the fighters. The game's own picture (1x) stays as it was.
+  by a gusting wind, among the fighters; the forests' trees sway in it and the clouds of East Wire Forest and Central
+  Park drift. The game's own picture (1x) stays as it was.
 
 ## v0.11.0 (beta)
 

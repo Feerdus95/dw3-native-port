@@ -34,7 +34,7 @@ int main(void) {
     assert(fx && !fx->sky && fx->fog == 0.3f && fx->fog_color[1] == 184 && fx->horizon == 0);
     assert(fx->leaves == 0);
     fx = at(13);
-    assert(fx->leaves == 60 && fx->wind == 1.0f);
+    assert(fx->leaves == 60 && fx->wind == 1.0f && fx->clouds == 1.5f && fx->sway == 1.0f);
     fx = at(7); /* a room */
     assert(fx && !fx->sky && fx->fog_color[0] == 0 && fx->horizon == 0);
     assert(at(18) == NULL && at(33) == NULL && at(56) == NULL); /* left as they are */
