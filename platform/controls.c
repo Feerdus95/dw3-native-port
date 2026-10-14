@@ -5,7 +5,7 @@
 #include <SDL3/SDL.h>
 #include "platform.h"
 
-int g_icons; /* native.ini */
+int g_icons = ICONS_PS; /* native.ini; the game's own buttons by default */
 const char *const ICON_NAMES[ICONS_COUNT] = {"auto", "playstation", "xbox", "switch", "keyboard"};
 
 enum { FAM_PS, FAM_XBOX, FAM_SWITCH };

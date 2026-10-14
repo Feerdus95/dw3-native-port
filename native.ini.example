@@ -52,7 +52,7 @@ deadzone = 3277
 rumble = 1
 
 # The options menu's icons: auto, playstation, xbox, switch or keyboard
-icons = auto
+icons = playstation
 # Each button's keys (SDL's names, two at most) and gamepad button (SDL's:
 # a b x y by place, leftshoulder, lefttrigger, leftstick, dpup, start...),
 # or none; the options menu's Controls writes them. The buttons: cross,

@@ -1,6 +1,6 @@
 """The options menu's button icons (platform/controls.c) from Xelu's free
 prompts pack (CC0: https://github.com/haaldor/Xelu_prompts_SVG, its
-exported_images_100.zip unpacked), scaled to 24 px into native/assets/prompts/:
+exported_images_100.zip unpacked), scaled to 48 px into native/assets/prompts/:
 <ps|xbox|switch>_<SDL's name of the button>.png and key_<SDL scancode>.png.
 python native/tools/prompts.py <unpacked folder>"""
 import sys
@@ -10,7 +10,7 @@ from PIL import Image
 
 NATIVE = Path(__file__).resolve().parents[1]
 OUT = NATIVE / "assets/prompts"
-SIZE = 24
+SIZE = 48
 
 # SDL's gamepad buttons go by place (a the bottom one): each pad's own label there
 PADS = {

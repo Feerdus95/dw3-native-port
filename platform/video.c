@@ -49,10 +49,10 @@ int video_init(int scale, int fullscreen) {
         LOG("this needs OpenGL 3.3");
         return 0;
     }
-    /* the menu in 320x240 units, twice as fine */
-    s_menu = SDL_CreateSurface(640, 480, SDL_PIXELFORMAT_ABGR8888);
+    /* the menu in 320x240 units, four times as fine: its icons sharp */
+    s_menu = SDL_CreateSurface(1280, 960, SDL_PIXELFORMAT_ABGR8888);
     s_menu_renderer = SDL_CreateSoftwareRenderer(s_menu);
-    SDL_SetRenderScale(s_menu_renderer, 2, 2);
+    SDL_SetRenderScale(s_menu_renderer, 4, 4);
     return 1;
 }
 

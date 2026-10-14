@@ -703,7 +703,7 @@ int gl_init(SDL_Window *window) {
 
     s_vram_tex = texture(GL_R16UI, VRAM_W, VRAM_H, GL_RED_INTEGER, GL_UNSIGNED_SHORT, GL_NEAREST);
     s_movie_tex = texture(GL_RGBA8, VRAM_W, VRAM_H, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
-    s_menu_tex = texture(GL_RGBA8, 640, 480, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST);
+    s_menu_tex = texture(GL_RGBA8, 1280, 960, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
     GL(glGetIntegerv)(GL_MAX_TEXTURE_SIZE, &max);
     s_max_scale = SDL_clamp(max / VRAM_W, 1, 8);
     if (GL(glGetError)() != GL_NO_ERROR) {
@@ -730,7 +730,7 @@ static void quad(GLuint tex, const int vp[4], float u0, float v0, float u1, floa
 }
 
 /* The frame: the display area of the copy (or the 1x VRAM's 24-bit movie)
-   letterboxed to 4:3, then the menu (a 640x480 RGBA surface, or NULL) */
+   letterboxed to 4:3, then the menu (a 1280x960 RGBA surface, or NULL) */
 void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
     PSX_RECT d = g_disp.disp;
     int w, h, vp[4], menu_vp[4];
@@ -788,7 +788,7 @@ void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
         GL(glBindTexture)(GL_TEXTURE_2D, s_menu_tex);
         GL(glPixelStorei)(GL_UNPACK_ALIGNMENT, 4);
         GL(glPixelStorei)(GL_UNPACK_ROW_LENGTH, menu->pitch / 4);
-        GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, 640, 480, GL_RGBA, GL_UNSIGNED_BYTE, menu->pixels);
+        GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, 1280, 960, GL_RGBA, GL_UNSIGNED_BYTE, menu->pixels);
         GL(glPixelStorei)(GL_UNPACK_ROW_LENGTH, 0);
         GL(glEnable)(GL_BLEND);
         GL(glBlendFuncSeparate)(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
