@@ -13,6 +13,15 @@ enum { FAM_PS3, FAM_PS4, FAM_PS5, FAM_XBOX360, FAM_XBOXONE, FAM_XBOXSERIES, FAM_
 static const char *FAMS[FAMS_COUNT] = {"ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch"};
 #define DPAD 102 /* the whole D-pad's icon, for the help line */
 
+/* The game's text draws the face buttons as icons of its font (text code 1
+   then 0x1B, 0x2F, 0x32 or 0x34: glyph one less), in its three sizes, each
+   Glyph 11 bytes (page, u, v, clutX, clutY, w, h...); the font's pages are
+   at 0x140 and 0x180, y 0, in VRAM (loadFont) */
+extern uint8_t FONT_ICONS_1[], FONT_ICONS_2[], FONT_ICONS_3[];
+static const struct {
+    int glyph, bit;
+} GAME_BUTTONS[4] = {{0x1A, 14}, {0x2E, 13}, {0x31, 15}, {0x33, 12}}; /* cross, circle, square, triangle */
+
 /* The page's lines: the buttons, face ones first, then Reset */
 #define LINES 17
 static const int ORDER[16] = {14, 13, 15, 12, 10, 11, 8, 9, 1, 2, 3, 0, 4, 6, 7, 5};
@@ -78,6 +87,21 @@ static SDL_Texture *load(SDL_Renderer *r, const char *name) {
         SDL_DestroySurface(s);
     }
     return t;
+}
+
+/* The same icon as an image for the graphics card, its texture made there */
+static SDL_Surface *image(const char *name) {
+    char path[1200];
+    SDL_Surface *s, *rgba;
+
+    SDL_snprintf(path, sizeof path, "%sprompts/%s.png", SDL_GetBasePath(), name);
+    if ((s = SDL_LoadPNG(path)) == NULL) {
+        SDL_snprintf(path, sizeof path, "%s../assets/prompts/%s.png", SDL_GetBasePath(), name);
+        s = SDL_LoadPNG(path);
+    }
+    rgba = s != NULL ? SDL_ConvertSurface(s, SDL_PIXELFORMAT_RGBA32) : NULL;
+    SDL_DestroySurface(s);
+    return rgba;
 }
 
 static SDL_Texture *pad_icon(SDL_Renderer *r, int fam, int src) {
@@ -174,6 +198,65 @@ float controls_hint(SDL_Renderer *r, float x, float y, int draw) {
         }
     }
     return x - x0 - 10;
+}
+
+/* The face button a sprite of the game's text shows: a font icon at the
+   texture page (tx, ty), 4-bit, at u, v, w by h; -1 for any other */
+int controls_glyph(int tx, int ty, int depth, int u, int v, int w, int h) {
+    static uint8_t *const STYLES[3] = {FONT_ICONS_1, FONT_ICONS_2, FONT_ICONS_3};
+    int s, i;
+
+    if (ty != 0 || depth != 0 || (tx != 0x140 && tx != 0x180)) {
+        return -1;
+    }
+    for (s = 0; s < 3; s++) {
+        for (i = 0; i < 4; i++) {
+            const uint8_t *gl = STYLES[s] + GAME_BUTTONS[i].glyph * 11;
+
+            if (tx == 0x140 + gl[0] * 64 && u == gl[1] && v == gl[2] && w == gl[5] && h == gl[6]) {
+                return GAME_BUTTONS[i].bit;
+            }
+        }
+    }
+    return -1;
+}
+
+/* The picture the game's text shows for a PS button: its key, or its
+   button on the pad chosen; 0 keeps the game's own (a PlayStation set, the
+   button where it was, or nothing bound) */
+int controls_game_icon(int bit, SDL_Surface **img, unsigned **tex) {
+    static SDL_Surface *pads[FAMS_COUNT][DPAD + 1], *keys[SDL_SCANCODE_COUNT];
+    static unsigned pad_tex[FAMS_COUNT][DPAD + 1], key_tex[SDL_SCANCODE_COUNT];
+    static uint8_t pad_tried[FAMS_COUNT][DPAD + 1], key_tried[SDL_SCANCODE_COUNT];
+    char name[64];
+
+    if (keyboard_hints()) {
+        int sc = pad_keys(bit)[0] ? pad_keys(bit)[0] : pad_keys(bit)[1];
+
+        if (sc <= 0 || sc >= SDL_SCANCODE_COUNT) {
+            return 0;
+        }
+        if (!key_tried[sc]) {
+            key_tried[sc] = 1;
+            SDL_snprintf(name, sizeof name, "key_%d", sc);
+            keys[sc] = image(name);
+        }
+        *img = keys[sc], *tex = &key_tex[sc];
+    } else {
+        int fam = family(), src = *pad_source(bit);
+
+        if (src < 0 || src > DPAD || pad_source_name(src) == NULL ||
+            (src == PLACE[bit] && fam >= FAM_PS3 && fam <= FAM_PS5)) {
+            return 0;
+        }
+        if (!pad_tried[fam][src]) {
+            pad_tried[fam][src] = 1;
+            SDL_snprintf(name, sizeof name, "%s_%s", FAMS[fam], pad_source_name(src));
+            pads[fam][src] = image(name);
+        }
+        *img = pads[fam][src], *tex = &pad_tex[fam][src];
+    }
+    return *img != NULL;
 }
 
 /* The tab bar's ends: L1 / R1 on the pad, Q / E on the keyboard */

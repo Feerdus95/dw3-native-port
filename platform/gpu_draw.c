@@ -308,10 +308,19 @@ static void precise(const uint32_t *w, float *x, float *y, float *z) {
 /* --- rectangles and lines --- */
 
 static void rect(int x, int y, int w, int h, int col, int textured, int raw, int semi, int u0, int v0, int clut, int soft) {
-    int i, j;
+    int i, j, bit;
     int r = col & 255, gg = col >> 8 & 255, b = col >> 16 & 255;
+    struct SDL_Surface *img;
+    unsigned *tex;
 
-    if (w > 0 && h > 0) {
+    /* a face button in the game's text, as the icons chosen (controls.c):
+       square, centred where the glyph was */
+    if (w > 0 && h > 0 && textured && (bit = controls_glyph(g.tx, g.ty, g.depth, u0, v0, w, h)) >= 0 &&
+        controls_game_icon(bit, &img, &tex)) {
+        float c = s_map_a + (x + w / 2.0f - s_map_a) * s_map_s;
+
+        gl_image(img, tex, c - h / 2.0f, (float)y, c + h / 2.0f, (float)(y + h), 0, g.x1, g.y1, g.x2, g.y2);
+    } else if (w > 0 && h > 0) {
         gl_rect(x, y, w, h, r, gg, b, (textured ? 2 : 0) | (textured && raw ? 4 : 0) | (semi ? 8 : 0) | (soft ? 512 : 0), u0, v0, clut);
     }
 
