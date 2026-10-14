@@ -96,6 +96,9 @@ extern int g_fast_travel;
 /* Objective on map (map_objective, the options menu): the map screen blinks
    the area where the story's next step happens */
 extern int g_map_objective;
+/* Journal (journal, the options menu): a last row of the field menu, a list
+   of the story's entries in the item list's panels (ststatus/item_list.c) */
+extern int g_journal;
 void native_fast_travel_setup(void);
 const NativeExit *native_exits(int *count);
 /* where MODE's stage starts the player (x, y in 256ths of a pixel), 0 without one */

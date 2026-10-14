@@ -8,7 +8,8 @@ mklang-file (https://github.com/markisha64/ddw3), passed as its path:
 Index: 0 "", 1-3 the packs' names, 4-6 the labels D E F, 7-9 the packs'
 texts, 10 Veemon's text, 11 Veemon's greeting in the lobby, 12-13 the word
 of the intro's text and the one that replaces it ("three", "six").
-And the port's other texts: 14 fast travel's question.
+And the port's other texts: 14 fast travel's question, 15-17 the journal's
+name, its main story entry and that entry's text.
 """
 import subprocess
 import sys

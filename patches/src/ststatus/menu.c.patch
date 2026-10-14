@@ -1,0 +1,26 @@
+--- a/src/ststatus/menu.c
++++ b/src/ststatus/menu.c
+@@ -3,6 +3,10 @@
+ 
+ #include "ststatus.h"
+ 
++#ifdef NATIVE
++Task *STSTATUS_createJournal(FieldMenuScreen *menu, s32 extra); /* item_list.c */
++#endif
++
+ #include "../menu_common/set_scroll_bar_x.inc.c"
+ #include "../menu_common/set_scroll_bar_range.inc.c"
+ #include "../menu_common/set_scroll_bar_count.inc.c"
+@@ -20,6 +24,12 @@
+     case 0:
+     default:
+         open = STSTATUS_screens[FIELD_MENU_CHOICE.extra][FIELD_MENU_CHOICE.option];
++#ifdef NATIVE
++        /* the field menu's last row, the journal (native.h) */
++        if (g_journal && FIELD_MENU_CHOICE.option == FIELD_MENU_CHOICE.extra + 5) {
++            open = STSTATUS_createJournal;
++        }
++#endif
+         if (open != NULL) {
+             children->screen = open(menu, FIELD_MENU_CHOICE.extra);
+         } else {

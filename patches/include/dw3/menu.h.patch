@@ -1,0 +1,14 @@
+--- a/include/dw3/menu.h
++++ b/include/dw3/menu.h
+@@ -93,7 +93,11 @@
+     /* 0x00 */ TextWindow *title;
+     /* 0x04 */ TextWindow *moneyLabel;
+     /* 0x08 */ TextWindow *money;
++#ifdef NATIVE
++    TextWindow *options[7]; /* the journal's row too (native.h) */
++#else
+     /* 0x0C */ TextWindow *options[6];
++#endif
+     /* 0x24 */ struct Cursor *cursor;
+     /* 0x28 */ PartnerPage pages[3];
+ } FieldMenuWindows;

@@ -1,0 +1,106 @@
+--- a/src/main/menu/field_menu.c
++++ b/src/main/menu/field_menu.c
+@@ -156,6 +156,15 @@
+         FIELD_MENU_CHOICE.extra = 0;
+     }
+     task->count = task->extraOption + 5;
++#ifdef NATIVE
++    /* the journal (native.h), last */
++    if (g_journal) {
++        task->count++;
++    }
++    if (task->cursor > task->count - 1) {
++        task->cursor = task->count - 1;
++    }
++#endif
+     if (getFieldZone() >= 0) {
+         task->option2Enabled = 1;
+     } else {
+@@ -168,6 +177,12 @@
+ static inline void showFieldMenuOptions(FieldMenu *task, FieldMenuWindows *win) {
+     showPartnerPage(task, win, 1, 1);
+     for (task->counter = 0; task->counter < task->count; task->counter++) {
++#ifdef NATIVE
++        if (task->counter == task->extraOption + 5) {
++            win->options[task->counter]->setString(win->options[task->counter], (void *)native_packs_text(LANGUAGE), 15);
++            continue;
++        }
++#endif
+         win->options[task->counter]->setString(win->options[task->counter], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)),
+                                   FIELD_MENU_OPTIONS[task->extraOption][task->counter]);
+     }
+@@ -319,6 +334,60 @@
+     }
+ }
+ 
++#ifdef NATIVE
++/* The options' panel with seven rows (the journal's and the cards'): a sheet
++   of its own with one frame, the six rows' (0x1B) with one more middle row
++   of its parts and its bottom moved down. Its parts are the sheet's own,
++   copied, so the panel is the game's */
++#define PANEL_ROWS6 0x1B
++#define PANEL_ROW_H 14
++#define PANEL_LAST_ROW 64 /* the six rows' last middle row, then the bottom */
++static void *sevenRowPanel(void) {
++    static s32 sheet[512];
++    s32 *orig = FILE_CACHE.getEntry(FILE_MENU_SPRITES << 16);
++    u8 *ids = (u8 *)orig + orig[1];
++    s16 *frame;
++    s16 *out;
++    s32 count;
++    s32 parts = 0;
++    s32 n = 0;
++    s32 i;
++
++    for (i = 0; ids[i] != PANEL_ROWS6; i++) {
++    }
++    frame = (s16 *)((u8 *)orig + orig[i + 2]);
++    count = frame[0];
++    for (i = 0; i < count; i++) {
++        if (frame[3 + i * 3] + 1 > parts) {
++            parts = frame[3 + i * 3] + 1;
++        }
++    }
++    /* the frame ids (one) at 12, the frame at 16, the parts after it */
++    sheet[1] = 12;
++    sheet[2] = 16;
++    ((u8 *)sheet)[12] = PANEL_ROWS6;
++    out = (s16 *)&sheet[4];
++    out[1] = frame[1];
++    out[2] = frame[2];
++    for (i = 0; i < count; i++) {
++        s16 part = frame[3 + i * 3];
++        s16 x = frame[4 + i * 3];
++        s16 y = frame[5 + i * 3];
++
++        out[3 + n * 3] = part, out[4 + n * 3] = x, out[5 + n * 3] = y > PANEL_LAST_ROW ? y + PANEL_ROW_H : y;
++        n++;
++        if (y == PANEL_LAST_ROW) {
++            out[3 + n * 3] = part, out[4 + n * 3] = x, out[5 + n * 3] = y + PANEL_ROW_H;
++            n++;
++        }
++    }
++    out[0] = n;
++    sheet[0] = (16 + (3 + n * 3) * 2 + 3) & ~3;
++    memcpy((u8 *)sheet + sheet[0], (u8 *)orig + orig[0], parts * sizeof(SpritePart));
++    return sheet;
++}
++#endif
++
+ /* Runs the field menu: opens its panels, moves the cursor and switches mode on a choice */
+ void updateFieldMenu(FieldMenu *task, FieldMenuWindows *win) {
+     SpriteDrawer obj;
+@@ -420,6 +489,13 @@
+             } else {
+                 obj.setScale(ONE, ONE, ONE);
+             }
++#ifdef NATIVE
++            if (task->count == 7) {
++                obj.draw(sevenRowPanel(), PANEL_ROWS6, 0xA8, 0x28);
++            } else if (task->count == 6) {
++                obj.draw(FILE_CACHE.getEntry(FILE_MENU_SPRITES << 16), PANEL_ROWS6, 0xA8, 0x28);
++            } else
++#endif
+             obj.draw(FILE_CACHE.getEntry(FILE_MENU_SPRITES << 16), 0x1C - task->extraOption, 0xA8, 0x28);
+         }
+         if (task->panels[2].level != 0) {

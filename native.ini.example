@@ -71,6 +71,9 @@ fast_travel = 0
 # 1: the map screen blinks the area where the story's next step happens
 map_objective = 0
 
+# 1: a journal row in the field menu (work in progress)
+journal = 0
+
 # 1: three more starter packs to choose from in a new game (Dragon, Tactical,
 # Mystic)
 extra_packs = 1
