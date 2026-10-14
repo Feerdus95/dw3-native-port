@@ -167,7 +167,7 @@ typedef struct {
 
 static Leaf s_leaves[LEAVES];
 static int s_leaf_count = -1, s_leaf_stage = -1;
-static unsigned s_rng = 0x2003, s_tick;
+static unsigned s_rng = 0x2003;
 
 static float rnd(void) { /* 0-1, its own: the game's RNG is left alone */
     s_rng = s_rng * 1664525u + 1013904223u;
@@ -205,7 +205,7 @@ static void spawn(Leaf *l, int anywhere, const float wind[2]) {
 }
 
 static void leaves_step(int n, float w) {
-    float wind[2], t = (float)s_tick++;
+    float wind[2], t = (float)s_now; /* the frames' clock, as the trees' (native_stage_sway) */
     int i;
 
     wind_at(t, w, wind);
@@ -229,7 +229,7 @@ static void leaves_draw(int n, float bright, int ox, int oy, int x1, int y1, int
         {{128, 86, 36}, {170, 124, 60}}, {{96, 70, 34}, {136, 104, 52}},
     };
     static GVtx v[LEAVES * 6];
-    float t = (float)s_tick;
+    float t = (float)s_now;
     int i, k = 0;
 
     for (i = 0; i < n; i++) {
@@ -286,7 +286,7 @@ void stagefx_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
         return;
     }
     if (n != s_leaf_count || s_shown != s_leaf_stage) { /* a new stage: leaves all through the air */
-        wind_at((float)s_tick, fx->wind, wind);
+        wind_at((float)s_now, fx->wind, wind);
         for (i = 0; i < n; i++) {
             spawn(&s_leaves[i], 1, wind);
         }
@@ -313,23 +313,25 @@ int native_stage_drift(float *c, float *s) {
     return 1;
 }
 
-/* How far a prop's point at x, y, z moves in the wind now: as the square of
-   its height (none at the ground; for sway 1, up to ~350 units each way at a
-   tree's top 6000 up, ~5% of it), swinging every ~1.3 s, each place in its
-   own time, and leaning downwind as the gusts come */
+/* How far a prop's point at x, y, z moves in the wind now: the leaves'
+   wind (wind_at, the stage's wind and its gusts), so the trees lean
+   downwind as much as the leaves are blown and ease back as a gust dies,
+   with a small flutter on top, each place in its own time; as the square of
+   its height (none at the ground; ~180 units at a tree's top 6000 up for
+   sway 1 in a full gust of wind 1) */
 int native_stage_sway(float x, float y, float z, float *dx, float *dz) {
-    float bright, w[2], h, amp, swing, t = (float)s_now;
+    float bright, w[2], h, amp, flutter, t = (float)s_now;
     const StageFx *fx = stagefx_current(&bright);
 
     if (fx == NULL || fx->sway <= 0 || y > -400.0f) {
         return 0;
     }
     h = SDL_min(-y / 6000.0f, 1.5f);
-    wind_at(t, 1.0f, w); /* 18 a frame at a full gust: the direction and the gust */
-    amp = fx->sway * 350.0f * h * h;
-    swing = sinf(t * 0.08f + (x + z) * 0.0004f) + 0.6f * sqrtf(w[0] * w[0] + w[1] * w[1]) / 18.0f;
-    *dx = w[0] / 18.0f * amp * swing;
-    *dz = w[1] / 18.0f * amp * swing;
+    wind_at(t, fx->wind, w); /* the leaves' drift a frame: 18 at a full gust of wind 1 */
+    amp = fx->sway * 180.0f * h * h / 18.0f;
+    flutter = 1.0f + 0.25f * sinf(t * 0.05f + (x + z) * 0.0004f);
+    *dx = w[0] * amp * flutter;
+    *dz = w[1] * amp * flutter;
     s_swayed++;
     return 1;
 }
