@@ -242,7 +242,7 @@
 +        float far = native_stage_horizon();
 +        s32 n = far > 0 ? v->x : 0, i;
 +
-+        if (g_draw_layer == BATTLE_LAYER_STAGE) {
++        if (layer == GFX.funcs.getLayer(BATTLE_LAYER_STAGE)) {
 +            gte_camera_save(); /* the battle's camera, for the stage's particles (platform/stagefx.c) */
 +        }
 +

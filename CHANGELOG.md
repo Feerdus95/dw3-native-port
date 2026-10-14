@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widescreen battles: the whole interface keeps its shape. The HP panels each sit against their side, with a gap
+  between them; the partner's picture, its frame and the gauge against the right edge; the messages in the middle.
 - **Battle sky and fog** (options menu, Graphics tab, off by default): the battle's flat background becomes a sky,
   darker toward the top and the stage's own colour at the horizon, and the stage's far side fades into it with
   distance (the stages' painted horizon kept clear), so the arena's edge no longer ends against a flat colour. Each

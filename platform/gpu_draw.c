@@ -220,9 +220,15 @@ static int too_big(const Vtx *a, const Vtx *b, const Vtx *c) {
 
 /* Widescreen battles' menus (DrawOTag): the x the card draws a packet at,
    x' = a + (x - a) * s, keeping a menu's shape on the 16:9 picture */
+#define WIDE_PARTNER_LAYER 0x1009 /* fightstg/partner_view.c's, the partner's picture */
 #define WIDE_MENUS_LAYER 0x1005 /* fightstg/types.h's BATTLE_LAYER_MENUS: the HUD, the menus, the messages */
-static float s_map_a, s_map_s = 1;
+static float s_map_a, s_map_s = 1, s_map_d; /* x to a + (x - a) * s + d on the card (widescreen) */
+static float s_clip_a, s_clip_s = 1;          /* and the drawing area's x to a + (x - a) * s */
 int g_draw_layer;
+
+/* The drawing area for the card, as s_clip_* place it */
+#define CLIPX(x) ((int)(s_clip_a + ((x) - s_clip_a) * s_clip_s + 0.5f))
+#define CLIP CLIPX(g.x1), g.y1, CLIPX(g.x2), g.y2
 
 void native_wide_side(int edge) {
     if (gte_widescreen()) {
@@ -234,7 +240,7 @@ void native_wide_side(int edge) {
 static GVtx gvtx(float x, float y, int r, int gg, int b, int u, int v, int clut, int flags, int dither) {
     GVtx o;
 
-    o.x = s_map_a + (x - s_map_a) * s_map_s;
+    o.x = s_map_a + (x - s_map_a) * s_map_s + s_map_d;
     o.y = y;
     o.u = (float)u;
     o.v = (float)v;
@@ -273,7 +279,7 @@ static void gl_tri(GVtx a, GVtx b, GVtx c) {
     for (i = 0; i < 3; i++) {
         t[i].umin = (uint16_t)umin, t[i].vmin = (uint16_t)vmin, t[i].umax = (uint16_t)umax, t[i].vmax = (uint16_t)vmax;
     }
-    gl_triangles(t, 3, g.x1, g.y1, g.x2, g.y2, g.semi);
+    gl_triangles(t, 3, CLIP, g.semi);
 }
 
 /* A rectangle for the card: the texels from (u0, v0), one per VRAM pixel */
@@ -288,7 +294,7 @@ static void gl_rect(int x, int y, int w, int h, int r, int gg, int b, int flags,
         q[i].umin = (uint16_t)u0, q[i].vmin = (uint16_t)v0;
         q[i].umax = (uint16_t)(u0 + w - 1), q[i].vmax = (uint16_t)(v0 + h - 1);
     }
-    gl_triangles(q, 6, g.x1, g.y1, g.x2, g.y2, flags & 512 ? 4 : g.semi); /* a soft shadow darkens by multiplying */
+    gl_triangles(q, 6, CLIP, flags & 512 ? 4 : g.semi); /* a soft shadow darkens by multiplying */
 }
 
 /* A vertex word where the card puts it: with the GTE's fraction, when it
@@ -324,9 +330,9 @@ static void rect(int x, int y, int w, int h, int col, int textured, int raw, int
        square, centred where the glyph was */
     if (w > 0 && h > 0 && textured && (bit = controls_glyph(g.tx, g.ty, g.depth, u0, v0, w, h)) >= 0 &&
         controls_game_icon(bit, &img, &tex)) {
-        float c = s_map_a + (x + w / 2.0f - s_map_a) * s_map_s;
+        float c = s_map_a + (x + w / 2.0f - s_map_a) * s_map_s + s_map_d;
 
-        gl_image(img, tex, c - h / 2.0f, (float)y, c + h / 2.0f, (float)(y + h), 0, g.x1, g.y1, g.x2, g.y2);
+        gl_image(img, tex, c - h / 2.0f, (float)y, c + h / 2.0f, (float)(y + h), 0, CLIP);
     } else if (w > 0 && h > 0) {
         gl_rect(x, y, w, h, r, gg, b, (textured ? 2 : 0) | (textured && raw ? 4 : 0) | (semi ? 8 : 0) | (soft ? 512 : 0), u0, v0, clut);
     }
@@ -453,10 +459,10 @@ void gpu_gp0(const uint32_t *p, int n) {
             gv[k] = gvtx(fx, fy, 0, 0, 0, 0, 0, 0, 8 | 1024, 0);
             gv[k].z = gv[k].w = fz;
         }
-        gl_triangles(gv, 3, g.x1, g.y1, g.x2, g.y2, 5);
+        gl_triangles(gv, 3, CLIP, 5);
     } else if (cmd == 0x1D) { /* an effect's own image (native.h): the card alone */
         native_effect_draw(p[0] & 0xFFFFFF, s_map_a + (sx(p[1]) + g.ox - s_map_a) * s_map_s, (float)(sy(p[1]) + g.oy), s_map_s,
-                           g.x1, g.y1, g.x2, g.y2);
+                           CLIP);
     } else if (cmd == 0x1E) {
         /* a drawing area's background (gpu.c's SetDrawEnv), a TILE; in a
            battle, the screen's, by the stage's profile (stagefx.c), also a
@@ -481,7 +487,7 @@ void gpu_gp0(const uint32_t *p, int n) {
 
                 q[k] = gvtx((float)(x + CX[k] * w), (float)(y + CY[k] * h), t[0], t[1], t[2], 0, 0, 0, 0, g_dither_on);
             }
-            gl_triangles(q, 6, g.x1, g.y1, g.x2, g.y2, g.semi);
+            gl_triangles(q, 6, CLIP, g.semi);
         }
         if (fx != NULL) {
             gl_battle_fog(c[0], c[1], c[2]);
@@ -720,16 +726,21 @@ static void wide_plan(uint32_t *p) {
             menu[r][2] = WMAX(menu[r][2], b[2]), menu[r][3] = WMAX(menu[r][3], b[3]);
         }
     }
+    /* each keeps its shape (3/4 across the 16:9 picture): a menu against
+       the side its middle is on, as the HP panels at the top each by its
+       own place (a gap opens between them), the partner's picture and its
+       frame on the right with the gauge; the messages, across the screen,
+       in its middle */
     for (i = 0; i < s_wide_n; i++) {
-        int *m = menu[wide_root(i)];
-        int hud = s_wide[i].box[3] < 0x4A || m[3] < 0x4A;                /* the HP panels, at the top */
-        int partner = m[0] < 0x134 && m[2] > 0xD0 && m[1] < 0x88 && m[3] > 0x4C; /* its picture's frame */
+        int *m = menu[wide_root(i)], *b = s_wide[i].box;
+        int hud = b[3] < 0x4A || m[3] < 0x4A;                             /* the HP panels, at the top */
         int wide = m[2] - m[0] > 200;                                      /* the messages */
+        int mid = hud ? (b[0] + b[2]) / 2 : (m[0] + m[2]) / 2;
 
-        if (m[0] > m[2] || hud || partner || wide) {
+        if (m[0] > m[2] && !hud) {
             s_wide[i].a = 0, s_wide[i].s = 1;
         } else {
-            s_wide[i].a = (float)(x1 + ((m[0] + m[2]) / 2 < 160 ? 0 : 320)), s_wide[i].s = 0.75f;
+            s_wide[i].a = (float)(x1 + (wide && !hud ? 160 : mid < 160 ? 0 : 320)), s_wide[i].s = 0.75f;
         }
     }
 }
@@ -742,6 +753,14 @@ void DrawOTag(uint32_t *p) {
     gl_depth_clear();
     if (wide) {
         wide_plan(p);
+    }
+    if (gte_widescreen() && g_draw_layer == WIDE_PARTNER_LAYER) {
+        /* the partner's picture (fightstg/partner_view.c: x 0xD0-0x133, its
+           middle 0x102), by its frame on the right edge: the GTE already
+           drew its 3D 3/4 as wide about that middle, so it only moves, and
+           its area narrows about the edge (the frame buffers start at x 0) */
+        s_map_d = (320 - 0x102) * 0.25f;
+        s_clip_a = 320, s_clip_s = 0.75f;
     }
     while (p != NULL && guard++ < 1000000) {
         uint32_t tag = *p;
@@ -759,9 +778,10 @@ void DrawOTag(uint32_t *p) {
         }
         p = (uint32_t *)(uintptr_t)(tag & 0xFFFFFF);
     }
-    s_map_a = 0, s_map_s = 1;
+    s_map_a = 0, s_map_s = 1, s_map_d = 0;
+    s_clip_a = 0, s_clip_s = 1;
     gl_shadows_resolve();
     if (gte_in_battle() && g_draw_layer == 0x1004) { /* fightstg/types.h's BATTLE_LAYER_MODELS */
-        stagefx_draw(g.ox, g.oy, g.x1, g.y1, g.x2, g.y2);
+        stagefx_draw(g.ox, g.oy, CLIP);
     }
 }
