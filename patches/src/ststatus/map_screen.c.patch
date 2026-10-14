@@ -1,6 +1,6 @@
 --- a/src/ststatus/map_screen.c
 +++ b/src/ststatus/map_screen.c
-@@ -130,8 +130,142 @@
+@@ -130,8 +130,213 @@
      }
  }
  
@@ -65,6 +65,7 @@
 +static s32 fastTravelAsking;
 +static s32 fastTravelChoice;
 +static s32 fastTravelY; /* the banner's */
++static s32 fastTravelHomeLate; /* the home mark is on Amaterasu's map */
 +
 +static void showFastTravelQuestion(StatusMapScreen *screen, TextWindow **windows, s32 show) {
 +    Cursor *cursor;
@@ -121,6 +122,7 @@
 +            SOUND.playSound(SOUND_SELECT);
 +            screen->homeX = STSTATUS_data.spots[screen->spot].x + 0xC;
 +            screen->homeY = STSTATUS_data.spots[screen->spot].y + 0xC;
++            fastTravelHomeLate = screen->lateGame != 0;
 +        } else {
 +            SOUND.playSound(SOUND_MENU_CANCEL);
 +        }
@@ -130,6 +132,75 @@
 +        showFastTravelQuestion(screen, windows, 0);
 +    }
 +    return 1;
++}
++
++/* The other server's map (square), once the player has set foot on
++   Amaterasu (a field of the second half visited): its sheets (FILE_STATUS_BG,
++   + 2 for Amaterasu), its images (the file after) and its area names. The
++   half the home mark is on (fastTravelHomeLate) stays shown only there */
++
++static s32 amaterasuVisited(void) {
++    s32 i;
++
++    for (i = 0x270; i <= 0x2D6; i++) {
++        if (FLAGS_00.checkCondition((i & 0xFF) | 0x2000, 1) == 1) {
++            return 1;
++        }
++    }
++    return 0;
++}
++
++/* Requests both maps' files, so that square needn't wait */
++static void requestServerMaps(void) {
++    s32 i;
++
++    for (i = 0; i < 4; i++) {
++        FILE_CACHE.request(FILE_STATUS_BG + i);
++    }
++    FILE_CACHE.request(TEXT_FILE(TEXT_ASUKA_MAP));
++    FILE_CACHE.request(TEXT_FILE(TEXT_AMATERASU_MAP));
++}
++
++static s32 serverMapLoaded(s32 late) {
++    s32 bg = late ? FILE_STATUS_BG + 2 : FILE_STATUS_BG;
++
++    return FILE_CACHE.isLoading(bg) == 0 && FILE_CACHE.isLoading(bg + 1) == 0 &&
++           FILE_CACHE.isLoading(TEXT_FILE(late ? TEXT_AMATERASU_MAP : TEXT_ASUKA_MAP)) == 0;
++}
++
++/* The map's images to VRAM, as the menu loads them (STSTATUS_updateMenu) */
++static void loadServerMapImages(s32 late) {
++    s32 images = late ? FILE_STATUS_BG + 3 : FILE_STATUS_BG + 1;
++    TimLoader loader;
++
++    initTimLoader(&loader);
++    loader.setImagePos(0x380, 0x100);
++    loader.loadArchive(FILE_CACHE.getEntry((images << 16) + 1));
++    loader.setImagePos(0x300, 0x100);
++    loader.loadArchive(FILE_CACHE.getEntry((images << 16) + 2));
++    loader.setImagePos(0x280, 0);
++    loader.setClutPos(0x140, 0x100);
++    loader.loadArchive(FILE_CACHE.getEntry(images << 16));
++}
++
++static void showServerMap(StatusMapScreen *screen, s32 late) {
++    s32 bg = late ? FILE_STATUS_BG + 2 : FILE_STATUS_BG;
++    s32 first = late ? 0x270 : 0x200;
++    s32 i;
++
++    screen->lateGame = late;
++    screen->file = bg;
++    screen->archive = bg << 16;
++    screen->archive1 = (bg << 16) + 1;
++    screen->archive2 = (bg << 16) + 2;
++    screen->textFile = TEXT_FILE(late ? TEXT_AMATERASU_MAP : TEXT_ASUKA_MAP);
++    loadServerMapImages(late);
++    memset(screen->visited, 0, sizeof screen->visited);
++    for (i = first; i < first + 0x70 && i <= 0x2D6; i++) {
++        if (FLAGS_00.checkCondition((i & 0xFF) | 0x2000, 1) == 1) {
++            screen->visited[STSTATUS_mapAreas[i & 0xFF] & 0x7F] = 1;
++        }
++    }
 +}
 +#endif
 +
@@ -143,21 +214,34 @@
      if (PAD_HELD(PAD_LEFT) || PAD_HELD(PAD_RIGHT)) {
          if (PAD_PRESSED(PAD_LEFT) || PAD_PRESSED(PAD_RIGHT)) {
              screen->speedX = 2;
-@@ -170,6 +304,13 @@
+@@ -169,7 +374,26 @@
+     if (PAD_PRESSED(PAD_TRIANGLE)) {
          SOUND.playSound(SOUND_MENU_CANCEL);
          screen->state = TASK_KILL;
-     }
 +#ifdef NATIVE
++        /* the menu's own map images back, for what it draws after */
++        if ((screen->lateGame != 0) != (screen->menu->lateGame != 0)) {
++            loadServerMapImages(screen->menu->lateGame != 0);
++        }
++#endif
++    }
++#ifdef NATIVE
++    /* square: the other server's map */
++    if (g_fast_travel && PAD_PRESSED(PAD_SQUARE) && screen->state != TASK_KILL && amaterasuVisited() &&
++        serverMapLoaded(screen->lateGame == 0)) {
++        SOUND.playSound(SOUND_MENU_MOVE);
++        showServerMap(screen, screen->lateGame == 0);
++    }
 +    /* X on an area asks whether to travel there */
 +    if (g_fast_travel && screen->hovering && PAD_PRESSED(PAD_CROSS)) {
 +        SOUND.playSound(SOUND_MENU_CONFIRM);
 +        showFastTravelQuestion(screen, windows, 1);
-+    }
+     }
 +#endif
  }
  
  /* Draws the map, the visited areas, the towns and the cursor */
-@@ -189,6 +330,11 @@
+@@ -189,6 +413,11 @@
          } else {
              sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x3B, 0, 0x14);
          }
@@ -169,7 +253,17 @@
      }
      initSpriteDrawer(&sprite);
      if (screen->ready) {
-@@ -318,7 +464,14 @@
+@@ -229,6 +458,9 @@
+ #else
+         frame = 0x35;
+ #endif
++#ifdef NATIVE
++        if ((screen->lateGame != 0) == fastTravelHomeLate)
++#endif
+         sprite.draw(FILE_CACHE.getEntry(screen->archive2), frame + screen->homeFrame, screen->homeX + screen->scrollX,
+                     screen->homeY + screen->scrollY + screen->top);
+     }
+@@ -318,7 +550,18 @@
  /* Creates the map screen (task): the map of the first half of the game or, in the
     late game, of the second (FILE_STATUS_BG + 2), and requests its area names */
  Task *STSTATUS_createMapScreen(FieldMenuScreen *menu, s32 extra) {
@@ -178,6 +272,10 @@
 +    StatusMapScreen *screen = createTask(STSTATUS_updateMapScreen, sizeof(StatusMapScreen), 5 * 4);
 +
 +    fastTravelAsking = 0;
++    fastTravelHomeLate = STSTATUS_areaFuncs.isLateGame() != 0;
++    if (g_fast_travel && amaterasuVisited()) {
++        requestServerMaps();
++    }
 +#else
      StatusMapScreen *screen = createTask(STSTATUS_updateMapScreen, sizeof(StatusMapScreen), 4);
 +#endif
