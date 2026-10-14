@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fast text waits for X to be held a third of a second: a tap shows the page whole, as in the original, and the next
+  tap goes on, instead of the tap also skipping the page it finished.
 - **Controls** (options menu, Input tab): each PlayStation button's two keys and gamepad button, set by pressing them,
   saved in `native.ini` (`keys_cross = Z, Space`, `pad_cross = a`).
 - **Button icons** (options menu, Input tab): the menu's help line, tab ends and Controls page show the keys' and the

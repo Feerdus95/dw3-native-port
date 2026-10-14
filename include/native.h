@@ -48,12 +48,15 @@ int native_character(int id, int *file, int *width);
 /* The port's own options (native.ini, the options menu), mods of the game
    that were byte patches for the PSX:
    fast text: the text boxes take X held as well as pressed, outside battles
-   (FIGHTSTG, 6) and card games (CARDGAME, 7), where X confirms commands.
+   (FIGHTSTG, 6) and card games (CARDGAME, 7), where X confirms commands;
+   held a third of a second first, so a tap shows the page whole as the
+   game's own press does, and the next goes on (mods.c).
    Based on Dmw2003FastText by markisha64 (MIT) */
 extern int g_fast_text;
+int native_long_held(int held);
 #define NATIVE_TEXT_BUTTONS()                                                                  \
     (PAD.getPressed(0) |                                                                       \
-     (g_fast_text && OVERLAY_LOADER.mode != 6 && OVERLAY_LOADER.mode != 7 ? PAD.getHeld(0) : 0))
+     (g_fast_text && OVERLAY_LOADER.mode != 6 && OVERLAY_LOADER.mode != 7 ? native_long_held(PAD.getHeld(0)) : 0))
 #define NATIVE_TEXT_PRESSED(button) ((NATIVE_TEXT_BUTTONS() >> PAD.getButtonBit(0, button)) & 1)
 
 /* Extra starter packs (platform/packs.c): DRAGON, TACTICAL and MYSTIC, 3-5

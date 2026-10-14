@@ -20,6 +20,29 @@ const uint8_t *made_file(int fid, long *size) {
     return made != NULL ? made : bladegaru_file(fid, size);
 }
 
+int VSync(int mode);
+
+/* Fast text's buttons (native.h): those of HELD down 20 vsyncs or more
+   without a break; a gap of more than a few vsyncs since the last call
+   starts the count again */
+int native_long_held(int held) {
+    static int last = -1, out;
+    static int count[16];
+    int now = VSync(-1), i;
+
+    if (now != last) {
+        int step = now - last;
+
+        out = 0;
+        for (i = 0; i < 16; i++) {
+            count[i] = (held >> i & 1) && step > 0 && step <= 4 ? SDL_min(count[i] + step, 1000) : 0;
+            out |= count[i] >= 20 ? 1 << i : 0;
+        }
+        last = now;
+    }
+    return out;
+}
+
 /* Tab or R3: x1, x2, x3, x5 and round */
 void ff_cycle(void) {
     static const int SPEEDS[] = {1, 2, 3, 5};
