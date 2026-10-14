@@ -125,7 +125,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | VSync | each frame shown whole, at the screen's refresh: no tearing |
 | Fullscreen, Window size | the window fits the screen it is on, centred |
 | Controls | each PlayStation button's two keys and gamepad button: pick a slot, press the key or button (Esc / Back cancels); Del / Y clears it, the last line puts the defaults back. A key or button set to one leaves any other it was on |
-| Button icons | the menu's icons: PlayStation (the default), Xbox, Switch, Keyboard, or Auto (the keyboard or the gamepad you used last, by its maker). By [Xelu](https://thoseawesomeguys.com/prompts/) |
+| Button icons | the menu's icons: PS3, PS4, PS5 (the default), Xbox 360, Xbox One, Xbox Series, Switch, Keyboard, or Auto (the keyboard or the gamepad you used last, by its maker). By [Xelu](https://thoseawesomeguys.com/prompts/) |
 | Vibration, Stick deadzone | the gamepad |
 | Fast text | holding X advances the texts, outside battles and card games |
 | Fast travel | on the map screen (the field menu's Map), X on a visited area asks, and Yes takes you there as the menu closes, through one of the game's own doors into it that is open at that point of the story. Once you have been to Amaterasu, Square switches between the two servers' maps. Off by default. After Flawe's Fast Travel hack |

@@ -5,7 +5,8 @@
 - **Controls** (options menu, Input tab): each PlayStation button's two keys and gamepad button, set by pressing them,
   saved in `native.ini` (`keys_cross = Z, Space`, `pad_cross = a`).
 - **Button icons** (options menu, Input tab): the menu's help line, tab ends and Controls page show the keys' and the
-  icons chosen there: PlayStation (the default), Xbox, Switch, Keyboard, or Auto by the device used last; from Xelu's free prompts pack
+  icons chosen there: PS3, PS4, PS5 (the default), Xbox 360, Xbox One, Xbox
+  Series, Switch, Keyboard, or Auto by the device used last; from Xelu's free prompts pack
   (CC0), in `prompts/` by the exe.
 
 ## v0.10.0 (beta)

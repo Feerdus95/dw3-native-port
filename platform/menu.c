@@ -67,7 +67,7 @@ static void value(int item, char *out, size_t size) {
     case DEADZONE: SDL_snprintf(out, size, "%d%%", (g_deadzone * 100 + 16383) / 32767); return;
     case FAST_FORWARD: SDL_snprintf(out, size, g_ff_speed > 1 ? "x%d" : "Off", g_ff_speed); return;
     case ICONS: {
-        static const char *SHOWN[ICONS_COUNT] = {"Auto", "PlayStation", "Xbox", "Switch", "Keyboard"};
+        static const char *SHOWN[ICONS_COUNT] = {"Auto", "PS3", "PS4", "PS5", "Xbox 360", "Xbox One", "Xbox Series", "Switch", "Keyboard"};
 
         SDL_snprintf(out, size, "%s", SHOWN[g_icons]);
         return;

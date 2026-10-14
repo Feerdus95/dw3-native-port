@@ -1,7 +1,7 @@
 """The options menu's button icons (platform/controls.c) from Xelu's free
 prompts pack (CC0: https://github.com/haaldor/Xelu_prompts_SVG, its
 exported_images_100.zip unpacked), scaled to 48 px into native/assets/prompts/:
-<ps|xbox|switch>_<SDL's name of the button>.png and key_<SDL scancode>.png.
+<ps3|ps4|ps5|xbox360|xboxone|xboxseries|switch>_<SDL's name of the button>.png and key_<SDL scancode>.png.
 python native/tools/prompts.py <unpacked folder>"""
 import sys
 from pathlib import Path
@@ -13,13 +13,17 @@ OUT = NATIVE / "assets/prompts"
 SIZE = 48
 
 # SDL's gamepad buttons go by place (a the bottom one): each pad's own label there
+PS = {"a": "Cross", "b": "Circle", "x": "Square", "y": "Triangle", "leftshoulder": "L1", "rightshoulder": "R1",
+      "lefttrigger": "L2", "righttrigger": "R2"}
+XBOX = {"a": "A", "b": "B", "x": "X", "y": "Y", "leftshoulder": "LB", "rightshoulder": "RB", "lefttrigger": "LT",
+        "righttrigger": "RT"}
 PADS = {
-    "ps": ("PS5", "PS5_", {"a": "Cross", "b": "Circle", "x": "Square", "y": "Triangle", "back": "Share",
-                           "start": "Options", "leftshoulder": "L1", "rightshoulder": "R1", "lefttrigger": "L2",
-                           "righttrigger": "R2"}),
-    "xbox": ("Xbox Series", "XboxSeriesX_", {"a": "A", "b": "B", "x": "X", "y": "Y", "back": "View", "start": "Menu",
-                                             "leftshoulder": "LB", "rightshoulder": "RB", "lefttrigger": "LT",
-                                             "righttrigger": "RT"}),
+    "ps3": ("Others/PS3", "PS3_", {**PS, "back": "Select", "start": "Start"}),
+    "ps4": ("Others/PS4", "PS4_", {**PS, "back": "Share", "start": "Options"}),
+    "ps5": ("PS5", "PS5_", {**PS, "back": "Share", "start": "Options"}),
+    "xbox360": ("Others/Xbox 360", "360_", {**XBOX, "back": "Back", "start": "Start"}),
+    "xboxone": ("Others/Xbox One", "XboxOne_", {**XBOX, "back": "Windows", "start": "Menu"}),
+    "xboxseries": ("Xbox Series", "XboxSeriesX_", {**XBOX, "back": "View", "start": "Menu"}),
     "switch": ("Switch", "Switch_", {"a": "B", "b": "A", "x": "Y", "y": "X", "back": "Minus", "start": "Plus",
                                      "leftshoulder": "LB", "rightshoulder": "RB", "lefttrigger": "LT",
                                      "righttrigger": "RT"}),

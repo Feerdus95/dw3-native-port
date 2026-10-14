@@ -5,11 +5,12 @@
 #include <SDL3/SDL.h>
 #include "platform.h"
 
-int g_icons = ICONS_PS; /* native.ini; the game's own buttons by default */
-const char *const ICON_NAMES[ICONS_COUNT] = {"auto", "playstation", "xbox", "switch", "keyboard"};
+int g_icons = ICONS_PS5; /* native.ini; the game's own buttons by default */
+const char *const ICON_NAMES[ICONS_COUNT] = {"auto", "ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch", "keyboard"};
 
-enum { FAM_PS, FAM_XBOX, FAM_SWITCH };
-static const char *FAMS[3] = {"ps", "xbox", "switch"};
+/* the pads' icon sets, as the choices after Auto */
+enum { FAM_PS3, FAM_PS4, FAM_PS5, FAM_XBOX360, FAM_XBOXONE, FAM_XBOXSERIES, FAM_SWITCH, FAMS_COUNT };
+static const char *FAMS[FAMS_COUNT] = {"ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch"};
 #define DPAD 102 /* the whole D-pad's icon, for the help line */
 
 /* The page's lines: the buttons, face ones first, then Reset */
@@ -36,20 +37,21 @@ void controls_note(const SDL_Event *e) {
     }
 }
 
-/* The icons' pad: the one chosen, else the one plugged in's maker, else Xbox */
+/* The icons' pad: the one chosen, else the one plugged in, else an Xbox Series */
 static int family(void) {
-    if (g_icons >= ICONS_PS && g_icons <= ICONS_SWITCH) {
-        return g_icons - ICONS_PS;
+    if (g_icons >= ICONS_PS3 && g_icons <= ICONS_SWITCH) {
+        return g_icons - ICONS_PS3;
     }
     switch (pad_gamepad() != NULL ? SDL_GetGamepadType(pad_gamepad()) : SDL_GAMEPAD_TYPE_UNKNOWN) {
-    case SDL_GAMEPAD_TYPE_PS3:
-    case SDL_GAMEPAD_TYPE_PS4:
-    case SDL_GAMEPAD_TYPE_PS5: return FAM_PS;
+    case SDL_GAMEPAD_TYPE_PS3: return FAM_PS3;
+    case SDL_GAMEPAD_TYPE_PS4: return FAM_PS4;
+    case SDL_GAMEPAD_TYPE_PS5: return FAM_PS5;
+    case SDL_GAMEPAD_TYPE_XBOX360: return FAM_XBOX360;
     case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO:
     case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_LEFT:
     case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT:
     case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR: return FAM_SWITCH;
-    default: return FAM_XBOX;
+    default: return FAM_XBOXSERIES;
     }
 }
 
@@ -79,8 +81,8 @@ static SDL_Texture *load(SDL_Renderer *r, const char *name) {
 }
 
 static SDL_Texture *pad_icon(SDL_Renderer *r, int fam, int src) {
-    static SDL_Texture *tex[3][DPAD + 1];
-    static uint8_t tried[3][DPAD + 1];
+    static SDL_Texture *tex[FAMS_COUNT][DPAD + 1];
+    static uint8_t tried[FAMS_COUNT][DPAD + 1];
     const char *name = src == DPAD ? "dpad" : pad_source_name(src);
     char file[64];
 
@@ -323,7 +325,7 @@ void controls_draw(SDL_Renderer *r, float x, float y, float w, int rows) {
             SDL_RenderDebugText(r, x + 26, ly, "Reset to defaults");
             continue;
         }
-        button(r, FAM_PS, PLACE[bit], x + 10, ly, 1, 1);
+        button(r, FAM_PS5, PLACE[bit], x + 10, ly, 1, 1);
         SDL_RenderDebugText(r, x + 26, ly, LABELS[bit]);
         for (slot = 0; slot < 3; slot++) {
             float sx = x + COL[slot];
