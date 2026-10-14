@@ -1,0 +1,100 @@
+--- a/src/fightstg/sprite_effect.c
++++ b/src/fightstg/sprite_effect.c
+@@ -436,6 +436,47 @@
+     return 0;
+ }
+ 
++#ifdef NATIVE
++/* the critical hit's (FIGHTSTG_adjustDamage), for the next effects' own
++   images (native.h) */
++s32 FIGHTSTG_nativeCritical;
++
++/* A layer callback that draws an effect's own image (native.h) of the frame
++   its time is at, at its projected position as FIGHTSTG_drawSpriteAnim's, as
++   a GP0 1D packet for the graphics card. The packets go to a buffer of their
++   own */
++#define NATIVE_EFFECT_PACKETS 64
++static void nativeDrawEffect(void *arg, Layer *layer) {
++    static u_long packets[2][NATIVE_EFFECT_PACKETS][3];
++    static s32 used[2];
++    static u32 frame[2];
++    SpriteEffect *task = arg;
++    ShortVec3 screen;
++    s32 buf = GFX.buffer & 1;
++    u_long *p;
++
++    if (frame[buf] != native_frame()) {
++        frame[buf] = native_frame();
++        used[buf] = 0;
++    }
++    if (used[buf] == NATIVE_EFFECT_PACKETS) {
++        return;
++    }
++    if (task->pos.vz != 0x7FFF && task->pos.vz != -1) {
++        FIGHTSTG_battle.project(layer, &task->pos, &screen);
++    } else {
++        screen.x = task->pos.vx;
++        screen.y = task->pos.vy;
++        screen.z = task->pos.vz != 0x7FFF ? 0xFFF : 0;
++    }
++    p = packets[buf][used[buf]++];
++    p[0] = 2 << 24;
++    p[1] = 0x1D000000 | task->nativeImages << 12 | task->nativeTime / 2;
++    p[2] = (u16)screen.x | (u32)(u16)screen.y << 16;
++    addPrim(layer->getOtEntry(layer, screen.z), p);
++}
++#endif
++
+ /* A 2D effect's task: starts a sprite animation for each entry of its
+    archive (up to 30), on BATTLE_LAYER_FRONT for effects 1000 to 1002 and
+    1007, else on BATTLE_LAYER_MODELS, and ends once they all have */
+@@ -460,6 +501,16 @@
+         if (task->effect == 1007) {
+             layerId = BATTLE_LAYER_FRONT;
+         }
++#ifdef NATIVE
++        /* its own images instead, one every other field */
++        task->nativeImages = native_effect_images(task->effect, FIGHTSTG_nativeCritical, &task->nativeFrames);
++        if (task->nativeImages >= 0) {
++            task->nativeLayer = layerId;
++            task->count = 0;
++            task->nextState(task);
++            break;
++        }
++#endif
+         for (count = 0; count < 30; count++) {
+             if (archive[count] == 0) {
+                 break;
+@@ -473,6 +524,21 @@
+         task->nextState(task);
+         break;
+     case TASK_RUN:
++#ifdef NATIVE
++        if (task->nativeImages >= 0) {
++            if (task->nativeTime >= task->nativeFrames * 2) {
++                task->setState(task, TASK_KILL);
++                break;
++            }
++            {
++                Layer *layer = GFX.funcs.getLayer(task->nativeLayer);
++
++                layer->addCallback(layer, nativeDrawEffect, task);
++            }
++            task->nativeTime += FIGHTSTG_battle.frames;
++            break;
++        }
++#endif
+         done = 1;
+         for (j = 0; j < task->count; j++) {
+             if (children[j] != NULL) {
+@@ -497,6 +563,10 @@
+     SpriteEffectEntry *entry;
+ 
+     task->effect = -1;
++#ifdef NATIVE
++    task->nativeImages = -1;
++    task->nativeTime = 0;
++#endif
+     for (entry = FIGHTSTG_spriteEffects; entry->id != -1; entry++) {
+         if (entry->id == effect) {
+             task->effect = effect;

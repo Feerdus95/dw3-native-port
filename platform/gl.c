@@ -549,6 +549,45 @@ void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
 }
 
+/* An image of the port's own over the copy (platform.h) */
+void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int cx1, int cy1, int cx2, int cy2) {
+    int s = s_scale;
+    float q[16] = {x0, y0, 0, 0, x1, y0, 1, 0, x0, y1, 0, 1, x1, y1, 1, 1};
+    int i;
+
+    if (s == 0) {
+        return;
+    }
+    flush();
+    if (*tex == 0) {
+        *tex = texture(GL_RGBA8, img->w, img->h, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
+        GL(glPixelStorei)(GL_UNPACK_ROW_LENGTH, img->pitch / 4);
+        GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, img->w, img->h, GL_RGBA, GL_UNSIGNED_BYTE, img->pixels);
+        GL(glPixelStorei)(GL_UNPACK_ROW_LENGTH, 0);
+    }
+    for (i = 0; i < 16; i += 4) { /* VRAM pixels to the copy's -1..1, as MAIN_VS */
+        q[i] = q[i] / VRAM_W * 2 - 1;
+        q[i + 1] = q[i + 1] / VRAM_H * 2 - 1;
+    }
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fbo);
+    GL(glViewport)(0, 0, VRAM_W * s, VRAM_H * s);
+    GL(glEnable)(GL_SCISSOR_TEST);
+    GL(glScissor)(cx1 * s, cy1 * s, (cx2 - cx1 + 1) * s, (cy2 - cy1 + 1) * s);
+    GL(glEnable)(GL_BLEND);
+    GL(glBlendEquation)(GL_FUNC_ADD);
+    GL(glBlendFuncSeparate)(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE); /* the copy's alpha is the mask bit: kept */
+    GL(glUseProgram)(s_blit);
+    GL(glBindVertexArray)(s_quad_vao);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, s_quad_vbo);
+    GL(glBufferData)(GL_ARRAY_BUFFER, sizeof q, q, GL_STREAM_DRAW);
+    GL(glActiveTexture)(GL_TEXTURE0);
+    GL(glBindTexture)(GL_TEXTURE_2D, *tex);
+    GL(glDrawArrays)(GL_TRIANGLE_STRIP, 0, 4);
+    GL(glDisable)(GL_BLEND);
+    GL(glDisable)(GL_SCISSOR_TEST);
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
+}
+
 /* Follows render_scale: a new copy, made from the 1x VRAM; force: VRAM
    changed under it (a loaded state) */
 void gl_sync(int force) {

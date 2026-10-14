@@ -437,6 +437,9 @@ void gpu_gp0(const uint32_t *p, int n) {
             gv[k].z = gv[k].w = fz;
         }
         gl_triangles(gv, 3, g.x1, g.y1, g.x2, g.y2, 5);
+    } else if (cmd == 0x1D) { /* an effect's own image (native.h): the card alone */
+        native_effect_draw(p[0] & 0xFFFFFF, s_map_a + (sx(p[1]) + g.ox - s_map_a) * s_map_s, (float)(sy(p[1]) + g.oy), s_map_s,
+                           g.x1, g.y1, g.x2, g.y2);
     } else if (cmd >= 0x60 && cmd < 0x80) {
         int size = cmd >> 3 & 3, tex = cmd & 4, semi = cmd & 2, raw = cmd & 1;
         int k = 1, x = sx(p[1]) + g.ox, y = sy(p[1]) + g.oy, u = 0, vv = 0, clut = 0, w, h, soft = 0;
@@ -525,6 +528,7 @@ static int cmd_words(const uint32_t *p) {
     if (cmd >= 0x60 && cmd < 0x80) return 2 + ((cmd & 4) ? 1 : 0) + (((cmd >> 3 & 3) == 0) ? 1 : 0);
     if (cmd == 0x02) return 3;
     if (cmd == 0x1C) return 4; /* a battle shadow's triangle (native.h) */
+    if (cmd == 0x1D) return 2; /* an effect's own image (native.h) */
     if (cmd >= 0x80 && cmd < 0xA0) return 4;
     return 1;
 }

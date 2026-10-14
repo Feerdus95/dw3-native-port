@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Effects' own images**: a battle's 2D effect drawn from PNGs in `data/mods/effects/<id>/` (the model viewer's
+  export format, at any size, with alpha), and a critical hit's from `critical/` there, which the original doesn't
+  tell apart. Drawn by the graphics card in the effect's place and time.
 - **Digilog**, the journal (options menu, off by default): a last row of the field menu, its seven-row panel made of
   the game's own tiles. It lists the story's steps so far in the item list's panels and pages, the current one first:
   each with its place (the field banner's own name), whether it is done, and what to do, in the five languages; X

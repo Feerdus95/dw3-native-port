@@ -74,6 +74,12 @@ void gl_depth_clear(void); /* a new ordering table: its 3D drawn over what came 
 void gl_refresh(int x, int y, int w, int h); /* the copy from VRAM, after the CPU wrote it */
 void gl_copy(int sx, int sy, int w, int h, int dx, int dy);
 void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw);
+/* an RGBA image over the copy, from (x0, y0) to (x1, y1), blended by its
+   alpha inside the drawing area; its texture made in *tex on first use */
+void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int cx1, int cy1, int cx2, int cy2);
+/* GP0 1D (native.h): frame KEY & 0xFFF of images KEY >> 12 around (x, y),
+   its width times xs (effects.c) */
+void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int cy1, int cx2, int cy2);
 void gl_present(const struct SDL_Surface *menu, struct SDL_Surface **shot);
 int gte_precise(const uint32_t *word, float *x, float *y, float *z);
 void gte_precise_copy(void *dst, const void *src); /* the game's own code calls it too */

@@ -161,6 +161,14 @@ sticks), with vibration. It can be plugged in or swapped while playing.
                          ;    F5 / F9 save / load a state (saves/quick.state)
     log =                ; console logs: cd, snd, pad, mc, ovl, gpu or all
 
+### Effects' own images
+
+A battle's 2D effect can be drawn from your own PNGs: put them in `data/mods/effects/<id>/`, played in their names'
+order, one every other field (30 a second). Each is the 320x240 screen around the effect's point, as the model
+viewer's Export PNGs saves an effect, or a bigger image of the same shape for finer detail; their alpha blends them
+over the battle. A critical hit's go in `critical/` inside that folder (without it, criticals use the others). Effect
+2 is the Fight command's hit. The ids are the model viewer's Effects tab's.
+
 ## Troubleshooting
 
 - **"The game's data doesn't match this version of the port"**: `data/` was read with another version of the port, or

@@ -116,6 +116,13 @@ extern int g_soft_shadows;
    as GP0 1C triangles (flat, 4 words: the code, three points), which the PSX
    GPU doesn't have. They need Sub-pixel 3D and the Depth buffer */
 extern int g_battle_shadows;
+
+/* Effects' own images (platform/effects.c): PNGs in data/mods/effects/<id>/
+   (a critical hit's in critical/ there) drawn in a battle's 2D effect's
+   place, one every other field, by the graphics card alone as GP0 1D
+   packets (2 words: the code with the images << 12 | the frame, the
+   middle's point). Returns its images, -1 without, and how many in frames */
+int native_effect_images(int effect, int critical, int *frames);
 /* the layer whose ordering table is drawn (main/gfx/display.c's drawFrame),
    for widescreen battles' menus (platform/gpu_draw.c) */
 extern int g_draw_layer;
