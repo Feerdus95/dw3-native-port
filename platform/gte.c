@@ -609,6 +609,49 @@ typedef struct {
 } GsF_LIGHT;
 
 SAVED MATRIX GsWSMATRIX;      /* world to screen, from GsSetRefView2 */
+
+/* The battle camera as the stage was drawn with it (FIGHTSTG's patch), for
+   what the card adds in its world (stagefx.c's particles) */
+static MATRIX s_cam;
+static double s_cam_h, s_cam_ofx, s_cam_ofy;
+static int s_cam_wide, s_cam_frame = -10;
+
+void gte_camera_save(void) {
+    s_cam = GsWSMATRIX;
+    s_cam_h = H, s_cam_ofx = OFX / 65536.0, s_cam_ofy = OFY / 65536.0;
+    s_cam_wide = s_wide;
+    s_cam_frame = s_frame;
+}
+
+/* A world point on screen by that camera: x, y (before the drawing offset)
+   and the view depth; 0 when behind it or when no stage was drawn lately */
+int gte_camera_project(const float p[3], float out[3]) {
+    double v[3];
+    int i;
+
+    if (s_frame - s_cam_frame > 2) {
+        return 0;
+    }
+    for (i = 0; i < 3; i++) {
+        v[i] = (s_cam.m[i][0] * (double)p[0] + s_cam.m[i][1] * (double)p[1] + s_cam.m[i][2] * (double)p[2]) / 4096.0 + s_cam.t[i];
+    }
+    if (v[2] <= s_cam_h / 2) {
+        return 0;
+    }
+    out[0] = (float)(s_cam_h * v[0] / v[2] * (s_cam_wide ? 0.75 : 1.0) + s_cam_ofx);
+    out[1] = (float)(s_cam_h * v[1] / v[2] + s_cam_ofy);
+    out[2] = (float)v[2];
+    return 1;
+}
+
+/* The screen size of a world length at view depth z, across and down */
+float gte_camera_scale(float z) {
+    return (float)(s_cam_h / z);
+}
+
+int gte_camera_wide(void) {
+    return s_cam_wide;
+}
 SAVED MATRIX GsLIGHTWSMATRIX; /* the flat lights' directions, one per row */
 
 void GsInit3D(void) {}

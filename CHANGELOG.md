@@ -6,7 +6,8 @@
   darker toward the top and the stage's own colour at the horizon, and the stage's far side fades into it with
   distance (the stages' painted horizon kept clear), so the arena's edge no longer ends against a flat colour. Each
   stage takes its kind's look from `stages.ini` by the exe: open air, night, rooms (fog toward black), water;
-  digital, space and the techniques' backdrops are left as they are. The game's own picture (1x) stays as it was.
+  digital, space and the techniques' backdrops are left as they are. Leaves fall through the forests and parks, carried
+  by a gusting wind, among the fighters. The game's own picture (1x) stays as it was.
 
 ## v0.11.0 (beta)
 

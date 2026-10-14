@@ -223,7 +223,7 @@
              if (state->lit) {
                  p = state->cmd + (state->quad + 3);
                  state->colors[0] = state->normalColors[p[0]];
-@@ -828,6 +997,31 @@
+@@ -828,6 +997,36 @@
          return;
      }
      FIGHTSTG_projectMesh(mesh, layer);
@@ -235,11 +235,16 @@
 +           ~19500, sometimes in one mesh with them); kept out of the battle's
 +           fog by their depth (platform/gte.c, stagefx.c, gl.c) */
 +        void gte_precise_far(const void *addr);
++        void gte_camera_save(void);
 +        float native_stage_horizon(void);
 +        ShortVec3 *v = mesh->vertices;
 +        MATRIX *w = &mesh->matrix;
 +        float far = native_stage_horizon();
 +        s32 n = far > 0 ? v->x : 0, i;
++
++        if (g_draw_layer == BATTLE_LAYER_STAGE) {
++            gte_camera_save(); /* the battle's camera, for the stage's particles (platform/stagefx.c) */
++        }
 +
 +        for (i = 0; i < n; i++) {
 +            ShortVec3 *p = &v[i + 1];
@@ -255,7 +260,7 @@
      FIGHTSTG_lightMesh(mesh);
      state.cmd = mesh->commands;
      state.texPos = mesh->texPos;
-@@ -892,6 +1086,12 @@
+@@ -892,6 +1091,12 @@
          }
      }
      GFX.funcs.setPrim(state.prim.ptr);
@@ -268,7 +273,7 @@
  }
  
  /* A primitive tag's word with its address replaced: the top byte of tag and
-@@ -1070,6 +1270,9 @@
+@@ -1070,6 +1275,9 @@
      mesh->texPos = texPos;
      mesh->draw = FIGHTSTG_queueMeshDraw;
      mesh->drawWireframe = FIGHTSTG_queueMeshWireframe;

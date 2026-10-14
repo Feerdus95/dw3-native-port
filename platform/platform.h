@@ -156,8 +156,14 @@ typedef struct StageFx {
     float fog, fog_start; /* how much at the far side, where it starts (part of the way) */
     int fog_color[3];
     float horizon;     /* the painted horizon's radius, 0: none */
+    int leaves;        /* falling leaves in the arena, how many */
+    float wind;        /* how hard the wind blows them */
     int on;            /* 0: the stage is left as it is */
 } StageFx;
+void stagefx_draw(int ox, int oy, int x1, int y1, int x2, int y2); /* the particles, after the fighters (stagefx.c) */
+int gte_camera_project(const float p[3], float out[3]); /* the battle camera's (gte.c) */
+float gte_camera_scale(float z);
+int gte_camera_wide(void);
 const StageFx *stagefx_current(float *bright); /* the stage shown's, NULL for none (stagefx.c) */
 void stagefx_frame(void);                     /* a frame drawn */
 void gl_battle_fog(int r, int g, int b); /* a battle's sky drawn, its horizon's colour (gl.c) */

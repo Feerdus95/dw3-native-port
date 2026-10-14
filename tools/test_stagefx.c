@@ -7,8 +7,12 @@
 #include <SDL3/SDL.h>
 #include "platform.h"
 
-int g_battle_sky = 1;
+int g_battle_sky = 1, g_depth = 1;
 int gte_in_battle(void) { return 1; }
+int gte_camera_project(const float p[3], float out[3]) { return 0; }
+float gte_camera_scale(float z) { return 1; }
+int gte_camera_wide(void) { return 0; }
+void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {}
 void native_stage_shown(int id, int bright);
 
 static const StageFx *at(int stage) {
@@ -28,6 +32,9 @@ int main(void) {
     assert(fx && fx->sky && fx->fog_color[0] == 200 && fx->fog_color[2] == 230);
     fx = at(15); /* a room, its own fog */
     assert(fx && !fx->sky && fx->fog == 0.3f && fx->fog_color[1] == 184 && fx->horizon == 0);
+    assert(fx->leaves == 0);
+    fx = at(13);
+    assert(fx->leaves == 60 && fx->wind == 1.0f);
     fx = at(7); /* a room */
     assert(fx && !fx->sky && fx->fog_color[0] == 0 && fx->horizon == 0);
     assert(at(18) == NULL && at(33) == NULL && at(56) == NULL); /* left as they are */

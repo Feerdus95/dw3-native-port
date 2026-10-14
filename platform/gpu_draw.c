@@ -761,4 +761,7 @@ void DrawOTag(uint32_t *p) {
     }
     s_map_a = 0, s_map_s = 1;
     gl_shadows_resolve();
+    if (gte_in_battle() && g_draw_layer == 0x1004) { /* fightstg/types.h's BATTLE_LAYER_MODELS */
+        stagefx_draw(g.ox, g.oy, g.x1, g.y1, g.x2, g.y2);
+    }
 }
