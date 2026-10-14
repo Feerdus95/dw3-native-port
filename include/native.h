@@ -82,6 +82,21 @@ void native_bladegarurumon_setup(void);
 /* listPartnerEntries into room for max ids, BladeGarurumon included when there is */
 int native_list_partner_entries(int partner, unsigned short *out, int max);
 
+/* Fast travel (fast_travel, the options menu): X on a visited area of the
+   map screen (ststatus/map_screen.c) takes the player there as the menu
+   closes, through one of the game's doors into it. The doors: every exit
+   (SLOT_EXIT) of the European stages, with the mode it is in, read before
+   the game runs (platform/mods.c) */
+typedef struct NativeExit {
+    short from, to, x, y, dir; /* to: the mode it leaves for; x, y in pixels there */
+    unsigned short place, placeArg, conditions[2][2];
+} NativeExit;
+extern int g_fast_travel;
+void native_fast_travel_setup(void);
+const NativeExit *native_exits(int *count);
+/* where MODE's stage starts the player (x, y in 256ths of a pixel), 0 without one */
+int native_stage_start(int mode, int *x, int *y, int *dir);
+
 /* Soft shadows (soft_shadows, the options menu): the field's actors' shadow
    subtracted from the ground rather than a grey disc over it, and on the
    card (gl.c) a smooth ellipse rather than the 32x16 sprite's pixels. The

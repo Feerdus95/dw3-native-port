@@ -64,6 +64,10 @@ fps = 50
 # confirms commands). Tab or R3 cycles fast forward (x2, x3, x5), not saved
 fast_text = 1
 
+# 1: on the map screen, X on a visited area takes you there as the menu closes
+# (through a door into it that is open at that point of the story)
+fast_travel = 0
+
 # 1: three more starter packs to choose from in a new game (Dragon, Tactical,
 # Mystic)
 extra_packs = 1

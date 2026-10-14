@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Fast travel** (options menu, off by default): on the map screen, X on a visited area takes you there as the menu
+  closes; the home mark moves to it. You arrive through one of the game's own doors into the area that is open at that
+  point of the story (or at its start, for the two areas no door leads into). After Flawe's Fast Travel hack; no part
+  of it is used.
 - The options menu in tabs, Display, Graphics, Input and Mods, turned with L1 / R1 (Q / E or Page Up / Down on the
   keyboard) beside the battle menu's own page arrows, read from your disc.
 - **F12** saves the game's picture, as drawn, to `screenshots/` by the exe.

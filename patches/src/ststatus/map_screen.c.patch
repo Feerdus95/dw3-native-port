@@ -1,0 +1,78 @@
+--- a/src/ststatus/map_screen.c
++++ b/src/ststatus/map_screen.c
+@@ -130,6 +130,60 @@
+     }
+ }
+ 
++#ifdef NATIVE
++/* Fast travel (native.h): the field the menu goes back to becomes AREA's,
++   in this half of the game, at a door into it from another area that is
++   open now (its slot's conditions), or at its stage's start without one.
++   The field must have been visited. 0 when there is none */
++static s32 fastTravel(s32 area, s32 lateGame) {
++    s32 first = lateGame ? 0x270 : 0x200;
++    s32 last = lateGame ? 0x2D6 : 0x26F;
++    const NativeExit *exits;
++    s32 count;
++    s32 i;
++    s32 x;
++    s32 y;
++    s32 dir;
++
++    exits = native_exits(&count);
++    for (i = 0; i < count; i++) {
++        const NativeExit *e = &exits[i];
++
++        if (e->to < first || e->to > last || (STSTATUS_mapAreas[e->to & 0xFF] & 0x7F) != area ||
++            FLAGS_00.checkCondition((e->to & 0xFF) | 0x2000, 1) != 1) {
++            continue;
++        }
++        if (e->from >= first && e->from <= last && (STSTATUS_mapAreas[e->from & 0xFF] & 0x7F) == area) {
++            continue; /* a door within the area */
++        }
++        if ((e->conditions[0][0] != 0xFFFF && FLAGS_00.checkCondition(e->conditions[0][0], e->conditions[0][1]) == 0) ||
++            (e->conditions[1][0] != 0xFFFF && FLAGS_00.checkCondition(e->conditions[1][0], e->conditions[1][1]) == 0)) {
++            continue;
++        }
++        GAME.fieldMode = e->to;
++        GAME.fieldPos.x = e->x << 8;
++        GAME.fieldPos.y = e->y << 8;
++        GAME.fieldDir = e->dir;
++        GAME.place = e->place;
++        GAME.placeArg = e->placeArg;
++        return 1;
++    }
++    for (i = first; i <= last; i++) {
++        if ((STSTATUS_mapAreas[i & 0xFF] & 0x7F) == area && FLAGS_00.checkCondition((i & 0xFF) | 0x2000, 1) == 1 &&
++            native_stage_start(i, &x, &y, &dir)) {
++            GAME.fieldMode = i;
++            GAME.fieldPos.x = x;
++            GAME.fieldPos.y = y;
++            GAME.fieldDir = dir;
++            GAME.place = 0;
++            GAME.placeArg = 0;
++            return 1;
++        }
++    }
++    return 0;
++}
++#endif
++
+ /* Moves the cursor faster while the pad is held; triangle closes */
+ void STSTATUS_runMapScreen(StatusMapScreen *screen, TextWindow **windows) {
+     if (PAD_HELD(PAD_LEFT) || PAD_HELD(PAD_RIGHT)) {
+@@ -170,6 +224,14 @@
+         SOUND.playSound(SOUND_MENU_CANCEL);
+         screen->state = TASK_KILL;
+     }
++#ifdef NATIVE
++    /* X on an area: the home mark moves there, where the menu will go back to */
++    if (g_fast_travel && screen->hovering && PAD_PRESSED(PAD_CROSS) && fastTravel(screen->spot - 1, screen->lateGame)) {
++        SOUND.playSound(SOUND_SELECT);
++        screen->homeX = STSTATUS_data.spots[screen->spot].x + 0xC;
++        screen->homeY = STSTATUS_data.spots[screen->spot].y + 0xC;
++    }
++#endif
+ }
+ 
+ /* Draws the map, the visited areas, the towns and the cursor */
