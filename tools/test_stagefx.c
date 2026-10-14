@@ -7,7 +7,7 @@
 #include <SDL3/SDL.h>
 #include "platform.h"
 
-int g_battle_sky = 1, g_depth = 1;
+int g_battle_sky = 1, g_depth = 1, g_log;
 int gte_in_battle(void) { return 1; }
 int gte_camera_project(const float p[3], float out[3]) { return 0; }
 float gte_camera_scale(float z) { return 1; }
@@ -34,7 +34,7 @@ int main(void) {
     assert(fx && !fx->sky && fx->fog == 0.3f && fx->fog_color[1] == 184 && fx->horizon == 0);
     assert(fx->leaves == 0);
     fx = at(13);
-    assert(fx->leaves == 60 && fx->wind == 1.0f && fx->clouds == 1.5f && fx->sway == 1.0f);
+    assert(fx->leaves == 60 && fx->wind == 1.0f && fx->clouds == 3.0f && fx->sway == 1.0f);
     fx = at(7); /* a room */
     assert(fx && !fx->sky && fx->fog_color[0] == 0 && fx->horizon == 0);
     assert(at(18) == NULL && at(33) == NULL && at(56) == NULL); /* left as they are */
