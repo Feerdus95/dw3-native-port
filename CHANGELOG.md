@@ -8,7 +8,8 @@
 - Battle shadows: the partner's shadow while its commands are chosen (its picture beside the menus turned it off).
 - The window, resized from the menu or by Widescreen battles, fits the screen it is on and is centred there.
 - **Widescreen battles** (options menu, off by default): battles shown 16:9 with the 3D a third wider, the way
-  emulators' widescreen hacks do it (the battle's 2D stretched); the fields stay 4:3. The window turns 16:9 with it.
+  emulators' widescreen hacks do it; the fields stay 4:3. The window turns 16:9 with it. The menus keep their shape,
+  against the left or the right edge; the HP panels, the partner's picture and the messages stretch with the picture.
 - **Battle shadows** (options menu, on by default): the Digimon in battle cast their own shape on the ground, along a
   light from above, with soft edges (blurred as they darken the ground once), hidden behind them. The original has none.
 - **Perspective 3D** (options menu, on by default): the 3D's textures in perspective, by the depth the GTE gave each

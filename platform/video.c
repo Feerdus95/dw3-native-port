@@ -23,7 +23,9 @@ void video_resize(int scale) {
     while (scale > 1 && (video_window_width(scale) > usable.w || 240 * scale > usable.h - 40)) {
         scale--;
     }
-    SDL_SetWindowFullscreen(s_window, false);
+    if (SDL_GetWindowFlags(s_window) & SDL_WINDOW_FULLSCREEN) {
+        SDL_SetWindowFullscreen(s_window, false);
+    }
     SDL_SetWindowSize(s_window, video_window_width(scale), 240 * scale);
     SDL_SetWindowPosition(s_window, SDL_WINDOWPOS_CENTERED_DISPLAY(display), SDL_WINDOWPOS_CENTERED_DISPLAY(display));
 }

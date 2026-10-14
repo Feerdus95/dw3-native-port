@@ -11,7 +11,7 @@
      SsSeqCalledTbyT();
      FLIP_PENDING = 0;
  }
-@@ -71,6 +75,10 @@
+@@ -71,10 +75,17 @@
      DrawSync(0);
      FLIP_PENDING = 1;
      while (*(volatile s32 *)&FLIP_PENDING != 0) {
@@ -22,3 +22,10 @@
      }
      if (GFX.prim != NULL) {
          for (i = 0; i < LAYER_COUNT; i++) {
+             if (GFX.layers[i] != NULL) {
++#ifdef NATIVE
++                g_draw_layer = GFX.layerIds[i];
++#endif
+                 GFX.layers[i]->draw(GFX.layers[i]);
+             }
+         }

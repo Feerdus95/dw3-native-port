@@ -94,6 +94,9 @@ extern int g_soft_shadows;
    as GP0 1C triangles (flat, 4 words: the code, three points), which the PSX
    GPU doesn't have. They need Sub-pixel 3D and the Depth buffer */
 extern int g_battle_shadows;
+/* the layer whose ordering table is drawn (main/gfx/display.c's drawFrame),
+   for widescreen battles' menus (platform/gpu_draw.c) */
+extern int g_draw_layer;
 /* the vsyncs so far, a new value for each frame (platform/etc.c) */
 unsigned native_frame(void);
 

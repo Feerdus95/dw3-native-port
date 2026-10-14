@@ -218,11 +218,16 @@ static int too_big(const Vtx *a, const Vtx *b, const Vtx *c) {
     return maxx - minx >= 1024 || maxy - miny >= 512;
 }
 
+/* Widescreen battles' menus (DrawOTag): the x the card draws a packet at,
+   x' = a + (x - a) * s, keeping a menu's shape on the 16:9 picture */
+static float s_map_a, s_map_s = 1;
+int g_draw_layer;
+
 /* A vertex for the card with the drawing state; flags as triangle()'s */
 static GVtx gvtx(float x, float y, int r, int gg, int b, int u, int v, int clut, int flags, int dither) {
     GVtx o;
 
-    o.x = x;
+    o.x = s_map_a + (x - s_map_a) * s_map_s;
     o.y = y;
     o.u = (float)u;
     o.v = (float)v;
@@ -529,17 +534,157 @@ void gpu_packet(const uint32_t *p, int n) {
     }
 }
 
+/* --- widescreen battles' menus --- */
+
+#define WIDE_MENUS_LAYER 0x1005 /* fightstg/types.h's BATTLE_LAYER_MENUS: the HUD, the menus, the messages */
+#define WIDE_MAX 4096
+#define WMIN(a, b) ((a) < (b) ? (a) : (b))
+#define WMAX(a, b) ((a) > (b) ? (a) : (b))
+static struct {
+    int box[4]; /* x0, y0, x1, y1 on screen, from the drawing area's corner */
+    int root;   /* its menu: union-find */
+    float a, s;
+} s_wide[WIDE_MAX];
+static int s_wide_n;
+
+static int wide_root(int i) {
+    while (s_wide[i].root != i) {
+        i = s_wide[i].root = s_wide[s_wide[i].root].root;
+    }
+    return i;
+}
+
+/* A packet's box on screen (its polygons and rectangles), 0 if it has none;
+   *ox, *x1 and *y1 follow its offset and drawing area */
+static int packet_box(const uint32_t *p, int n, int *ox, int *oy, int *x1, int *y1, int box[4]) {
+    int found = 0;
+
+    while (n > 0) {
+        uint32_t cmd = p[0] >> 24;
+        int k = (cmd >= 0x40 && cmd < 0x60) ? n : cmd_words(p), i, xs[4], ys[4], nv = 0;
+
+        if (k > n) {
+            k = n;
+        }
+        if (cmd >= 0x20 && cmd < 0x40) {
+            int gouraud = cmd & 0x10, tex = cmd & 4, w = 1;
+
+            nv = (cmd & 8) ? 4 : 3;
+            for (i = 0; i < nv; i++) {
+                xs[i] = sx(p[w]) + *ox - *x1;
+                ys[i] = sy(p[w]) + *oy - *y1;
+                w += 1 + (tex ? 1 : 0) + (gouraud && i < nv - 1 ? 1 : 0);
+            }
+        } else if (cmd >= 0x60 && cmd < 0x80) {
+            int size = cmd >> 3 & 3, wh = 2 + ((cmd & 4) ? 1 : 0);
+            int w = size == 0 ? (int)(p[wh] & 0x3FF) : size == 1 ? 1 : size == 2 ? 8 : 16;
+            int h = size == 0 ? (int)(p[wh] >> 16 & 0x1FF) : w;
+
+            xs[0] = sx(p[1]) + *ox - *x1, ys[0] = sy(p[1]) + *oy - *y1;
+            xs[1] = xs[0] + w, ys[1] = ys[0] + h;
+            nv = 2;
+        } else if (cmd == 0xE3) {
+            *x1 = p[0] & 1023, *y1 = p[0] >> 10 & 511;
+        } else if (cmd == 0xE5) {
+            *ox = (int)(p[0] << 21) >> 21, *oy = (int)(p[0] << 10) >> 21;
+        }
+        for (i = 0; i < nv; i++) {
+            if (!found) {
+                box[0] = box[2] = xs[i], box[1] = box[3] = ys[i];
+                found = 1;
+            }
+            box[0] = xs[i] < box[0] ? xs[i] : box[0];
+            box[1] = ys[i] < box[1] ? ys[i] : box[1];
+            box[2] = xs[i] > box[2] ? xs[i] : box[2];
+            box[3] = ys[i] > box[3] ? ys[i] : box[3];
+        }
+        p += k;
+        n -= k;
+    }
+    return found;
+}
+
+/* Each packet of the menus' table its place on the 16:9 picture: packets
+   that touch are one menu; a menu on the left keeps its shape against the
+   left edge, one on the right against the right edge; the HUD at the top,
+   the partner's picture and what spans the screen (the messages) stay
+   stretched with the picture */
+static void wide_plan(uint32_t *p) {
+    int ox = g.ox, oy = g.oy, x1 = g.x1, y1 = g.y1, guard = 0, i, j, r;
+    static int menu[WIDE_MAX][4];
+
+    s_wide_n = 0;
+    while (p != NULL && guard++ < 1000000 && s_wide_n < WIDE_MAX) {
+        uint32_t tag = *p;
+        int n = tag >> 24;
+
+        if (n) {
+            if (!packet_box(p + 1, n, &ox, &oy, &x1, &y1, s_wide[s_wide_n].box)) {
+                s_wide[s_wide_n].box[0] = 1 << 20; /* none: touches nothing */
+                s_wide[s_wide_n].box[2] = -(1 << 20);
+            }
+            s_wide[s_wide_n].root = s_wide_n;
+            s_wide_n++;
+        }
+        if ((tag & 0xFFFFFF) == 0xFFFFFF) {
+            break;
+        }
+        p = (uint32_t *)(uintptr_t)(tag & 0xFFFFFF);
+    }
+    /* ponytail: O(n^2) over the menus' packets, a few hundred a frame */
+    for (i = 0; i < s_wide_n; i++) {
+        for (j = i + 1; j < s_wide_n; j++) {
+            int *a = s_wide[i].box, *b = s_wide[j].box;
+
+            if (a[0] <= b[2] + 2 && b[0] <= a[2] + 2 && a[1] <= b[3] + 2 && b[1] <= a[3] + 2) {
+                s_wide[wide_root(i)].root = wide_root(j);
+            }
+        }
+    }
+    for (i = 0; i < s_wide_n; i++) {
+        menu[i][0] = 1 << 20, menu[i][1] = 1 << 20, menu[i][2] = -(1 << 20), menu[i][3] = -(1 << 20);
+    }
+    for (i = 0; i < s_wide_n; i++) {
+        int *b = s_wide[i].box;
+
+        r = wide_root(i);
+        if (b[0] <= b[2]) {
+            menu[r][0] = WMIN(menu[r][0], b[0]), menu[r][1] = WMIN(menu[r][1], b[1]);
+            menu[r][2] = WMAX(menu[r][2], b[2]), menu[r][3] = WMAX(menu[r][3], b[3]);
+        }
+    }
+    for (i = 0; i < s_wide_n; i++) {
+        int *m = menu[wide_root(i)];
+        int hud = m[3] < 0x4A;                                             /* the HP panels, at the top */
+        int partner = m[0] < 0x134 && m[2] > 0xD0 && m[1] < 0x88 && m[3] > 0x4C; /* its picture's frame */
+        int wide = m[2] - m[0] > 200;                                      /* the messages */
+
+        if (m[0] > m[2] || hud || partner || wide) {
+            s_wide[i].a = 0, s_wide[i].s = 1;
+        } else {
+            s_wide[i].a = (float)(x1 + ((m[0] + m[2]) / 2 < 160 ? 0 : 320)), s_wide[i].s = 0.75f;
+        }
+    }
+}
+
 /* Walks an ordering table: each tag is {next address: 24, words: 8}, then the words */
 void DrawOTag(uint32_t *p) {
-    int guard = 0;
+    int guard = 0, wide = gte_widescreen() && g_draw_layer == WIDE_MENUS_LAYER, k = 0;
 
     gl_sync(0);
     gl_depth_clear();
+    if (wide) {
+        wide_plan(p);
+    }
     while (p != NULL && guard++ < 1000000) {
         uint32_t tag = *p;
         int n = tag >> 24;
 
         if (n) {
+            if (wide && k < s_wide_n) {
+                s_map_a = s_wide[k].a, s_map_s = s_wide[k].s;
+                k++;
+            }
             gpu_packet(p + 1, n);
         }
         if ((tag & 0xFFFFFF) == 0xFFFFFF) {
@@ -547,5 +692,6 @@ void DrawOTag(uint32_t *p) {
         }
         p = (uint32_t *)(uintptr_t)(tag & 0xFFFFFF);
     }
+    s_map_a = 0, s_map_s = 1;
     gl_shadows_resolve();
 }
