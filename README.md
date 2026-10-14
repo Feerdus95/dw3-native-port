@@ -117,6 +117,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 | True colour | the colours at 8 bits a channel, without the PlayStation's 5-bit banding (dithering then has no use) |
 | Dithering | the PlayStation's dithering on shaded polygons |
 | Soft shadows | the shadows under the characters on the field darken the ground, with smooth edges, instead of the original's grey disc. Off by default |
+| Battle shadows | the Digimon in battle cast their shape on the ground, as the light from above falls (with Sub-pixel 3D and the Depth buffer) |
 | Smooth movies | the movies smoothed when scaled up, or with sharp pixels |
 | Fullscreen, Window size | |
 | Vibration, Stick deadzone | the gamepad |
@@ -136,6 +137,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
     smooth_3d = 1        ; 0: the 3D's textures in sharp blocks
     true_color = 1       ; 0: the colours at the PlayStation's 5 bits a channel
     dither = 1           ; 0 turns off the PlayStation's dithering
+    battle_shadows = 1   ; 0: no shadows in battle
     soft_shadows = 0     ; 1: the field's shadows see-through and smooth
     smooth_movies = 1    ; 0 shows the movies with sharp pixels
     deadzone = 3277      ; how far the sticks and triggers move before they count (0-32767)

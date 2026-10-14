@@ -1,6 +1,24 @@
 --- a/src/fightstg/fightstg.c
 +++ b/src/fightstg/fightstg.c
-@@ -536,6 +536,25 @@
+@@ -382,6 +382,17 @@
+         }
+         for (j = 0; j < 2; j++) {
+             if (model->control->layers[j].enabled) {
++#ifdef NATIVE
++                {
++                    Models *models = TASK_REGISTRY.funcs.find(BATTLE_TASK_MODELS, -1, -1);
++                    s32 fighter = models != NULL && model->control >= &models->controls[0] && model->control < &models->controls[4] &&
++                                  model->control->layers[j].layerId == BATTLE_LAYER_MODELS && !model->control->layers[j].wireframe;
++
++                    for (d = 1; d < model->boneCount; d++) {
++                        children[d + 1]->nativeShadow = fighter;
++                    }
++                }
++#endif
+                 for (d = 0, drawn = model->bones; d < model->boneCount; d++, drawn++) {
+                     if (d != 0 && drawn->visible) {
+                         if (model->control->layers[j].wireframe) {
+@@ -536,6 +547,134 @@
      }
  }
  
@@ -21,12 +39,121 @@
 +        NATIVE_PRECISE3(prim);                                \
 +        gte_precise_copy(&(prim)->x3, FIGHTSTG_sxyFrom[3]);   \
 +    } while (0)
++
++/* A fighter's Mesh's shadow (g_battle_shadows, native.h): its vertices dropped
++   to the ground (y 0) along a light from above, its opaque polygons as GP0 1C
++   triangles, which only the graphics card draws (darkening the ground once
++   where they overlap, behind the fighters by the depth buffer); last in the
++   layer's table, over the stage. The packets go to a buffer of their own */
++#define NATIVE_SHADOW_VERTICES 1024
++#define NATIVE_SHADOW_WORDS 0x8000
++#define NATIVE_LIGHT_X 0x5A0 /* the light's way, in 4096ths of its fall */
++#define NATIVE_LIGHT_Z 0x400
++static u_long FIGHTSTG_shadowPackets[2][NATIVE_SHADOW_WORDS];
++static s32 FIGHTSTG_shadowUsed[2];
++static u32 FIGHTSTG_shadowFrame[2];
++unsigned native_frame(void);
++
++static void nativeShadowTriangle(u_long *ot, s32 *sxy, s32 a, s32 b, s32 c) {
++    s32 buf = GFX.buffer & 1;
++    u_long *p;
++
++    if (FIGHTSTG_shadowUsed[buf] + 5 > NATIVE_SHADOW_WORDS) {
++        return;
++    }
++    p = &FIGHTSTG_shadowPackets[buf][FIGHTSTG_shadowUsed[buf]];
++    FIGHTSTG_shadowUsed[buf] += 5;
++    p[0] = 4 << 24;
++    p[1] = 0x1C000000;
++    p[2] = sxy[a];
++    p[3] = sxy[b];
++    p[4] = sxy[c];
++    gte_precise_copy(&p[2], &sxy[a]);
++    gte_precise_copy(&p[3], &sxy[b]);
++    gte_precise_copy(&p[4], &sxy[c]);
++    addPrim(ot, p);
++}
++
++static void nativeDrawMeshShadow(Mesh *mesh, Layer *layer) {
++    static s32 sxy[NATIVE_SHADOW_VERTICES];
++    ShortVec3 *vertex = mesh->vertices;
++    s32 count = vertex->x;
++    MATRIX *w = &mesh->matrix;
++    MATRIX m;
++    SVECTOR ground;
++    u_long *ot = layer->getOt(layer);
++    s32 i, x, y, z, buf = GFX.buffer & 1;
++    s32 quad = 0, textured = 0, lit = 0, abr = 0, n;
++    u8 *cmd;
++
++    if (count > NATIVE_SHADOW_VERTICES) {
++        return;
++    }
++    if (FIGHTSTG_shadowFrame[buf] != native_frame()) {
++        FIGHTSTG_shadowFrame[buf] = native_frame();
++        FIGHTSTG_shadowUsed[buf] = 0;
++    }
++    gte_CompMatrix(&GsWSMATRIX, &IDENTITY_MATRIX, &m);
++    gte_SetRotMatrix(&m);
++    gte_SetTransMatrix(&m);
++    for (i = 0, vertex++; i < count; i++, vertex++) {
++        x = ((w->m[0][0] * vertex->x + w->m[0][1] * vertex->y + w->m[0][2] * vertex->z) >> 12) + w->t[0];
++        y = ((w->m[1][0] * vertex->x + w->m[1][1] * vertex->y + w->m[1][2] * vertex->z) >> 12) + w->t[1];
++        z = ((w->m[2][0] * vertex->x + w->m[2][1] * vertex->y + w->m[2][2] * vertex->z) >> 12) + w->t[2];
++        if (y < 0) { /* above the ground (y grows down) */
++            x -= y * NATIVE_LIGHT_X >> 12;
++            z -= y * NATIVE_LIGHT_Z >> 12;
++        }
++        ground.vx = x < -0x7FFF ? -0x7FFF : x > 0x7FFF ? 0x7FFF : x;
++        ground.vy = 0;
++        ground.vz = z < -0x7FFF ? -0x7FFF : z > 0x7FFF ? 0x7FFF : z;
++        gte_ldv0(&ground);
++        gte_rtps();
++        gte_stsxy(&sxy[i]);
++    }
++    /* the polygons, as FIGHTSTG_drawMesh walks them */
++    for (cmd = mesh->commands; *cmd != 0xFF;) {
++        if (*cmd >> 4) {
++            switch (*cmd >> 4) {
++            case 8: quad = *cmd & 0xF; break;
++            case 9: textured = *cmd & 0xF; break;
++            case 12: lit = *cmd & 0xF; break;
++            case 14: abr = *cmd & 0xF; break;
++            }
++            cmd++;
++        } else if ((*cmd & 0xF) == 1) {
++            cmd += 7;
++        } else if ((*cmd & 0xF) >= 2 && (*cmd & 0xF) <= 5) {
++            cmd += 4;
++        } else if ((*cmd & 0xF) == 0) {
++            do {
++                cmd++;
++                if (!abr) { /* see-through parts (glows) cast none */
++                    nativeShadowTriangle(ot, sxy, cmd[0], cmd[1], cmd[2]);
++                    if (quad) {
++                        nativeShadowTriangle(ot, sxy, cmd[1], cmd[3], cmd[2]);
++                    }
++                }
++                n = quad + 3;
++                cmd += n;
++                if (lit) {
++                    cmd += n;
++                }
++                if (textured) {
++                    cmd += n * 2;
++                }
++            } while (*cmd == 0);
++        } else {
++            cmd++;
++        }
++    }
++}
 +#endif
 +
  /* The screen positions of a Mesh's vertices and their depths in the layer's
     ordering table */
  void FIGHTSTG_projectMesh(Mesh *mesh, Layer *layer) {
-@@ -599,9 +618,15 @@
+@@ -599,9 +738,15 @@
          }
          *(s32 *)&state->prim.gt4->x3 = state->sxy[3];
          *(u16 *)&state->prim.gt4->u3 = *(u16 *)state->uv[3];
@@ -42,7 +169,7 @@
          setPolyGT3(state->prim.gt3);
          if (state->abr) {
              setSemiTrans(state->prim.gt3, 1);
-@@ -629,9 +654,15 @@
+@@ -629,9 +774,15 @@
          }
          *(s32 *)&state->prim.ft4->x3 = state->sxy[3];
          *(u16 *)&state->prim.ft4->u3 = *(u16 *)state->uv[3];
@@ -58,7 +185,7 @@
          setPolyFT3(state->prim.ft3);
          if (state->abr) {
              setSemiTrans(state->prim.ft3, 1);
-@@ -736,12 +767,28 @@
+@@ -736,12 +887,28 @@
          if (state->quad) {
              state->sxy[3] = state->screen[i3];
          }
@@ -87,7 +214,7 @@
              if (state->sxy[0] == state->sxy[1] || state->sxy[0] == state->sxy[2] ||
                  state->sxy[1] == state->sxy[2]) {
                  break;
-@@ -754,6 +801,9 @@
+@@ -754,6 +921,9 @@
              if (opz <= 0) {
                  break;
              }
@@ -97,3 +224,25 @@
              if (state->lit) {
                  p = state->cmd + (state->quad + 3);
                  state->colors[0] = state->normalColors[p[0]];
+@@ -892,6 +1062,11 @@
+         }
+     }
+     GFX.funcs.setPrim(state.prim.ptr);
++#ifdef NATIVE
++    if (g_battle_shadows && mesh->nativeShadow) {
++        nativeDrawMeshShadow(mesh, layer);
++    }
++#endif
+ }
+ 
+ /* A primitive tag's word with its address replaced: the top byte of tag and
+@@ -1070,6 +1245,9 @@
+     mesh->texPos = texPos;
+     mesh->draw = FIGHTSTG_queueMeshDraw;
+     mesh->drawWireframe = FIGHTSTG_queueMeshWireframe;
++#ifdef NATIVE
++    mesh->nativeShadow = 0;
++#endif
+     return mesh;
+ }
+ 

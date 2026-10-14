@@ -23,7 +23,8 @@
     X(glVertexAttribIPointer) X(glGenFramebuffers) X(glDeleteFramebuffers) X(glBindFramebuffer)                     \
     X(glFramebufferTexture2D) X(glCheckFramebufferStatus) X(glBlitFramebuffer)                                  \
     X(glGenRenderbuffers) X(glDeleteRenderbuffers) X(glBindRenderbuffer) X(glRenderbufferStorage)                \
-    X(glFramebufferRenderbuffer) X(glDepthFunc) X(glDepthMask) X(glClearDepth)
+    X(glFramebufferRenderbuffer) X(glDepthFunc) X(glDepthMask) X(glClearDepth) X(glClearStencil)                  \
+    X(glStencilFunc) X(glStencilOp) X(glPolygonOffset)
 
 #define X(f) static __typeof__(f) *p_##f;
 GL_FUNCS(X)
@@ -57,7 +58,7 @@ static const char *MAIN_VS =
 
 /* mode: 2 textured, 4 raw texture, 8 semi-transparent, 16-48 texel depth,
    64 dithered, 128 the copy of VRAM itself, 256 sets the mask bit, 512 a soft
-   shadow (native.h's NATIVE_SOFT_SHADOW) */
+   shadow (native.h's NATIVE_SOFT_SHADOW), 1024 a battle shadow's triangle */
 static const char *MAIN_FS =
     "#version 330 core\n"
     "uniform usampler2D vram;\n"
@@ -95,6 +96,11 @@ static const char *MAIN_FS =
     "    bool semi = (md & 8u) != 0u;\n"
     "    vec3 c8 = col, c5;\n"
     "    float cover = 1.0;\n"
+    "    if ((md & 1024u) != 0u) {\n" /* a battle shadow: how much of the ground it takes */
+    "        if (pass == 1) discard;\n"
+    "        frag = vec4(vec3(0.45), 0.0);\n"
+    "        return;\n"
+    "    }\n"
     "    if ((md & 128u) != 0u) {\n"
     "        pix = fetch(int(gl_FragCoord.x / scale), int(gl_FragCoord.y / scale));\n"
     "        frag = vec4(rgb5(pix) / 31.0, float(pix >> 15));\n"
@@ -166,7 +172,8 @@ static GLuint s_fbo, s_fbo_tex;      /* the copy, render_scale times bigger */
 static GLuint s_fbo_depth;           /* its depth buffer, for the 3D models (g_depth) */
 int g_depth = 1;
 int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1; /* true_color, perspective, smooth_3d, the menu */
-int g_soft_shadows; /* soft_shadows = 1, the menu (native.h) */
+int g_soft_shadows;
+int g_battle_shadows = 1; /* battle_shadows, the menu (native.h) */ /* soft_shadows = 1, the menu (native.h) */
 static int s_deep;                   /* the batch is by the depth buffer */
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
 static GLuint s_movie_tex, s_menu_tex;
@@ -332,6 +339,15 @@ static void flush(void) {
             GL(glBlendEquation)(GL_FUNC_ADD);
             GL(glBlendFuncSeparate)(GL_ZERO, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
             break;
+        case 5: /* back * (1 - front), once a pixel: a battle shadow (gpu_draw.c) */
+            GL(glBlendEquation)(GL_FUNC_ADD);
+            GL(glBlendFuncSeparate)(GL_ZERO, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
+            GL(glEnable)(GL_STENCIL_TEST);
+            GL(glStencilFunc)(GL_EQUAL, 0, 0xFF);
+            GL(glStencilOp)(GL_KEEP, GL_KEEP, GL_INCR);
+            GL(glEnable)(GL_POLYGON_OFFSET_FILL); /* on the ground it lies on */
+            GL(glPolygonOffset)(-1.0f, -4.0f);
+            break;
         default: /* back + front / 4 */
             GL(glBlendEquation)(GL_FUNC_ADD);
             GL(glBlendFuncSeparate)(GL_CONSTANT_COLOR, GL_ONE, GL_ONE, GL_ZERO);
@@ -340,6 +356,8 @@ static void flush(void) {
         GL(glUniform1i)(s_pass_loc, 2);
         GL(glDrawArrays)(GL_TRIANGLES, 0, s_count);
         GL(glDisable)(GL_BLEND);
+        GL(glDisable)(GL_STENCIL_TEST);
+        GL(glDisable)(GL_POLYGON_OFFSET_FILL);
         GL(glBlendEquation)(GL_FUNC_ADD);
     }
     GL(glDisable)(GL_DEPTH_TEST);
@@ -393,7 +411,8 @@ void gl_depth_clear(void) {
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fbo);
     GL(glDepthMask)(GL_TRUE);
     GL(glClearDepth)(1.0);
-    GL(glClear)(GL_DEPTH_BUFFER_BIT);
+    GL(glClearStencil)(0);
+    GL(glClear)(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
 /* A quad of the copy that shows the 1x VRAM under it: after the CPU wrote
@@ -466,9 +485,9 @@ void gl_sync(int force) {
         s_fbo = framebuffer(s_fbo_tex);
         GL(glGenRenderbuffers)(1, &s_fbo_depth);
         GL(glBindRenderbuffer)(GL_RENDERBUFFER, s_fbo_depth);
-        GL(glRenderbufferStorage)(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, VRAM_W * want, VRAM_H * want);
+        GL(glRenderbufferStorage)(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, VRAM_W * want, VRAM_H * want); /* the stencil: battle shadows */
         GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fbo);
-        GL(glFramebufferRenderbuffer)(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, s_fbo_depth);
+        GL(glFramebufferRenderbuffer)(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, s_fbo_depth);
         s_tmp_tex = texture(GL_RGBA8, VRAM_W * want, VRAM_H * want, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST);
         s_tmp_fbo = framebuffer(s_tmp_tex);
         GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);

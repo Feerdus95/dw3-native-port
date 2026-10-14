@@ -25,6 +25,10 @@ int native_real_vsync(void) {
     return s_real;
 }
 
+unsigned native_frame(void) {
+    return (unsigned)s_vsyncs;
+}
+
 /* One vsync: wait for its time, run the callback, show the frame */
 static void vblank(void) {
     uint64_t now = SDL_GetTicksNS();

@@ -89,6 +89,14 @@ int native_list_partner_entries(int partner, unsigned short *out, int max);
 extern int g_soft_shadows;
 #define NATIVE_SOFT_SHADOW 0x8000
 
+/* Battle shadows (battle_shadows, the options menu): each fighter's model
+   cast on the ground (fightstg/fightstg.c), drawn by the graphics card alone
+   as GP0 1C triangles (flat, 4 words: the code, three points), which the PSX
+   GPU doesn't have. They need Sub-pixel 3D and the Depth buffer */
+extern int g_battle_shadows;
+/* the vsyncs so far, a new value for each frame (platform/etc.c) */
+unsigned native_frame(void);
+
 /* printf to stderr, for probes (platform/main.c) */
 void native_log(const char *fmt, ...);
 

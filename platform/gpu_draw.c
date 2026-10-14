@@ -242,7 +242,7 @@ static GVtx gvtx(float x, float y, int r, int gg, int b, int u, int v, int clut,
     o.twoy = (uint16_t)g.tw_off_y;
     o.z = 0;
     o.w = 0;
-    o.mode = (uint32_t)((flags & 2) | (flags & 6) | (flags & 8) | (flags & 512) | g.depth << 4 | (dither ? 64 : 0) | (g.set_mask ? 256 : 0));
+    o.mode = (uint32_t)((flags & 2) | (flags & 6) | (flags & 8) | (flags & 512) | (flags & 1024) | g.depth << 4 | (dither ? 64 : 0) | (g.set_mask ? 256 : 0));
     return o;
 }
 
@@ -407,6 +407,22 @@ void gpu_gp0(const uint32_t *p, int n) {
                 gl_tri(gv[1], gv[2], gv[3]);
             }
         }
+    } else if (cmd == 0x1C) {
+        /* a battle shadow's triangle (native.h): the card alone, by the depth
+           buffer, where every point has its depth */
+        GVtx gv[3];
+        int k;
+        float fx, fy, fz;
+
+        for (k = 0; k < 3; k++) {
+            precise(&p[1 + k], &fx, &fy, &fz);
+            if (fz <= 0 || !g_depth) {
+                return;
+            }
+            gv[k] = gvtx(fx, fy, 0, 0, 0, 0, 0, 0, 8 | 1024, 0);
+            gv[k].z = gv[k].w = fz;
+        }
+        gl_triangles(gv, 3, g.x1, g.y1, g.x2, g.y2, 5);
     } else if (cmd >= 0x60 && cmd < 0x80) {
         int size = cmd >> 3 & 3, tex = cmd & 4, semi = cmd & 2, raw = cmd & 1;
         int k = 1, x = sx(p[1]) + g.ox, y = sy(p[1]) + g.oy, u = 0, vv = 0, clut = 0, w, h, soft = 0;
@@ -494,6 +510,7 @@ static int cmd_words(const uint32_t *p) {
     }
     if (cmd >= 0x60 && cmd < 0x80) return 2 + ((cmd & 4) ? 1 : 0) + (((cmd >> 3 & 3) == 0) ? 1 : 0);
     if (cmd == 0x02) return 3;
+    if (cmd == 0x1C) return 4; /* a battle shadow's triangle (native.h) */
     if (cmd >= 0x80 && cmd < 0xA0) return 4;
     return 1;
 }

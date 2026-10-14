@@ -26,6 +26,10 @@ true_color = 1
 # 0: no dithering (the PlayStation's, on shaded and blended polygons)
 dither = 1
 
+# 1: the Digimon in battle cast their shape on the ground (needs Sub-pixel 3D
+# and the Depth buffer, both on by default)
+battle_shadows = 1
+
 # 1: the shadows under the characters on the field darken the ground they
 # fall on, with smooth edges at any resolution, instead of the original's grey
 # disc (0)

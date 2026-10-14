@@ -1,0 +1,12 @@
+--- a/include/fightstg/model.h
++++ b/include/fightstg/model.h
+@@ -35,6 +35,9 @@
+     /* 0x84 */ MATRIX matrix;
+     /* 0xA4 */ void (*draw)(struct Mesh *mesh, s32 layerId, MATRIX *matrix);
+     /* 0xA8 */ void (*drawWireframe)(struct Mesh *mesh, s32 layerId, MATRIX *matrix);
++#ifdef NATIVE
++    s32 nativeShadow; /* a fighter's: it casts a shadow (native.h's g_battle_shadows) */
++#endif
+ } Mesh;
+ 
+ /* A Mesh's drawing state while its drawer (FIGHTSTG_drawMesh) walks its command

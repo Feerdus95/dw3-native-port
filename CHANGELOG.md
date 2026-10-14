@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Battle shadows** (options menu, on by default): the Digimon in battle cast their own shape on the ground, along a
+  light from above, darkening it once where their parts overlap and hidden behind them. The original has none.
 - **Perspective 3D** (options menu, on by default): the 3D's textures in perspective, by the depth the GTE gave each
   point, without the PlayStation's warping as the camera moves.
 - **Smooth 3D textures** (options menu, on by default): the 3D models' textures filtered between their texels when
