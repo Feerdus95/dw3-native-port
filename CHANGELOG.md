@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Battle sky and fog** (options menu, Graphics tab, off by default): the battle's flat background becomes a sky,
+  darker toward the top and the stage's own colour at the horizon, and the stage's far side fades into it with
+  distance, so the arena's edge no longer ends against a flat colour. The game's own picture (1x) stays as it was.
+
 ## v0.11.0 (beta)
 
 - Fast text waits for X to be held a third of a second: a tap shows the page whole, as in the original, and the next

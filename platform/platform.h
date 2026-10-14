@@ -148,6 +148,8 @@ int video_window_width(int scale); /* 320 * scale, or 16:9 with widescreen (vide
 void video_resize(int scale);      /* the window, windowed, fitting the screen (video.c) */
 extern int g_vsync;                /* vsync = 0: frames shown at once, torn (gl.c) */
 extern int g_soft_shadows;
+extern int g_battle_sky; /* battle_sky = 1: a sky behind the battles and fog over the stage's far side (gl.c, gpu_draw.c) */
+void gl_battle_fog(int r, int g, int b); /* a battle's sky drawn, its horizon's colour (gl.c) */
 extern int g_battle_shadows; /* battle_shadows = 0: the fighters cast none (gl.c, native.h) */  /* soft_shadows = 1: the field's shadows see-through and smooth (gl.c, native.h) */
 extern int g_smooth_movies; /* smooth_movies = 0: movies scaled by nearest pixel (video.c) */
 extern int g_deadzone;      /* deadzone = <0..32767>: the sticks' and triggers' (pad.c) */

@@ -148,6 +148,7 @@ button can be changed in the options menu's Input tab, **Controls**.
     true_color = 1       ; 0: the colours at the PlayStation's 5 bits a channel
     dither = 1           ; 0 turns off the PlayStation's dithering
     battle_shadows = 1   ; 0: no shadows in battle
+    battle_sky = 0       ; 1: a sky behind battles, the stage's far side fading into it
     soft_shadows = 0     ; 1: the field's shadows see-through and smooth
     vsync = 1            ; 0: frames shown at once, which can tear
     smooth_movies = 1    ; 0 shows the movies with sharp pixels

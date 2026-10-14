@@ -18,7 +18,7 @@
     X(glPixelStorei) X(glReadPixels) X(glDrawArrays) X(glActiveTexture) X(glBlendFuncSeparate) X(glBlendEquation)   \
     X(glBlendColor) X(glCreateShader) X(glShaderSource) X(glCompileShader) X(glGetShaderiv) X(glGetShaderInfoLog)  \
     X(glCreateProgram) X(glAttachShader) X(glLinkProgram) X(glGetProgramiv) X(glGetProgramInfoLog) X(glUseProgram) \
-    X(glGetUniformLocation) X(glUniform1i) X(glUniform1f) X(glUniform2f) X(glUniform2i) X(glGenVertexArrays) X(glBindVertexArray)  \
+    X(glGetUniformLocation) X(glUniform1i) X(glUniform1f) X(glUniform2f) X(glUniform4f) X(glUniform2i) X(glGenVertexArrays) X(glBindVertexArray)  \
     X(glGenBuffers) X(glBindBuffer) X(glBufferData) X(glEnableVertexAttribArray) X(glVertexAttribPointer)           \
     X(glVertexAttribIPointer) X(glGenFramebuffers) X(glDeleteFramebuffers) X(glBindFramebuffer)                     \
     X(glFramebufferTexture2D) X(glCheckFramebufferStatus) X(glBlitFramebuffer)                                  \
@@ -47,13 +47,14 @@ static const char *MAIN_VS =
     "uniform int persp;\n"
     "out vec2 uv;\n" /* in perspective by w, or straight across the screen (w 1) */
     "out vec3 col;\n"
+    "out float vw;\n" /* the view depth across the polygon, for the fog */
     "flat out uvec4 t, lim, tw;\n"
     "flat out uint md, deep;\n" /* deep: a 3D polygon, the GTE gave its points their depth */
     "void main() {\n"
     /* linear in 1/z, as depth goes across the screen; the depth test is off without one */
     "    gl_Position = vec4(pos_uv.xy / size * 2.0 - 1.0, z > 0.0 ? clamp(1.0 - 64.0 / z, 0.0, 1.0) * 2.0 - 1.0 : 0.0, 1.0);\n"
     "    gl_Position *= persp != 0 && w > 0.0 ? w : 1.0;\n"
-    "    uv = pos_uv.zw; col = color; t = tex; lim = limits; tw = window; md = mode; deep = w > 0.0 ? 1u : 0u;\n"
+    "    uv = pos_uv.zw; col = color; t = tex; lim = limits; tw = window; md = mode; deep = w > 0.0 ? 1u : 0u; vw = w;\n"
     "}\n";
 
 /* mode: 2 textured, 4 raw texture, 8 semi-transparent, 16-48 texel depth,
@@ -66,8 +67,11 @@ static const char *MAIN_FS =
     "uniform float scale;\n"
     "uniform int truecolor;\n" /* the colours at 8 bits, undithered */
     "uniform int smooth3d;\n" /* the 3D's textures smoothed */
+    "uniform vec4 fog;\n" /* a battle's fog (gl_battle_fog): its colour at 5 bits, a on */
+    "uniform vec2 fogz;\n" /* the depths it starts and is thickest at */
     "in vec2 uv;\n"
     "in vec3 col;\n"
+    "in float vw;\n"
     "flat in uvec4 t, lim, tw;\n"
     "flat in uint md, deep;\n"
     "out vec4 frag;\n"
@@ -144,6 +148,8 @@ static const char *MAIN_FS =
     "        c5 = truecolor != 0 ? clamp(c8 / 8.0, 0.0, 31.0) : clamp(floor((c8 + d) / 8.0), 0.0, 31.0);\n"
     "    }\n"
     "    if ((md & 512u) != 0u) c5 = vec3(18.6 * cover);\n" /* how much of the ground it takes, 0.6 inside */
+    /* the opaque 3D fades into the sky with depth; the blended keeps its own */
+    "    else if (fog.a > 0.0 && deep != 0u && !semi) c5 = mix(c5, fog.rgb, 0.85 * smoothstep(fogz.x, fogz.y, vw));\n"
     "    frag = vec4(c5 / 31.0, (md & 256u) != 0u || (pix & 0x8000u) != 0u ? 1.0 : 0.0);\n"
     "}\n";
 
@@ -184,7 +190,7 @@ static const char *SOFT_FS =
 static SDL_Window *s_window;
 static SDL_GLContext s_ctx;
 static GLuint s_main, s_blit, s_vao, s_vbo, s_quad_vao, s_quad_vbo;
-static GLint s_pass_loc, s_scale_loc, s_size_loc, s_true_loc, s_persp_loc, s_smooth_loc;
+static GLint s_pass_loc, s_scale_loc, s_size_loc, s_true_loc, s_persp_loc, s_smooth_loc, s_fog_loc, s_fogz_loc;
 static GLuint s_vram_tex;            /* the 1x VRAM, R16UI */
 static GLuint s_fbo, s_fbo_tex;      /* the copy, render_scale times bigger */
 static GLuint s_fbo_depth;           /* its depth buffer, for the 3D models (g_depth) */
@@ -194,6 +200,10 @@ int g_soft_shadows;
 int g_vsync = 1; /* vsync, the menu */
 int g_battle_shadows = 1; /* battle_shadows, the menu (native.h) */ /* soft_shadows = 1, the menu (native.h) */
 static int s_deep;                   /* the batch is by the depth buffer */
+int g_battle_sky;                    /* battle_sky, the menu (native.h) */
+static float s_fog[3];               /* the battle's sky colour at the horizon, 5 bits; s_fog_on: drawn this frame */
+static int s_fog_on, s_fog_shown;
+static float s_zfar, s_zframe;       /* the farthest opaque 3D: smoothed, and this frame's */
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
 static GLuint s_mask_fbo, s_mask_tex, s_blur_fbo, s_blur_tex; /* battle shadows: where they fall, blurred */
 static GLuint s_soft;
@@ -333,6 +343,8 @@ static void flush(void) {
     GL(glUniform1i)(s_true_loc, g_true_color);
     GL(glUniform1i)(s_persp_loc, g_perspective);
     GL(glUniform1i)(s_smooth_loc, g_smooth_3d);
+    GL(glUniform4f)(s_fog_loc, s_fog[0], s_fog[1], s_fog[2], s_fog_shown && s_zfar > 0 ? 1.0f : 0.0f);
+    GL(glUniform2f)(s_fogz_loc, s_zfar * 0.45f, s_zfar);
     GL(glDisable)(GL_BLEND);
     if (s_deep) {
         GL(glEnable)(GL_DEPTH_TEST);
@@ -416,6 +428,12 @@ void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi
     }
     if (semi_prim) {
         s_semi = semi;
+    } else if (v[0].w > 0) {
+        int i;
+
+        for (i = 0; i < n; i++) {
+            s_zframe = SDL_max(s_zframe, v[i].w);
+        }
     }
     if (semi == 5) { /* where the mask has shadows */
         int i;
@@ -521,6 +539,16 @@ void gl_refresh(int x, int y, int w, int h) {
     s_count = 6;
     s_clip[0] = 0, s_clip[1] = 0, s_clip[2] = 1023, s_clip[3] = 511;
     flush();
+}
+
+/* A battle's sky drawn (gpu_draw.c), its colour at the horizon the fog's:
+   the stage's background colour, which fades in and out with the stage.
+   ponytail: the fog spans the farthest opaque 3D of the last frames (the
+   stage's edge), as the stages' sizes are not known; a per-stage range
+   when one looks wrong */
+void gl_battle_fog(int r, int gg, int b) {
+    s_fog[0] = r / 8.0f, s_fog[1] = gg / 8.0f, s_fog[2] = b / 8.0f;
+    s_fog_on = 1;
 }
 
 /* VRAM to VRAM, in the copy */
@@ -667,6 +695,8 @@ int gl_init(SDL_Window *window) {
     s_true_loc = GL(glGetUniformLocation)(s_main, "truecolor");
     s_persp_loc = GL(glGetUniformLocation)(s_main, "persp");
     s_smooth_loc = GL(glGetUniformLocation)(s_main, "smooth3d");
+    s_fog_loc = GL(glGetUniformLocation)(s_main, "fog");
+    s_fogz_loc = GL(glGetUniformLocation)(s_main, "fogz");
     GL(glUseProgram)(s_main);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_main, "vram"), 0);
     GL(glUniform2f)(s_size_loc, VRAM_W, VRAM_H);
@@ -739,6 +769,11 @@ void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
     static int vsync = -1;
 
     flush();
+    /* the fog for the next frame: on while a sky is drawn, its depths eased
+       toward this frame's farthest (a camera's cut) */
+    s_fog_shown = s_fog_on;
+    s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
+    s_fog_on = 0, s_zframe = 0;
     if (vsync != g_vsync) {
         /* the game keeps its own time (etc.c); vsync only holds the swap for
            the screen's refresh, so that a frame isn't shown torn */

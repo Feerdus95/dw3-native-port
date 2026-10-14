@@ -34,6 +34,10 @@ dither = 1
 # and the Depth buffer, both on by default)
 battle_shadows = 1
 
+# 1: battles get a sky, darker toward the top, and their stage's far side
+# fades into it with distance; 0: the original's flat background
+battle_sky = 0
+
 # 1: the shadows under the characters on the field darken the ground they
 # fall on, with smooth edges at any resolution, instead of the original's grey
 # disc (0)

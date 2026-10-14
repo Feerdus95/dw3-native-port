@@ -243,7 +243,7 @@ void SetDrawEnv(uint32_t *dr, DRAWENV *env) {
     if (env->isbg && c.w > 0 && c.h > 0) {
         /* a TILE, clipped to the area like libgpu's: a fill (GP0 02) ignores
            the area and its 16-pixel rounding reached past the clip */
-        dr[n++] = 0x60000000u | env->b0 << 16 | env->g0 << 8 | env->r0;
+        dr[n++] = 0x1E000000u | env->b0 << 16 | env->g0 << 8 | env->r0; /* as a TILE, the sky's (gpu_draw.c) */
         dr[n++] = (uint32_t)((c.y - env->ofs[1]) << 16 | ((c.x - env->ofs[0]) & 0xFFFF));
         dr[n++] = (uint32_t)(c.h << 16 | (c.w & 0xFFFF));
     }

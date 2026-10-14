@@ -9,21 +9,21 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, MOVIES, VSYNC, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, ICONS, CONTROLS, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, MOVIES, VSYNC, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, ICONS, CONTROLS, ITEMS };
 
 static const char *LABELS[ITEMS] = {
-    "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Smooth movies", "VSync", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
+    "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Battle sky and fog", "Smooth movies", "VSync", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
     "Fast text (hold X)", "Fast forward (Tab/R3)", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon",
     "Button icons", "Controls",
 };
 
 /* the tabs and their options, each list ending with -1 */
 #define TABS 4
-#define ROWS 9 /* the longest tab's: the box stays the same size */
+#define ROWS 10 /* the longest tab's: the box stays the same size */
 static const char *TAB_NAMES[TABS] = {"Display", "Graphics", "Input", "Mods"};
 static const int TAB_ITEMS[TABS][ROWS + 1] = {
     {FPS, FULLSCREEN, WINDOW, WIDESCREEN, VSYNC, MOVIES, -1},
-    {SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, -1},
+    {SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, -1},
     {ICONS, CONTROLS, RUMBLE, DEADZONE, -1},
     {FAST_TEXT, FAST_FORWARD, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, -1},
 };
@@ -76,6 +76,7 @@ static void value(int item, char *out, size_t size) {
     case DITHER: on = g_dither_on; break;
     case SOFT_SHADOWS: on = g_soft_shadows; break;
     case BATTLE_SHADOWS: on = g_battle_shadows; break;
+    case BATTLE_SKY: on = g_battle_sky; break;
     case SUBPIXEL: on = g_subpixel; break;
     case DEPTH: on = g_depth; break;
     case WIDESCREEN: on = g_widescreen; break;
@@ -106,6 +107,7 @@ static void change(int item, int dir) {
     case DITHER: g_dither_on = !g_dither_on; break;
     case SOFT_SHADOWS: g_soft_shadows = !g_soft_shadows; break;
     case BATTLE_SHADOWS: g_battle_shadows = !g_battle_shadows; break;
+    case BATTLE_SKY: g_battle_sky = !g_battle_sky; break;
     case SUBPIXEL: g_subpixel = !g_subpixel; break;
     case DEPTH: g_depth = !g_depth; break;
     case WIDESCREEN: /* the window follows, unless fullscreen */
@@ -148,7 +150,7 @@ static void change(int item, int dir) {
 /* native.ini's "key = value" lines get the new values; missing keys are
    added, the bindings' only when not the default */
 static void save(void) {
-    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons"};
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons", "battle_sky"};
     enum { FIXED = SDL_arraysize(KEYS), ALL = FIXED + 32 };
     char path[1100], line[1200], key[32], names[ALL][32], vals[ALL][64];
     int done[ALL] = {0}, i, n = ALL;
@@ -178,6 +180,7 @@ static void save(void) {
     SDL_snprintf(vals[19], 16, "%d", g_map_objective);
     SDL_snprintf(vals[20], 16, "%d", g_journal);
     SDL_snprintf(vals[21], 16, "%s", ICON_NAMES[g_icons]);
+    SDL_snprintf(vals[22], 16, "%d", g_battle_sky);
     for (i = 0; i < ALL; i++) {
         if (i < FIXED) {
             SDL_strlcpy(names[i], KEYS[i], sizeof names[i]);

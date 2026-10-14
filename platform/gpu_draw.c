@@ -449,6 +449,27 @@ void gpu_gp0(const uint32_t *p, int n) {
     } else if (cmd == 0x1D) { /* an effect's own image (native.h): the card alone */
         native_effect_draw(p[0] & 0xFFFFFF, s_map_a + (sx(p[1]) + g.ox - s_map_a) * s_map_s, (float)(sy(p[1]) + g.oy), s_map_s,
                            g.x1, g.y1, g.x2, g.y2);
+    } else if (cmd == 0x1E) {
+        /* a drawing area's background (gpu.c's SetDrawEnv), a TILE; in a
+           battle, the screen's also a sky on the card (Battle sky and fog):
+           darker toward the top, the stage's colour at the horizon */
+        int x = sx(p[1]) + g.ox, y = sy(p[1]) + g.oy, w = p[2] & 0x3FF, h = p[2] >> 16 & 0x1FF, k;
+        int r = p[0] & 255, gg = p[0] >> 8 & 255, b = p[0] >> 16 & 255;
+
+        rect(x, y, w, h, p[0] & 0xFFFFFF, 0, 0, 0, 0, 0, 0, 0);
+        if (g_battle_sky && gte_in_battle() && w >= 256 && h >= 200) {
+            static const int CX[6] = {0, 1, 0, 1, 1, 0}, CY[6] = {0, 0, 1, 0, 1, 1};
+            GVtx q[6];
+
+            for (k = 0; k < 6; k++) {
+                int t = CY[k] ? 100 : 45; /* percent of the horizon's colour */
+
+                q[k] = gvtx((float)(x + CX[k] * w), (float)(y + CY[k] * h), r * t / 100, gg * t / 100, b * t / 100, 0, 0, 0, 0,
+                            g_dither_on);
+            }
+            gl_triangles(q, 6, g.x1, g.y1, g.x2, g.y2, g.semi);
+            gl_battle_fog(r, gg, b);
+        }
     } else if (cmd >= 0x60 && cmd < 0x80) {
         int size = cmd >> 3 & 3, tex = cmd & 4, semi = cmd & 2, raw = cmd & 1;
         int k = 1, x = sx(p[1]) + g.ox, y = sy(p[1]) + g.oy, u = 0, vv = 0, clut = 0, w, h, soft = 0;
@@ -538,6 +559,7 @@ static int cmd_words(const uint32_t *p) {
     if (cmd == 0x02) return 3;
     if (cmd == 0x1C) return 4; /* a battle shadow's triangle (native.h) */
     if (cmd == 0x1D) return 2; /* an effect's own image (native.h) */
+    if (cmd == 0x1E) return 3; /* a drawing area's background (gpu.c) */
     if (cmd >= 0x80 && cmd < 0xA0) return 4;
     return 1;
 }
@@ -587,6 +609,7 @@ static int packet_box(const uint32_t *p, int n, int *ox, int *oy, int *x1, int *
         if (k > n) {
             k = n;
         }
+        cmd = cmd == 0x1E ? 0x60 : cmd; /* a background: a TILE */
         if (cmd >= 0x20 && cmd < 0x40) {
             int gouraud = cmd & 0x10, tex = cmd & 4, w = 1;
 
