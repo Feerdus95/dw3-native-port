@@ -74,11 +74,26 @@ void gl_depth_clear(void); /* a new ordering table: its 3D drawn over what came 
 void gl_refresh(int x, int y, int w, int h); /* the copy from VRAM, after the CPU wrote it */
 void gl_copy(int sx, int sy, int w, int h, int dx, int dy);
 void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw);
+/* A small JSON reader (stagemods.c): numbers, strings, arrays and objects */
+typedef struct Json {
+    int type; /* 'n' number, 's' string, '[' array, '{' object, 0 null */
+    double num;
+    char *str;           /* a string */
+    char *key;           /* an object member's key */
+    struct Json *child;  /* the first item of an array or object */
+    struct Json *next;   /* the next item */
+} Json;
+Json *json_value(const char **p); /* NULL when it isn't JSON */
+void json_free(Json *j);
+Json *json_get(Json *obj, const char *key);
+Json *json_at(Json *arr, int i);
+int json_len(Json *arr);
+int json_int(Json *j);
 /* an RGBA image over the copy, from (x0, y0) to (x1, y1), blended by its
-   alpha inside the drawing area; its texture made in *tex on first use */
-void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int cx1, int cy1, int cx2, int cy2);
-/* GP0 1D (native.h): frame KEY & 0xFFF of images KEY >> 12 around (x, y),
-   its width times xs (effects.c) */
+   alpha (or added, ADD) inside the drawing area; its texture made in *tex on first use */
+void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2);
+/* GP0 1D (native.h): images KEY >> 12 at tick KEY & 0xFFF around (x, y),
+   their widths times xs (effects.c) */
 void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int cy1, int cx2, int cy2);
 void gl_present(const struct SDL_Surface *menu, struct SDL_Surface **shot);
 int gte_precise(const uint32_t *word, float *x, float *y, float *z);

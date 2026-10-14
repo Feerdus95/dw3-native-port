@@ -10,7 +10,7 @@
 +s32 FIGHTSTG_nativeCritical;
 +
 +/* A layer callback that draws an effect's own image (native.h) of the frame
-+   its time is at, at its projected position as FIGHTSTG_drawSpriteAnim's, as
++   its time is at (its tick, effects.c picks it), at its projected position as FIGHTSTG_drawSpriteAnim's, as
 +   a GP0 1D packet for the graphics card. The packets go to a buffer of their
 +   own */
 +#define NATIVE_EFFECT_PACKETS 64
@@ -39,7 +39,7 @@
 +    }
 +    p = packets[buf][used[buf]++];
 +    p[0] = 2 << 24;
-+    p[1] = 0x1D000000 | task->nativeImages << 12 | task->nativeTime / 2;
++    p[1] = 0x1D000000 | task->nativeImages << 12 | task->nativeTime;
 +    p[2] = (u16)screen.x | (u32)(u16)screen.y << 16;
 +    addPrim(layer->getOtEntry(layer, screen.z), p);
 +}
@@ -53,8 +53,8 @@
              layerId = BATTLE_LAYER_FRONT;
          }
 +#ifdef NATIVE
-+        /* its own images instead, one every other field */
-+        task->nativeImages = native_effect_images(task->effect, FIGHTSTG_nativeCritical, &task->nativeFrames);
++        /* its own images instead */
++        task->nativeImages = native_effect_images(task->effect, FIGHTSTG_nativeCritical, &task->nativeTicks);
 +        if (task->nativeImages >= 0) {
 +            task->nativeLayer = layerId;
 +            task->count = 0;
@@ -71,7 +71,7 @@
      case TASK_RUN:
 +#ifdef NATIVE
 +        if (task->nativeImages >= 0) {
-+            if (task->nativeTime >= task->nativeFrames * 2) {
++            if (task->nativeTime >= task->nativeTicks) {
 +                task->setState(task, TASK_KILL);
 +                break;
 +            }

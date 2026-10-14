@@ -6,7 +6,7 @@
      /* 0x64 */ s32 count;
 +#ifdef NATIVE
 +    s32 nativeImages; /* its own images instead (native.h), -1: none */
-+    s32 nativeFrames;
++    s32 nativeTicks; /* how long they play */
 +    s32 nativeTime;
 +    s32 nativeLayer;
 +#endif

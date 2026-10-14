@@ -163,11 +163,18 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 
 ### Effects' own images
 
-A battle's 2D effect can be drawn from your own PNGs: put them in `data/mods/effects/<id>/`, played in their names'
-order, one every other field (30 a second). Each is the 320x240 screen around the effect's point, as the model
-viewer's Export PNGs saves an effect, or a bigger image of the same shape for finer detail; their alpha blends them
-over the battle. A critical hit's go in `critical/` inside that folder (without it, criticals use the others). Effect
-2 is the Fight command's hit. The ids are the model viewer's Effects tab's.
+A battle's 2D effect can be drawn from your own PNGs: put them in `data/mods/effects/<id>/`. Each is the 320x240
+screen around the effect's point, as the model viewer's Export PNGs saves an effect, or a bigger image of the same
+shape for finer detail; their alpha blends them over the battle. A critical hit's go in `critical/` inside that folder
+(without it, criticals use the others). Effect 2 is the Fight command's hit. The ids are the model viewer's Effects
+tab's, which also imports the PNGs, plays them and writes the folder's `effect.json`:
+
+    {"frames": [["00.png", 2], ["01.png", 3]], "x": 0, "y": 0, "scale": 1, "blend": "alpha"}
+
+Each frame is a PNG and its ticks. The battle counts time in ticks of 1/60 s (on PAL too), so an effect lasts its
+ticks / 60 seconds; the original hit is 11 ticks, 0.18 s. `x`, `y` move the images in screen pixels, `scale` sizes
+them, and `blend` is `alpha` or `add` (added, for glows). Without the file, the PNGs play in their names' order, 2
+ticks each (30 a second).
 
 ## Troubleshooting
 

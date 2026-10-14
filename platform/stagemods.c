@@ -28,24 +28,14 @@ extern uint8_t GAME[]; /* the game's GameState */
 #define GAME_PLACE 0x44 /* GAME.place, u16: the place that picks a stage's battles */
 int getMode(void);
 
-/* --- a small JSON reader: numbers, strings, arrays and objects --- */
+/* --- a small JSON reader: numbers, strings, arrays and objects (platform.h) --- */
 
-typedef struct Json {
-    int type; /* 'n' number, 's' string, '[' array, '{' object, 0 null */
-    double num;
-    char *str;           /* a string */
-    char *key;           /* an object member's key */
-    struct Json *child;  /* the first item of an array or object */
-    struct Json *next;   /* the next item */
-} Json;
-
-static Json *json_value(const char **p);
 
 static void json_ws(const char **p) {
     while (**p == ' ' || **p == '\n' || **p == '\r' || **p == '\t') (*p)++;
 }
 
-static void json_free(Json *j) {
+void json_free(Json *j) {
     while (j != NULL) {
         Json *next = j->next;
         json_free(j->child);
@@ -74,7 +64,7 @@ static char *json_string(const char **p) {
     return out;
 }
 
-static Json *json_value(const char **p) {
+Json *json_value(const char **p) {
     Json *j = calloc(1, sizeof(Json));
 
     json_ws(p);
@@ -138,26 +128,26 @@ bad:
     return NULL;
 }
 
-static Json *json_get(Json *obj, const char *key) {
+Json *json_get(Json *obj, const char *key) {
     for (Json *c = obj != NULL ? obj->child : NULL; c != NULL; c = c->next) {
         if (c->key != NULL && strcmp(c->key, key) == 0) return c;
     }
     return NULL;
 }
 
-static Json *json_at(Json *arr, int i) {
+Json *json_at(Json *arr, int i) {
     Json *c = arr != NULL ? arr->child : NULL;
     while (c != NULL && i-- > 0) c = c->next;
     return c;
 }
 
-static int json_len(Json *arr) {
+int json_len(Json *arr) {
     int n = 0;
     for (Json *c = arr != NULL ? arr->child : NULL; c != NULL; c = c->next) n++;
     return n;
 }
 
-static int json_int(Json *j) { return j != NULL && j->type == 'n' ? (int)j->num : 0; }
+int json_int(Json *j) { return j != NULL && j->type == 'n' ? (int)j->num : 0; }
 
 /* --- the tables --- */
 

@@ -550,7 +550,7 @@ void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
 }
 
 /* An image of the port's own over the copy (platform.h) */
-void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int cx1, int cy1, int cx2, int cy2) {
+void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
     int s = s_scale;
     float q[16] = {x0, y0, 0, 0, x1, y0, 1, 0, x0, y1, 0, 1, x1, y1, 1, 1};
     int i;
@@ -575,7 +575,7 @@ void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x
     GL(glScissor)(cx1 * s, cy1 * s, (cx2 - cx1 + 1) * s, (cy2 - cy1 + 1) * s);
     GL(glEnable)(GL_BLEND);
     GL(glBlendEquation)(GL_FUNC_ADD);
-    GL(glBlendFuncSeparate)(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE); /* the copy's alpha is the mask bit: kept */
+    GL(glBlendFuncSeparate)(GL_SRC_ALPHA, add ? GL_ONE : GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE); /* the copy's alpha is the mask bit: kept */
     GL(glUseProgram)(s_blit);
     GL(glBindVertexArray)(s_quad_vao);
     GL(glBindBuffer)(GL_ARRAY_BUFFER, s_quad_vbo);
