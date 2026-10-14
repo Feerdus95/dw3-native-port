@@ -2,8 +2,10 @@
 
 ## Unreleased
 
-- **Digilog**, the journal (options menu, off by default, work in progress): a last row of the field menu, its seven-row panel
-  made of the game's own tiles, opening a list in the item list's panels with the area of the story's next step.
+- **Digilog**, the journal (options menu, off by default): a last row of the field menu, its seven-row panel made of
+  the game's own tiles. It lists the story's steps so far in the item list's panels and pages, the current one first:
+  each with its place (the field banner's own name), whether it is done, and what to do, in the five languages; X
+  shows its area on the map and comes back.
 - **Objective on map** (options menu, off by default): the map screen blinks the area where the story's next step
   happens, read from the stages' own story events.
 - **Fast travel** (options menu, off by default): on the map screen, X on a visited area asks whether to travel there;

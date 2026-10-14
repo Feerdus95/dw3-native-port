@@ -1,6 +1,6 @@
 --- a/src/ststatus/map_screen.c
 +++ b/src/ststatus/map_screen.c
-@@ -130,8 +130,240 @@
+@@ -130,8 +130,245 @@
      }
  }
  
@@ -58,27 +58,32 @@
 +}
 +
 +/* Objective on map (native.h): by GAME.progress, a field where the story's
-+   next step happens (the stage whose event moves it on), 0 for none */
++   next step happens (the stage whose event moves it on), 0 for none; past
++   0x2D6 the map doesn't show it (the Real World, the Spy Satellite) */
 +static const u16 objectiveModes[] = {
-+    0,     0x207, 0x204, 0x200, 0x22E, 0x22C, 0x232, 0x23A, 0x227, 0x239, 0x240, 0x204,
++    0x2D8, 0x207, 0x204, 0x200, 0x22E, 0x22C, 0x232, 0x23A, 0x227, 0x239, 0x240, 0x204,
 +    0x20B, 0x204, 0x236, 0x260, 0x25C, 0x252, 0x254, 0x255, 0x255, 0x21C, 0x218, 0x203,
 +    0x260, 0x240, 0x246, 0x29C, 0x2AD, 0x2AE, 0x26E, 0x26D, 0x26D, 0x218, 0x2C7, 0x2D5,
-+    0x272, 0x276, 0x219, 0x288,
++    0x272, 0x276, 0x219, 0x288, 0x2DD, 0x2DF, 0x2DF, 0x2D7, 0x2D7,
 +};
 +
-+/* The field of the story's next step, or 0 (the journal's too) */
-+s32 STSTATUS_objectiveMode(void) {
-+    if (GAME.progress < 0 || GAME.progress >= (s32)(sizeof objectiveModes / sizeof objectiveModes[0])) {
++/* The field of a step's objective, or 0 (the journal's too) */
++s32 STSTATUS_objectiveModeAt(s32 progress) {
++    if (progress < 0 || progress >= (s32)(sizeof objectiveModes / sizeof objectiveModes[0])) {
 +        return 0;
 +    }
-+    return objectiveModes[GAME.progress];
++    return objectiveModes[progress];
 +}
 +
-+/* The spot of the objective's area on this half's map, or 0 */
-+static s32 objectiveSpot(StatusMapScreen *screen) {
-+    s32 mode = STSTATUS_objectiveMode();
++extern s32 STSTATUS_journalMap; /* item_list.c */
++extern s32 STSTATUS_journalGoal;
 +
-+    if (!g_map_objective || mode == 0 || screen->lateGame != (mode >= 0x270)) {
++/* The spot of the objective's area on this half's map, or 0: the story's
++   next step, or the journal's step it was opened from */
++static s32 objectiveSpot(StatusMapScreen *screen) {
++    s32 mode = STSTATUS_journalMap == 2 ? STSTATUS_journalGoal : STSTATUS_objectiveModeAt(GAME.progress);
++
++    if ((!g_map_objective && STSTATUS_journalMap != 2) || mode < 0x200 || mode > 0x2D6 || screen->lateGame != (mode >= 0x270)) {
 +        return 0;
 +    }
 +    return (STSTATUS_mapAreas[mode & 0xFF] & 0x7F) + 1;
@@ -241,7 +246,7 @@
      if (PAD_HELD(PAD_LEFT) || PAD_HELD(PAD_RIGHT)) {
          if (PAD_PRESSED(PAD_LEFT) || PAD_PRESSED(PAD_RIGHT)) {
              screen->speedX = 2;
-@@ -169,7 +401,26 @@
+@@ -169,7 +406,26 @@
      if (PAD_PRESSED(PAD_TRIANGLE)) {
          SOUND.playSound(SOUND_MENU_CANCEL);
          screen->state = TASK_KILL;
@@ -251,7 +256,7 @@
 +            loadServerMapImages(screen->menu->lateGame != 0);
 +        }
 +#endif
-+    }
+     }
 +#ifdef NATIVE
 +    /* square: the other server's map */
 +    if (g_fast_travel && PAD_PRESSED(PAD_SQUARE) && screen->state != TASK_KILL && amaterasuVisited() &&
@@ -263,12 +268,12 @@
 +    if (g_fast_travel && screen->hovering && PAD_PRESSED(PAD_CROSS)) {
 +        SOUND.playSound(SOUND_MENU_CONFIRM);
 +        showFastTravelQuestion(screen, windows, 1);
-     }
++    }
 +#endif
  }
  
  /* Draws the map, the visited areas, the towns and the cursor */
-@@ -179,6 +430,9 @@
+@@ -179,6 +435,9 @@
      s32 x;
      s32 frame;
      s32 i;
@@ -278,7 +283,7 @@
  
      if (screen->hovering) {
          initSpriteDrawer(&sprite);
-@@ -189,6 +443,11 @@
+@@ -189,6 +448,11 @@
          } else {
              sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x3B, 0, 0x14);
          }
@@ -290,7 +295,7 @@
      }
      initSpriteDrawer(&sprite);
      if (screen->ready) {
-@@ -229,14 +488,25 @@
+@@ -229,14 +493,25 @@
  #else
          frame = 0x35;
  #endif
@@ -316,7 +321,47 @@
                  sprite.draw(FILE_CACHE.getEntry(screen->archive2), STSTATUS_data.spots[i].sprite,
                              STSTATUS_data.spots[i].x + screen->scrollX,
                              STSTATUS_data.spots[i].y + screen->scrollY + screen->top);
-@@ -318,7 +588,18 @@
+@@ -270,6 +545,10 @@
+ /* The map screen's update */
+ void STSTATUS_updateMapScreen(StatusMapScreen *screen, TextWindow **windows) {
+     s32 area;
++#ifdef NATIVE
++    s32 goalX;
++    s32 goalY;
++#endif
+ 
+     switch (screen->state) {
+     case TASK_INIT:
+@@ -291,12 +570,28 @@
+             screen->homeY = STSTATUS_data.spots[area].y + 0xC;
+             screen->speedX = 1;
+             screen->speedY = 1;
++#ifdef NATIVE
++            /* from the journal, on its step's area */
++            goalX = screen->homeX;
++            goalY = screen->homeY;
++            if (STSTATUS_journalMap == 2 && (area = objectiveSpot(screen)) != 0) {
++                goalX = STSTATUS_data.spots[area].x + 0xC;
++                goalY = STSTATUS_data.spots[area].y + 0xC;
++            }
++            while (goalX + screen->scrollX != screen->cursorX) {
++                STSTATUS_moveMapCursor(screen, 1, 0);
++            }
++            while (goalY + screen->scrollY != screen->cursorY) {
++                STSTATUS_moveMapCursor(screen, 0, 1);
++            }
++#else
+             while (screen->homeX + screen->scrollX != screen->cursorX) {
+                 STSTATUS_moveMapCursor(screen, 1, 0);
+             }
+             while (screen->homeY + screen->scrollY != screen->cursorY) {
+                 STSTATUS_moveMapCursor(screen, 0, 1);
+             }
++#endif
+             screen->speedX = 0;
+             screen->speedY = 0;
+             screen->ready = 1;
+@@ -318,7 +613,18 @@
  /* Creates the map screen (task): the map of the first half of the game or, in the
     late game, of the second (FILE_STATUS_BG + 2), and requests its area names */
  Task *STSTATUS_createMapScreen(FieldMenuScreen *menu, s32 extra) {

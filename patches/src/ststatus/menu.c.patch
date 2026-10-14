@@ -1,17 +1,18 @@
 --- a/src/ststatus/menu.c
 +++ b/src/ststatus/menu.c
-@@ -3,6 +3,10 @@
+@@ -3,6 +3,11 @@
  
  #include "ststatus.h"
  
 +#ifdef NATIVE
 +Task *STSTATUS_createJournal(FieldMenuScreen *menu, s32 extra); /* item_list.c */
++extern s32 STSTATUS_journalMap;
 +#endif
 +
  #include "../menu_common/set_scroll_bar_x.inc.c"
  #include "../menu_common/set_scroll_bar_range.inc.c"
  #include "../menu_common/set_scroll_bar_count.inc.c"
-@@ -20,6 +24,12 @@
+@@ -20,6 +25,12 @@
      case 0:
      default:
          open = STSTATUS_screens[FIELD_MENU_CHOICE.extra][FIELD_MENU_CHOICE.option];
@@ -24,3 +25,19 @@
          if (open != NULL) {
              children->screen = open(menu, FIELD_MENU_CHOICE.extra);
          } else {
+@@ -29,6 +40,15 @@
+         break;
+     case 1:
+         if (children->screen == NULL) {
++#ifdef NATIVE
++            /* the journal's cross: the map on its step, then the journal again */
++            if (STSTATUS_journalMap == 1 || STSTATUS_journalMap == 2) {
++                STSTATUS_journalMap++;
++                children->screen = STSTATUS_journalMap == 2 ? STSTATUS_createMapScreen(menu, FIELD_MENU_CHOICE.extra)
++                                                            : STSTATUS_createJournal(menu, FIELD_MENU_CHOICE.extra);
++                break;
++            }
++#endif
+             children->fieldMenu = createFieldMenu(menu->layer, FIELD_MENU_CHOICE.option);
+             menu->setState(menu, TASK_DONE);
+         }
