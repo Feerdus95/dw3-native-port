@@ -53,7 +53,8 @@ static const char *MAIN_VS =
     "}\n";
 
 /* mode: 2 textured, 4 raw texture, 8 semi-transparent, 16-48 texel depth,
-   64 dithered, 128 the copy of VRAM itself, 256 sets the mask bit */
+   64 dithered, 128 the copy of VRAM itself, 256 sets the mask bit, 512 a soft
+   shadow (native.h's NATIVE_SOFT_SHADOW) */
 static const char *MAIN_FS =
     "#version 330 core\n"
     "uniform usampler2D vram;\n"
@@ -71,6 +72,7 @@ static const char *MAIN_FS =
     "    uint pix = 0u;\n"
     "    bool semi = (md & 8u) != 0u;\n"
     "    vec3 c8 = col, c5;\n"
+    "    float cover = 1.0;\n"
     "    if ((md & 128u) != 0u) {\n"
     "        pix = fetch(int(gl_FragCoord.x / scale), int(gl_FragCoord.y / scale));\n"
     "        frag = vec4(rgb5(pix) / 31.0, float(pix >> 15));\n"
@@ -79,6 +81,13 @@ static const char *MAIN_FS =
     "    if ((md & 2u) != 0u) {\n"
     /* at the pixel's corner, where the PSX samples: mirrored textures keep their texels */
     "        vec2 at = uv - 0.5 * dFdx(uv) - 0.5 * dFdy(uv);\n"
+    /* a soft shadow: an ellipse as the sprite's, fading out from its middle, in the colour of the texel there */
+    "        if ((md & 512u) != 0u) {\n"
+    "            vec2 size = vec2(lim.zw - lim.xy) + 1.0, mid = vec2(lim.xy) + size * vec2(0.484, 0.469);\n"
+    "            cover = 1.0 - smoothstep(0.6, 1.0, length((uv - mid) / (size * vec2(0.42, 0.4))));\n"
+    "            if (cover <= 0.0) discard;\n"
+    "            at = mid;\n"
+    "        }\n"
     "        int u = clamp(int(floor(at.x + 0.002)), int(lim.x), int(lim.z)) & 255;\n"
     "        int v = clamp(int(floor(at.y + 0.002)), int(lim.y), int(lim.w)) & 255;\n"
     "        u = (u & ~int(tw.x)) | (int(tw.z) & int(tw.x));\n"
@@ -104,6 +113,7 @@ static const char *MAIN_FS =
     "        float d = (md & 64u) != 0u ? DITHER[(int(gl_FragCoord.y) & 3) * 4 + (int(gl_FragCoord.x) & 3)] : 0.0;\n"
     "        c5 = clamp(floor((c8 + d) / 8.0), 0.0, 31.0);\n"
     "    }\n"
+    "    if ((md & 512u) != 0u) c5 = vec3(18.6 * cover);\n" /* how much of the ground it takes, 0.6 inside */
     "    frag = vec4(c5 / 31.0, (md & 256u) != 0u || (pix & 0x8000u) != 0u ? 1.0 : 0.0);\n"
     "}\n";
 
@@ -131,6 +141,7 @@ static GLuint s_vram_tex;            /* the 1x VRAM, R16UI */
 static GLuint s_fbo, s_fbo_tex;      /* the copy, render_scale times bigger */
 static GLuint s_fbo_depth;           /* its depth buffer, for the 3D models (g_depth) */
 int g_depth = 1;
+int g_soft_shadows; /* soft_shadows = 1, the menu (native.h) */
 static int s_deep;                   /* the batch is by the depth buffer */
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
 static GLuint s_movie_tex, s_menu_tex;
@@ -289,6 +300,10 @@ static void flush(void) {
             GL(glBlendEquation)(GL_FUNC_REVERSE_SUBTRACT);
             GL(glBlendFuncSeparate)(GL_ONE, GL_ONE, GL_ZERO, GL_ONE);
             break;
+        case 4: /* back * (1 - front): a soft shadow (gpu_draw.c) */
+            GL(glBlendEquation)(GL_FUNC_ADD);
+            GL(glBlendFuncSeparate)(GL_ZERO, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
+            break;
         default: /* back + front / 4 */
             GL(glBlendEquation)(GL_FUNC_ADD);
             GL(glBlendFuncSeparate)(GL_CONSTANT_COLOR, GL_ONE, GL_ONE, GL_ZERO);
@@ -306,7 +321,7 @@ static void flush(void) {
 }
 
 /* Triangles (n a multiple of 3) for the copy, with gpu_draw.c's state: the
-   drawing area, the semi-transparency mode */
+   drawing area, the semi-transparency mode (4: a soft shadow's) */
 void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {
     int semi_prim = (v[0].mode & 8) != 0, deep = v[0].z > 0;
 

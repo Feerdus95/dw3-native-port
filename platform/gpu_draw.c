@@ -241,7 +241,7 @@ static GVtx gvtx(float x, float y, int r, int gg, int b, int u, int v, int clut,
     o.twox = (uint16_t)g.tw_off_x;
     o.twoy = (uint16_t)g.tw_off_y;
     o.z = 0;
-    o.mode = (uint32_t)((flags & 2) | (flags & 6) | (flags & 8) | g.depth << 4 | (dither ? 64 : 0) | (g.set_mask ? 256 : 0));
+    o.mode = (uint32_t)((flags & 2) | (flags & 6) | (flags & 8) | (flags & 512) | g.depth << 4 | (dither ? 64 : 0) | (g.set_mask ? 256 : 0));
     return o;
 }
 
@@ -275,7 +275,7 @@ static void gl_rect(int x, int y, int w, int h, int r, int gg, int b, int flags,
         q[i].umin = (uint16_t)u0, q[i].vmin = (uint16_t)v0;
         q[i].umax = (uint16_t)(u0 + w - 1), q[i].vmax = (uint16_t)(v0 + h - 1);
     }
-    gl_triangles(q, 6, g.x1, g.y1, g.x2, g.y2, g.semi);
+    gl_triangles(q, 6, g.x1, g.y1, g.x2, g.y2, flags & 512 ? 4 : g.semi); /* a soft shadow darkens by multiplying */
 }
 
 /* A vertex word where the card puts it: with the GTE's fraction, when it
@@ -292,12 +292,12 @@ static void precise(const uint32_t *w, float *x, float *y, float *z) {
 
 /* --- rectangles and lines --- */
 
-static void rect(int x, int y, int w, int h, int col, int textured, int raw, int semi, int u0, int v0, int clut) {
+static void rect(int x, int y, int w, int h, int col, int textured, int raw, int semi, int u0, int v0, int clut, int soft) {
     int i, j;
     int r = col & 255, gg = col >> 8 & 255, b = col >> 16 & 255;
 
     if (w > 0 && h > 0) {
-        gl_rect(x, y, w, h, r, gg, b, (textured ? 2 : 0) | (textured && raw ? 4 : 0) | (semi ? 8 : 0), u0, v0, clut);
+        gl_rect(x, y, w, h, r, gg, b, (textured ? 2 : 0) | (textured && raw ? 4 : 0) | (semi ? 8 : 0) | (soft ? 512 : 0), u0, v0, clut);
     }
 
     for (j = 0; j < h; j++) {
@@ -407,7 +407,7 @@ void gpu_gp0(const uint32_t *p, int n) {
         }
     } else if (cmd >= 0x60 && cmd < 0x80) {
         int size = cmd >> 3 & 3, tex = cmd & 4, semi = cmd & 2, raw = cmd & 1;
-        int k = 1, x = sx(p[1]) + g.ox, y = sy(p[1]) + g.oy, u = 0, vv = 0, clut = 0, w, h;
+        int k = 1, x = sx(p[1]) + g.ox, y = sy(p[1]) + g.oy, u = 0, vv = 0, clut = 0, w, h, soft = 0;
 
         k++;
         if (tex) {
@@ -419,10 +419,11 @@ void gpu_gp0(const uint32_t *p, int n) {
         if (size == 0) {
             w = p[k] & 0x3FF;
             h = p[k] >> 16 & 0x1FF;
+            soft = tex && semi && p[k] >> 31; /* NATIVE_SOFT_SHADOW (native.h), for the card */
         } else {
             w = h = size == 1 ? 1 : size == 2 ? 8 : 16;
         }
-        rect(x, y, w, h, p[0] & 0xFFFFFF, tex, raw, semi, u, vv, clut);
+        rect(x, y, w, h, p[0] & 0xFFFFFF, tex, raw, semi, u, vv, clut, soft);
     } else if (cmd >= 0x40 && cmd < 0x60) {
         int gouraud = cmd & 0x10, poly = cmd & 8, semi = cmd & 2, k = 0;
         int c0 = p[k++] & 0xFFFFFF, x0 = sx(p[k]) + g.ox, y0 = sy(p[k]) + g.oy, c1, x1, y1;

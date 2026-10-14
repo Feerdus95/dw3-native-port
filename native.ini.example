@@ -14,6 +14,11 @@ fullscreen = 0
 # 0: no dithering (the PlayStation's, on shaded and blended polygons)
 dither = 1
 
+# 1: the shadows under the characters on the field darken the ground they
+# fall on, with smooth edges at any resolution, instead of the original's grey
+# disc (0)
+soft_shadows = 0
+
 # 0: the movies with sharp pixels instead of smoothed when scaled up
 smooth_movies = 1
 

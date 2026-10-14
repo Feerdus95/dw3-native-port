@@ -82,6 +82,13 @@ void native_bladegarurumon_setup(void);
 /* listPartnerEntries into room for max ids, BladeGarurumon included when there is */
 int native_list_partner_entries(int partner, unsigned short *out, int max);
 
+/* Soft shadows (soft_shadows, the options menu): the field's actors' shadow
+   subtracted from the ground rather than a grey disc over it, and on the
+   card (gl.c) a smooth ellipse rather than the 32x16 sprite's pixels. The
+   flag rides in the sprite's height, a bit the PSX GPU never reads */
+extern int g_soft_shadows;
+#define NATIVE_SOFT_SHADOW 0x8000
+
 /* printf to stderr, for probes (platform/main.c) */
 void native_log(const char *fmt, ...);
 

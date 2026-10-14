@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Soft shadows** (options menu, off by default): the shadows under the characters on the field darken the ground
+  they fall on, with smooth edges at any resolution, instead of the original's grey disc.
 - **Fast text** (options menu, on by default): holding X advances the texts, outside battles and card games. After
   markisha64's Dmw2003FastText.
 - **Fast forward:** Tab or R3 cycles x2, x3, x5 and off, with ">> xN" in a corner. The music and the movies keep

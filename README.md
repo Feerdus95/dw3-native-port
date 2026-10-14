@@ -113,6 +113,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 | Sub-pixel 3D | the 3D's points at their exact place at higher resolutions, without the PlayStation's wobble |
 | Depth buffer | the battle models' polygons in the right order at higher resolutions |
 | Dithering | the PlayStation's dithering on shaded polygons |
+| Soft shadows | the shadows under the characters on the field darken the ground, with smooth edges, instead of the original's grey disc. Off by default |
 | Smooth movies | the movies smoothed when scaled up, or with sharp pixels |
 | Fullscreen, Window size | |
 | Vibration, Stick deadzone | the gamepad |
@@ -129,6 +130,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
     render_scale = 4     ; 1-8: the Resolution option (unset: as the window, up to 4)
     fps = 50             ; 60: the game's own 60 Hz mode
     dither = 1           ; 0 turns off the PlayStation's dithering
+    soft_shadows = 0     ; 1: the field's shadows see-through and smooth
     smooth_movies = 1    ; 0 shows the movies with sharp pixels
     deadzone = 3277      ; how far the sticks and triggers move before they count (0-32767)
     rumble = 1           ; 0: no vibration

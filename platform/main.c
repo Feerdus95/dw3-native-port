@@ -78,7 +78,7 @@ static int load_boot_image(void) {
    scale = <window size in 320x240 steps>, dither = 0/1, smooth_movies = 0/1,
    debug = 0/1, log = <subsystems>, deadzone = <0..32767>, rumble = 0/1, fps = 50/60,
    render_scale = 1-8, fast_text = 0/1, extra_packs = 0/1,
-   bladegarurumon = 0/1;
+   bladegarurumon = 0/1, soft_shadows = 0/1;
    the options menu (menu.c) writes them back */
 static int s_fullscreen, s_scale, s_fps60, s_res_set; /* s_scale 0: from the screen */
 extern int NTSC_MODE;
@@ -126,6 +126,8 @@ static void read_ini(int data_only) {
             s_scale = atoi(value);
         } else if (SDL_strcasecmp(key, "dither") == 0) {
             g_dither_on = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "soft_shadows") == 0) {
+            g_soft_shadows = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "smooth_movies") == 0) {
             g_smooth_movies = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "debug") == 0) {

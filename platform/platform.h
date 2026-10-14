@@ -114,6 +114,7 @@ extern int g_debug;         /* debug = 1: the debug keys (state.c) */
 extern int g_depth; /* the options menu's Depth buffer: the 3D models' polygons by their depth, not the PSX's order (gl.c) */
 extern int g_subpixel; /* the options menu's Sub-pixel 3D: 0 snaps vertices to the 1x pixel (gte.c), for comparing */
 extern int g_dither_on;     /* dither = 0: no GPU dithering (gpu_draw.c) */
+extern int g_soft_shadows;  /* soft_shadows = 1: the field's shadows see-through and smooth (gl.c, native.h) */
 extern int g_smooth_movies; /* smooth_movies = 0: movies scaled by nearest pixel (video.c) */
 extern int g_deadzone;      /* deadzone = <0..32767>: the sticks' and triggers' (pad.c) */
 extern int g_rumble;        /* rumble = 0: the gamepad doesn't vibrate (pad.c) */
