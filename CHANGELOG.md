@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.10.0 (beta)
 
 - **Effects' own images**: a battle's 2D effect drawn from PNGs in `data/mods/effects/<id>/` (the model viewer's
   export format, at any size, with alpha), and a critical hit's from `critical/` there, which the original doesn't
