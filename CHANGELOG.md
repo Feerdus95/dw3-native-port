@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Controls** (options menu, Input tab): each PlayStation button's two keys and gamepad button, set by pressing them,
+  saved in `native.ini` (`keys_cross = Z, Space`, `pad_cross = a`).
+- **Button icons** (options menu, Input tab): the menu's help line, tab ends and Controls page show the keys' and the
+  gamepad's own icons, PlayStation, Xbox or Switch, by the pad plugged in or as chosen; from Xelu's free prompts pack
+  (CC0), in `prompts/` by the exe.
+
 ## v0.10.0 (beta)
 
 - **Effects' own images**: a battle's 2D effect drawn from PNGs in `data/mods/effects/<id>/` (the model viewer's

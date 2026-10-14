@@ -169,6 +169,14 @@ static void read_ini(int data_only) {
             g_bladegarurumon = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "fps") == 0) {
             s_fps60 = atoi(value) == 60;
+        } else if (SDL_strcasecmp(key, "icons") == 0) {
+            for (int i = 0; i < ICONS_COUNT; i++) {
+                if (SDL_strcasecmp(value, ICON_NAMES[i]) == 0) {
+                    g_icons = i;
+                }
+            }
+        } else {
+            pad_bind_ini(key, value);
         }
     }
     fclose(f);

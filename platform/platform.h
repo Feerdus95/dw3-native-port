@@ -152,6 +152,33 @@ extern int g_battle_shadows; /* battle_shadows = 0: the fighters cast none (gl.c
 extern int g_smooth_movies; /* smooth_movies = 0: movies scaled by nearest pixel (video.c) */
 extern int g_deadzone;      /* deadzone = <0..32767>: the sticks' and triggers' (pad.c) */
 extern int g_rumble;        /* rumble = 0: the gamepad doesn't vibrate (pad.c) */
+
+/* The PS buttons' keys and gamepad buttons, by bit (pad.c): native.ini's
+   keys_<button> = Z, Space and pad_<button> = a (SDL's names) */
+#define PAD_NONE (-1)
+#define PAD_LT 100 /* the triggers, as buttons */
+#define PAD_RT 101
+struct SDL_Gamepad;
+const char *pad_button_name(int bit);   /* "cross" */
+int *pad_keys(int bit);                 /* its two scancodes, 0 for none */
+int *pad_source(int bit);               /* its gamepad button, PAD_LT / PAD_RT or PAD_NONE */
+const char *pad_source_name(int src);   /* SDL's name: "a", "lefttrigger" */
+void pad_bind_reset(void);              /* the defaults */
+int pad_bind_ini(const char *key, const char *value); /* 1: a binding, read */
+int pad_bind_line(int i, char *key, char *value, size_t size); /* line 0-31 for native.ini; 1: not the default */
+struct SDL_Gamepad *pad_gamepad(void);  /* the one open, or NULL */
+
+/* The options menu's Controls page and button icons (controls.c) */
+enum { ICONS_AUTO, ICONS_PS, ICONS_XBOX, ICONS_SWITCH, ICONS_KEYBOARD, ICONS_COUNT };
+extern int g_icons;                     /* icons = auto | playstation | xbox | switch | keyboard */
+extern const char *const ICON_NAMES[ICONS_COUNT];
+void controls_note(const union SDL_Event *e); /* every event: the last device used */
+void controls_open(void);
+int controls_active(void);
+int controls_event(const union SDL_Event *e); /* 1: a binding changed */
+void controls_draw(struct SDL_Renderer *r, float x, float y, float w, int rows);
+float controls_hint(struct SDL_Renderer *r, float x, float y, int draw); /* the help line; its width */
+void controls_tab_icons(struct SDL_Renderer *r, float left, float right, float y); /* L1 / R1, or Q / E */
 extern int g_fast_text;     /* fast_text = 0: X held doesn't advance the texts (mods.c) */
 extern int g_ff_speed;      /* fast forward: the game's ticks a frame shown, 1 normal (mods.c, etc.c) */
 void ff_cycle(void);        /* Tab / R3: the next speed */

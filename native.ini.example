@@ -51,6 +51,16 @@ deadzone = 3277
 # 0: no vibration
 rumble = 1
 
+# The options menu's icons: auto, playstation, xbox, switch or keyboard
+icons = auto
+# Each button's keys (SDL's names, two at most) and gamepad button (SDL's:
+# a b x y by place, leftshoulder, lefttrigger, leftstick, dpup, start...),
+# or none; the options menu's Controls writes them. The buttons: cross,
+# circle, square, triangle, l1, r1, l2, r2, l3, r3, start, select, up, down,
+# left, right
+#keys_cross = Z, Space
+#pad_cross = a
+
 # 1-8: the game drawn on the graphics card (OpenGL 3.3) that many times
 # finer than the PSX's 320x240, the 3D vertices with their fractions.
 # Unset: as the window's size, up to 4

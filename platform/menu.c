@@ -9,11 +9,12 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, MOVIES, VSYNC, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, MOVIES, VSYNC, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, ICONS, CONTROLS, ITEMS };
 
 static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Smooth movies", "VSync", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
     "Fast text (hold X)", "Fast forward (Tab/R3)", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon",
+    "Button icons", "Controls",
 };
 
 /* the tabs and their options, each list ending with -1 */
@@ -23,7 +24,7 @@ static const char *TAB_NAMES[TABS] = {"Display", "Graphics", "Input", "Mods"};
 static const int TAB_ITEMS[TABS][ROWS + 1] = {
     {FPS, FULLSCREEN, WINDOW, WIDESCREEN, VSYNC, MOVIES, -1},
     {SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, -1},
-    {RUMBLE, DEADZONE, -1},
+    {CONTROLS, ICONS, RUMBLE, DEADZONE, -1},
     {FAST_TEXT, FAST_FORWARD, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, -1},
 };
 
@@ -65,6 +66,13 @@ static void value(int item, char *out, size_t size) {
     case WINDOW: SDL_snprintf(out, size, "%dx%d", video_window_width(window_scale()), 240 * window_scale()); return;
     case DEADZONE: SDL_snprintf(out, size, "%d%%", (g_deadzone * 100 + 16383) / 32767); return;
     case FAST_FORWARD: SDL_snprintf(out, size, g_ff_speed > 1 ? "x%d" : "Off", g_ff_speed); return;
+    case ICONS: {
+        static const char *SHOWN[ICONS_COUNT] = {"Auto", "PlayStation", "Xbox", "Switch", "Keyboard"};
+
+        SDL_snprintf(out, size, "%s", SHOWN[g_icons]);
+        return;
+    }
+    case CONTROLS: SDL_snprintf(out, size, ">"); return;
     case DITHER: on = g_dither_on; break;
     case SOFT_SHADOWS: on = g_soft_shadows; break;
     case BATTLE_SHADOWS: on = g_battle_shadows; break;
@@ -120,6 +128,12 @@ static void change(int item, int dir) {
     case EXTRA_PACKS: g_extra_packs = !g_extra_packs; break;
     case BLADEGARURUMON: g_bladegarurumon = !g_bladegarurumon; break;
     case FAST_FORWARD: ff_cycle(); return; /* not saved */
+    case ICONS: g_icons = (g_icons + (dir < 0 ? ICONS_COUNT - 1 : 1)) % ICONS_COUNT; break;
+    case CONTROLS:
+        if (dir >= 0) {
+            controls_open();
+        }
+        return;
     case WINDOW:
         scale = SDL_clamp(window_scale() + (dir < 0 ? -1 : 1), 1, 8);
         video_resize(scale);
@@ -131,11 +145,13 @@ static void change(int item, int dir) {
     s_changed = 1;
 }
 
-/* native.ini's "key = value" lines get the new values; missing keys are added */
+/* native.ini's "key = value" lines get the new values; missing keys are
+   added, the bindings' only when not the default */
 static void save(void) {
-    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal"};
-    char path[1100], line[1200], key[32], vals[SDL_arraysize(KEYS)][16];
-    int done[SDL_arraysize(KEYS)] = {0}, i, n = SDL_arraysize(KEYS);
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons"};
+    enum { FIXED = SDL_arraysize(KEYS), ALL = FIXED + 32 };
+    char path[1100], line[1200], key[32], names[ALL][32], vals[ALL][64];
+    int done[ALL] = {0}, i, n = ALL;
     size_t len = 0;
     char *out = SDL_malloc(65536);
     FILE *f;
@@ -161,13 +177,21 @@ static void save(void) {
     SDL_snprintf(vals[18], 16, "%d", g_fast_travel);
     SDL_snprintf(vals[19], 16, "%d", g_map_objective);
     SDL_snprintf(vals[20], 16, "%d", g_journal);
+    SDL_snprintf(vals[21], 16, "%s", ICON_NAMES[g_icons]);
+    for (i = 0; i < ALL; i++) {
+        if (i < FIXED) {
+            SDL_strlcpy(names[i], KEYS[i], sizeof names[i]);
+        } else {
+            done[i] = !pad_bind_line(i - FIXED, names[i], vals[i], sizeof vals[i]); /* the default: not added */
+        }
+    }
     SDL_snprintf(path, sizeof path, "%snative.ini", SDL_GetBasePath());
     out[0] = 0;
     if ((f = fopen(path, "r")) != NULL) {
         while (fgets(line, sizeof line, f) != NULL && len < 60000) {
             for (i = 0; i < n; i++) {
-                if (line[0] != '#' && line[0] != ';' && SDL_sscanf(line, " %31[^= ] =", key) == 1 && SDL_strcasecmp(key, KEYS[i]) == 0) {
-                    SDL_snprintf(line, sizeof line, "%s = %s\n", KEYS[i], vals[i]);
+                if (line[0] != '#' && line[0] != ';' && SDL_sscanf(line, " %31[^= ] =", key) == 1 && SDL_strcasecmp(key, names[i]) == 0) {
+                    SDL_snprintf(line, sizeof line, "%s = %s\n", names[i], vals[i]);
                     done[i] = 1;
                 }
             }
@@ -177,7 +201,7 @@ static void save(void) {
     }
     for (i = 0; i < n; i++) {
         if (!done[i]) {
-            len += SDL_snprintf(out + len, 65536 - len, "%s = %s\n", KEYS[i], vals[i]);
+            len += SDL_snprintf(out + len, 65536 - len, "%s = %s\n", names[i], vals[i]);
         }
     }
     if ((f = fopen(path, "w")) != NULL) {
@@ -208,6 +232,14 @@ static void move(int up, int down, int left, int right, int ok, int tab) {
 
 /* 1 when the event was the menu's */
 int menu_event(const SDL_Event *e) {
+    controls_note(e);
+    if (s_open && controls_active()) {
+        if (controls_event(e)) {
+            s_changed = 1;
+        }
+        return e->type == SDL_EVENT_KEY_DOWN || e->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || e->type == SDL_EVENT_MOUSE_WHEEL ||
+               e->type == SDL_EVENT_GAMEPAD_AXIS_MOTION;
+    }
     if (e->type == SDL_EVENT_KEY_DOWN && e->key.key == SDLK_ESCAPE && !e->key.repeat) {
         menu_toggle();
         return 1;
@@ -326,6 +358,13 @@ static SDL_Texture *game_arrow(SDL_Renderer *r, int frame) {
     return t;
 }
 
+/* The help line at the box's foot, centred, with the pad's or keys' icons */
+static void hint(SDL_Renderer *r, const SDL_FRect *box) {
+    SDL_SetRenderDrawColor(r, 160, 160, 160, 255);
+    controls_hint(r, box->x + (box->w - controls_hint(r, 0, 0, 0)) / 2, box->y + box->h - 13, 1);
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
+}
+
 /* Over the frame, in 320x240, centred: the tabs (L1 / R1 at their ends, with
    the game's arrows, blinking as in its menus), then the tab's options */
 void menu_draw(SDL_Renderer *r) {
@@ -348,6 +387,11 @@ void menu_draw(SDL_Renderer *r) {
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(r, 0, 0, 0, 235);
     SDL_RenderFillRect(r, &box);
+    if (controls_active()) {
+        controls_draw(r, box.x, box.y, box.w, ROWS);
+        hint(r, &box);
+        return;
+    }
 
     /* the tab bar: "<L1  Display Graphics Controls Mods  R1>" */
     for (i = 0; i < 2; i++) {
@@ -361,9 +405,9 @@ void menu_draw(SDL_Renderer *r) {
                 SDL_RenderDebugText(r, a.x, a.y, i ? ">" : "<");
             }
         }
-        SDL_SetRenderDrawColor(r, 150, 170, 220, 255);
-        SDL_RenderDebugText(r, i ? box.x + box.w - 32 : box.x + 16, box.y + 8, i ? "R1" : "L1");
     }
+    SDL_SetRenderDrawColor(r, 150, 170, 220, 255);
+    controls_tab_icons(r, box.x + 18, box.x + box.w - 30, box.y + 8);
     for (i = 0, x = 0; i < TABS; i++) {
         x += 8.0f * SDL_strlen(TAB_NAMES[i]) + (i ? 8 : 0);
     }
@@ -402,7 +446,5 @@ void menu_draw(SDL_Renderer *r) {
         value(item, text, sizeof text);
         SDL_RenderDebugText(r, box.x + box.w - 10 - 8 * SDL_strlen(text), y, text);
     }
-    SDL_SetRenderDrawColor(r, 160, 160, 160, 255);
-    SDL_RenderDebugText(r, box.x + (box.w - 8 * 35) / 2, box.y + box.h - 13, "L1/R1: tab  Arrows: set  Esc: close");
-    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
+    hint(r, &box);
 }

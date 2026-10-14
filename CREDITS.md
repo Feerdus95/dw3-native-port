@@ -9,6 +9,9 @@ The native port of Digimon World 2003 builds on the work of others:
   Fast text: the text boxes reading X held as well as pressed, outside battles.
 - **[SDL 3](https://libsdl.org)** (zlib License, Copyright (C) 1997-2026 Sam Lantinga). The window, input and audio.
   `SDL3.dll` ships as it comes.
+- **[Xelu's free controller prompts](https://thoseawesomeguys.com/prompts/)** (CC0, by Nicolae "Xelu" Berbece, in
+  the SVG edition by [haaldor](https://github.com/haaldor/Xelu_prompts_SVG)). The options menu's button and key
+  icons, scaled down by `tools/prompts.py` into `assets/prompts/`.
 - **[psx-spx](https://psx-spx.consoledev.net)** (the PlayStation specifications, after Martin Korth's nocash docs).
   The hardware behaviour the platform layer reproduces, including two data tables of the chips: the SPU's Gaussian
   interpolation weights and its reverb resampling filter.

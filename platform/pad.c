@@ -13,31 +13,119 @@ enum {
 static uint8_t *s_buf[2];
 static SDL_Gamepad *s_gamepad;
 
-/* keyboard: arrows, Z/Space cross, X circle, A square, S triangle, Q/W L1/R1,
-   E/R L2/R2, Enter start, Backspace select */
-static const struct {
-    SDL_Scancode key;
-    int bit;
-} KEYS[] = {
-    {SDL_SCANCODE_UP, B_UP}, {SDL_SCANCODE_DOWN, B_DOWN}, {SDL_SCANCODE_LEFT, B_LEFT}, {SDL_SCANCODE_RIGHT, B_RIGHT},
-    {SDL_SCANCODE_Z, B_CROSS}, {SDL_SCANCODE_SPACE, B_CROSS}, {SDL_SCANCODE_X, B_CIRCLE},
-    {SDL_SCANCODE_A, B_SQUARE}, {SDL_SCANCODE_S, B_TRIANGLE},
-    {SDL_SCANCODE_Q, B_L1}, {SDL_SCANCODE_W, B_R1}, {SDL_SCANCODE_E, B_L2}, {SDL_SCANCODE_R, B_R2},
-    {SDL_SCANCODE_RETURN, B_START}, {SDL_SCANCODE_BACKSPACE, B_SELECT},
-};
+/* The buttons' names in their bits' order: native.ini's keys_<name> and
+   pad_<name>, DW3_PRESS's */
+static const char *NAMES[16] = {"select", "l3", "r3", "start", "up", "right", "down", "left",
+                                "l2", "r2", "l1", "r1", "triangle", "circle", "cross", "square"};
 
-static const struct {
-    SDL_GamepadButton button;
-    int bit;
-} BUTTONS[] = {
-    {SDL_GAMEPAD_BUTTON_SOUTH, B_CROSS}, {SDL_GAMEPAD_BUTTON_EAST, B_CIRCLE},
-    {SDL_GAMEPAD_BUTTON_WEST, B_SQUARE}, {SDL_GAMEPAD_BUTTON_NORTH, B_TRIANGLE},
-    {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, B_L1}, {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, B_R1},
-    {SDL_GAMEPAD_BUTTON_START, B_START}, /* Back opens the options menu (menu.c); Select is Backspace */
-    {SDL_GAMEPAD_BUTTON_LEFT_STICK, B_L3}, {SDL_GAMEPAD_BUTTON_RIGHT_STICK, B_R3},
-    {SDL_GAMEPAD_BUTTON_DPAD_UP, B_UP}, {SDL_GAMEPAD_BUTTON_DPAD_DOWN, B_DOWN},
-    {SDL_GAMEPAD_BUTTON_DPAD_LEFT, B_LEFT}, {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, B_RIGHT},
+/* Each button's two keys and gamepad button, the options menu's Controls
+   (controls.c). By default: arrows, Z/Space cross, X circle, A square, S
+   triangle, Q/W L1/R1, E/R L2/R2, Enter start, Backspace select; on the pad
+   its own places, the triggers L2/R2, nothing Select (Back opens the menu) */
+static const int DEFAULT_KEYS[16][2] = {
+    {SDL_SCANCODE_BACKSPACE}, {0}, {0}, {SDL_SCANCODE_RETURN},
+    {SDL_SCANCODE_UP}, {SDL_SCANCODE_RIGHT}, {SDL_SCANCODE_DOWN}, {SDL_SCANCODE_LEFT},
+    {SDL_SCANCODE_E}, {SDL_SCANCODE_R}, {SDL_SCANCODE_Q}, {SDL_SCANCODE_W},
+    {SDL_SCANCODE_S}, {SDL_SCANCODE_X}, {SDL_SCANCODE_Z, SDL_SCANCODE_SPACE}, {SDL_SCANCODE_A},
 };
+static const int DEFAULT_PAD[16] = {
+    PAD_NONE, SDL_GAMEPAD_BUTTON_LEFT_STICK, SDL_GAMEPAD_BUTTON_RIGHT_STICK, SDL_GAMEPAD_BUTTON_START,
+    SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_GAMEPAD_BUTTON_DPAD_RIGHT, SDL_GAMEPAD_BUTTON_DPAD_DOWN, SDL_GAMEPAD_BUTTON_DPAD_LEFT,
+    PAD_LT, PAD_RT, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
+    SDL_GAMEPAD_BUTTON_NORTH, SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_SOUTH, SDL_GAMEPAD_BUTTON_WEST,
+};
+static int s_keys[16][2], s_pad[16], s_bound;
+
+static void bound(void) {
+    if (!s_bound) {
+        pad_bind_reset();
+    }
+}
+
+void pad_bind_reset(void) {
+    SDL_memcpy(s_keys, DEFAULT_KEYS, sizeof s_keys);
+    SDL_memcpy(s_pad, DEFAULT_PAD, sizeof s_pad);
+    s_bound = 1;
+}
+
+const char *pad_button_name(int bit) {
+    return NAMES[bit];
+}
+
+int *pad_keys(int bit) {
+    bound();
+    return s_keys[bit];
+}
+
+int *pad_source(int bit) {
+    bound();
+    return &s_pad[bit];
+}
+
+/* SDL's name of a gamepad button, or of a trigger */
+const char *pad_source_name(int src) {
+    return src == PAD_LT ? "lefttrigger" : src == PAD_RT ? "righttrigger" : src >= 0 ? SDL_GetGamepadStringForButton(src) : NULL;
+}
+
+static int source_from_name(const char *name) {
+    return SDL_strcasecmp(name, "lefttrigger") == 0 ? PAD_LT : SDL_strcasecmp(name, "righttrigger") == 0 ? PAD_RT
+                                                                                                         : SDL_GetGamepadButtonFromString(name);
+}
+
+/* keys_<button> = <key>[, <key>] (SDL's names), pad_<button> = <SDL's name of
+   the button> or none; 1 when key was one of these */
+int pad_bind_ini(const char *key, const char *value) {
+    const char *button = SDL_strncasecmp(key, "keys_", 5) == 0 ? key + 5 : SDL_strncasecmp(key, "pad_", 4) == 0 ? key + 4 : NULL;
+    char name[64];
+    int bit, n;
+
+    bound();
+    for (bit = 0; button != NULL && bit < 16; bit++) {
+        if (SDL_strcasecmp(button, NAMES[bit]) != 0) {
+            continue;
+        }
+        if (button == key + 4) {
+            s_pad[bit] = source_from_name(value);
+            return 1;
+        }
+        s_keys[bit][0] = s_keys[bit][1] = 0;
+        for (n = 0; n < 2 && SDL_sscanf(value, " %63[^,]", name) == 1; n++) {
+            size_t len = SDL_strlen(name);
+
+            while (len > 0 && name[len - 1] == ' ') {
+                name[--len] = 0;
+            }
+            s_keys[bit][n] = SDL_GetScancodeFromName(name);
+            if ((value = SDL_strchr(value, ',')) == NULL) {
+                break;
+            }
+            value++;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/* Line i of native.ini's bindings (0-15 the keys, 16-31 the pad's), as
+   key and value; 1 when it isn't the default */
+int pad_bind_line(int i, char *key, char *value, size_t size) {
+    int bit = i % 16;
+
+    bound();
+    if (i < 16) {
+        SDL_snprintf(key, 32, "keys_%s", NAMES[bit]);
+        SDL_snprintf(value, size, "%s%s%s", s_keys[bit][0] ? SDL_GetScancodeName(s_keys[bit][0]) : "none",
+                     s_keys[bit][1] ? ", " : "", s_keys[bit][1] ? SDL_GetScancodeName(s_keys[bit][1]) : "");
+        return SDL_memcmp(s_keys[bit], DEFAULT_KEYS[bit], sizeof s_keys[bit]) != 0;
+    }
+    SDL_snprintf(key, 32, "pad_%s", NAMES[bit]);
+    SDL_snprintf(value, size, "%s", s_pad[bit] != PAD_NONE ? pad_source_name(s_pad[bit]) : "none");
+    return s_pad[bit] != DEFAULT_PAD[bit];
+}
+
+SDL_Gamepad *pad_gamepad(void) {
+    return s_gamepad;
+}
 
 int VSync(int mode);
 
@@ -107,8 +195,6 @@ static void open_gamepad(void) {
 /* DW3_PRESS="300:cross,500:start,600:f5": holds a button for 6 vsyncs at a vsync
    count, to drive the game in tests without anyone at the keyboard */
 static uint16_t scripted(int frame) {
-    static const char *names[16] = {"select", "l3", "r3", "start", "up", "right", "down", "left",
-                                    "l2", "r2", "l1", "r1", "triangle", "circle", "cross", "square"};
     const char *env = SDL_getenv("DW3_PRESS"), *p;
     uint16_t held = 0;
     int at, i;
@@ -123,7 +209,7 @@ static uint16_t scripted(int frame) {
         }
         if (frame >= at && frame < at + 6) {
             for (i = 0; i < 16; i++) {
-                if (SDL_strcmp(name, names[i]) == 0) {
+                if (SDL_strcmp(name, NAMES[i]) == 0) {
                     held |= 1 << i;
                 }
             }
@@ -182,20 +268,21 @@ void pad_update(void) {
     }
     open_gamepad();
     rumble();
-    for (i = 0; i < SDL_arraysize(KEYS); i++) {
-        if (keys[KEYS[i].key]) {
-            held |= 1 << KEYS[i].bit;
+    bound();
+    for (i = 0; i < 16; i++) {
+        int src = s_pad[i];
+
+        if ((s_keys[i][0] && keys[s_keys[i][0]]) || (s_keys[i][1] && keys[s_keys[i][1]])) {
+            held |= 1 << i;
+        }
+        if (s_gamepad != NULL && src != PAD_NONE &&
+            (src == PAD_LT || src == PAD_RT ? SDL_GetGamepadAxis(s_gamepad, src == PAD_LT ? SDL_GAMEPAD_AXIS_LEFT_TRIGGER : SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > g_deadzone
+                                            : SDL_GetGamepadButton(s_gamepad, src))) {
+            held |= 1 << i;
         }
     }
     b[4] = b[5] = b[6] = b[7] = 0x80; /* right x, right y, left x, left y */
     if (s_gamepad != NULL) {
-        for (i = 0; i < SDL_arraysize(BUTTONS); i++) {
-            if (SDL_GetGamepadButton(s_gamepad, BUTTONS[i].button)) {
-                held |= 1 << BUTTONS[i].bit;
-            }
-        }
-        if (SDL_GetGamepadAxis(s_gamepad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > g_deadzone) held |= 1 << B_L2;
-        if (SDL_GetGamepadAxis(s_gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > g_deadzone) held |= 1 << B_R2;
         stick(SDL_GAMEPAD_AXIS_RIGHTX, SDL_GAMEPAD_AXIS_RIGHTY, b + 4);
         stick(SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY, b + 6);
     }

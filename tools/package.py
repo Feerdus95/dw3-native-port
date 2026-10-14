@@ -1,6 +1,6 @@
 """Packs the port for players into native/dist/dw2003-native/ and a zip next to
 it: the exe and its .fill, SDL3.dll, the README, credits and license, an
-example native.ini. Nothing from the game: it refuses to finish if anything of
+example native.ini, the menu's button icons. Nothing from the game: it refuses to finish if anything of
 the disc or a save got in, or if the exe has any of the game's bytes
 (asset_scan.py). Run from anywhere: python native/tools/package.py"""
 import shutil
@@ -48,6 +48,7 @@ def main():
         dst = OUT / name
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
+    shutil.copytree(NATIVE / "assets/prompts", OUT / "prompts")  # the menu's button icons (CC0)
     bad = check(OUT)
     if bad:
         shutil.rmtree(OUT)
