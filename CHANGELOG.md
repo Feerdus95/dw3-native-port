@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## v0.12.0 (beta)
 
+- Fight stages edited in the model viewer (v0.5.0 on: its Stages tab, parts moved, removed or taken from other stages,
+  OBJs from Blender) play in battle: saved in the game's own format to `data/mods/`, read instead of the disc's.
 - Widescreen battles: the whole interface keeps its shape. The HP panels each sit against their side, with a gap
   between them; the partner's picture, its frame and the gauge against the right edge; the messages in the middle.
 - **Battle sky and fog** (options menu, Graphics tab, off by default): the battle's flat background becomes a sky,
