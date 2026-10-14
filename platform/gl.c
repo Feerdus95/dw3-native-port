@@ -394,7 +394,8 @@ void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi
         return;
     }
     if (s_count + n > BATCH || deep != s_deep || x1 != s_clip[0] || y1 != s_clip[1] || x2 != s_clip[2] || y2 != s_clip[3] ||
-        (semi_prim && s_semi >= 0 && semi != s_semi) || (!semi_prim && s_semi >= 0)) {
+        (semi_prim && s_semi >= 0 && semi != s_semi) || (!semi_prim && s_semi >= 0) ||
+        (semi == 5 && s_semi != 5 && s_count > 0)) { /* battle shadows go to the mask: a batch of their own */
         flush();
         s_clip[0] = x1, s_clip[1] = y1, s_clip[2] = x2, s_clip[3] = y2;
         s_deep = deep;
