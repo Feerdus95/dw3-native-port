@@ -222,8 +222,7 @@ int controls_glyph(int tx, int ty, int depth, int u, int v, int w, int h) {
 }
 
 /* The picture the game's text shows for a PS button: its key, or its
-   button on the pad chosen; 0 keeps the game's own (a PlayStation set, the
-   button where it was, or nothing bound) */
+   button on the pad chosen; 0 keeps the game's own (nothing bound) */
 int controls_game_icon(int bit, SDL_Surface **img, unsigned **tex) {
     static SDL_Surface *pads[FAMS_COUNT][DPAD + 1], *keys[SDL_SCANCODE_COUNT];
     static unsigned pad_tex[FAMS_COUNT][DPAD + 1], key_tex[SDL_SCANCODE_COUNT];
@@ -245,8 +244,7 @@ int controls_game_icon(int bit, SDL_Surface **img, unsigned **tex) {
     } else {
         int fam = family(), src = *pad_source(bit);
 
-        if (src < 0 || src > DPAD || pad_source_name(src) == NULL ||
-            (src == PLACE[bit] && fam >= FAM_PS3 && fam <= FAM_PS5)) {
+        if (src < 0 || src > DPAD || pad_source_name(src) == NULL) {
             return 0;
         }
         if (!pad_tried[fam][src]) {

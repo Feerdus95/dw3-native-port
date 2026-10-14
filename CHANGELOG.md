@@ -9,7 +9,7 @@
   Series, Switch, Keyboard, or Auto by the device used last; from Xelu's free prompts pack
   (CC0), in `prompts/` by the exe.
 - The game's own texts show the face buttons (✕ ○ □ △, as in "△ Button: Back") with the same icons: the key or the
-  pad's button each is bound to. A PlayStation set with the buttons where they were keeps the game's own.
+  pad's button each is bound to.
 
 ## v0.10.0 (beta)
 
