@@ -1,6 +1,6 @@
 --- a/src/ststatus/item_list.c
 +++ b/src/ststatus/item_list.c
-@@ -377,3 +377,461 @@
+@@ -377,3 +377,470 @@
      panel->list = list;
      return panel;
  }
@@ -38,14 +38,17 @@
 +
 +/*
 + * The side quests: an optional fight or errand whose event gives an item
-+ * and sets a flag. Found once the field it is on has been visited (the map's
-+ * flag); done once that flag is set
++ * and sets a flag. Found once the field it is on has been visited (the
++ * field's flag) while the story is not past `last`; done once that flag is
++ * set
 + */
 +typedef struct SideQuest {
 +    u16 item; /* its reward, the title */
 +    u16 mode; /* its field */
 +    u16 done; /* a flag code (FLAG) */
++    u16 last; /* the last story step it can be done at */
 +} SideQuest;
++#define ANY_STEP 0xFF
 +
 +static const SideQuest SIDE_QUESTS[] = {
 +    { 0x006, 0x233, FLAG(0x40, 0x24) }, /* Agumon DDNA, MetalGreymon */
@@ -75,6 +78,10 @@
 +    { 0x100, 0x2B0, FLAG(0x40, 0x7D) }, /* Sniper Suit, BK Seraphimon */
 +    { 0x10E, 0x2BC, FLAG(0x40, 0x7F) }, /* Hazard Armor, BK WarGrowlmon */
 +    { 0x142, 0x2BE, FLAG(0x40, 0x81) }, /* BIT Adapter, BK KingNumemon */
++    /* the Undersea Base's, only while the story is there (shops sell both later);
++       the Wing Helmet's event follows the fight that sets 0x46 */
++    { 0x0CB, 0x2DB, FLAG(0x40, 0x45), 0x20 }, /* Dramon Guard */
++    { 0x0F0, 0x2DC, FLAG(0x40, 0x46), 0x20 }, /* Wing Helmet */
 +};
 +#define SIDE_QUEST_COUNT (s32)(sizeof SIDE_QUESTS / sizeof SIDE_QUESTS[0])
 +#define JOURNAL_MAX (JOURNAL_LAST_STEP + 1 + SIDE_QUEST_COUNT)
@@ -124,7 +131,9 @@
 +}
 +
 +static s32 sideQuestFound(s32 quest) {
-+    return FLAGS_00.checkCondition((SIDE_QUESTS[quest].mode & 0xFF) | 0x2000, 1) == 1;
++    const SideQuest *q = &SIDE_QUESTS[quest];
++
++    return FLAGS_00.checkCondition((q->mode & 0xFF) | 0x2000, 1) == 1 && GAME.progress <= (q->last ? q->last : ANY_STEP);
 +}
 +
 +static s32 sideQuestDone(s32 quest) {
