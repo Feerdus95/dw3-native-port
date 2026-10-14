@@ -97,6 +97,9 @@ extern int g_battle_shadows;
 /* the layer whose ordering table is drawn (main/gfx/display.c's drawFrame),
    for widescreen battles' menus (platform/gpu_draw.c) */
 extern int g_draw_layer;
+/* the next ordering table drawn belongs to a menu against the left (0) or
+   right (320) edge, in a widescreen battle (the cursor's bar, fightstg/cursor.c) */
+void native_wide_side(int edge);
 /* the vsyncs so far, a new value for each frame (platform/etc.c) */
 unsigned native_frame(void);
 

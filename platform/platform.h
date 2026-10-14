@@ -73,6 +73,7 @@ void gl_shadows_resolve(void); /* an ordering table drawn: its battle shadows on
 void gl_depth_clear(void); /* a new ordering table: its 3D drawn over what came before */
 void gl_refresh(int x, int y, int w, int h); /* the copy from VRAM, after the CPU wrote it */
 void gl_copy(int sx, int sy, int w, int h, int dx, int dy);
+void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw);
 void gl_present(const struct SDL_Surface *menu, struct SDL_Surface **shot);
 int gte_precise(const uint32_t *word, float *x, float *y, float *z);
 void gte_precise_copy(void *dst, const void *src); /* the game's own code calls it too */

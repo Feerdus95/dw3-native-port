@@ -524,6 +524,11 @@ void gl_refresh(int x, int y, int w, int h) {
 
 /* VRAM to VRAM, in the copy */
 void gl_copy(int sx, int sy, int w, int h, int dx, int dy) {
+    gl_copy_to(sx, sy, w, h, (float)dx, dy, (float)w);
+}
+
+/* The same, to dw pixels across from dx (a widescreen battle's menus) */
+void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
     int s = s_scale;
 
     if (s == 0 || w <= 0 || h <= 0) {
@@ -531,7 +536,7 @@ void gl_copy(int sx, int sy, int w, int h, int dx, int dy) {
     }
     flush();
     if (sx + w > VRAM_W) w = VRAM_W - sx;
-    if (dx + w > VRAM_W) w = VRAM_W - dx;
+    if (dx + dw > VRAM_W) dw = VRAM_W - dx;
     if (sy + h > VRAM_H) h = VRAM_H - sy;
     if (dy + h > VRAM_H) h = VRAM_H - dy;
     GL(glBindFramebuffer)(GL_READ_FRAMEBUFFER, s_fbo);
@@ -539,7 +544,7 @@ void gl_copy(int sx, int sy, int w, int h, int dx, int dy) {
     GL(glBlitFramebuffer)(sx * s, sy * s, (sx + w) * s, (sy + h) * s, 0, 0, w * s, h * s, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     GL(glBindFramebuffer)(GL_READ_FRAMEBUFFER, s_tmp_fbo);
     GL(glBindFramebuffer)(GL_DRAW_FRAMEBUFFER, s_fbo);
-    GL(glBlitFramebuffer)(0, 0, w * s, h * s, dx * s, dy * s, (dx + w) * s, (dy + h) * s, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    GL(glBlitFramebuffer)(0, 0, w * s, h * s, (int)(dx * s + 0.5f), dy * s, (int)((dx + dw) * s + 0.5f), (dy + h) * s, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
 }
 

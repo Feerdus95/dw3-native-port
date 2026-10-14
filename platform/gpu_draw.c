@@ -223,6 +223,12 @@ static int too_big(const Vtx *a, const Vtx *b, const Vtx *c) {
 static float s_map_a, s_map_s = 1;
 int g_draw_layer;
 
+void native_wide_side(int edge) {
+    if (gte_widescreen()) {
+        s_map_a = (float)edge, s_map_s = 0.75f; /* the frame buffers start at x 0 */
+    }
+}
+
 /* A vertex for the card with the drawing state; flags as triangle()'s */
 static GVtx gvtx(float x, float y, int r, int gg, int b, int u, int v, int clut, int flags, int dither) {
     GVtx o;
@@ -496,7 +502,7 @@ void gpu_gp0(const uint32_t *p, int n) {
             for (i = 0; i < w; i++)
                 g_vram[((dy + j) & 511) * VRAM_W + ((dx + i) & 1023)] = tmp[j * w + i];
         gl_vram_dirty(dx, dy, w, h);
-        gl_copy(sx0, sy0, w, h, dx, dy);
+        gl_copy_to(sx0, sy0, w, h, s_map_a + (dx - s_map_a) * s_map_s, dy, w * s_map_s); /* a menu's highlight, placed with it */
     } else if (cmd >= 0xE1 && cmd <= 0xE6) {
         gp0_env(p[0]);
     } else if (cmd > 0x02) {
@@ -583,6 +589,10 @@ static int packet_box(const uint32_t *p, int n, int *ox, int *oy, int *x1, int *
             xs[0] = sx(p[1]) + *ox - *x1, ys[0] = sy(p[1]) + *oy - *y1;
             xs[1] = xs[0] + w, ys[1] = ys[0] + h;
             nv = 2;
+        } else if (cmd >= 0x80 && cmd < 0xA0) { /* a copy within VRAM: where it goes (the cursor's bar) */
+            xs[0] = (int)(p[2] & 1023) - *x1, ys[0] = (int)(p[2] >> 16 & 511) - *y1;
+            xs[1] = xs[0] + (int)(p[3] & 0xFFFF), ys[1] = ys[0] + (int)(p[3] >> 16);
+            nv = ys[0] >= 0 && ys[0] < 240 ? 2 : 0; /* the other buffer's copy goes with the first's */
         } else if (cmd == 0xE3) {
             *x1 = p[0] & 1023, *y1 = p[0] >> 10 & 511;
         } else if (cmd == 0xE5) {

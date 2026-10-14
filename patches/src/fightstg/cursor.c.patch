@@ -1,0 +1,13 @@
+--- a/src/fightstg/cursor.c
++++ b/src/fightstg/cursor.c
+@@ -39,6 +39,10 @@
+         }
+         while (IsIdleGPU(0)) {
+         }
++#ifdef NATIVE
++        /* in a widescreen battle, the bar goes where its menu went */
++        native_wide_side(task->params.x < 160 ? 0 : 320);
++#endif
+         ContinueDraw(FIGHTSTG_cursorBarOt, saved);
+     }
+     task->prevSel = task->sel;
