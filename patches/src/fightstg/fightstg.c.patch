@@ -223,25 +223,36 @@
              if (state->lit) {
                  p = state->cmd + (state->quad + 3);
                  state->colors[0] = state->normalColors[p[0]];
-@@ -827,6 +996,17 @@
-     if (FIGHTSTG_isMeshOnScreen(mesh, layer) == 0) {
+@@ -828,6 +997,28 @@
          return;
      }
+     FIGHTSTG_projectMesh(mesh, layer);
 +#ifdef NATIVE
 +    {
-+        /* a stage's own sky (its bones without the bounds check, the dome):
-+           no sky or fog of ours over it (gl.c) */
-+        void gl_battle_backdrop(void);
++        /* a stage's painted horizon: its points 20000 or more from the
++           arena's middle (the panoramas are 20000-32000 away, the ground and
++           props within ~19500, sometimes in one mesh with them); kept out of
++           the battle's fog by their depth (platform/gte.c, gl.c) */
++        void gte_precise_far(const void *addr);
++        ShortVec3 *v = mesh->vertices;
++        MATRIX *w = &mesh->matrix;
++        s32 n = v->x, i;
 +
-+        if (mesh->noBoundsCheck != 0) {
-+            gl_battle_backdrop();
++        for (i = 0; i < n; i++) {
++            ShortVec3 *p = &v[i + 1];
++            float x = (w->m[0][0] * p->x + w->m[0][1] * p->y + w->m[0][2] * p->z) / 4096.0f + w->t[0];
++            float z = (w->m[2][0] * p->x + w->m[2][1] * p->y + w->m[2][2] * p->z) / 4096.0f + w->t[2];
++
++            if (x * x + z * z >= 20000.0f * 20000.0f) {
++                gte_precise_far(&mesh->screen[i]);
++            }
 +        }
 +    }
 +#endif
-     FIGHTSTG_projectMesh(mesh, layer);
      FIGHTSTG_lightMesh(mesh);
      state.cmd = mesh->commands;
-@@ -892,6 +1072,12 @@
+     state.texPos = mesh->texPos;
+@@ -892,6 +1083,12 @@
          }
      }
      GFX.funcs.setPrim(state.prim.ptr);
@@ -254,7 +265,7 @@
  }
  
  /* A primitive tag's word with its address replaced: the top byte of tag and
-@@ -1070,6 +1256,9 @@
+@@ -1070,6 +1267,9 @@
      mesh->texPos = texPos;
      mesh->draw = FIGHTSTG_queueMeshDraw;
      mesh->drawWireframe = FIGHTSTG_queueMeshWireframe;

@@ -262,6 +262,20 @@ void gte_precise_copy(void *dst, const void *src) {
     }
 }
 
+/* A point of a stage's painted horizon (FIGHTSTG's patch), as stsxy put it
+   at addr: its depth negative from here on, copies too, for the GPU to keep
+   it out of the fog (gpu_draw.c) */
+void gte_precise_far(const void *addr) {
+    Precise *s = set(&s_by_addr, (uintptr_t)addr);
+    int i;
+
+    for (i = 0; s != NULL && i < WAYS; i++) {
+        if (s[i].key == (uintptr_t)addr && s[i].frame == s_frame && s[i].z > 0) {
+            s[i].z = -s[i].z;
+        }
+    }
+}
+
 static void remember(void) {
     uint32_t key = (uint16_t)SX[2] | (uint32_t)(uint16_t)SY[2] << 16;
     double x, y;

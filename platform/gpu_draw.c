@@ -254,7 +254,7 @@ static GVtx gvtx(float x, float y, int r, int gg, int b, int u, int v, int clut,
     o.twoy = (uint16_t)g.tw_off_y;
     o.z = 0;
     o.w = 0;
-    o.mode = (uint32_t)((flags & 2) | (flags & 6) | (flags & 8) | (flags & 512) | (flags & 1024) | g.depth << 4 | (dither ? 64 : 0) | (g.set_mask ? 256 : 0));
+    o.mode = (uint32_t)((flags & 2) | (flags & 6) | (flags & 8) | (flags & 512) | (flags & 1024) | (flags & 2048) | g.depth << 4 | (dither ? 64 : 0) | (g.set_mask ? 256 : 0));
     return o;
 }
 
@@ -292,7 +292,10 @@ static void gl_rect(int x, int y, int w, int h, int r, int gg, int b, int flags,
 }
 
 /* A vertex word where the card puts it: with the GTE's fraction, when it
-   made that word */
+   made that word; s_far: how many were a stage's painted horizon's
+   (gte_precise_far) */
+static int s_far;
+
 static void precise(const uint32_t *w, float *x, float *y, float *z) {
     /* a battle's menus are 2D: a point there that matched a 3D one by its
        value took that one's fraction, and the enemy's HP bar wobbled */
@@ -300,6 +303,10 @@ static void precise(const uint32_t *w, float *x, float *y, float *z) {
         *z = 0;
         *x = (float)sx(*w);
         *y = (float)sy(*w);
+    }
+    if (*z < 0) {
+        *z = -*z;
+        s_far++;
     }
     *x += (float)g.ox;
     *y += (float)g.oy;
@@ -379,6 +386,7 @@ void gpu_gp0(const uint32_t *p, int n) {
         float fx[4], fy[4], fz[4];
         uint32_t color = p[k++] & 0xFFFFFF;
 
+        s_far = 0;
         for (i = 0; i < nv; i++) {
             if (i > 0 && gouraud) {
                 color = p[k++] & 0xFFFFFF;
@@ -419,7 +427,7 @@ void gpu_gp0(const uint32_t *p, int n) {
             int known = fz[0] > 0 && fz[1] > 0 && fz[2] > 0 && (!quad || fz[3] > 0), deep = g_depth && known;
 
             for (k = 0; k < nv; k++) {
-                gv[k] = gvtx(fx[k], fy[k], v[k].r, v[k].g, v[k].b, v[k].u, v[k].v, clut, i, dither);
+                gv[k] = gvtx(fx[k], fy[k], v[k].r, v[k].g, v[k].b, v[k].u, v[k].v, clut, i | (s_far == nv ? 2048 : 0), dither);
                 gv[k].z = deep ? fz[k] : 0;
                 gv[k].w = known ? fz[k] : 0;
             }
@@ -457,7 +465,7 @@ void gpu_gp0(const uint32_t *p, int n) {
         int r = p[0] & 255, gg = p[0] >> 8 & 255, b = p[0] >> 16 & 255;
 
         rect(x, y, w, h, p[0] & 0xFFFFFF, 0, 0, 0, 0, 0, 0, 0);
-        if (g_battle_sky && gte_in_battle() && w >= 256 && h >= 200 && !gl_battle_has_backdrop()) {
+        if (g_battle_sky && gte_in_battle() && w >= 256 && h >= 200) {
             static const int CX[6] = {0, 1, 0, 1, 1, 0}, CY[6] = {0, 0, 1, 0, 1, 1};
             GVtx q[6];
 

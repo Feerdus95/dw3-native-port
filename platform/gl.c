@@ -59,7 +59,8 @@ static const char *MAIN_VS =
 
 /* mode: 2 textured, 4 raw texture, 8 semi-transparent, 16-48 texel depth,
    64 dithered, 128 the copy of VRAM itself, 256 sets the mask bit, 512 a soft
-   shadow (native.h's NATIVE_SOFT_SHADOW), 1024 a battle shadow's triangle */
+   shadow (native.h's NATIVE_SOFT_SHADOW), 1024 a battle shadow's triangle,
+   2048 a stage's painted horizon (no fog) */
 static const char *MAIN_FS =
     "#version 330 core\n"
     "uniform usampler2D vram;\n"
@@ -149,7 +150,7 @@ static const char *MAIN_FS =
     "    }\n"
     "    if ((md & 512u) != 0u) c5 = vec3(18.6 * cover);\n" /* how much of the ground it takes, 0.6 inside */
     /* the opaque 3D fades into the sky with depth; the blended keeps its own */
-    "    else if (fog.a > 0.0 && deep != 0u && !semi) c5 = mix(c5, fog.rgb, 0.85 * smoothstep(fogz.x, fogz.y, vw));\n"
+    "    else if (fog.a > 0.0 && deep != 0u && !semi && (md & 2048u) == 0u) c5 = mix(c5, fog.rgb, 0.6 * smoothstep(fogz.x, fogz.y, vw));\n"
     "    frag = vec4(c5 / 31.0, (md & 256u) != 0u || (pix & 0x8000u) != 0u ? 1.0 : 0.0);\n"
     "}\n";
 
@@ -203,7 +204,6 @@ static int s_deep;                   /* the batch is by the depth buffer */
 int g_battle_sky;                    /* battle_sky, the menu (native.h) */
 static float s_fog[3];               /* the battle's sky colour at the horizon, 5 bits; s_fog_on: drawn this frame */
 static int s_fog_on, s_fog_shown;
-static int s_backdrop;               /* frames left that count a stage's own sky as drawn */
 static float s_zfar, s_zframe;       /* the farthest opaque 3D: smoothed, and this frame's */
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
 static GLuint s_mask_fbo, s_mask_tex, s_blur_fbo, s_blur_tex; /* battle shadows: where they fall, blurred */
@@ -429,7 +429,7 @@ void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi
     }
     if (semi_prim) {
         s_semi = semi;
-    } else if (v[0].w > 0) {
+    } else if (v[0].w > 0 && !(v[0].mode & 2048)) {
         int i;
 
         for (i = 0; i < n; i++) {
@@ -543,20 +543,11 @@ void gl_refresh(int x, int y, int w, int h) {
 }
 
 /* A battle's sky drawn (gpu_draw.c), its colour at the horizon the fog's:
-   the stage's background colour, which fades in and out with the stage. A
-   stage with a sky of its own (gl_battle_backdrop, FIGHTSTG's patch) has
-   neither: its painted sky would be fogged and would hide ours.
+   the stage's background colour, which fades in and out with the stage.
+   The painted horizon (mode 2048) stays out of the fog and of its range.
    ponytail: the fog spans the farthest opaque 3D of the last frames (the
    stage's edge), as the stages' sizes are not known; a per-stage range
    when one looks wrong */
-void gl_battle_backdrop(void) {
-    s_backdrop = 2;
-}
-
-int gl_battle_has_backdrop(void) {
-    return s_backdrop > 0;
-}
-
 void gl_battle_fog(int r, int gg, int b) {
     s_fog[0] = r / 8.0f, s_fog[1] = gg / 8.0f, s_fog[2] = b / 8.0f;
     s_fog_on = 1;
@@ -782,8 +773,7 @@ void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
     flush();
     /* the fog for the next frame: on while a sky is drawn, its depths eased
        toward this frame's farthest (a camera's cut) */
-    s_backdrop -= s_backdrop > 0;
-    s_fog_shown = s_fog_on && !s_backdrop;
+    s_fog_shown = s_fog_on;
     s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
     s_fog_on = 0, s_zframe = 0;
     if (vsync != g_vsync) {
