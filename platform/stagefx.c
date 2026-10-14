@@ -313,14 +313,16 @@ int native_stage_drift(float *c, float *s) {
     return 1;
 }
 
-/* How far a prop's point at x, y, z moves in the wind now: the leaves'
-   wind (wind_at, the stage's wind and its gusts), so the trees lean
-   downwind as much as the leaves are blown and ease back as a gust dies,
-   with a small flutter on top, each place in its own time; as the square of
-   its height (none at the ground; ~180 units at a tree's top 6000 up for
-   sway 1 in a full gust of wind 1) */
+/* How far a prop's point at x, y, z moves in the wind now, by the leaves'
+   wind (wind_at: the stage's wind and its gusts): a sway every ~2.5 s, each
+   place in its own time, and a lean downwind, both as strong as the gust
+   blowing the leaves (a lull: barely; a full gust of wind 1 at sway 1: +-200
+   units of sway and 100 of lean at a tree's top 6000 up), as the square of
+   the height (none at the ground) */
+static float s_top; /* the most a point moved this second, for DW3_LOG=gpu */
+
 int native_stage_sway(float x, float y, float z, float *dx, float *dz) {
-    float bright, w[2], h, amp, flutter, t = (float)s_now;
+    float bright, w[2], h, amp, move, t = (float)s_now;
     const StageFx *fx = stagefx_current(&bright);
 
     if (fx == NULL || fx->sway <= 0 || y > -400.0f) {
@@ -328,10 +330,11 @@ int native_stage_sway(float x, float y, float z, float *dx, float *dz) {
     }
     h = SDL_min(-y / 6000.0f, 1.5f);
     wind_at(t, fx->wind, w); /* the leaves' drift a frame: 18 at a full gust of wind 1 */
-    amp = fx->sway * 180.0f * h * h / 18.0f;
-    flutter = 1.0f + 0.25f * sinf(t * 0.05f + (x + z) * 0.0004f);
-    *dx = w[0] * amp * flutter;
-    *dz = w[1] * amp * flutter;
+    amp = fx->sway * 200.0f * h * h / 18.0f;
+    move = 0.5f + sinf(t * 0.042f + (x + z) * 0.0004f);
+    *dx = w[0] * amp * move;
+    *dz = w[1] * amp * move;
+    s_top = SDL_max(s_top, sqrtf(*dx * *dx + *dz * *dz));
     s_swayed++;
     return 1;
 }
@@ -341,8 +344,14 @@ static void stagefx_log(void) {
     const StageFx *fx = stagefx_current(&b);
 
     if ((g_log & LOG_GPU) && fx != NULL) {
-        LOG("stagefx: stage %d, %d leaves; %d prop points swayed and %d sky meshes turned this second (sky at %.1f deg)",
-            s_shown, s_leaf_count, s_swayed, s_drifted, fmodf(s_now / 60.0f * fx->clouds, 360.0f));
+        float w[2];
+
+        wind_at((float)s_now, fx->wind, w);
+        LOG("stagefx: stage %d, %d leaves, wind %.1f a frame; %d prop points swayed (at most %.0f units) and %d sky "
+            "meshes turned this second (sky at %.1f deg)",
+            s_shown, s_leaf_count, sqrtf(w[0] * w[0] + w[1] * w[1]), s_swayed, s_top, s_drifted,
+            fmodf(s_now / 60.0f * fx->clouds, 360.0f));
     }
     s_swayed = s_drifted = 0;
+    s_top = 0;
 }
