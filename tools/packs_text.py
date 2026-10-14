@@ -9,8 +9,9 @@ Index: 0 "", 1-3 the packs' names, 4-6 the labels D E F, 7-9 the packs'
 texts, 10 Veemon's text, 11 Veemon's greeting in the lobby, 12-13 the word
 of the intro's text and the one that replaces it ("three", "six").
 And the port's other texts: 14 fast travel's question, 15 DIGILOG's name (the
-journal), 16-17 its states (current, done), then from 18 each story step's
-title and text (GAME.progress 0 to 0x2D).
+journal), 16-17 its tabs (active, done), 18-109 each story step's title and
+text (GAME.progress 0 to 0x2D), 110-112 the bar's kinds (main, side, done),
+then from 113 each side quest's text (ststatus/item_list.c's SIDE_QUESTS).
 """
 import subprocess
 import sys
