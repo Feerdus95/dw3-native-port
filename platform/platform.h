@@ -61,6 +61,7 @@ typedef struct {
     uint16_t twmx, twmy, twox, twoy; /* texture window: mask, offset */
     uint32_t mode;     /* gl.c's MAIN_FS */
     float z;           /* the GTE's view depth, 0 for none: drawn in order, not by the depth buffer */
+    float w;           /* the same, for the textures in perspective, 0 for none */
 } GVtx;
 struct SDL_Surface;
 extern uint16_t g_vram_dirty[8]; /* 64x64 blocks the CPU wrote, a bit each */
@@ -114,6 +115,8 @@ extern int g_debug;         /* debug = 1: the debug keys (state.c) */
 extern int g_depth; /* the options menu's Depth buffer: the 3D models' polygons by their depth, not the PSX's order (gl.c) */
 extern int g_subpixel; /* the options menu's Sub-pixel 3D: 0 snaps vertices to the 1x pixel (gte.c), for comparing */
 extern int g_dither_on;     /* dither = 0: no GPU dithering (gpu_draw.c) */
+extern int g_true_color;    /* true_color = 0: the card's colours cut to the PSX's 5 bits a channel (gl.c) */
+extern int g_perspective;   /* perspective = 0: the 3D's textures without perspective, as the PSX's (gl.c) */
 extern int g_soft_shadows;  /* soft_shadows = 1: the field's shadows see-through and smooth (gl.c, native.h) */
 extern int g_smooth_movies; /* smooth_movies = 0: movies scaled by nearest pixel (video.c) */
 extern int g_deadzone;      /* deadzone = <0..32767>: the sticks' and triggers' (pad.c) */

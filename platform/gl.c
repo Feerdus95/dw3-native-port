@@ -41,14 +41,17 @@ static const char *MAIN_VS =
     "layout(location = 4) in uvec4 window;\n" /* texture window mask x, y, offset x, y */
     "layout(location = 5) in uint mode;\n"
     "layout(location = 6) in float z;\n" /* view depth, 0: none */
+    "layout(location = 7) in float w;\n" /* the same for the perspective, 0: none */
     "uniform vec2 size;\n" /* VRAM's, 1024x512 */
-    "noperspective out vec2 uv;\n"
-    "noperspective out vec3 col;\n"
+    "uniform int persp;\n"
+    "out vec2 uv;\n" /* in perspective by w, or straight across the screen (w 1) */
+    "out vec3 col;\n"
     "flat out uvec4 t, lim, tw;\n"
     "flat out uint md;\n"
     "void main() {\n"
     /* linear in 1/z, as depth goes across the screen; the depth test is off without one */
     "    gl_Position = vec4(pos_uv.xy / size * 2.0 - 1.0, z > 0.0 ? clamp(1.0 - 64.0 / z, 0.0, 1.0) * 2.0 - 1.0 : 0.0, 1.0);\n"
+    "    gl_Position *= persp != 0 && w > 0.0 ? w : 1.0;\n"
     "    uv = pos_uv.zw; col = color; t = tex; lim = limits; tw = window; md = mode;\n"
     "}\n";
 
@@ -60,8 +63,9 @@ static const char *MAIN_FS =
     "uniform usampler2D vram;\n"
     "uniform int pass;\n" /* 0 everything, 1 all but the semi-transparent, 2 only those */
     "uniform float scale;\n"
-    "noperspective in vec2 uv;\n"
-    "noperspective in vec3 col;\n"
+    "uniform int truecolor;\n" /* the colours at 8 bits, undithered */
+    "in vec2 uv;\n"
+    "in vec3 col;\n"
     "flat in uvec4 t, lim, tw;\n"
     "flat in uint md;\n"
     "out vec4 frag;\n"
@@ -111,7 +115,7 @@ static const char *MAIN_FS =
     "        c5 = rgb5(pix);\n"
     "    } else {\n"
     "        float d = (md & 64u) != 0u ? DITHER[(int(gl_FragCoord.y) & 3) * 4 + (int(gl_FragCoord.x) & 3)] : 0.0;\n"
-    "        c5 = clamp(floor((c8 + d) / 8.0), 0.0, 31.0);\n"
+    "        c5 = truecolor != 0 ? clamp(c8 / 8.0, 0.0, 31.0) : clamp(floor((c8 + d) / 8.0), 0.0, 31.0);\n"
     "    }\n"
     "    if ((md & 512u) != 0u) c5 = vec3(18.6 * cover);\n" /* how much of the ground it takes, 0.6 inside */
     "    frag = vec4(c5 / 31.0, (md & 256u) != 0u || (pix & 0x8000u) != 0u ? 1.0 : 0.0);\n"
@@ -136,11 +140,12 @@ static const char *BLIT_FS =
 static SDL_Window *s_window;
 static SDL_GLContext s_ctx;
 static GLuint s_main, s_blit, s_vao, s_vbo, s_quad_vao, s_quad_vbo;
-static GLint s_pass_loc, s_scale_loc, s_size_loc;
+static GLint s_pass_loc, s_scale_loc, s_size_loc, s_true_loc, s_persp_loc;
 static GLuint s_vram_tex;            /* the 1x VRAM, R16UI */
 static GLuint s_fbo, s_fbo_tex;      /* the copy, render_scale times bigger */
 static GLuint s_fbo_depth;           /* its depth buffer, for the 3D models (g_depth) */
 int g_depth = 1;
+int g_true_color = 1, g_perspective = 1; /* true_color, perspective, the menu */
 int g_soft_shadows; /* soft_shadows = 1, the menu (native.h) */
 static int s_deep;                   /* the batch is by the depth buffer */
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
@@ -275,6 +280,8 @@ static void flush(void) {
     GL(glActiveTexture)(GL_TEXTURE0);
     GL(glBindTexture)(GL_TEXTURE_2D, s_vram_tex);
     GL(glUniform1f)(s_scale_loc, (float)s);
+    GL(glUniform1i)(s_true_loc, g_true_color);
+    GL(glUniform1i)(s_persp_loc, g_perspective);
     GL(glDisable)(GL_BLEND);
     if (s_deep) {
         GL(glEnable)(GL_DEPTH_TEST);
@@ -475,6 +482,8 @@ int gl_init(SDL_Window *window) {
     s_pass_loc = GL(glGetUniformLocation)(s_main, "pass");
     s_scale_loc = GL(glGetUniformLocation)(s_main, "scale");
     s_size_loc = GL(glGetUniformLocation)(s_main, "size");
+    s_true_loc = GL(glGetUniformLocation)(s_main, "truecolor");
+    s_persp_loc = GL(glGetUniformLocation)(s_main, "persp");
     GL(glUseProgram)(s_main);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_main, "vram"), 0);
     GL(glUniform2f)(s_size_loc, VRAM_W, VRAM_H);
@@ -499,6 +508,8 @@ int gl_init(SDL_Window *window) {
     GL(glVertexAttribIPointer)(5, 1, GL_UNSIGNED_INT, sizeof(GVtx), (void *)offsetof(GVtx, mode));
     GL(glEnableVertexAttribArray)(6);
     GL(glVertexAttribPointer)(6, 1, GL_FLOAT, GL_FALSE, sizeof(GVtx), (void *)offsetof(GVtx, z));
+    GL(glEnableVertexAttribArray)(7);
+    GL(glVertexAttribPointer)(7, 1, GL_FLOAT, GL_FALSE, sizeof(GVtx), (void *)offsetof(GVtx, w));
 
     GL(glGenVertexArrays)(1, &s_quad_vao);
     GL(glBindVertexArray)(s_quad_vao);

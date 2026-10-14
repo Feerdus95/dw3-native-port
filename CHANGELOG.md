@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Perspective 3D** (options menu, on by default): the 3D's textures in perspective, by the depth the GTE gave each
+  point, without the PlayStation's warping as the camera moves.
+- **True colour** (options menu, on by default): the graphics card keeps the colours at 8 bits a channel, without the
+  PlayStation's 5-bit banding in shading and blending.
 - **Soft shadows** (options menu, off by default): the shadows under the characters on the field darken the ground
   they fall on, with smooth edges at any resolution, instead of the original's grey disc.
 - **Fast text** (options menu, on by default): holding X advances the texts, outside battles and card games. After

@@ -11,6 +11,14 @@ fullscreen = 0
 # fits the screen (4 = 1280x960 on a 1080p one)
 #scale = 3
 
+# 1: the 3D's textures in perspective, without the PlayStation's warping
+# (needs the options menu's Sub-pixel 3D)
+perspective = 1
+
+# 1: the colours at 8 bits a channel, without the PlayStation's 5-bit banding;
+# dithering is then left out
+true_color = 1
+
 # 0: no dithering (the PlayStation's, on shaded and blended polygons)
 dither = 1
 

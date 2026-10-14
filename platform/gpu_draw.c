@@ -241,6 +241,7 @@ static GVtx gvtx(float x, float y, int r, int gg, int b, int u, int v, int clut,
     o.twox = (uint16_t)g.tw_off_x;
     o.twoy = (uint16_t)g.tw_off_y;
     o.z = 0;
+    o.w = 0;
     o.mode = (uint32_t)((flags & 2) | (flags & 6) | (flags & 8) | (flags & 512) | g.depth << 4 | (dither ? 64 : 0) | (g.set_mask ? 256 : 0));
     return o;
 }
@@ -392,11 +393,12 @@ void gpu_gp0(const uint32_t *p, int n) {
             GVtx gv[4];
 
             /* by the depth buffer when the GTE gave every point its depth */
-            int deep = g_depth && fz[0] > 0 && fz[1] > 0 && fz[2] > 0 && (!quad || fz[3] > 0);
+            int known = fz[0] > 0 && fz[1] > 0 && fz[2] > 0 && (!quad || fz[3] > 0), deep = g_depth && known;
 
             for (k = 0; k < nv; k++) {
                 gv[k] = gvtx(fx[k], fy[k], v[k].r, v[k].g, v[k].b, v[k].u, v[k].v, clut, i, dither);
                 gv[k].z = deep ? fz[k] : 0;
+                gv[k].w = known ? fz[k] : 0;
             }
             if (!too_big(&v[0], &v[1], &v[2])) {
                 gl_tri(gv[0], gv[1], gv[2]);
