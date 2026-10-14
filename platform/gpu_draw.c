@@ -646,6 +646,9 @@ static void wide_plan(uint32_t *p) {
         for (j = i + 1; j < s_wide_n; j++) {
             int *a = s_wide[i].box, *b = s_wide[j].box;
 
+            if (a[3] < 0x4A || b[3] < 0x4A) {
+                continue; /* the HP panels at the top join no menu: a menu opening under them took them along */
+            }
             if (a[0] <= b[2] + 2 && b[0] <= a[2] + 2 && a[1] <= b[3] + 2 && b[1] <= a[3] + 2) {
                 s_wide[wide_root(i)].root = wide_root(j);
             }
@@ -665,7 +668,7 @@ static void wide_plan(uint32_t *p) {
     }
     for (i = 0; i < s_wide_n; i++) {
         int *m = menu[wide_root(i)];
-        int hud = m[3] < 0x4A;                                             /* the HP panels, at the top */
+        int hud = s_wide[i].box[3] < 0x4A || m[3] < 0x4A;                /* the HP panels, at the top */
         int partner = m[0] < 0x134 && m[2] > 0xD0 && m[1] < 0x88 && m[3] > 0x4C; /* its picture's frame */
         int wide = m[2] - m[0] > 200;                                      /* the messages */
 
