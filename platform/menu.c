@@ -13,7 +13,7 @@ enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COL
 
 static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Smooth movies", "VSync", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
-    "Fast text (hold X)", "Fast forward (Tab/R3)", "Fast travel (map, X)", "Objective on map", "Journal (field menu)", "Extra starter packs", "BladeGarurumon",
+    "Fast text (hold X)", "Fast forward (Tab/R3)", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon",
 };
 
 /* the tabs and their options, each list ending with -1 */

@@ -127,7 +127,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 | Fast text | holding X advances the texts, outside battles and card games |
 | Fast travel | on the map screen (the field menu's Map), X on a visited area asks, and Yes takes you there as the menu closes, through one of the game's own doors into it that is open at that point of the story. Once you have been to Amaterasu, Square switches between the two servers' maps. Off by default. After Flawe's Fast Travel hack |
 | Objective on map | the map screen blinks the area where the story's next step happens (visited or not); on the other server's map when the step is there. Off by default |
-| Journal | a last row of the field menu: the story's entries in the item list's own panels, with the area of the next step. Work in progress, off by default |
+| Digilog | a last row of the field menu, DIGILOG (the journal): the story's entries in the item list's own panels, with the area of the next step. Work in progress, off by default |
 | Fast forward | x2, x3 or x5 (Tab or R3 while playing); the music keeps its speed. Not saved |
 | Extra starter packs | three more packs to pick in a new game: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon), Mystic (Kumamon, Renamon, Veemon) |
 | BladeGarurumon | a 45th Digimon every partner can learn, with Growlmon and Grizzmon at level 40: its own model (made at start from your disc's), techniques and signature, Solar Laser. Saves stay standard memory cards |
