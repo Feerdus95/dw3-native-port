@@ -6,7 +6,7 @@
 #include "platform.h"
 
 int g_icons = ICONS_PS5; /* native.ini; the game's own buttons by default */
-const char *const ICON_NAMES[ICONS_COUNT] = {"auto", "ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch", "keyboard"};
+const char *const ICON_NAMES[ICONS_COUNT] = {"auto", "ps1", "ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch", "keyboard"};
 
 /* the pads' icon sets, as the choices after Auto */
 enum { FAM_PS3, FAM_PS4, FAM_PS5, FAM_XBOX360, FAM_XBOXONE, FAM_XBOXSERIES, FAM_SWITCH, FAMS_COUNT };
@@ -46,8 +46,12 @@ void controls_note(const SDL_Event *e) {
     }
 }
 
-/* The icons' pad: the one chosen, else the one plugged in, else an Xbox Series */
+/* The icons' pad: the one chosen (PS1's own the game has only for its text:
+   PS3's elsewhere), else the one plugged in, else an Xbox Series */
 static int family(void) {
+    if (g_icons == ICONS_PS1) {
+        return FAM_PS3;
+    }
     if (g_icons >= ICONS_PS3 && g_icons <= ICONS_SWITCH) {
         return g_icons - ICONS_PS3;
     }
@@ -222,7 +226,8 @@ int controls_glyph(int tx, int ty, int depth, int u, int v, int w, int h) {
 }
 
 /* The picture the game's text shows for a PS button: its key, or its
-   button on the pad chosen; 0 keeps the game's own (nothing bound) */
+   button on the pad chosen; 0 keeps the game's own (PS1 with the button
+   where it was, or nothing bound) */
 int controls_game_icon(int bit, SDL_Surface **img, unsigned **tex) {
     static SDL_Surface *pads[FAMS_COUNT][DPAD + 1], *keys[SDL_SCANCODE_COUNT];
     static unsigned pad_tex[FAMS_COUNT][DPAD + 1], key_tex[SDL_SCANCODE_COUNT];
@@ -244,7 +249,7 @@ int controls_game_icon(int bit, SDL_Surface **img, unsigned **tex) {
     } else {
         int fam = family(), src = *pad_source(bit);
 
-        if (src < 0 || src > DPAD || pad_source_name(src) == NULL) {
+        if (src < 0 || src > DPAD || pad_source_name(src) == NULL || (g_icons == ICONS_PS1 && src == PLACE[bit])) {
             return 0;
         }
         if (!pad_tried[fam][src]) {

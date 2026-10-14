@@ -51,7 +51,8 @@ deadzone = 3277
 # 0: no vibration
 rumble = 1
 
-# The options menu's icons: ps3, ps4, ps5, xbox360, xboxone, xboxseries,
+# The options menu's icons: ps1 (the game's own),
+# ps3, ps4, ps5, xbox360, xboxone, xboxseries,
 # switch, keyboard, or auto (the device used last)
 icons = ps5
 # Each button's keys (SDL's names, two at most) and gamepad button (SDL's:

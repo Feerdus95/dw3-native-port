@@ -169,8 +169,8 @@ int pad_bind_line(int i, char *key, char *value, size_t size); /* line 0-31 for 
 struct SDL_Gamepad *pad_gamepad(void);  /* the one open, or NULL */
 
 /* The options menu's Controls page and button icons (controls.c) */
-enum { ICONS_AUTO, ICONS_PS3, ICONS_PS4, ICONS_PS5, ICONS_XBOX360, ICONS_XBOXONE, ICONS_XBOXSERIES, ICONS_SWITCH, ICONS_KEYBOARD, ICONS_COUNT };
-extern int g_icons;                     /* icons = ps3 | ps4 | ps5 | xbox360 | xboxone | xboxseries | switch | keyboard | auto */
+enum { ICONS_AUTO, ICONS_PS1, ICONS_PS3, ICONS_PS4, ICONS_PS5, ICONS_XBOX360, ICONS_XBOXONE, ICONS_XBOXSERIES, ICONS_SWITCH, ICONS_KEYBOARD, ICONS_COUNT };
+extern int g_icons;                     /* icons = ps1 | ps3 | ps4 | ps5 | xbox360 | xboxone | xboxseries | switch | keyboard | auto */
 extern const char *const ICON_NAMES[ICONS_COUNT];
 void controls_note(const union SDL_Event *e); /* every event: the last device used */
 void controls_open(void);
