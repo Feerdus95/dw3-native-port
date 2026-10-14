@@ -220,6 +220,7 @@ static int too_big(const Vtx *a, const Vtx *b, const Vtx *c) {
 
 /* Widescreen battles' menus (DrawOTag): the x the card draws a packet at,
    x' = a + (x - a) * s, keeping a menu's shape on the 16:9 picture */
+#define WIDE_MENUS_LAYER 0x1005 /* fightstg/types.h's BATTLE_LAYER_MENUS: the HUD, the menus, the messages */
 static float s_map_a, s_map_s = 1;
 int g_draw_layer;
 
@@ -293,7 +294,9 @@ static void gl_rect(int x, int y, int w, int h, int r, int gg, int b, int flags,
 /* A vertex word where the card puts it: with the GTE's fraction, when it
    made that word */
 static void precise(const uint32_t *w, float *x, float *y, float *z) {
-    if (!gte_precise(w, x, y, z)) {
+    /* a battle's menus are 2D: a point there that matched a 3D one by its
+       value took that one's fraction, and the enemy's HP bar wobbled */
+    if ((gte_in_battle() && g_draw_layer == WIDE_MENUS_LAYER) || !gte_precise(w, x, y, z)) {
         *z = 0;
         *x = (float)sx(*w);
         *y = (float)sy(*w);
@@ -542,7 +545,6 @@ void gpu_packet(const uint32_t *p, int n) {
 
 /* --- widescreen battles' menus --- */
 
-#define WIDE_MENUS_LAYER 0x1005 /* fightstg/types.h's BATTLE_LAYER_MENUS: the HUD, the menus, the messages */
 #define WIDE_MAX 4096
 #define WMIN(a, b) ((a) < (b) ? (a) : (b))
 #define WMAX(a, b) ((a) > (b) ? (a) : (b))

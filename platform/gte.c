@@ -147,8 +147,15 @@ int gte_widescreen(void) {
     return s_wide;
 }
 
+static int s_battle;
+
+int gte_in_battle(void) {
+    return s_battle;
+}
+
 void gte_precise_frame(void) {
-    s_wide = g_widescreen && getMode() >> 8 == 6; /* FIGHTSTG */
+    s_battle = getMode() >> 8 == 6; /* FIGHTSTG */
+    s_wide = g_widescreen && s_battle;
     s_frame++;
     if (s_frame % 60 == 0 && (g_log & LOG_GPU) && (s_stat[ST_FACED] || s_stat[ST_CULLED] || s_stat[ST_NONE])) {
         LOG("faces: %d drawn, %d culled; by the game's rule: %d no entry, %d other value, %d stale; "

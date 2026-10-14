@@ -122,6 +122,7 @@ extern int g_perspective;   /* perspective = 0: the 3D's textures without perspe
 extern int g_smooth_3d;     /* smooth_3d = 0: the 3D's textures by their nearest texel, as the PSX's (gl.c) */
 extern int g_widescreen;     /* widescreen = 1: battles 16:9, the window too (gte.c) */
 int gte_widescreen(void);    /* this frame is (gte.c) */
+int gte_in_battle(void);     /* this frame is a battle's (gte.c) */
 int video_window_width(int scale); /* 320 * scale, or 16:9 with widescreen (video.c) */
 void video_resize(int scale);      /* the window, windowed, fitting the screen (video.c) */
 extern int g_vsync;                /* vsync = 0: frames shown at once, torn (gl.c) */
