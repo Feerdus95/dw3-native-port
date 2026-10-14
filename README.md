@@ -104,7 +104,8 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 
 ## Options
 
-**Esc** opens the options menu; the game pauses while it is open, and what you change is saved to `native.ini`:
+**Esc** (Back on a gamepad) opens the options menu; the game pauses while it is open, and what you change is saved to
+`native.ini`. Its tabs, Display, Graphics, Input and Mods, turn with **L1 / R1** (Q / E or Page Up / Down):
 
 | | |
 |---|---|

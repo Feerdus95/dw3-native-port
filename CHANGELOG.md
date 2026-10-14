@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The options menu in tabs, Display, Graphics, Input and Mods, turned with L1 / R1 (Q / E or Page Up / Down on the
+  keyboard) beside the battle menu's own page arrows, read from your disc.
 - **F12** saves the game's picture, as drawn, to `screenshots/` by the exe.
 - **VSync** (options menu, on by default): frames wait for the screen's refresh, which ends the tearing in
   fullscreen.

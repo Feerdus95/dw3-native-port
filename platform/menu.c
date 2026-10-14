@@ -1,21 +1,42 @@
 /* The options menu: Esc, or Back on the gamepad. The game stops
-   while it is open; what changes there goes to native.ini when it closes. */
+   while it is open; what changes there goes to native.ini when it closes.
+   Its options in tabs, L1 / R1 (Q / E, Page Up / Down) between them, with
+   the battle menu's page arrows. */
 #include <SDL3/SDL.h>
+#include <stdlib.h>
 #include "platform.h"
 
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, MOVIES, VSYNC, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, EXTRA_PACKS, BLADEGARURUMON, CLOSE, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, MOVIES, VSYNC, FULLSCREEN, WINDOW, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, EXTRA_PACKS, BLADEGARURUMON, ITEMS };
 
 static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Smooth movies", "VSync", "Fullscreen", "Window size", "Vibration", "Stick deadzone",
-    "Fast text (hold X)", "Fast forward (Tab/R3)", "Extra starter packs", "BladeGarurumon", "Close",
+    "Fast text (hold X)", "Fast forward (Tab/R3)", "Extra starter packs", "BladeGarurumon",
 };
 
-static int s_open, s_cursor, s_changed;
-static int s_top; /* the first row shown */
-#define ROWS 9    /* shown at once, the rest scrolls: the box stays inside 240 */
+/* the tabs and their options, each list ending with -1 */
+#define TABS 4
+#define ROWS 9 /* the longest tab's: the box stays the same size */
+static const char *TAB_NAMES[TABS] = {"Display", "Graphics", "Input", "Mods"};
+static const int TAB_ITEMS[TABS][ROWS + 1] = {
+    {FPS, FULLSCREEN, WINDOW, WIDESCREEN, VSYNC, MOVIES, -1},
+    {SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, -1},
+    {RUMBLE, DEADZONE, -1},
+    {FAST_TEXT, FAST_FORWARD, EXTRA_PACKS, BLADEGARURUMON, -1},
+};
+
+static int s_open, s_tab, s_cursor[TABS], s_changed;
+
+static int tab_count(int tab) {
+    int n = 0;
+
+    while (n < ROWS && TAB_ITEMS[tab][n] >= 0) {
+        n++;
+    }
+    return n;
+}
 
 int menu_active(void) {
     return s_open;
@@ -44,7 +65,6 @@ static void value(int item, char *out, size_t size) {
     case WINDOW: SDL_snprintf(out, size, "%dx%d", video_window_width(window_scale()), 240 * window_scale()); return;
     case DEADZONE: SDL_snprintf(out, size, "%d%%", (g_deadzone * 100 + 16383) / 32767); return;
     case FAST_FORWARD: SDL_snprintf(out, size, g_ff_speed > 1 ? "x%d" : "Off", g_ff_speed); return;
-    case CLOSE: out[0] = 0; return;
     case DITHER: on = g_dither_on; break;
     case SOFT_SHADOWS: on = g_soft_shadows; break;
     case BATTLE_SHADOWS: on = g_battle_shadows; break;
@@ -101,7 +121,6 @@ static void change(int item, int dir) {
     case DEADZONE: /* 5% steps, up to 50% */
         g_deadzone = SDL_clamp(((g_deadzone * 100 + 16383) / 32767 / 5 + (dir < 0 ? -1 : 1)) * 5, 0, 50) * 32767 / 100;
         break;
-    case CLOSE: menu_toggle(); return;
     }
     s_changed = 1;
 }
@@ -169,13 +188,13 @@ void menu_toggle(void) {
     }
 }
 
-static void move(int up, int down, int left, int right, int ok) {
-    if (up) s_cursor = (s_cursor + ITEMS - 1) % ITEMS;
-    if (down) s_cursor = (s_cursor + 1) % ITEMS;
-    if (left || right || ok) change(s_cursor, left ? -1 : 1);
-    /* the cursor's row in view */
-    s_top = SDL_clamp(s_top, s_cursor - ROWS + 1, s_cursor);
-    s_top = SDL_clamp(s_top, 0, SDL_max(ITEMS - ROWS, 0));
+static void move(int up, int down, int left, int right, int ok, int tab) {
+    int n = tab_count(s_tab), *c = &s_cursor[s_tab];
+
+    if (tab) s_tab = (s_tab + tab + TABS) % TABS;
+    if (up) *c = (*c + n - 1) % n;
+    if (down) *c = (*c + 1) % n;
+    if (left || right || ok) change(TAB_ITEMS[s_tab][*c], left ? -1 : 1);
 }
 
 /* 1 when the event was the menu's */
@@ -193,73 +212,188 @@ int menu_event(const SDL_Event *e) {
         }
         if (s_open) {
             move(b == SDL_GAMEPAD_BUTTON_DPAD_UP, b == SDL_GAMEPAD_BUTTON_DPAD_DOWN, b == SDL_GAMEPAD_BUTTON_DPAD_LEFT,
-                 b == SDL_GAMEPAD_BUTTON_DPAD_RIGHT, b == SDL_GAMEPAD_BUTTON_SOUTH);
+                 b == SDL_GAMEPAD_BUTTON_DPAD_RIGHT, b == SDL_GAMEPAD_BUTTON_SOUTH,
+                 (b == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER) - (b == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER));
         }
     }
     if (s_open && e->type == SDL_EVENT_KEY_DOWN) {
         SDL_Keycode k = e->key.key;
 
-        move(k == SDLK_UP, k == SDLK_DOWN, k == SDLK_LEFT, k == SDLK_RIGHT, k == SDLK_RETURN || k == SDLK_Z || k == SDLK_SPACE);
+        move(k == SDLK_UP, k == SDLK_DOWN, k == SDLK_LEFT, k == SDLK_RIGHT, k == SDLK_RETURN || k == SDLK_Z || k == SDLK_SPACE,
+             (k == SDLK_E || k == SDLK_PAGEDOWN) - (k == SDLK_Q || k == SDLK_PAGEUP));
     }
     if (s_open && e->type == SDL_EVENT_MOUSE_WHEEL && e->wheel.y != 0) {
         float y = e->wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -e->wheel.y : e->wheel.y;
-        move(y > 0, y < 0, 0, 0, 0);
+        move(y > 0, y < 0, 0, 0, 0, 0);
     }
     return s_open && (e->type == SDL_EVENT_KEY_DOWN || e->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
                       e->type == SDL_EVENT_MOUSE_WHEEL);
 }
 
-/* Over the frame, in 320x240, centred; ROWS rows at a time, a scrollbar for the rest */
+/* The battle menu's page arrows (FILE_BATTLE_MENU's frames 0x1F and 0x20,
+   textured from FILE_BATTLE_IMAGES' first image), read from the player's disc */
+#define FILE_BATTLE_MENU 0x455
+#define FILE_BATTLE_IMAGES 0x456
+
+static const uint8_t *archive_entry(const uint8_t *a, long size, int i) {
+    uint32_t off;
+
+    if ((i + 1) * 4 > size) {
+        return NULL;
+    }
+    SDL_memcpy(&off, a + i * 4, 4);
+    return off && off < (uint32_t)size ? a + off : NULL;
+}
+
+/* An RLEN entry unpacked (malloc'd), or the entry itself copied */
+static uint8_t *unpack(const uint8_t *p, long room) {
+    uint8_t *out = malloc(0x10000), *o = out;
+    long s = 8;
+
+    if (out == NULL) {
+        return NULL;
+    }
+    if (SDL_memcmp(p, "RLEN", 4) != 0) {
+        SDL_memcpy(out, p, SDL_min(room, 0x10000));
+        return out;
+    }
+    while (s < room && p[s] != 0 && o - out < 0xFF00) {
+        int c = p[s++];
+
+        if (c & 0x80) {
+            SDL_memset(o, p[s++], c & 0x7F), o += c & 0x7F;
+        } else {
+            SDL_memcpy(o, p + s, c), o += c, s += c;
+        }
+    }
+    return out;
+}
+
+static SDL_Texture *game_arrow(SDL_Renderer *r, int frame) {
+    uint8_t *menu = NULL, *images = NULL, *tim = NULL;
+    long menu_size = native_read_raw(FILE_BATTLE_MENU, &menu), images_size = native_read_raw(FILE_BATTLE_IMAGES, &images);
+    const uint8_t *sheet, *arch, *e;
+    SDL_Texture *t = NULL;
+    SDL_Surface *s = NULL;
+
+    if (menu_size > 0 && images_size > 0 && (sheet = archive_entry(menu, menu_size, 0)) != NULL &&
+        (arch = archive_entry(images, images_size, 1)) != NULL &&
+        (e = archive_entry(arch, images_size - (arch - images), 0)) != NULL &&
+        (tim = unpack(e, images_size - (e - images))) != NULL) {
+        /* the image (64x256 halfwords at 0x200, 0) after the TIM's header */
+        const uint16_t *pix = (const uint16_t *)(tim + 8 + 12);
+        int32_t parts_off, ids_off, frame_off;
+        int k = 0, count, row, idx, px, py, u, v, w, h, cy, x, y;
+        const int16_t *f, *part;
+
+        SDL_memcpy(&parts_off, sheet, 4);
+        SDL_memcpy(&ids_off, sheet + 4, 4);
+        while (k < 256 && sheet[ids_off + k] != frame) {
+            k++;
+        }
+        SDL_memcpy(&frame_off, sheet + (k + 2) * 4, 4);
+        f = (const int16_t *)(sheet + frame_off);
+        count = f[0], row = f[1], idx = f[3], px = f[4], py = f[5];
+        part = (const int16_t *)(sheet + parts_off) + idx * 7;
+        u = part[0], v = part[1], w = part[2], h = part[3], cy = part[5];
+        if (count == 1 && part[6] == 0 && w <= 16 && h <= 16 && (s = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_ABGR8888)) != NULL) {
+            for (y = 0; y < h; y++) {
+                for (x = 0; x < w; x++) {
+                    int uu = u + x, i = (pix[(v + y) * 64 + uu / 4] >> (uu % 4 * 4)) & 15;
+                    uint16_t c = pix[(cy + row) * 64 + part[4] + i];
+
+                    ((uint32_t *)s->pixels)[y * (s->pitch / 4) + x] =
+                        c == 0 ? 0 : (uint32_t)((c & 31) << 3 | (c >> 5 & 31) << 11 | (c >> 10 & 31) << 19 | 0xFF000000u);
+                }
+            }
+            t = SDL_CreateTextureFromSurface(r, s);
+            SDL_DestroySurface(s);
+            (void)px, (void)py;
+        }
+    }
+    free(tim);
+    free(menu);
+    free(images);
+    return t;
+}
+
+/* Over the frame, in 320x240, centred: the tabs (L1 / R1 at their ends, with
+   the game's arrows, blinking as in its menus), then the tab's options */
 void menu_draw(SDL_Renderer *r) {
-    int rows = SDL_min(ITEMS, ROWS);
-    SDL_FRect box = {16, 0, 288, 26 + rows * 14 + 22};
+    static SDL_Texture *arrows[2];
+    static int tried;
+    SDL_FRect box = {8, 0, 304, 46 + ROWS * 14 + 18};
+    int n = tab_count(s_tab), i, blink = (SDL_GetTicks() / 267) & 1;
+    float x;
     char text[32];
-    int i;
 
     box.y = (240 - box.h) / 2;
-
     if (!s_open) {
         return;
+    }
+    if (!tried) {
+        tried = 1;
+        arrows[0] = game_arrow(r, 0x1F);
+        arrows[1] = game_arrow(r, 0x20);
     }
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(r, 0, 0, 0, 235);
     SDL_RenderFillRect(r, &box);
-    SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
-    SDL_RenderDebugText(r, box.x + (box.w - 7 * 8) / 2, box.y + 8, "OPTIONS");
-    for (i = s_top; i < s_top + rows; i++) {
-        float y = box.y + 26 + (i - s_top) * 14;
 
-        if (i == s_cursor) {
-            SDL_FRect bar = {box.x + 4, y - 3, box.w - (ITEMS > rows ? 12 : 8), 14};
+    /* the tab bar: "<L1  Display Graphics Controls Mods  R1>" */
+    for (i = 0; i < 2; i++) {
+        SDL_FRect a = {i ? box.x + box.w - 14 : box.x + 6, box.y + 8, 8, 8};
+
+        if (blink) {
+            if (arrows[i] != NULL) {
+                SDL_RenderTexture(r, arrows[i], NULL, &a);
+            } else {
+                SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+                SDL_RenderDebugText(r, a.x, a.y, i ? ">" : "<");
+            }
+        }
+        SDL_SetRenderDrawColor(r, 150, 170, 220, 255);
+        SDL_RenderDebugText(r, i ? box.x + box.w - 32 : box.x + 16, box.y + 8, i ? "R1" : "L1");
+    }
+    for (i = 0, x = 0; i < TABS; i++) {
+        x += 8.0f * SDL_strlen(TAB_NAMES[i]) + (i ? 8 : 0);
+    }
+    x = box.x + (box.w - x) / 2; /* centred between L1 and R1 */
+    for (i = 0; i < TABS; i++) {
+        float w = 8.0f * SDL_strlen(TAB_NAMES[i]);
+
+        if (i == s_tab) {
+            SDL_FRect t = {x - 3, box.y + 5, w + 6, 14};
+
+            SDL_SetRenderDrawColor(r, 60, 90, 160, 255);
+            SDL_RenderFillRect(r, &t);
+            SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+        } else {
+            SDL_SetRenderDrawColor(r, 130, 130, 140, 255);
+        }
+        SDL_RenderDebugText(r, x, box.y + 8, TAB_NAMES[i]);
+        x += w + 8;
+    }
+    SDL_SetRenderDrawColor(r, 60, 90, 160, 255);
+    SDL_RenderLine(r, box.x + 4, box.y + 21, box.x + box.w - 4, box.y + 21);
+
+    /* the options */
+    for (i = 0; i < n; i++) {
+        int item = TAB_ITEMS[s_tab][i];
+        float y = box.y + 32 + i * 14;
+
+        if (i == s_cursor[s_tab]) {
+            SDL_FRect bar = {box.x + 4, y - 3, box.w - 8, 14};
 
             SDL_SetRenderDrawColor(r, 60, 90, 160, 255);
             SDL_RenderFillRect(r, &bar);
         }
         SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
-        SDL_RenderDebugText(r, box.x + 10, y, LABELS[i]);
-        value(i, text, sizeof text);
-        SDL_RenderDebugText(r, box.x + box.w - 14 - 8 * SDL_strlen(text), y, text);
-    }
-    if (ITEMS > rows) {
-        /* the scrollbar, and arrows where more is hidden */
-        SDL_FRect track = {box.x + box.w - 5, box.y + 23, 2, rows * 14};
-        SDL_FRect thumb = {track.x, track.y + track.h * s_top / ITEMS, 2, track.h * rows / ITEMS};
-
-        SDL_SetRenderDrawColor(r, 60, 60, 70, 255);
-        SDL_RenderFillRect(r, &track);
-        SDL_SetRenderDrawColor(r, 160, 160, 160, 255);
-        SDL_RenderFillRect(r, &thumb);
-        for (i = 0; i < 3; i++) {
-            float cx = box.x + box.w / 2;
-            if (s_top > 0) {
-                SDL_RenderLine(r, cx - i, box.y + 18 + i, cx + i, box.y + 18 + i);
-            }
-            if (s_top + rows < ITEMS) {
-                SDL_RenderLine(r, cx - i, box.y + 26 + rows * 14 + 2 - i, cx + i, box.y + 26 + rows * 14 + 2 - i);
-            }
-        }
+        SDL_RenderDebugText(r, box.x + 10, y, LABELS[item]);
+        value(item, text, sizeof text);
+        SDL_RenderDebugText(r, box.x + box.w - 10 - 8 * SDL_strlen(text), y, text);
     }
     SDL_SetRenderDrawColor(r, 160, 160, 160, 255);
-    SDL_RenderDebugText(r, box.x + (box.w - 8 * 35) / 2, box.y + box.h - 13, "Arrows/wheel: choose   Esc/B: close");
+    SDL_RenderDebugText(r, box.x + (box.w - 8 * 35) / 2, box.y + box.h - 13, "L1/R1: tab  Arrows: set  Esc: close");
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
 }
