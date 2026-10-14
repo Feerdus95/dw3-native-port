@@ -35,7 +35,8 @@ dither = 1
 battle_shadows = 1
 
 # 1: battles get a sky, darker toward the top, and their stage's far side
-# fades into it with distance; 0: the original's flat background
+# fades into it with distance; 0: the original's flat background. Stages
+# with a painted sky of their own keep it as it is
 battle_sky = 0
 
 # 1: the shadows under the characters on the field darken the ground they

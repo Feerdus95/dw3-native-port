@@ -457,7 +457,7 @@ void gpu_gp0(const uint32_t *p, int n) {
         int r = p[0] & 255, gg = p[0] >> 8 & 255, b = p[0] >> 16 & 255;
 
         rect(x, y, w, h, p[0] & 0xFFFFFF, 0, 0, 0, 0, 0, 0, 0);
-        if (g_battle_sky && gte_in_battle() && w >= 256 && h >= 200) {
+        if (g_battle_sky && gte_in_battle() && w >= 256 && h >= 200 && !gl_battle_has_backdrop()) {
             static const int CX[6] = {0, 1, 0, 1, 1, 0}, CY[6] = {0, 0, 1, 0, 1, 1};
             GVtx q[6];
 

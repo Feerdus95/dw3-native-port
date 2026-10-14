@@ -223,7 +223,25 @@
              if (state->lit) {
                  p = state->cmd + (state->quad + 3);
                  state->colors[0] = state->normalColors[p[0]];
-@@ -892,6 +1061,12 @@
+@@ -827,6 +996,17 @@
+     if (FIGHTSTG_isMeshOnScreen(mesh, layer) == 0) {
+         return;
+     }
++#ifdef NATIVE
++    {
++        /* a stage's own sky (its bones without the bounds check, the dome):
++           no sky or fog of ours over it (gl.c) */
++        void gl_battle_backdrop(void);
++
++        if (mesh->noBoundsCheck != 0) {
++            gl_battle_backdrop();
++        }
++    }
++#endif
+     FIGHTSTG_projectMesh(mesh, layer);
+     FIGHTSTG_lightMesh(mesh);
+     state.cmd = mesh->commands;
+@@ -892,6 +1072,12 @@
          }
      }
      GFX.funcs.setPrim(state.prim.ptr);
@@ -236,7 +254,7 @@
  }
  
  /* A primitive tag's word with its address replaced: the top byte of tag and
-@@ -1070,6 +1245,9 @@
+@@ -1070,6 +1256,9 @@
      mesh->texPos = texPos;
      mesh->draw = FIGHTSTG_queueMeshDraw;
      mesh->drawWireframe = FIGHTSTG_queueMeshWireframe;
