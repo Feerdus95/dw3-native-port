@@ -69,6 +69,7 @@ int gl_init(struct SDL_Window *window);
 void gl_sync(int force);         /* follows render_scale; force: VRAM was replaced */
 void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi);
 void gl_vram_dirty(int x, int y, int w, int h);
+void gl_shadows_resolve(void); /* an ordering table drawn: its battle shadows onto the copy */
 void gl_depth_clear(void); /* a new ordering table: its 3D drawn over what came before */
 void gl_refresh(int x, int y, int w, int h); /* the copy from VRAM, after the CPU wrote it */
 void gl_copy(int sx, int sy, int w, int h, int dx, int dy);

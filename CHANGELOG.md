@@ -10,7 +10,7 @@
 - **Widescreen battles** (options menu, off by default): battles shown 16:9 with the 3D a third wider, the way
   emulators' widescreen hacks do it (the battle's 2D stretched); the fields stay 4:3. The window turns 16:9 with it.
 - **Battle shadows** (options menu, on by default): the Digimon in battle cast their own shape on the ground, along a
-  light from above, darkening it once where their parts overlap and hidden behind them. The original has none.
+  light from above, with soft edges (blurred as they darken the ground once), hidden behind them. The original has none.
 - **Perspective 3D** (options menu, on by default): the 3D's textures in perspective, by the depth the GTE gave each
   point, without the PlayStation's warping as the camera moves.
 - **Smooth 3D textures** (options menu, on by default): the 3D models' textures filtered between their texels when

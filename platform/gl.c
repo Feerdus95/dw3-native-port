@@ -18,7 +18,7 @@
     X(glPixelStorei) X(glReadPixels) X(glDrawArrays) X(glActiveTexture) X(glBlendFuncSeparate) X(glBlendEquation)   \
     X(glBlendColor) X(glCreateShader) X(glShaderSource) X(glCompileShader) X(glGetShaderiv) X(glGetShaderInfoLog)  \
     X(glCreateProgram) X(glAttachShader) X(glLinkProgram) X(glGetProgramiv) X(glGetProgramInfoLog) X(glUseProgram) \
-    X(glGetUniformLocation) X(glUniform1i) X(glUniform1f) X(glUniform2f) X(glGenVertexArrays) X(glBindVertexArray)  \
+    X(glGetUniformLocation) X(glUniform1i) X(glUniform1f) X(glUniform2f) X(glUniform2i) X(glGenVertexArrays) X(glBindVertexArray)  \
     X(glGenBuffers) X(glBindBuffer) X(glBufferData) X(glEnableVertexAttribArray) X(glVertexAttribPointer)           \
     X(glVertexAttribIPointer) X(glGenFramebuffers) X(glDeleteFramebuffers) X(glBindFramebuffer)                     \
     X(glFramebufferTexture2D) X(glCheckFramebufferStatus) X(glBlitFramebuffer)                                  \
@@ -96,9 +96,9 @@ static const char *MAIN_FS =
     "    bool semi = (md & 8u) != 0u;\n"
     "    vec3 c8 = col, c5;\n"
     "    float cover = 1.0;\n"
-    "    if ((md & 1024u) != 0u) {\n" /* a battle shadow: how much of the ground it takes */
+    "    if ((md & 1024u) != 0u) {\n" /* a battle shadow: into the mask (gl_shadows_resolve) */
     "        if (pass == 1) discard;\n"
-    "        frag = vec4(vec3(0.45), 0.0);\n"
+    "        frag = vec4(1.0);\n"
     "        return;\n"
     "    }\n"
     "    if ((md & 128u) != 0u) {\n"
@@ -161,6 +161,24 @@ static const char *BLIT_FS =
     "out vec4 frag;\n"
     "void main() { frag = texture(tex, uv); }\n";
 
+/* Battle shadows: the mask blurred one way into another, then the other way
+   as it darkens the copy (gl_shadows_resolve) */
+static const char *SOFT_FS =
+    "#version 330 core\n"
+    "uniform sampler2D src;\n"
+    "uniform ivec2 dir;\n" /* a tap's step, in the copy's pixels */
+    "uniform float strength;\n" /* 0: the blurred mask itself, else how much of the ground it takes */
+    "out vec4 frag;\n"
+    "const float W[5] = float[5](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);\n"
+    "void main() {\n"
+    "    ivec2 at = ivec2(gl_FragCoord.xy);\n"
+    "    float m = texelFetch(src, at, 0).r * W[0];\n"
+    "    for (int i = 1; i < 5; i++) {\n"
+    "        m += (texelFetch(src, at + dir * i, 0).r + texelFetch(src, at - dir * i, 0).r) * W[i];\n"
+    "    }\n"
+    "    frag = strength > 0.0 ? vec4(vec3(m * strength), 0.0) : vec4(m);\n"
+    "}\n";
+
 /* --- state --- */
 
 static SDL_Window *s_window;
@@ -177,6 +195,10 @@ int g_vsync = 1; /* vsync, the menu */
 int g_battle_shadows = 1; /* battle_shadows, the menu (native.h) */ /* soft_shadows = 1, the menu (native.h) */
 static int s_deep;                   /* the batch is by the depth buffer */
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
+static GLuint s_mask_fbo, s_mask_tex, s_blur_fbo, s_blur_tex; /* battle shadows: where they fall, blurred */
+static GLuint s_soft;
+static GLint s_soft_dir_loc, s_soft_str_loc;
+static int s_mask_box[4] = {VRAM_W, VRAM_H, -1, -1}; /* what the mask holds, in VRAM pixels */
 static GLuint s_movie_tex, s_menu_tex;
 int g_res_scale = 1; /* native.ini, the menu */
 static int s_scale, s_max_scale = 8;
@@ -297,7 +319,7 @@ static void flush(void) {
     if (s_count == 0) {
         return;
     }
-    GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fbo);
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_semi == 5 ? s_mask_fbo : s_fbo);
     GL(glViewport)(0, 0, VRAM_W * s, VRAM_H * s);
     GL(glEnable)(GL_SCISSOR_TEST);
     GL(glScissor)(s_clip[0] * s, s_clip[1] * s, (s_clip[2] - s_clip[0] + 1) * s, (s_clip[3] - s_clip[1] + 1) * s);
@@ -340,12 +362,9 @@ static void flush(void) {
             GL(glBlendEquation)(GL_FUNC_ADD);
             GL(glBlendFuncSeparate)(GL_ZERO, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
             break;
-        case 5: /* back * (1 - front), once a pixel: a battle shadow (gpu_draw.c) */
-            GL(glBlendEquation)(GL_FUNC_ADD);
-            GL(glBlendFuncSeparate)(GL_ZERO, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
-            GL(glEnable)(GL_STENCIL_TEST);
-            GL(glStencilFunc)(GL_EQUAL, 0, 0xFF);
-            GL(glStencilOp)(GL_KEEP, GL_KEEP, GL_INCR);
+        case 5: /* a battle shadow (gpu_draw.c): into the mask, once a pixel */
+            GL(glBlendEquation)(GL_MAX);
+            GL(glBlendFuncSeparate)(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
             GL(glEnable)(GL_POLYGON_OFFSET_FILL); /* on the ground it lies on */
             GL(glPolygonOffset)(-1.0f, -4.0f);
             break;
@@ -357,7 +376,6 @@ static void flush(void) {
         GL(glUniform1i)(s_pass_loc, 2);
         GL(glDrawArrays)(GL_TRIANGLES, 0, s_count);
         GL(glDisable)(GL_BLEND);
-        GL(glDisable)(GL_STENCIL_TEST);
         GL(glDisable)(GL_POLYGON_OFFSET_FILL);
         GL(glBlendEquation)(GL_FUNC_ADD);
     }
@@ -398,8 +416,69 @@ void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi
     if (semi_prim) {
         s_semi = semi;
     }
+    if (semi == 5) { /* where the mask has shadows */
+        int i;
+
+        for (i = 0; i < n; i++) {
+            s_mask_box[0] = SDL_min(s_mask_box[0], (int)v[i].x);
+            s_mask_box[1] = SDL_min(s_mask_box[1], (int)v[i].y);
+            s_mask_box[2] = SDL_max(s_mask_box[2], (int)v[i].x + 1);
+            s_mask_box[3] = SDL_max(s_mask_box[3], (int)v[i].y + 1);
+        }
+    }
     SDL_memcpy(&s_batch[s_count], v, n * sizeof(GVtx));
     s_count += n;
+}
+
+/* An ordering table drawn: the battle shadows in the mask, blurred, darken
+   the copy, and the mask is emptied */
+void gl_shadows_resolve(void) {
+    static const float QUAD[16] = {-1, -1, 0, 0, 1, -1, 0, 0, -1, 1, 0, 0, 1, 1, 0, 0};
+    int s = s_scale, step = SDL_max(1, s * 3 / 4), pad = 5 * step, r[4];
+
+    if (s == 0 || s_mask_box[2] < 0) {
+        return;
+    }
+    flush();
+    r[0] = SDL_max(0, s_mask_box[0] * s - pad);
+    r[1] = SDL_max(0, s_mask_box[1] * s - pad);
+    r[2] = SDL_min(VRAM_W * s, s_mask_box[2] * s + pad) - r[0];
+    r[3] = SDL_min(VRAM_H * s, s_mask_box[3] * s + pad) - r[1];
+    s_mask_box[0] = VRAM_W, s_mask_box[1] = VRAM_H, s_mask_box[2] = s_mask_box[3] = -1;
+    if (r[2] <= 0 || r[3] <= 0) {
+        return;
+    }
+    GL(glViewport)(0, 0, VRAM_W * s, VRAM_H * s);
+    GL(glEnable)(GL_SCISSOR_TEST);
+    GL(glScissor)(r[0], r[1], r[2], r[3]);
+    GL(glUseProgram)(s_soft);
+    GL(glBindVertexArray)(s_quad_vao);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, s_quad_vbo);
+    GL(glBufferData)(GL_ARRAY_BUFFER, sizeof QUAD, QUAD, GL_STREAM_DRAW);
+    GL(glActiveTexture)(GL_TEXTURE0);
+    /* across */
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_blur_fbo);
+    GL(glBindTexture)(GL_TEXTURE_2D, s_mask_tex);
+    GL(glUniform2i)(s_soft_dir_loc, step, 0);
+    GL(glUniform1f)(s_soft_str_loc, 0.0f);
+    GL(glDrawArrays)(GL_TRIANGLE_STRIP, 0, 4);
+    /* down, darkening the copy: back * (1 - front) */
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fbo);
+    GL(glBindTexture)(GL_TEXTURE_2D, s_blur_tex);
+    GL(glUniform2i)(s_soft_dir_loc, 0, step);
+    GL(glUniform1f)(s_soft_str_loc, 0.5f);
+    GL(glEnable)(GL_BLEND);
+    GL(glBlendEquation)(GL_FUNC_ADD);
+    GL(glBlendFuncSeparate)(GL_ZERO, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
+    GL(glDrawArrays)(GL_TRIANGLE_STRIP, 0, 4);
+    GL(glDisable)(GL_BLEND);
+    /* empty for the next */
+    GL(glClearColor)(0, 0, 0, 0);
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_mask_fbo);
+    GL(glClear)(GL_COLOR_BUFFER_BIT);
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_blur_fbo);
+    GL(glClear)(GL_COLOR_BUFFER_BIT);
+    GL(glDisable)(GL_SCISSOR_TEST);
 }
 
 /* The depth buffer emptied: an ordering table's 3D models are drawn by their
@@ -480,6 +559,10 @@ void gl_sync(int force) {
             GL(glDeleteRenderbuffers)(1, &s_fbo_depth);
             GL(glDeleteFramebuffers)(1, &s_tmp_fbo);
             GL(glDeleteTextures)(1, &s_tmp_tex);
+            GL(glDeleteFramebuffers)(1, &s_mask_fbo);
+            GL(glDeleteTextures)(1, &s_mask_tex);
+            GL(glDeleteFramebuffers)(1, &s_blur_fbo);
+            GL(glDeleteTextures)(1, &s_blur_tex);
         }
         s_scale = want;
         s_fbo_tex = texture(GL_RGBA8, VRAM_W * want, VRAM_H * want, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
@@ -491,6 +574,15 @@ void gl_sync(int force) {
         GL(glFramebufferRenderbuffer)(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, s_fbo_depth);
         s_tmp_tex = texture(GL_RGBA8, VRAM_W * want, VRAM_H * want, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST);
         s_tmp_fbo = framebuffer(s_tmp_tex);
+        s_mask_tex = texture(GL_R8, VRAM_W * want, VRAM_H * want, GL_RED, GL_UNSIGNED_BYTE, GL_NEAREST);
+        s_mask_fbo = framebuffer(s_mask_tex);
+        GL(glFramebufferRenderbuffer)(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, s_fbo_depth);
+        s_blur_tex = texture(GL_R8, VRAM_W * want, VRAM_H * want, GL_RED, GL_UNSIGNED_BYTE, GL_NEAREST);
+        s_blur_fbo = framebuffer(s_blur_tex);
+        GL(glClearColor)(0, 0, 0, 0);
+        GL(glClear)(GL_COLOR_BUFFER_BIT);
+        GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_mask_fbo);
+        GL(glClear)(GL_COLOR_BUFFER_BIT);
         GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
     } else if (!force) {
         return;
@@ -516,9 +608,14 @@ int gl_init(SDL_Window *window) {
     }
     GL_FUNCS(X)
 #undef X
-    if ((s_main = program(MAIN_VS, MAIN_FS)) == 0 || (s_blit = program(BLIT_VS, BLIT_FS)) == 0) {
+    if ((s_main = program(MAIN_VS, MAIN_FS)) == 0 || (s_blit = program(BLIT_VS, BLIT_FS)) == 0 ||
+        (s_soft = program(BLIT_VS, SOFT_FS)) == 0) {
         return 0;
     }
+    s_soft_dir_loc = GL(glGetUniformLocation)(s_soft, "dir");
+    s_soft_str_loc = GL(glGetUniformLocation)(s_soft, "strength");
+    GL(glUseProgram)(s_soft);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_soft, "src"), 0);
     s_pass_loc = GL(glGetUniformLocation)(s_main, "pass");
     s_scale_loc = GL(glGetUniformLocation)(s_main, "scale");
     s_size_loc = GL(glGetUniformLocation)(s_main, "size");

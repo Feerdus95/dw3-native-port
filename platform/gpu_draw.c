@@ -547,4 +547,5 @@ void DrawOTag(uint32_t *p) {
         }
         p = (uint32_t *)(uintptr_t)(tag & 0xFFFFFF);
     }
+    gl_shadows_resolve();
 }
