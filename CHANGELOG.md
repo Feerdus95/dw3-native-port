@@ -11,7 +11,7 @@
   five languages. The lobby shows the pack's partners, each with a greeting, and Veemon celebrates with the others.
 - **BladeGarurumon** (options menu, on by default): a 45th Digimon every partner can learn, with Growlmon and Grizzmon
   at level 40. Its DNA model gets MetalGarurumon's animations, retargeted at start from your own disc, and a signature
-  of its own, Solar Laser. It is kept in save bytes the game doesn't use: cards stay standard, and a PlayStation
+  of its own, Solar Laser: a technique of its own (444), named in every language. It is kept in save bytes the game doesn't use: cards stay standard, and a PlayStation
   simply doesn't see it.
 
 ## v0.9.0 (first public release, beta)

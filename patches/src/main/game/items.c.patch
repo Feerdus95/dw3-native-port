@@ -1,0 +1,14 @@
+--- a/src/main/game/items.c
++++ b/src/main/game/items.c
+@@ -900,7 +900,11 @@
+ u16 *ITEM_LISTS[5] = { KEY_ITEM_IDS, USABLE_ITEM_IDS, WEAPON_IDS, ARMOR_IDS, ACCESSORY_IDS };
+ 
+ /* The techniques, from 1: technique n is TECHS[n - 1] */
++#ifdef NATIVE
++TechData TECHS[NATIVE_SOLAR_LASER] = { /* and the port's Solar Laser, 444 (native.h) */
++#else
+ TechData TECHS[443] = {
++#endif
+     /* 0x001 */ {0, 0x3C, 2, 2, 0x6E, 1, 1, 1, 1, 1, 1, 0, 2, 0x39, 5, 1},
+     /* 0x002 */ {0, 0x3C, 2, 2, 0x6E, 1, 1, 1, 1, 1, 1, 0, 2, 0x39, 5, 1},
+     /* 0x003 */ {0, 0x3C, 2, 2, 0x6E, 1, 1, 1, 1, 1, 1, 0, 2, 0x39, 5, 1},

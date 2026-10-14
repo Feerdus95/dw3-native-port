@@ -1,6 +1,6 @@
 --- a/src/main/game/digimon.c
 +++ b/src/main/game/digimon.c
-@@ -127,8 +127,57 @@
+@@ -127,8 +127,58 @@
              return i;
          }
      }
@@ -17,9 +17,10 @@
 +/* BladeGarurumon as a partner's Digimon (native.h): its DNA form's record,
 +   1s, made MetalGarurumon's with a model of its own (471, which the port
 +   makes: platform/bladegaru.c), a fast wolf's stats (speed and spirit high,
-+   defense low), techniques and the signature Solar Laser: technique 443,
-+   "?????", which nothing uses, made Metal Wolf Claw's with a cost, power and
-+   element of its own. Once the game's tables are read (platform/main.c) */
++   defense low), techniques and the signature Solar Laser: technique 444,
++   past the game's (443 is the final battle's), made Metal Wolf Claw's with a
++   cost, power and element of its own. Once the game's tables are read
++   (platform/main.c) */
 +void native_bladegarurumon_setup(void) {
 +    static const u16 STATS[5] = {30, 15, 55, 35, 65}; /* strength, defense, spirit, wisdom, speed */
 +    static const u16 RESISTS[7] = {0, 0, 40, 40, 80, 80, 40};
@@ -46,13 +47,13 @@
 +        d->skills[i] = SKILLS[i];
 +        d->skillLevels[i] = LEARN[i];
 +    }
-+    d->skills[6] = 443;
++    d->skills[6] = NATIVE_SOLAR_LASER;
 +    d->pairTech = 0;
 +    d->pairPartner = 0; /* MetalGarurumon's is WarGreymon */
-+    TECHS[442] = TECHS[92];
-+    TECHS[442].mp = 55;
-+    TECHS[442].power = 350;
-+    TECHS[442].element = 7;
++    TECHS[NATIVE_SOLAR_LASER - 1] = TECHS[92];
++    TECHS[NATIVE_SOLAR_LASER - 1].mp = 55;
++    TECHS[NATIVE_SOLAR_LASER - 1].power = 350;
++    TECHS[NATIVE_SOLAR_LASER - 1].element = 7;
 +}
 +#endif
  

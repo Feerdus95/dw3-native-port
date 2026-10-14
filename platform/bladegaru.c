@@ -526,13 +526,76 @@ static uint8_t *build_fighters(const uint8_t *f, long size, long *out_size, int 
     return out;
 }
 
+/* Solar Laser, technique 444 (past the game's 443: NATIVE_SOLAR_LASER), in
+   the techniques' texts, a copy a language from English to Spanish: its
+   name (SKLNAM, by technique) and its help (SKLINF, which has strings up to
+   219: the ones between are empty, as they read now). A file that has it
+   already, a translation's, stays */
+#define SKILL_NAMES 0xA4 /* TEXT_FILE(TEXT_SKILL_NAMES) in English */
+#define SKILL_INFO 0x9D  /* TEXT_FILE(TEXT_SKILL_INFO) */
+#define SOLAR_LASER_TECH 444
+static const uint8_t SOLAR_LASER_NAME[] = {0x20, 0x36, 0x33, 0x28, 0x39, 0x01, 0x01, 0x19, 0x28, 0x3A, 0x2C, 0x39, 0x00};
+static const uint8_t *const SOLAR_LASER_HELP[5] = {
+    /* Solar laser. Magic attack. */
+    (const uint8_t[]){0x20, 0x36, 0x33, 0x28, 0x39, 0x01, 0x01, 0x33, 0x28, 0x3A, 0x2C, 0x39, 0x01, 0x05, 0x01, 0x01, 0x1A, 0x28,
+                      0x2E, 0x30, 0x2A, 0x01, 0x01, 0x28, 0x3B, 0x3B, 0x28, 0x2A, 0x32, 0x01, 0x05, 0x00},
+    /* Atq magique, laser solaire. */
+    (const uint8_t[]){0x0E, 0x3B, 0x38, 0x01, 0x01, 0x34, 0x28, 0x2E, 0x30, 0x38, 0x3C, 0x2C, 0x01, 0x04, 0x01, 0x01, 0x33,
+                      0x28, 0x3A, 0x2C, 0x39, 0x01, 0x01, 0x3A, 0x36, 0x33, 0x28, 0x30, 0x39, 0x2C, 0x01, 0x05, 0x00},
+    /* Laser solare, attacco magico. */
+    (const uint8_t[]){0x19, 0x28, 0x3A, 0x2C, 0x39, 0x01, 0x01, 0x3A, 0x36, 0x33, 0x28, 0x39, 0x2C, 0x01, 0x04, 0x01, 0x01, 0x28,
+                      0x3B, 0x3B, 0x28, 0x2A, 0x2A, 0x36, 0x01, 0x01, 0x34, 0x28, 0x2E, 0x30, 0x2A, 0x36, 0x01, 0x05, 0x00},
+    /* Sonnenlaser. Magieattacke. */
+    (const uint8_t[]){0x20, 0x36, 0x35, 0x35, 0x2C, 0x35, 0x33, 0x28, 0x3A, 0x2C, 0x39, 0x01, 0x05, 0x01, 0x01, 0x1A, 0x28, 0x2E,
+                      0x30, 0x2C, 0x28, 0x3B, 0x3B, 0x28, 0x2A, 0x32, 0x2C, 0x01, 0x05, 0x00},
+    /* Láser solar. Ataque mágico. */
+    (const uint8_t[]){0x19, 0x01, 0x5F, 0x3A, 0x2C, 0x39, 0x01, 0x01, 0x3A, 0x36, 0x33, 0x28, 0x39, 0x01, 0x05, 0x01, 0x01, 0x0E,
+                      0x3B, 0x28, 0x38, 0x3C, 0x2C, 0x01, 0x01, 0x34, 0x01, 0x5F, 0x2E, 0x30, 0x2A, 0x36, 0x01, 0x05, 0x00},
+};
+
+/* a text file with strings up to `index`, that one `text` */
+static uint8_t *with_string(int fid, uint32_t index, const uint8_t *text, long *size) {
+    uint8_t *f, *out;
+    long fsize = native_read_raw(fid, &f);
+    uint32_t n = fsize >= 4 ? rd32(f) : 0, count = index + 1, i, at, room;
+
+    if (n == 0 || n >= count || 4 + 4 * n > (uint32_t)fsize) { /* not a text file, or it has it */
+        free(f);
+        return NULL;
+    }
+    room = (uint32_t)fsize + 4 * count + (uint32_t)strlen((const char *)text) + 2 + count;
+    out = calloc(1, room + 2048);
+    wr32(out, count);
+    at = 4 + 4 * count;
+    for (i = 0; i < count; i++) {
+        const uint8_t *s = i == index ? text : i < n ? f + rd32(f + 4 + 4 * i) : (const uint8_t *)"";
+        size_t len = i == index || i >= n ? strlen((const char *)s) + 1 : strnlen((const char *)s, fsize - (s - f)) + 1;
+
+        wr32(out + 4 + 4 * i, at);
+        memcpy(out + at, s, len);
+        at += len;
+    }
+    *size = (at + 2047) / 2048 * 2048;
+    free(f);
+    return out;
+}
+
 /* The fighters' file and model 471, made the first time either is read;
    NULL for the game's own (or when they can't be made: logged) */
 const uint8_t *bladegaru_file(int fid, long *size) {
-    static uint8_t *fighters, *model;
-    static long fighters_size, model_size;
-    static int tried;
+    static uint8_t *fighters, *model, *texts[10];
+    static long fighters_size, model_size, texts_size[10];
+    static int tried, made[10];
+    int t = fid >= SKILL_NAMES && fid < SKILL_NAMES + 5 ? fid - SKILL_NAMES : fid >= SKILL_INFO && fid < SKILL_INFO + 5 ? 5 + fid - SKILL_INFO : -1;
 
+    if (t >= 0) {
+        if (!made[t]) {
+            made[t] = 1;
+            texts[t] = with_string(fid, SOLAR_LASER_TECH, t < 5 ? SOLAR_LASER_NAME : SOLAR_LASER_HELP[t - 5], &texts_size[t]);
+        }
+        *size = texts_size[t];
+        return texts[t];
+    }
     if (fid != FIGHTERS_FILE && fid != NEW_FID) {
         return NULL;
     }
