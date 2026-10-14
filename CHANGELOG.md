@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **F12** saves the game's picture, as drawn, to `screenshots/` by the exe.
 - **VSync** (options menu, on by default): frames wait for the screen's refresh, which ends the tearing in
   fullscreen.
 - Battle shadows: the partner's shadow while its commands are chosen (its picture beside the menus turned it off).

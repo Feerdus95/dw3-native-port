@@ -6,6 +6,7 @@
 static SDL_Window *s_window;
 static SDL_Surface *s_menu;            /* the menu, drawn by SDL in software */
 static SDL_Renderer *s_menu_renderer;
+static int s_screenshot; /* F12: the next frame to screenshots/ */
 
 int video_window_width(int scale) {
     return g_widescreen ? (scale * 1280 + 1) / 3 : 320 * scale;
@@ -72,6 +73,10 @@ int pump_events(void) {
             (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN && e.gbutton.button == SDL_GAMEPAD_BUTTON_RIGHT_STICK)) {
             ff_cycle();
         }
+        /* F12: the game's picture as drawn, to screenshots/ by the exe */
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && e.key.key == SDLK_F12) {
+            s_screenshot = 1;
+        }
         /* F11 or Alt+Enter: fullscreen on and off */
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
             (e.key.key == SDLK_F11 || (e.key.key == SDLK_RETURN && (e.key.mod & SDL_KMOD_ALT)))) {
@@ -119,9 +124,22 @@ static void dump_vram(int n, SDL_Surface *shot) {
     }
 }
 
+/* The frame as drawn, the options menu aside, to screenshots/shot_<time>.bmp */
+static void save_screenshot(SDL_Surface *shot) {
+    char path[1200];
+
+    SDL_snprintf(path, sizeof path, "%sscreenshots", SDL_GetBasePath());
+    SDL_CreateDirectory(path);
+    SDL_snprintf(path, sizeof path, "%sscreenshots/shot_%llu.bmp", SDL_GetBasePath(), (unsigned long long)SDL_GetTicks());
+    if (SDL_SaveBMP(shot, path)) {
+        LOG("screenshot: %s", path);
+    }
+    SDL_DestroySurface(shot);
+}
+
 void present_frame(void) {
     SDL_Surface *shot = NULL;
-    int n = dump_due();
+    int n = dump_due(), screenshot = s_screenshot && !menu_active();
 
     int ff = !menu_active() && g_ff_speed > 1;
 
@@ -142,6 +160,14 @@ void present_frame(void) {
             SDL_RenderDebugText(s_menu_renderer, bg.x + 4, bg.y + 3, text);
         }
         SDL_RenderPresent(s_menu_renderer);
+    }
+    if (screenshot) {
+        s_screenshot = 0;
+        gl_present(NULL, &shot); /* without the fast forward's corner */
+        if (shot != NULL) {
+            save_screenshot(shot);
+        }
+        shot = NULL;
     }
     gl_present(menu_active() || ff ? s_menu : NULL, n ? &shot : NULL);
     if (n) {

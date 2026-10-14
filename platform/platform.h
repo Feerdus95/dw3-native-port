@@ -147,7 +147,7 @@ void state_key(int key);  /* a debug key (SDL keycode), from pump_events */
 void state_frame(void);   /* at the frame's end (native_wait_vblank): runs what the keys asked */
 int movie_playing(void);  /* movie.c */
 int stage_dump(const char *dir); /* stagedump.c: --dump-stages DIR */
-extern int g_field_mode, g_field_progress; /* state.c: --field MODE --progress N */
+extern int g_field_mode, g_field_progress, g_field_arg; /* state.c: --field MODE --progress N */
 extern int g_field_sets[64][2], g_field_set_count; /* --set CODE=VALUE (hex code), repeated */
 extern int g_field_party; /* --party N: the starter set given when there is no party */
 extern int g_field_at_x, g_field_at_y; /* --at X,Y: the player's start in the first field (map pixels), x -1 for none */

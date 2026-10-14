@@ -149,6 +149,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
     fast_text = 1        ; 0: holding X doesn't advance the texts
     extra_packs = 1      ; 0: only the game's three starter packs
     bladegarurumon = 1   ; 0: partners don't learn BladeGarurumon
+                         ; F12 in game saves the picture to screenshots/ by the exe
     debug = 0            ; 1: F1 debug stage select, F3 sound test, F4 vibration test, F2 dump of the game state,
                          ;    F5 / F9 save / load a state (saves/quick.state)
     log =                ; console logs: cd, snd, pad, mc, ovl, gpu or all

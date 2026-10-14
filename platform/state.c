@@ -44,6 +44,7 @@ int g_field_mode, g_field_progress = -1, g_field_event, g_field_at_x = -1, g_fie
 /* --set CODE=VALUE: the flags and items the editor's story point assumes, set as
    actions (main/game/events.c's codes) before the field */
 int g_field_sets[64][2], g_field_set_count;
+int g_field_arg; /* --arg N: the mode's argument (the stage select's scene test takes 1) */
 int g_field_party; /* --party N: the starter set (0-2) given when there is no party */
 void applyAction(int code, int value); /* main/game/events.c */
 void setParty(int set);                /* main/game/party.c */
@@ -185,7 +186,7 @@ void state_frame(void) {
            back where a field was left (GAME.fieldPos, 0, 0 here), not at
            its start (fieldstg/field.c startField) */
         memcpy(GAME + GAME_MODE, &title, 4);
-        requestMode(g_field_mode, 0);
+        requestMode(g_field_mode, g_field_arg);
         g_field_mode = 0;
     }
     if (key == SDLK_F1 || key == SDLK_F3 || key == SDLK_F4) {
