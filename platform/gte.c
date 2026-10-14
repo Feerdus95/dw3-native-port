@@ -136,7 +136,19 @@ static float s_sxy2[3];
 static int s_stat[8]; /* faced, culled, no entry, other value, stale; projections near, clamped */
 enum { ST_FACED, ST_CULLED, ST_NONE, ST_VALUE, ST_STALE, ST_NEAR, ST_CLAMP };
 
+/* Widescreen (widescreen = 1): in battles, the 3D's x narrowed to 3/4 around
+   the screen's middle, the picture then shown 16:9 (gl.c), so that the 3D
+   keeps its shape and sees a third wider; the 2D is stretched */
+int g_widescreen;
+static int s_wide;
+int getMode(void); /* main/game/state.c */
+
+int gte_widescreen(void) {
+    return s_wide;
+}
+
 void gte_precise_frame(void) {
+    s_wide = g_widescreen && getMode() >> 8 == 6; /* FIGHTSTG */
     s_frame++;
     if (s_frame % 60 == 0 && (g_log & LOG_GPU) && (s_stat[ST_FACED] || s_stat[ST_CULLED] || s_stat[ST_NONE])) {
         LOG("faces: %d drawn, %d culled; by the game's rule: %d no entry, %d other value, %d stale; "
@@ -252,7 +264,7 @@ static void remember(void) {
         s_stat[ST_NEAR]++;
         return;
     }
-    x = H * s_exact[0] / s_exact[2] + OFX / 65536.0;
+    x = H * s_exact[0] / s_exact[2] * (s_wide ? 0.75 : 1.0) + OFX / 65536.0;
     y = H * s_exact[1] / s_exact[2] + OFY / 65536.0;
     /* the GTE's own clamps and rounding: only a fraction away */
     if (fabs(x - SX[2] - 0.5) > 1.5 || fabs(y - SY[2] - 0.5) > 1.5) {
@@ -288,7 +300,7 @@ void psx_gte_rtps(void) {
     }
     SX[0] = SX[1]; SY[0] = SY[1];
     SX[1] = SX[2]; SY[1] = SY[2];
-    mac0 = h_sz * IR[1] + OFX;
+    mac0 = (s_wide ? h_sz * IR[1] * 3 / 4 : h_sz * IR[1]) + OFX;
     SX[2] = clamp(mac0 >> 16, -0x400, 0x3FF);
     mac0 = h_sz * IR[2] + OFY;
     SY[2] = clamp(mac0 >> 16, -0x400, 0x3FF);

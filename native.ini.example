@@ -11,6 +11,10 @@ fullscreen = 0
 # fits the screen (4 = 1280x960 on a 1080p one)
 #scale = 3
 
+# 1: battles in 16:9, the 3D seeing a third wider (the battle's menus and
+# numbers stretched to it); the fields stay 4:3. The window is 16:9 then
+widescreen = 0
+
 # 1: the 3D's textures in perspective, without the PlayStation's warping
 # (needs the options menu's Sub-pixel 3D)
 perspective = 1

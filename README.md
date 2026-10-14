@@ -112,6 +112,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
 | Resolution | the 3D drawn 1 to 8 times finer than the PlayStation's 320x240, on the graphics card |
 | Sub-pixel 3D | the 3D's points at their exact place at higher resolutions, without the PlayStation's wobble |
 | Depth buffer | the battle models' polygons in the right order at higher resolutions |
+| Widescreen battles | battles in 16:9, the 3D seeing a third wider; the menus and numbers in them stretched, the fields still 4:3. The window turns 16:9. Off by default |
 | Perspective 3D | the 3D's textures in perspective, without the PlayStation's warping (with Sub-pixel 3D) |
 | Smooth 3D textures | the 3D models' textures smoothed when enlarged, not in blocks; sprites and text stay sharp (with Sub-pixel 3D) |
 | True colour | the colours at 8 bits a channel, without the PlayStation's 5-bit banding (dithering then has no use) |
@@ -133,6 +134,7 @@ sticks), with vibration. It can be plugged in or swapped while playing.
     scale = 4            ; window size in 320x240 steps (unset: the biggest that fits the screen)
     render_scale = 4     ; 1-8: the Resolution option (unset: as the window, up to 4)
     fps = 50             ; 60: the game's own 60 Hz mode
+    widescreen = 0       ; 1: battles in 16:9 (the window too)
     perspective = 1      ; 0: the 3D's textures warp as on the PlayStation
     smooth_3d = 1        ; 0: the 3D's textures in sharp blocks
     true_color = 1       ; 0: the colours at the PlayStation's 5 bits a channel

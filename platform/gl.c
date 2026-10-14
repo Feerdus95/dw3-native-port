@@ -591,14 +591,19 @@ static void quad(GLuint tex, const int vp[4], float u0, float v0, float u1, floa
    letterboxed to 4:3, then the menu (a 640x480 RGBA surface, or NULL) */
 void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
     PSX_RECT d = g_disp.disp;
-    int w, h, vp[4];
+    int w, h, vp[4], menu_vp[4];
+    int aw = gte_widescreen() ? 16 : 4, ah = gte_widescreen() ? 9 : 3; /* the picture's aspect */
 
     flush();
     SDL_GetWindowSizeInPixels(s_window, &w, &h);
-    vp[2] = w * 3 > h * 4 ? h * 4 / 3 : w;
-    vp[3] = w * 3 > h * 4 ? h : w * 3 / 4;
+    vp[2] = w * ah > h * aw ? h * aw / ah : w;
+    vp[3] = w * ah > h * aw ? h : w * ah / aw;
     vp[0] = (w - vp[2]) / 2;
     vp[1] = (h - vp[3]) / 2;
+    menu_vp[2] = w * 3 > h * 4 ? h * 4 / 3 : w;
+    menu_vp[3] = w * 3 > h * 4 ? h : w * 3 / 4;
+    menu_vp[0] = (w - menu_vp[2]) / 2;
+    menu_vp[1] = (h - menu_vp[3]) / 2;
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
     GL(glViewport)(0, 0, w, h);
     GL(glClearColor)(0, 0, 0, 1);
@@ -637,7 +642,7 @@ void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
         GL(glPixelStorei)(GL_UNPACK_ROW_LENGTH, 0);
         GL(glEnable)(GL_BLEND);
         GL(glBlendFuncSeparate)(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
-        quad(s_menu_tex, vp, 0, 0, 1, 1, 0);
+        quad(s_menu_tex, menu_vp, 0, 0, 1, 1, 0);
         GL(glDisable)(GL_BLEND);
     }
     GL(glColorMask)(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);

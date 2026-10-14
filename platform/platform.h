@@ -118,6 +118,9 @@ extern int g_dither_on;     /* dither = 0: no GPU dithering (gpu_draw.c) */
 extern int g_true_color;    /* true_color = 0: the card's colours cut to the PSX's 5 bits a channel (gl.c) */
 extern int g_perspective;   /* perspective = 0: the 3D's textures without perspective, as the PSX's (gl.c) */
 extern int g_smooth_3d;     /* smooth_3d = 0: the 3D's textures by their nearest texel, as the PSX's (gl.c) */
+extern int g_widescreen;     /* widescreen = 1: battles 16:9, the window too (gte.c) */
+int gte_widescreen(void);    /* this frame is (gte.c) */
+int video_window_width(int scale); /* 320 * scale, or 16:9 with widescreen (video.c) */
 extern int g_soft_shadows;
 extern int g_battle_shadows; /* battle_shadows = 0: the fighters cast none (gl.c, native.h) */  /* soft_shadows = 1: the field's shadows see-through and smooth (gl.c, native.h) */
 extern int g_smooth_movies; /* smooth_movies = 0: movies scaled by nearest pixel (video.c) */

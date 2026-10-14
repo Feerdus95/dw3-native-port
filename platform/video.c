@@ -7,6 +7,10 @@ static SDL_Window *s_window;
 static SDL_Surface *s_menu;            /* the menu, drawn by SDL in software */
 static SDL_Renderer *s_menu_renderer;
 
+int video_window_width(int scale) {
+    return g_widescreen ? (scale * 1280 + 1) / 3 : 320 * scale;
+}
+
 int video_init(int scale, int fullscreen) {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         LOG("SDL_Init: %s", SDL_GetError());
@@ -16,7 +20,7 @@ int video_init(int scale, int fullscreen) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    s_window = SDL_CreateWindow("Digimon World 2003", 320 * scale, 240 * scale,
+    s_window = SDL_CreateWindow("Digimon World 2003", video_window_width(scale), 240 * scale,
                                 SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0));
     if (s_window == NULL) {
         LOG("window: %s", SDL_GetError());
