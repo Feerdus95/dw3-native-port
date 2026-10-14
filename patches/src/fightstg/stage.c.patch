@@ -1,0 +1,19 @@
+--- a/src/fightstg/stage.c
++++ b/src/fightstg/stage.c
+@@ -118,6 +118,16 @@
+ void FIGHTSTG_updateStage(FightStage *task, Model **children) {
+     FightStageInfo *stages = FILE_CACHE.load(FILE_FIGHT_STAGES);
+ 
++#ifdef NATIVE
++    {
++        /* the stage shown (the old one while it fades out) and its
++           brightness, for the battle sky and fog (platform/stagefx.c) */
++        void native_stage_shown(int id, int bright);
++
++        native_stage_shown(task->state == TASK_DONE ? task->prevStage : task->stage, task->color.vx);
++    }
++#endif
++
+     switch (task->state) {
+     case TASK_INIT:
+     default:

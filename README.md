@@ -121,6 +121,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Dithering | the PlayStation's dithering on shaded polygons |
 | Soft shadows | the shadows under the characters on the field darken the ground, with smooth edges, instead of the original's grey disc. Off by default |
 | Battle shadows | the Digimon in battle cast their shape on the ground, as the light from above falls (with Sub-pixel 3D and the Depth buffer) |
+| Battle sky and fog | battles get a sky behind the stage and their far side fades into a fog, each stage by its kind (open air, night, rooms, water) in `stages.ini` by the exe, which can be edited; digital, space and technique backdrops are left as they are |
 | Smooth movies | the movies smoothed when scaled up, or with sharp pixels |
 | VSync | each frame shown whole, at the screen's refresh: no tearing |
 | Fullscreen, Window size | the window fits the screen it is on, centred |

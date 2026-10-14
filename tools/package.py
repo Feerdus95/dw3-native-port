@@ -49,6 +49,7 @@ def main():
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
     shutil.copytree(NATIVE / "assets/prompts", OUT / "prompts")  # the menu's button icons (CC0)
+    shutil.copyfile(NATIVE / "assets/stages.ini", OUT / "stages.ini")  # the battle sky and fog's stage profiles
     bad = check(OUT)
     if bad:
         shutil.rmtree(OUT)

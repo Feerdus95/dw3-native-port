@@ -223,27 +223,30 @@
              if (state->lit) {
                  p = state->cmd + (state->quad + 3);
                  state->colors[0] = state->normalColors[p[0]];
-@@ -828,6 +997,28 @@
+@@ -828,6 +997,31 @@
          return;
      }
      FIGHTSTG_projectMesh(mesh, layer);
 +#ifdef NATIVE
 +    {
-+        /* a stage's painted horizon: its points 20000 or more from the
-+           arena's middle (the panoramas are 20000-32000 away, the ground and
-+           props within ~19500, sometimes in one mesh with them); kept out of
-+           the battle's fog by their depth (platform/gte.c, gl.c) */
++        /* a stage's painted horizon: its points as far from the arena's
++           middle as its profile says (20000 for the open-air stages, whose
++           panoramas are 20000-32000 away and the ground and props within
++           ~19500, sometimes in one mesh with them); kept out of the battle's
++           fog by their depth (platform/gte.c, stagefx.c, gl.c) */
 +        void gte_precise_far(const void *addr);
++        float native_stage_horizon(void);
 +        ShortVec3 *v = mesh->vertices;
 +        MATRIX *w = &mesh->matrix;
-+        s32 n = v->x, i;
++        float far = native_stage_horizon();
++        s32 n = far > 0 ? v->x : 0, i;
 +
 +        for (i = 0; i < n; i++) {
 +            ShortVec3 *p = &v[i + 1];
 +            float x = (w->m[0][0] * p->x + w->m[0][1] * p->y + w->m[0][2] * p->z) / 4096.0f + w->t[0];
 +            float z = (w->m[2][0] * p->x + w->m[2][1] * p->y + w->m[2][2] * p->z) / 4096.0f + w->t[2];
 +
-+            if (x * x + z * z >= 20000.0f * 20000.0f) {
++            if (x * x + z * z >= far * far) {
 +                gte_precise_far(&mesh->screen[i]);
 +            }
 +        }
@@ -252,7 +255,7 @@
      FIGHTSTG_lightMesh(mesh);
      state.cmd = mesh->commands;
      state.texPos = mesh->texPos;
-@@ -892,6 +1083,12 @@
+@@ -892,6 +1086,12 @@
          }
      }
      GFX.funcs.setPrim(state.prim.ptr);
@@ -265,7 +268,7 @@
  }
  
  /* A primitive tag's word with its address replaced: the top byte of tag and
-@@ -1070,6 +1267,9 @@
+@@ -1070,6 +1270,9 @@
      mesh->texPos = texPos;
      mesh->draw = FIGHTSTG_queueMeshDraw;
      mesh->drawWireframe = FIGHTSTG_queueMeshWireframe;

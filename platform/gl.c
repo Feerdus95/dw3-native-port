@@ -68,7 +68,7 @@ static const char *MAIN_FS =
     "uniform float scale;\n"
     "uniform int truecolor;\n" /* the colours at 8 bits, undithered */
     "uniform int smooth3d;\n" /* the 3D's textures smoothed */
-    "uniform vec4 fog;\n" /* a battle's fog (gl_battle_fog): its colour at 5 bits, a on */
+    "uniform vec4 fog;\n" /* a battle's fog (stagefx.c): its colour at 5 bits, a how much at the far side */
     "uniform vec2 fogz;\n" /* the depths it starts and is thickest at */
     "in vec2 uv;\n"
     "in vec3 col;\n"
@@ -150,7 +150,7 @@ static const char *MAIN_FS =
     "    }\n"
     "    if ((md & 512u) != 0u) c5 = vec3(18.6 * cover);\n" /* how much of the ground it takes, 0.6 inside */
     /* the opaque 3D fades into the sky with depth; the blended keeps its own */
-    "    else if (fog.a > 0.0 && deep != 0u && !semi && (md & 2048u) == 0u) c5 = mix(c5, fog.rgb, 0.6 * smoothstep(fogz.x, fogz.y, vw));\n"
+    "    else if (fog.a > 0.0 && deep != 0u && !semi && (md & 2048u) == 0u) c5 = mix(c5, fog.rgb, fog.a * smoothstep(fogz.x, fogz.y, vw));\n"
     "    frag = vec4(c5 / 31.0, (md & 256u) != 0u || (pix & 0x8000u) != 0u ? 1.0 : 0.0);\n"
     "}\n";
 
@@ -202,7 +202,8 @@ int g_vsync = 1; /* vsync, the menu */
 int g_battle_shadows = 1; /* battle_shadows, the menu (native.h) */ /* soft_shadows = 1, the menu (native.h) */
 static int s_deep;                   /* the batch is by the depth buffer */
 int g_battle_sky;                    /* battle_sky, the menu (native.h) */
-static float s_fog[3];               /* the battle's sky colour at the horizon, 5 bits; s_fog_on: drawn this frame */
+static float s_bg[3];                /* the battle's background colour this frame, 5 bits; s_fog_on: drawn */
+static float s_fog[3], s_fog_amount, s_fog_from; /* the fog shown: colour (5 bits), at the far side, where it starts */
 static int s_fog_on, s_fog_shown;
 static float s_zfar, s_zframe;       /* the farthest opaque 3D: smoothed, and this frame's */
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
@@ -344,8 +345,8 @@ static void flush(void) {
     GL(glUniform1i)(s_true_loc, g_true_color);
     GL(glUniform1i)(s_persp_loc, g_perspective);
     GL(glUniform1i)(s_smooth_loc, g_smooth_3d);
-    GL(glUniform4f)(s_fog_loc, s_fog[0], s_fog[1], s_fog[2], s_fog_shown && s_zfar > 0 ? 1.0f : 0.0f);
-    GL(glUniform2f)(s_fogz_loc, s_zfar * 0.45f, s_zfar);
+    GL(glUniform4f)(s_fog_loc, s_fog[0], s_fog[1], s_fog[2], s_fog_shown && s_zfar > 0 ? s_fog_amount : 0.0f);
+    GL(glUniform2f)(s_fogz_loc, s_zfar * s_fog_from, s_zfar);
     GL(glDisable)(GL_BLEND);
     if (s_deep) {
         GL(glEnable)(GL_DEPTH_TEST);
@@ -543,13 +544,14 @@ void gl_refresh(int x, int y, int w, int h) {
 }
 
 /* A battle's sky drawn (gpu_draw.c), its colour at the horizon the fog's:
-   the stage's background colour, which fades in and out with the stage.
-   The painted horizon (mode 2048) stays out of the fog and of its range.
+   the stage's background colour, which fades in and out with the stage
+   (the profile's colour fades with its brightness). The painted horizon
+   (mode 2048) stays out of the fog and of its range.
    ponytail: the fog spans the farthest opaque 3D of the last frames (the
    stage's edge), as the stages' sizes are not known; a per-stage range
    when one looks wrong */
 void gl_battle_fog(int r, int gg, int b) {
-    s_fog[0] = r / 8.0f, s_fog[1] = gg / 8.0f, s_fog[2] = b / 8.0f;
+    s_bg[0] = r / 8.0f, s_bg[1] = gg / 8.0f, s_bg[2] = b / 8.0f;
     s_fog_on = 1;
 }
 
@@ -773,7 +775,20 @@ void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
     flush();
     /* the fog for the next frame: on while a sky is drawn, its depths eased
        toward this frame's farthest (a camera's cut) */
-    s_fog_shown = s_fog_on;
+    {
+        float bright;
+        const StageFx *fx = stagefx_current(&bright);
+        int i;
+
+        s_fog_shown = s_fog_on && fx != NULL && fx->fog > 0;
+        if (s_fog_shown) {
+            for (i = 0; i < 3; i++) {
+                s_fog[i] = fx->fog_color[i] >= 0 ? fx->fog_color[i] * bright / 8.0f : s_bg[i];
+            }
+            s_fog_amount = fx->fog, s_fog_from = fx->fog_start;
+        }
+        stagefx_frame();
+    }
     s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
     s_fog_on = 0, s_zframe = 0;
     if (vsync != g_vsync) {

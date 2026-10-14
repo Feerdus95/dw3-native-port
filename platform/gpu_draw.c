@@ -459,24 +459,32 @@ void gpu_gp0(const uint32_t *p, int n) {
                            g.x1, g.y1, g.x2, g.y2);
     } else if (cmd == 0x1E) {
         /* a drawing area's background (gpu.c's SetDrawEnv), a TILE; in a
-           battle, the screen's also a sky on the card (Battle sky and fog):
-           darker toward the top, the stage's colour at the horizon */
+           battle, the screen's, by the stage's profile (stagefx.c), also a
+           sky on the card: darker toward the top (or its sky_top), the
+           stage's colour at the horizon */
         int x = sx(p[1]) + g.ox, y = sy(p[1]) + g.oy, w = p[2] & 0x3FF, h = p[2] >> 16 & 0x1FF, k;
-        int r = p[0] & 255, gg = p[0] >> 8 & 255, b = p[0] >> 16 & 255;
+        int c[3] = {p[0] & 255, p[0] >> 8 & 255, p[0] >> 16 & 255};
+        float bright;
+        const StageFx *fx = w >= 256 && h >= 200 ? stagefx_current(&bright) : NULL;
 
         rect(x, y, w, h, p[0] & 0xFFFFFF, 0, 0, 0, 0, 0, 0, 0);
-        if (g_battle_sky && gte_in_battle() && w >= 256 && h >= 200) {
+        if (fx != NULL && fx->sky) {
             static const int CX[6] = {0, 1, 0, 1, 1, 0}, CY[6] = {0, 0, 1, 0, 1, 1};
             GVtx q[6];
+            int top[3], i;
 
+            for (i = 0; i < 3; i++) {
+                top[i] = fx->sky_top[i] >= 0 ? (int)(fx->sky_top[i] * bright) : c[i] * 45 / 100;
+            }
             for (k = 0; k < 6; k++) {
-                int t = CY[k] ? 100 : 45; /* percent of the horizon's colour */
+                const int *t = CY[k] ? c : top;
 
-                q[k] = gvtx((float)(x + CX[k] * w), (float)(y + CY[k] * h), r * t / 100, gg * t / 100, b * t / 100, 0, 0, 0, 0,
-                            g_dither_on);
+                q[k] = gvtx((float)(x + CX[k] * w), (float)(y + CY[k] * h), t[0], t[1], t[2], 0, 0, 0, 0, g_dither_on);
             }
             gl_triangles(q, 6, g.x1, g.y1, g.x2, g.y2, g.semi);
-            gl_battle_fog(r, gg, b);
+        }
+        if (fx != NULL) {
+            gl_battle_fog(c[0], c[1], c[2]);
         }
     } else if (cmd >= 0x60 && cmd < 0x80) {
         int size = cmd >> 3 & 3, tex = cmd & 4, semi = cmd & 2, raw = cmd & 1;

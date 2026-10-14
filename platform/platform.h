@@ -149,6 +149,17 @@ void video_resize(int scale);      /* the window, windowed, fitting the screen (
 extern int g_vsync;                /* vsync = 0: frames shown at once, torn (gl.c) */
 extern int g_soft_shadows;
 extern int g_battle_sky; /* battle_sky = 1: a sky behind the battles and fog over the stage's far side (gl.c, gpu_draw.c) */
+/* A fight stage's profile for it (stages.ini; colours -1 for the stage's own) */
+typedef struct StageFx {
+    int sky;           /* a gradient behind the stage */
+    int sky_top[3];    /* its top */
+    float fog, fog_start; /* how much at the far side, where it starts (part of the way) */
+    int fog_color[3];
+    float horizon;     /* the painted horizon's radius, 0: none */
+    int on;            /* 0: the stage is left as it is */
+} StageFx;
+const StageFx *stagefx_current(float *bright); /* the stage shown's, NULL for none (stagefx.c) */
+void stagefx_frame(void);                     /* a frame drawn */
 void gl_battle_fog(int r, int g, int b); /* a battle's sky drawn, its horizon's colour (gl.c) */
 extern int g_battle_shadows; /* battle_shadows = 0: the fighters cast none (gl.c, native.h) */  /* soft_shadows = 1: the field's shadows see-through and smooth (gl.c, native.h) */
 extern int g_smooth_movies; /* smooth_movies = 0: movies scaled by nearest pixel (video.c) */
