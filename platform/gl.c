@@ -24,7 +24,7 @@
     X(glFramebufferTexture2D) X(glCheckFramebufferStatus) X(glBlitFramebuffer)                                  \
     X(glGenRenderbuffers) X(glDeleteRenderbuffers) X(glBindRenderbuffer) X(glRenderbufferStorage)                \
     X(glFramebufferRenderbuffer) X(glDepthFunc) X(glDepthMask) X(glClearDepth) X(glClearStencil)                  \
-    X(glStencilFunc) X(glStencilOp) X(glPolygonOffset)
+    X(glStencilFunc) X(glStencilOp) X(glPolygonOffset) X(glGenerateMipmap)
 
 #define X(f) static __typeof__(f) *p_##f;
 GL_FUNCS(X)
@@ -592,10 +592,21 @@ void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x
     }
     flush();
     if (*tex == 0) {
+        /* premultiplied, so that filtering doesn't bleed the transparent
+           texels' colour (black, mostly) into the edges, and mipmapped, so
+           that a big image shrunk to the picture keeps its detail */
+        void *pm = SDL_malloc((size_t)img->w * img->h * 4);
+
+        if (pm == NULL || !SDL_PremultiplyAlpha(img->w, img->h, img->format, img->pixels, img->pitch, SDL_PIXELFORMAT_RGBA32, pm,
+                                                img->w * 4, false)) {
+            SDL_free(pm);
+            return;
+        }
         *tex = texture(GL_RGBA8, img->w, img->h, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
-        GL(glPixelStorei)(GL_UNPACK_ROW_LENGTH, img->pitch / 4);
-        GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, img->w, img->h, GL_RGBA, GL_UNSIGNED_BYTE, img->pixels);
-        GL(glPixelStorei)(GL_UNPACK_ROW_LENGTH, 0);
+        GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, img->w, img->h, GL_RGBA, GL_UNSIGNED_BYTE, pm);
+        GL(glGenerateMipmap)(GL_TEXTURE_2D);
+        GL(glTexParameteri)(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        SDL_free(pm);
     }
     for (i = 0; i < 16; i += 4) { /* VRAM pixels to the copy's -1..1, as MAIN_VS */
         q[i] = q[i] / VRAM_W * 2 - 1;
@@ -607,7 +618,7 @@ void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x
     GL(glScissor)(cx1 * s, cy1 * s, (cx2 - cx1 + 1) * s, (cy2 - cy1 + 1) * s);
     GL(glEnable)(GL_BLEND);
     GL(glBlendEquation)(GL_FUNC_ADD);
-    GL(glBlendFuncSeparate)(GL_SRC_ALPHA, add ? GL_ONE : GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE); /* the copy's alpha is the mask bit: kept */
+    GL(glBlendFuncSeparate)(GL_ONE, add ? GL_ONE : GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE); /* premultiplied; the copy's alpha is the mask bit: kept */
     GL(glUseProgram)(s_blit);
     GL(glBindVertexArray)(s_quad_vao);
     GL(glBindBuffer)(GL_ARRAY_BUFFER, s_quad_vbo);
