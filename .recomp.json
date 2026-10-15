@@ -1,0 +1,15 @@
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "Digimon World 3",
+  "wikidata": "Q1224677",
+  "system": "PS1",
+  "type": "port",
+  "original": { "region": "PAL", "serial": "SLES-03936" },
+  "project": "Digimon World 2003: native PC port",
+  "status": "in-progress",
+  "targets": ["Windows"],
+  "approach": "Native PC build of ReGame-Labs' dw3_decomp C code, console hardware rewritten for OpenGL and SDL",
+  "maintainers": [{ "name": "Feerdus", "link": "https://github.com/Feerdus95" }],
+  "links": [{ "label": "dw3_decomp", "url": "https://github.com/ReGame-Labs/dw3_decomp" }],
+  "notes": "Free; donations optional. No game content ships with the port. Beta: battles, fields and menus run natively; see the changelog for what is new and the issues for what is not done."
+}
