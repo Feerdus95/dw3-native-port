@@ -4,12 +4,22 @@
   "wikidata": "Q1224677",
   "system": "PS1",
   "type": "port",
-  "original": { "region": "PAL", "serial": "SLES-03936" },
+  "original": { "region": "PAL", "serial": "SLES-03936", "sha1": "d1b7e4d646e3a9c2b88fdb25d20b5f7116bbb06d" },
   "project": "Digimon World 2003: native PC port",
   "status": "in-progress",
   "targets": ["Windows"],
+  "toolchain": ["SDL3", "OpenGL"],
   "approach": "Native PC build of ReGame-Labs' dw3_decomp C code, console hardware rewritten for OpenGL and SDL",
   "maintainers": [{ "name": "Feerdus", "link": "https://github.com/Feerdus95" }],
-  "links": [{ "label": "dw3_decomp", "url": "https://github.com/ReGame-Labs/dw3_decomp" }],
+  "help": [
+    "Testing battles and fields against the PAL disc",
+    "Bug reports with the steps to reproduce"
+  ],
+  "tags": ["digimon", "ps1", "pc-port", "sdl3", "opengl"],
+  "links": [
+    { "label": "dw3_decomp", "url": "https://github.com/ReGame-Labs/dw3_decomp" },
+    { "label": "Changelog", "url": "https://github.com/Feerdus95/dw3-native-port/blob/main/CHANGELOG.md" },
+    { "label": "Model viewer", "url": "https://github.com/Feerdus95/dw3-model-viewer" }
+  ],
   "notes": "Free; donations optional. No game content ships with the port. Beta: battles, fields and menus run natively; see the changelog for what is new and the issues for what is not done."
 }
