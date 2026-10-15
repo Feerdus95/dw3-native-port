@@ -156,6 +156,9 @@ void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int c
         f++;
     }
     img = s_sets[set].img[s_sets[set].image[f]];
+    if (gte_widescreen() && xs == 1) {
+        xs = 0.75f; /* the 16:9 picture stretches the 2D: narrowed like the 3D, they keep their shape */
+    }
     h = 240.0f * s_sets[set].scale;
     w = h * img->w / img->h * xs;
     x += s_sets[set].x * xs;
