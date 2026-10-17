@@ -168,6 +168,45 @@ static const char *BLIT_FS =
     "out vec4 frag;\n"
     "void main() { frag = texture(tex, uv); }\n";
 
+/* The world's props (stagefx.c): a textured billboard or mesh with its own RGBA
+   image, drawn over the models. Cut out by alpha, and hidden by the stage where
+   the stage is nearer (the stage's depth, saved before the models' table clears
+   the depth buffer: gl_depth_save) and by the fighters (the depth buffer) */
+static const char *PROP_VS =
+    "#version 330 core\n"
+    "layout(location = 0) in vec3 p;\n" /* VRAM pixels, view depth */
+    "layout(location = 1) in vec2 uvin;\n"
+    "layout(location = 2) in vec4 colin;\n"
+    "uniform vec2 size;\n"
+    "out vec2 uv;\n"
+    "out vec4 col;\n"
+    "out float vz;\n"
+    "void main() {\n"
+    "    float zn = clamp(1.0 - 64.0 / p.z, 0.0, 1.0) * 2.0 - 1.0;\n" /* as MAIN_VS, so the depths compare */
+    "    gl_Position = vec4(p.xy / size * 2.0 - 1.0, zn, 1.0) * p.z;\n"
+    "    uv = uvin; col = colin; vz = p.z;\n"
+    "}\n";
+
+static const char *PROP_FS =
+    "#version 330 core\n"
+    "uniform sampler2D tex;\n"
+    "uniform sampler2D sdepth;\n"
+    "uniform int usedepth;\n"
+    "uniform vec4 fog;\n" /* the battle's fog, as MAIN_FS has it */
+    "uniform vec2 fogz;\n"
+    "in vec2 uv;\n"
+    "in vec4 col;\n"
+    "in float vz;\n"
+    "out vec4 frag;\n"
+    "void main() {\n"
+    "    vec4 t = texture(tex, uv);\n" /* premultiplied */
+    "    if (t.a < 0.5) discard;\n"
+    "    if (usedepth != 0 && gl_FragCoord.z > texelFetch(sdepth, ivec2(gl_FragCoord.xy), 0).r + 0.0001) discard;\n"
+    "    vec3 c = t.rgb / t.a * col.rgb;\n"
+    "    if (fog.a > 0.0) c = mix(c, fog.rgb / 31.0, fog.a * col.a * smoothstep(fogz.x, fogz.y, vz));\n"
+    "    frag = vec4(c, 1.0);\n"
+    "}\n";
+
 /* Battle shadows: the mask blurred one way into another, then the other way
    as it darkens the copy (gl_shadows_resolve) */
 static const char *SOFT_FS =
@@ -209,6 +248,9 @@ static float s_zfar, s_zframe;       /* the farthest opaque 3D: smoothed, and th
 static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
 static GLuint s_mask_fbo, s_mask_tex, s_blur_fbo, s_blur_tex; /* battle shadows: where they fall, blurred */
 static GLuint s_soft;
+static GLuint s_prop, s_prop_vao, s_prop_vbo, s_sd_tex, s_sd_fbo; /* props; the stage's depth saved */
+static GLint s_prop_depth_loc, s_prop_fog_loc, s_prop_fogz_loc;
+static int s_sd_valid;
 static GLint s_soft_dir_loc, s_soft_str_loc;
 static int s_mask_box[4] = {VRAM_W, VRAM_H, -1, -1}; /* what the mask holds, in VRAM pixels */
 static GLuint s_movie_tex, s_menu_tex;
@@ -581,6 +623,29 @@ void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
 }
 
+/* An image's texture, made on first use: premultiplied, so that filtering
+   doesn't bleed the transparent texels' colour (black, mostly) into the edges,
+   and mipmapped, so that a big image shrunk to the picture keeps its detail */
+static int image_tex(const SDL_Surface *img, unsigned *tex) {
+    void *pm;
+
+    if (*tex != 0) {
+        return 1;
+    }
+    pm = SDL_malloc((size_t)img->w * img->h * 4);
+    if (pm == NULL || !SDL_PremultiplyAlpha(img->w, img->h, img->format, img->pixels, img->pitch, SDL_PIXELFORMAT_RGBA32, pm,
+                                            img->w * 4, false)) {
+        SDL_free(pm);
+        return 0;
+    }
+    *tex = texture(GL_RGBA8, img->w, img->h, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
+    GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, img->w, img->h, GL_RGBA, GL_UNSIGNED_BYTE, pm);
+    GL(glGenerateMipmap)(GL_TEXTURE_2D);
+    GL(glTexParameteri)(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    SDL_free(pm);
+    return 1;
+}
+
 /* An image of the port's own over the copy (platform.h) */
 void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
     int s = s_scale;
@@ -591,22 +656,8 @@ void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x
         return;
     }
     flush();
-    if (*tex == 0) {
-        /* premultiplied, so that filtering doesn't bleed the transparent
-           texels' colour (black, mostly) into the edges, and mipmapped, so
-           that a big image shrunk to the picture keeps its detail */
-        void *pm = SDL_malloc((size_t)img->w * img->h * 4);
-
-        if (pm == NULL || !SDL_PremultiplyAlpha(img->w, img->h, img->format, img->pixels, img->pitch, SDL_PIXELFORMAT_RGBA32, pm,
-                                                img->w * 4, false)) {
-            SDL_free(pm);
-            return;
-        }
-        *tex = texture(GL_RGBA8, img->w, img->h, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
-        GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, img->w, img->h, GL_RGBA, GL_UNSIGNED_BYTE, pm);
-        GL(glGenerateMipmap)(GL_TEXTURE_2D);
-        GL(glTexParameteri)(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        SDL_free(pm);
+    if (!image_tex(img, tex)) {
+        return;
     }
     for (i = 0; i < 16; i += 4) { /* VRAM pixels to the copy's -1..1, as MAIN_VS */
         q[i] = q[i] / VRAM_W * 2 - 1;
@@ -631,6 +682,69 @@ void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
 }
 
+/* The depth buffer as the stage's table left it, before the models' table
+   empties it: what the props are hidden by (stagefx.c) */
+void gl_depth_save(void) {
+    int s = s_scale;
+
+    s_sd_valid = 0;
+    if (s == 0 || !s_sd_fbo || !g_depth) {
+        return;
+    }
+    flush();
+    GL(glBindFramebuffer)(GL_READ_FRAMEBUFFER, s_fbo);
+    GL(glBindFramebuffer)(GL_DRAW_FRAMEBUFFER, s_sd_fbo);
+    GL(glBlitFramebuffer)(0, 0, VRAM_W * s, VRAM_H * s, 0, 0, VRAM_W * s, VRAM_H * s, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
+    s_sd_valid = 1;
+}
+
+/* Triangles (n a multiple of 3) textured with an image of the port's own
+   (platform.h's PropVtx), cut out by its alpha, by the depth where the depth
+   buffer is on. FOGO: NULL for the battle's fog, else {r, g, b, amount, start} */
+void gl_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo) {
+    int s = s_scale;
+    float zf = s_zfar > 0 ? s_zfar : 24000.0f;
+
+    if (s == 0 || n <= 0) {
+        return;
+    }
+    flush();
+    if (!image_tex(img, tex)) {
+        return;
+    }
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fbo);
+    GL(glViewport)(0, 0, VRAM_W * s, VRAM_H * s);
+    GL(glEnable)(GL_SCISSOR_TEST);
+    GL(glScissor)(x1 * s, y1 * s, (x2 - x1 + 1) * s, (y2 - y1 + 1) * s);
+    GL(glUseProgram)(s_prop);
+    GL(glBindVertexArray)(s_prop_vao);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, s_prop_vbo);
+    GL(glBufferData)(GL_ARRAY_BUFFER, (GLsizeiptr)(n * sizeof *v), v, GL_STREAM_DRAW);
+    GL(glActiveTexture)(GL_TEXTURE1);
+    GL(glBindTexture)(GL_TEXTURE_2D, s_sd_tex);
+    GL(glActiveTexture)(GL_TEXTURE0);
+    GL(glBindTexture)(GL_TEXTURE_2D, *tex);
+    GL(glUniform1i)(s_prop_depth_loc, g_depth && s_sd_valid);
+    if (fogo != NULL) { /* the list's own fog: colour 0-255, how much, where it starts (0-1 of the far side) */
+        GL(glUniform4f)(s_prop_fog_loc, fogo[0] / 255.0f * 31.0f, fogo[1] / 255.0f * 31.0f, fogo[2] / 255.0f * 31.0f, fogo[3]);
+        GL(glUniform2f)(s_prop_fogz_loc, zf * fogo[4], zf);
+    } else {
+        GL(glUniform4f)(s_prop_fog_loc, s_fog[0], s_fog[1], s_fog[2], s_fog_shown && s_zfar > 0 ? s_fog_amount : 0.0f); /* as flush() */
+        GL(glUniform2f)(s_prop_fogz_loc, s_zfar * s_fog_from, s_zfar);
+    }
+    if (g_depth) {
+        GL(glEnable)(GL_DEPTH_TEST);
+        GL(glDepthFunc)(GL_LEQUAL);
+        GL(glDepthMask)(GL_TRUE);
+    }
+    GL(glDisable)(GL_BLEND);
+    GL(glDrawArrays)(GL_TRIANGLES, 0, n);
+    GL(glDisable)(GL_DEPTH_TEST);
+    GL(glDisable)(GL_SCISSOR_TEST);
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
+}
+
 /* Follows render_scale: a new copy, made from the 1x VRAM; force: VRAM
    changed under it (a loaded state) */
 void gl_sync(int force) {
@@ -651,7 +765,10 @@ void gl_sync(int force) {
             GL(glDeleteTextures)(1, &s_mask_tex);
             GL(glDeleteFramebuffers)(1, &s_blur_fbo);
             GL(glDeleteTextures)(1, &s_blur_tex);
+            GL(glDeleteFramebuffers)(1, &s_sd_fbo);
+            GL(glDeleteTextures)(1, &s_sd_tex);
         }
+        s_sd_valid = 0;
         s_scale = want;
         s_fbo_tex = texture(GL_RGBA8, VRAM_W * want, VRAM_H * want, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
         s_fbo = framebuffer(s_fbo_tex);
@@ -667,6 +784,10 @@ void gl_sync(int force) {
         GL(glFramebufferRenderbuffer)(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, s_fbo_depth);
         s_blur_tex = texture(GL_R8, VRAM_W * want, VRAM_H * want, GL_RED, GL_UNSIGNED_BYTE, GL_NEAREST);
         s_blur_fbo = framebuffer(s_blur_tex);
+        s_sd_tex = texture(GL_DEPTH24_STENCIL8, VRAM_W * want, VRAM_H * want, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, GL_NEAREST);
+        GL(glGenFramebuffers)(1, &s_sd_fbo);
+        GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_sd_fbo);
+        GL(glFramebufferTexture2D)(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, s_sd_tex, 0);
         GL(glClearColor)(0, 0, 0, 0);
         GL(glClear)(GL_COLOR_BUFFER_BIT);
         GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_mask_fbo);
@@ -697,7 +818,7 @@ int gl_init(SDL_Window *window) {
     GL_FUNCS(X)
 #undef X
     if ((s_main = program(MAIN_VS, MAIN_FS)) == 0 || (s_blit = program(BLIT_VS, BLIT_FS)) == 0 ||
-        (s_soft = program(BLIT_VS, SOFT_FS)) == 0) {
+        (s_soft = program(BLIT_VS, SOFT_FS)) == 0 || (s_prop = program(PROP_VS, PROP_FS)) == 0) {
         return 0;
     }
     s_soft_dir_loc = GL(glGetUniformLocation)(s_soft, "dir");
@@ -717,6 +838,13 @@ int gl_init(SDL_Window *window) {
     GL(glUniform2f)(s_size_loc, VRAM_W, VRAM_H);
     GL(glUseProgram)(s_blit);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_blit, "tex"), 0);
+    GL(glUseProgram)(s_prop);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_prop, "tex"), 0);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_prop, "sdepth"), 1);
+    GL(glUniform2f)(GL(glGetUniformLocation)(s_prop, "size"), VRAM_W, VRAM_H);
+    s_prop_depth_loc = GL(glGetUniformLocation)(s_prop, "usedepth");
+    s_prop_fog_loc = GL(glGetUniformLocation)(s_prop, "fog");
+    s_prop_fogz_loc = GL(glGetUniformLocation)(s_prop, "fogz");
 
     GL(glGenVertexArrays)(1, &s_vao);
     GL(glBindVertexArray)(s_vao);
@@ -738,6 +866,17 @@ int gl_init(SDL_Window *window) {
     GL(glVertexAttribPointer)(6, 1, GL_FLOAT, GL_FALSE, sizeof(GVtx), (void *)offsetof(GVtx, z));
     GL(glEnableVertexAttribArray)(7);
     GL(glVertexAttribPointer)(7, 1, GL_FLOAT, GL_FALSE, sizeof(GVtx), (void *)offsetof(GVtx, w));
+
+    GL(glGenVertexArrays)(1, &s_prop_vao);
+    GL(glBindVertexArray)(s_prop_vao);
+    GL(glGenBuffers)(1, &s_prop_vbo);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, s_prop_vbo);
+    GL(glEnableVertexAttribArray)(0);
+    GL(glVertexAttribPointer)(0, 3, GL_FLOAT, GL_FALSE, sizeof(PropVtx), (void *)offsetof(PropVtx, x));
+    GL(glEnableVertexAttribArray)(1);
+    GL(glVertexAttribPointer)(1, 2, GL_FLOAT, GL_FALSE, sizeof(PropVtx), (void *)offsetof(PropVtx, u));
+    GL(glEnableVertexAttribArray)(2);
+    GL(glVertexAttribPointer)(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(PropVtx), (void *)offsetof(PropVtx, r));
 
     GL(glGenVertexArrays)(1, &s_quad_vao);
     GL(glBindVertexArray)(s_quad_vao);

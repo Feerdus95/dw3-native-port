@@ -91,6 +91,12 @@ int json_len(Json *arr);
 int json_int(Json *j);
 /* an RGBA image over the copy, from (x0, y0) to (x1, y1), blended by its
    alpha (or added, ADD) inside the drawing area; its texture made in *tex on first use */
+typedef struct {
+    float x, y, z, u, v; /* VRAM pixels, view depth, texels 0-1 */
+    uint8_t r, g, b, a;
+} PropVtx;
+void gl_depth_save(void); /* the stage's depth, kept for the props (gl.c) */
+void gl_props(const struct SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo);
 void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2);
 /* GP0 1D (native.h): images KEY >> 12 at tick KEY & 0xFFF around (x, y),
    their widths times xs (effects.c) */
