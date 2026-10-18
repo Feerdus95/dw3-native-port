@@ -544,6 +544,7 @@ static void props_load(int id) {
     const char *p;
     Json *root, *list, *o;
     int i;
+    uint64_t t0 = SDL_GetPerformanceCounter();
 
     gl_inst_free(s_ivbo);
     SDL_free(s_inst);
@@ -654,7 +655,7 @@ static void props_load(int id) {
         s_nmd++;
     }
     json_free(root);
-    LOG("props: stage %d: %d billboards, %d emitters, %d models", id, s_nbb, s_nem, s_nmd);
+    LOG("props: stage %d: %d billboards, %d emitters, %d models, %.1f ms", id, s_nbb, s_nem, s_nmd, (double)(SDL_GetPerformanceCounter() - t0) * 1000.0 / (double)SDL_GetPerformanceFrequency());
 }
 
 /* The billboards and the emitters' particles, all on the card: one draw for each image's billboards, one for each emitter */
