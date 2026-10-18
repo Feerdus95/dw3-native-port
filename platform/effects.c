@@ -144,6 +144,49 @@ int native_effect_images(int effect, int critical, int *ticks) {
     return set;
 }
 
+/* Once a frame from the start: every effect folder of the mod is read the first time (the game's start, behind its
+   logos) and its pictures put on the card one a frame. Decoding a big PNG, premultiplying it and uploading it take
+   milliseconds, and were done in the frame an effect first showed: a hitch in each of the first frames of a signature
+   move. An effect that plays before it is warm is made on the spot, as before. */
+void native_effects_warm(void) {
+    static int s_scanned, s_set, s_img;
+    char dir[1100], sub[1200];
+
+    if (!s_scanned) {
+        char **names;
+        int n = 0, i;
+
+        s_scanned = 1;
+        SDL_snprintf(dir, sizeof dir, "%s/mods/effects", data_dir());
+        names = SDL_GlobDirectory(dir, "*", 0, &n);
+        for (i = 0; names != NULL && i < n; i++) {
+            SDL_PathInfo info;
+
+            SDL_snprintf(sub, sizeof sub, "%s/%s", dir, names[i]);
+            if (names[i][0] < '0' || names[i][0] > '9' || !SDL_GetPathInfo(sub, &info) || info.type != SDL_PATHTYPE_DIRECTORY) {
+                continue;
+            }
+            load_set(atoi(names[i]), 0);
+            SDL_snprintf(sub, sizeof sub, "%s/%s/critical", dir, names[i]);
+            if (SDL_GetPathInfo(sub, &info) && info.type == SDL_PATHTYPE_DIRECTORY) {
+                load_set(atoi(names[i]), 1);
+            }
+        }
+        SDL_free(names);
+        return;
+    }
+    for (; s_set < s_count; s_set++, s_img = 0) {
+        for (; s_sets[s_set].img != NULL && s_img < s_sets[s_set].images; s_img++) {
+            if (s_sets[s_set].tex[s_img] == 0 && s_sets[s_set].img[s_img] != NULL) {
+                if (gl_image_prepare(s_sets[s_set].img[s_img], &s_sets[s_set].tex[s_img])) {
+                    s_img++;
+                }
+                return; /* not up yet: the same one next frame */
+            }
+        }
+    }
+}
+
 void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int cy1, int cx2, int cy2) {
     int set = key >> 12, tick = key & 0xFFF, f = 0;
     SDL_Surface *img;

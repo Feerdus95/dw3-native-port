@@ -64,6 +64,7 @@ static void vblank(void) {
         perf_begin(PF_PRESENT);
         present_frame();
         perf_end(PF_PRESENT);
+        native_effects_warm();
     }
     pad_update();
     if (s_vsync_cb != NULL && !s_in_cb) {

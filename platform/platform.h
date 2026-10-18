@@ -146,6 +146,8 @@ void gl_props(const struct SDL_Surface *img, unsigned *tex, const PropVtx *v, in
 void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2);
 /* GP0 1D (native.h): images KEY >> 12 at tick KEY & 0xFFF around (x, y),
    their widths times xs (effects.c) */
+void native_effects_warm(void); /* once a frame from the start: the mod's effects read and put on the card, one picture a frame */
+int gl_image_prepare(const struct SDL_Surface *img, unsigned *tex);
 void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int cy1, int cx2, int cy2);
 void gl_present(const struct SDL_Surface *menu, struct SDL_Surface **shot);
 int gte_precise(const uint32_t *word, float *x, float *y, float *z);

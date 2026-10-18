@@ -881,6 +881,11 @@ static int image_tex(const SDL_Surface *img, unsigned *tex) {
     return 1;
 }
 
+/* An image's texture made ahead of its first use (effects.c's warm-up), not in the frame it first shows */
+int gl_image_prepare(const SDL_Surface *img, unsigned *tex) {
+    return s_scale != 0 && img != NULL && image_tex(img, tex); /* 0: the card isn't up yet */
+}
+
 /* An image of the port's own over the copy (platform.h) */
 void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
     int s = s_scale;
