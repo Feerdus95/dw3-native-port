@@ -122,6 +122,7 @@ static void stagefx_log(void);
 static int s_stage_drawn = -10;
 
 void stagefx_stage_drawn(int polygons) {
+    perf_gpu(PF_SPOLY, polygons); /* the meter's csv: what the stage layer drew */
     if (polygons > 0) {
         s_stage_drawn = (int)s_now;
     }
@@ -755,6 +756,8 @@ static void props_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
     if (s_nbb == 0 && s_nem == 0 && s_nmd == 0) {
         return;
     }
+    perf_gpu(PF_PDRAW, 1);
+    perf_gpu(PF_BRIGHT, s_bright);
     props_gpu(s_bright / 128.0f, ox, oy, x1, y1, x2, y2);
     models_draw(s_bright / 128.0f, ox, oy, x1, y1, x2, y2);
 }

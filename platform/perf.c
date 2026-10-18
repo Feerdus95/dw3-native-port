@@ -15,7 +15,7 @@
 #define BINS 400 /* the histogram of the fight's frames: 0.5 ms each */
 
 typedef struct {
-    float interval, game, draw, props, present, wait, gpu, gpu_props, pload, pgl, pflush, ptex;
+    float interval, game, draw, props, present, wait, gpu, gpu_props, pload, pgl, pflush, ptex, spoly, bright, pdraw;
     int late;
 } PerfRec;
 
@@ -92,7 +92,7 @@ static void open_csv(void) {
     s_csv = fopen(path, "w");
     if (s_csv != NULL) {
         fprintf(s_csv, "# budget %.2f ms; late: the frame took over 1.2 budgets; gpu times arrive ~3 frames late\n", s_budget);
-        fprintf(s_csv, "frame,interval_ms,game_ms,draw_ms,props_cpu_ms,present_ms,wait_ms,gpu_scene_ms,gpu_props_ms,late,props_load_ms,props_gl_ms,props_flush_ms,props_tex_ms\n");
+        fprintf(s_csv, "frame,interval_ms,game_ms,draw_ms,props_cpu_ms,present_ms,wait_ms,gpu_scene_ms,gpu_props_ms,late,props_load_ms,props_gl_ms,props_flush_ms,props_tex_ms,stage_polys,stage_bright,props_drawn\n");
         LOG("perf: %s", path);
     }
 }
@@ -115,6 +115,7 @@ void perf_enter(double budget) {
         r.draw = (float)s_acc[PF_DRAW], r.props = (float)s_acc[PF_PROPS], r.present = (float)s_acc[PF_PRESENT], r.wait = (float)s_acc[PF_WAIT];
         r.gpu = (float)s_acc[PF_GPU], r.gpu_props = (float)s_acc[PF_GPU_PROPS];
         r.pload = (float)s_acc[PF_PLOAD], r.pgl = (float)s_acc[PF_PGL], r.pflush = (float)s_acc[PF_PFLUSH], r.ptex = (float)s_acc[PF_PTEX];
+        r.spoly = (float)s_acc[PF_SPOLY], r.bright = (float)s_acc[PF_BRIGHT], r.pdraw = (float)s_acc[PF_PDRAW];
         r.game = (float)SDL_max(r.interval - r.draw - r.present - r.wait, 0.0);
         r.late = r.interval > budget * 1.2;
         s_ring[s_count % RING] = r;
@@ -122,7 +123,7 @@ void perf_enter(double budget) {
             open_csv();
         }
         if (s_csv != NULL) {
-            fprintf(s_csv, "%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%.2f,%.2f,%.2f,%.2f\n", s_count, r.interval, r.game, r.draw, r.props, r.present, r.wait, r.gpu, r.gpu_props, r.late, r.pload, r.pgl, r.pflush, r.ptex);
+            fprintf(s_csv, "%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%.2f,%.2f,%.2f,%.2f,%.0f,%.0f,%.0f\n", s_count, r.interval, r.game, r.draw, r.props, r.present, r.wait, r.gpu, r.gpu_props, r.late, r.pload, r.pgl, r.pflush, r.ptex, r.spoly, r.bright, r.pdraw);
         }
         ms = r.interval;
         s_hist[SDL_clamp((int)(ms * 2), 0, BINS - 1)]++;
