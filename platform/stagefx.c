@@ -1156,14 +1156,18 @@ int native_stage_drift(float *c, float *s) {
 static float s_top; /* the most a point moved this second, for DW3_LOG=gpu */
 
 int native_stage_sway(float x, float y, float z, float *dx, float *dz) {
-    float bright, w[2], h, amp, move, t = (float)s_now;
+    static float s_wt = -1, s_ww = -1, w[2]; /* the wind of this frame, worked out once: a thousand points ask for it */
+    float bright, h, amp, move, t = (float)s_now;
     const StageFx *fx = stagefx_current(&bright);
 
     if (fx == NULL || fx->sway <= 0 || y > -400.0f) {
         return 0;
     }
     h = SDL_min(-y / 6000.0f, 1.5f);
-    wind_at(t, fx->wind, w); /* the leaves' drift a frame: 18 at a full gust of wind 1 */
+    if (t != s_wt || fx->wind != s_ww) {
+        wind_at(t, fx->wind, w); /* the leaves' drift a frame: 18 at a full gust of wind 1 */
+        s_wt = t, s_ww = fx->wind;
+    }
     amp = fx->sway * 200.0f * h * h / 18.0f;
     move = 0.5f + sinf(t * 0.042f + (x + z) * 0.0004f);
     *dx = w[0] * amp * move;
