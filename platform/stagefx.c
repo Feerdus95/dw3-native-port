@@ -230,6 +230,11 @@ static unsigned s_ivbo;
 static int s_ibeg[MAX_IMG], s_icnt[MAX_IMG];
 static Emitter s_em[MAX_EM];
 static int s_nbb, s_nem, s_props_stage = -2;
+static double s_ms_img, s_ms_up; /* props_load's parts, for perf/props_load.txt */
+
+static double ms_since(uint64_t t) {
+    return (double)(SDL_GetPerformanceCounter() - t) * 1000.0 / (double)SDL_GetPerformanceFrequency();
+}
 static float s_pwind = 1; /* the list's wind, a factor of the stage's */
 static int s_pleaves = -1; /* the list's own count of falling leaves, -1: the stage's (stages.ini) */
 static float s_pfog[5];    /* the list's own fog: r, g, b (0-255), how much, where it starts */
@@ -255,7 +260,7 @@ static void jvec(Json *o, const char *k, float *out, int n) {
 }
 
 /* The image's index, loaded the first time (-1: none) */
-static int image_of(const char *dir, Json *o) {
+static int image_of_untimed(const char *dir, Json *o) {
     Json *v = json_get(o, "image");
     char path[1100];
     int i;
@@ -538,6 +543,14 @@ static void models_draw(float bright, int ox, int oy, int x1, int y1, int x2, in
     }
 }
 
+static int image_of(const char *dir, Json *o) {
+    uint64_t t = SDL_GetPerformanceCounter();
+    int r = image_of_untimed(dir, o);
+
+    s_ms_img += ms_since(t);
+    return r;
+}
+
 static void props_load(int id) {
     char dir[1024], path[1100];
     char *text;
@@ -546,7 +559,13 @@ static void props_load(int id) {
     int i;
     uint64_t t0 = SDL_GetPerformanceCounter();
 
-    gl_inst_free(s_ivbo);
+    s_ms_img = s_ms_up = 0;
+    {
+        uint64_t tu = SDL_GetPerformanceCounter();
+
+        gl_inst_free(s_ivbo);
+        s_ms_up += ms_since(tu);
+    }
     SDL_free(s_inst);
     s_inst = NULL, s_ivbo = 0;
     SDL_memset(s_icnt, 0, sizeof s_icnt);
@@ -609,7 +628,10 @@ static void props_load(int id) {
                 s_inst[at[timg[i]]++] = tmp[i];
             }
             if (s_inst != NULL) {
+                uint64_t tu = SDL_GetPerformanceCounter();
+
                 s_nbb = m, s_ivbo = gl_inst_make(s_inst, m);
+                s_ms_up += ms_since(tu);
             }
         }
         SDL_free(tmp);
@@ -655,7 +677,17 @@ static void props_load(int id) {
         s_nmd++;
     }
     json_free(root);
-    LOG("props: stage %d: %d billboards, %d emitters, %d models, %.1f ms", id, s_nbb, s_nem, s_nmd, (double)(SDL_GetPerformanceCounter() - t0) * 1000.0 / (double)SDL_GetPerformanceFrequency());
+    {
+        char line[1200];
+        FILE *f;
+
+        SDL_snprintf(line, sizeof line, "%sperf/props_load.txt", SDL_GetBasePath());
+        f = perf_on() ? fopen(line, "a") : NULL;
+        if (f != NULL) {
+            fprintf(f, "stage %d: %d billboards, %d emitters, %d models: %.1f ms (images %.1f, card upload %.1f)\n", id, s_nbb, s_nem, s_nmd, ms_since(t0), s_ms_img, s_ms_up);
+            fclose(f);
+        }
+    }
 }
 
 /* The billboards and the emitters' particles, all on the card: one draw for each image's billboards, one for each emitter */
