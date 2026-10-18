@@ -111,7 +111,21 @@ typedef struct {
     float center[3], radius, top, fall, wind, above, size[2], floor, tint[3], fog;
     int count, leaf;
 } PPart;
+/* The 3D models from tables too: a mesh kept on the card (8 floats a vertex: x y z u v nx ny nz), and per instance
+   its place, scale, turn, sway, fog and tint (gl.c's PINST_VS, mode 3) */
+typedef struct {
+    float pos[3], scale;     /* the foot, y up; the size factor */
+    float rot, sway, fog, pad; /* turn (degrees), wind sway, fog share 0-1 */
+    float tint[4];           /* 0-1 */
+} PModel;
+typedef struct {
+    unsigned vao, vbo;
+    int n; /* vertices, a multiple of 3 */
+} GMesh;
+void gl_mesh_make(GMesh *g, const float *v, int n); /* g->n stays 0 when it can't */
+void gl_props_model(const struct SDL_Surface *img, unsigned *tex, const GMesh *g, float miny, float h, unsigned inst, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
 unsigned gl_inst_make(const PInst *v, int n);
+unsigned gl_buf_make(const void *p, unsigned long bytes);
 void gl_inst_free(unsigned b);
 void gl_props_inst(const struct SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
 void gl_props_part(const struct SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);

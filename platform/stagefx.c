@@ -332,6 +332,7 @@ typedef struct {
     int n;    /* vertices, a multiple of 3 */
     float miny, h;
     int tried;
+    GMesh g; /* on the card, once it is up */
 } Mesh;
 
 typedef struct {
@@ -342,8 +343,6 @@ typedef struct {
 static Mesh s_mesh[MAX_MESH]; /* by path, kept across stages */
 static int s_nmesh, s_nmd;
 static ModelProp s_md[MAX_MD];
-static PropVtx *s_mv;
-static int s_mv_cap;
 
 /* The next integer of an OBJ face's "v/t/n" token, 0 when it has none */
 static int obj_int(const char **s) {
@@ -517,62 +516,77 @@ static int mesh_of(const char *dir, Json *o) {
     return v != NULL && v->type == 's' ? mesh_named(dir, v->str) : -1;
 }
 
-/* Every model, one draw each: turned about the vertical, bent by the wind
-   (the square of the height, as a tree), flat-lit */
+/* The models, on the card like the billboards: each mesh is kept there once, the stage's models of one mesh and image
+   are a table (PModel) uploaded once, and one draw puts them all in the world: turned about the vertical, bent by the
+   wind (the square of the height, as a tree), flat-lit; the card (gl.c's PINST_VS, mode 3) does for each vertex what
+   this file did every frame */
+typedef struct {
+    int mesh, img, first, count;
+} ModelGroup;
+
+static ModelGroup s_mg[MAX_MD];
+static int s_nmg;
+static unsigned s_mvbo;
+
+static void models_free(void) {
+    gl_inst_free(s_mvbo);
+    s_mvbo = 0, s_nmg = 0;
+}
+
+/* After the stage's models are read: grouped by mesh and image, and uploaded */
+static void models_upload(void) {
+    PModel *tab;
+    char done[MAX_MD];
+    int i, j, at = 0;
+
+    models_free();
+    if (s_nmd == 0 || (tab = SDL_malloc((size_t)s_nmd * sizeof *tab)) == NULL) {
+        return;
+    }
+    SDL_memset(done, 0, sizeof done);
+    for (i = 0; i < s_nmd; i++) {
+        ModelGroup *g;
+
+        if (done[i]) {
+            continue;
+        }
+        g = &s_mg[s_nmg++];
+        g->mesh = s_md[i].mesh, g->img = s_md[i].img, g->first = at, g->count = 0;
+        for (j = i; j < s_nmd; j++) {
+            const ModelProp *md = &s_md[j];
+            PModel *p = &tab[at];
+
+            if (done[j] || md->mesh != g->mesh || md->img != g->img) {
+                continue;
+            }
+            done[j] = 1, at++, g->count++;
+            SDL_memcpy(p->pos, md->pos, sizeof p->pos);
+            p->scale = md->scale, p->rot = md->rot, p->sway = md->sway, p->fog = SDL_clamp(md->fog, 0.0f, 1.0f), p->pad = 0;
+            p->tint[0] = md->tint[0] / 255.0f, p->tint[1] = md->tint[1] / 255.0f, p->tint[2] = md->tint[2] / 255.0f, p->tint[3] = 1;
+        }
+    }
+    s_mvbo = gl_buf_make(tab, (unsigned long)s_nmd * sizeof *tab);
+    SDL_free(tab);
+}
+
 static void models_draw(float bright, int ox, int oy, int x1, int y1, int x2, int y2) {
-    float t = (float)s_now, ww[2];
+    PCam cam;
     const StageFx *fx;
     float fb;
     int i;
 
     fx = stagefx_current(&fb);
-    wind_at(t, (fx != NULL ? fx->wind : 1.0f) * s_pwind, ww);
-    for (i = 0; i < s_nmd; i++) {
-        const ModelProp *md = &s_md[i];
-        const Mesh *m = &s_mesh[md->mesh];
-        float a = md->rot * 0.017453293f, ca = cosf(a), sa = sinf(a), height = m->h * md->scale;
-        float move = 0.5f + sinf(t * 0.042f + (md->pos[0] + md->pos[2]) * 0.0004f), bend = md->sway / 18.0f * height * 0.3f * move;
-        int k, n = 0;
+    if (s_mvbo == 0 || !cam_get(&cam, bright, ox, oy, (fx != NULL ? fx->wind : 1.0f) * s_pwind)) {
+        return;
+    }
+    for (i = 0; i < s_nmg; i++) {
+        const ModelGroup *g = &s_mg[i];
+        Mesh *m = &s_mesh[g->mesh];
 
-        if (m->n > s_mv_cap) {
-            PropVtx *g = SDL_realloc(s_mv, (size_t)m->n * sizeof *g);
-
-            if (g == NULL) {
-                continue;
-            }
-            s_mv = g, s_mv_cap = m->n;
+        if (m->g.n == 0) {
+            gl_mesh_make(&m->g, m->v, m->n); /* once; no card yet: again next frame */
         }
-        for (k = 0; k + 2 < m->n; k += 3) {
-            PropVtx tri[3];
-            int j, ok = 1;
-
-            for (j = 0; j < 3 && ok; j++) {
-                const float *v = &m->v[(k + j) * 8];
-                float lx = v[0] * md->scale, ly = (v[1] - m->miny) * md->scale, lz = v[2] * md->scale, rel = SDL_clamp(ly / height, 0.0f, 1.0f);
-                float P[3], s[3], nx = v[5] * ca + v[7] * sa, nz = -v[5] * sa + v[7] * ca, d, shade;
-
-                P[0] = md->pos[0] + lx * ca + lz * sa + ww[0] * bend * rel * rel;
-                P[1] = -(md->pos[1] + ly);
-                P[2] = md->pos[2] - lx * sa + lz * ca + ww[1] * bend * rel * rel;
-                if (!gte_camera_project(P, s)) {
-                    ok = 0;
-                    break;
-                }
-                d = nx * 0.35f + v[6] * 0.8f + nz * 0.45f; /* from above and a side, unit-ish */
-                shade = 0.55f + 0.45f * SDL_max(d / 0.98f, 0.0f);
-                tri[j].x = s[0] + ox, tri[j].y = s[1] + oy, tri[j].z = s[2], tri[j].u = v[3], tri[j].v = v[4];
-                tri[j].r = (uint8_t)SDL_clamp(md->tint[0] * bright * shade, 0, 255);
-                tri[j].g = (uint8_t)SDL_clamp(md->tint[1] * bright * shade, 0, 255);
-                tri[j].b = (uint8_t)SDL_clamp(md->tint[2] * bright * shade, 0, 255);
-                tri[j].a = (uint8_t)SDL_clamp(md->fog * 255.0f, 0, 255);
-            }
-            if (ok) {
-                s_mv[n++] = tri[0], s_mv[n++] = tri[1], s_mv[n++] = tri[2];
-            }
-        }
-        if (n > 0 && md->img >= 0) {
-            gl_props(s_img[md->img].surf, &s_img[md->img].tex, s_mv, n, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
-        }
+        gl_props_model(s_img[g->img].surf, &s_img[g->img].tex, &m->g, m->miny, m->h, s_mvbo, g->first, g->count, &cam, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
     }
 }
 
@@ -878,6 +892,7 @@ static int cache_load(int id, const char *dir, const char *json_path) {
     if (s_inst != NULL && s_nbb > 0) {
         s_ivbo = gl_inst_make(s_inst, s_nbb);
     }
+    models_upload();
     return 1;
 }
 
@@ -906,6 +921,7 @@ static void props_load(int id) {
         uint64_t tu = SDL_GetPerformanceCounter();
 
         gl_inst_free(s_ivbo);
+        models_free();
         s_ms_up += ms_since(tu);
     }
     SDL_free(s_inst);
@@ -1030,6 +1046,7 @@ static void props_load(int id) {
         s_nmd++;
     }
     json_free(root);
+    models_upload();
     cache_save(id, path);
     props_load_log(id, t0, "json");
 }

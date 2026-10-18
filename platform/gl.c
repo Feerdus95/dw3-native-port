@@ -224,6 +224,11 @@ static const char *PINST_VS =
     "layout(location = 1) in vec4 idim;\n"  /* width, height, sway, turn in degrees */
     "layout(location = 2) in vec4 icol;\n"  /* tint, fog */
     "layout(location = 3) in float ifixed;\n"
+    "layout(location = 4) in vec3 vnrm;\n"  /* mode 3: the mesh vertex's normal; ipos is its place and idim.xy its texture coordinate */
+    "layout(location = 5) in vec4 mi0;\n"   /* mode 3, per instance: foot, scale */
+    "layout(location = 6) in vec4 mi1;\n"   /* turn in degrees, sway, fog */
+    "layout(location = 7) in vec4 mi2;\n"   /* tint 0-1 */
+    "uniform vec2 mmesh;\n"                 /* the mesh's lowest y and height */
     "uniform vec2 size;\n"
     "uniform sampler2D fdepth;\n" /* the fighters' depth: a blade under one is trodden down */
     "uniform int usefd;\n"
@@ -277,6 +282,22 @@ static const char *PINST_VS =
     "const vec3 PAL[10] = vec3[10](vec3(58, 102, 34), vec3(92, 140, 52), vec3(74, 118, 38), vec3(120, 156, 62),\n"
     "    vec3(110, 120, 40), vec3(150, 160, 70), vec3(128, 86, 36), vec3(170, 124, 60), vec3(96, 70, 34), vec3(136, 104, 52));\n"
     "void main() {\n"
+    "    if (mode == 3) {\n" /* a mesh vertex of an instance: stagefx.c's models_draw as it was, but on the card */
+    "        float sc = mi0.w, a = mi1.x * 0.017453293, ca = cos(a), sa = sin(a), height = mmesh.y * sc;\n"
+    "        float lx = ipos.x * sc, ly = (ipos.y - mmesh.x) * sc, lz = ipos.z * sc, rel = clamp(ly / height, 0.0, 1.0);\n"
+    "        float move = 0.5 + sin(clk.x * 0.042 + (mi0.x + mi0.z) * 0.0004), bend = mi1.y / 18.0 * height * 0.3 * move;\n"
+    "        vec2 wd = wnd * (bend * rel * rel);\n"
+    "        vec3 P = vec3(mi0.x + lx * ca + lz * sa + wd.x, -(mi0.y + ly), mi0.z - lx * sa + lz * ca + wd.y);\n"
+    "        vec3 v = vec3(dot(cam0.xyz, P), dot(cam1.xyz, P), dot(cam2.xyz, P)) + vec3(cam0.w, cam1.w, cam2.w);\n"
+    "        float nx = vnrm.x * ca + vnrm.z * sa, nz = -vnrm.x * sa + vnrm.z * ca;\n"
+    "        float shade = 0.55 + 0.45 * max((nx * 0.35 + vnrm.y * 0.8 + nz * 0.45) / 0.98, 0.0);\n" /* from above and a side */
+    "        col = vec4(clamp(mi2.rgb * clk.y * shade, 0.0, 1.0), mi1.z);\n"
+    "        uv = idim.xy; vz = v.z;\n"
+    "        vec2 off = vec2(camp.y, camp.z) + clk.zw;\n" /* put() and project() in clip space: linear in the view's x, y, z, so the card clips what is behind the camera */
+    "        vec2 ndc = vec2(camp.x * v.x * camp.w, camp.x * v.y) * 2.0 / size + (off * 2.0 / size - 1.0) * v.z;\n"
+    "        gl_Position = vec4(ndc, v.z - 128.0, v.z);\n" /* z: (1 - 128 / z) * z, as put()'s */
+    "        return;\n"
+    "    }\n"
     "    int k = gl_VertexID % 6;\n"
     "    if (mode == 0) {\n"
     "        int c = TRI[k];\n"
@@ -1050,6 +1071,66 @@ void gl_props_inst(const SDL_Surface *img, unsigned *tex, unsigned b, int first,
         GL(glVertexAttribDivisor)(a, 1);
     }
     GL(glDrawArraysInstanced)(GL_TRIANGLES, 0, 6, n);
+    props_end();
+}
+
+/* A table (PInst, PModel...) uploaded once; 0 when it can't */
+unsigned gl_buf_make(const void *p, unsigned long bytes) {
+    GLuint b = 0;
+
+    if (s_scale == 0 || bytes == 0) {
+        return 0;
+    }
+    GL(glGenBuffers)(1, &b);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, b);
+    GL(glBufferData)(GL_ARRAY_BUFFER, (GLsizeiptr)bytes, p, GL_STATIC_DRAW);
+    return b;
+}
+
+/* A mesh kept on the card: position, texture coordinate, normal */
+void gl_mesh_make(GMesh *g, const float *v, int n) {
+    const GLsizei st = 8 * sizeof(float);
+
+    g->n = 0;
+    if (s_scale == 0 || n <= 0) {
+        return;
+    }
+    GL(glGenVertexArrays)(1, &g->vao);
+    GL(glBindVertexArray)(g->vao);
+    GL(glGenBuffers)(1, &g->vbo);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, g->vbo);
+    GL(glBufferData)(GL_ARRAY_BUFFER, (GLsizeiptr)n * st, v, GL_STATIC_DRAW);
+    GL(glEnableVertexAttribArray)(0);
+    GL(glVertexAttribPointer)(0, 3, GL_FLOAT, GL_FALSE, st, (void *)0);
+    GL(glEnableVertexAttribArray)(1);
+    GL(glVertexAttribPointer)(1, 2, GL_FLOAT, GL_FALSE, st, (void *)(3 * sizeof(float)));
+    GL(glEnableVertexAttribArray)(4);
+    GL(glVertexAttribPointer)(4, 3, GL_FLOAT, GL_FALSE, st, (void *)(5 * sizeof(float)));
+    g->n = n;
+}
+
+/* N instances of the mesh G, from FIRST of the table INST (PModel), with image IMG: one draw */
+void gl_props_model(const SDL_Surface *img, unsigned *tex, const GMesh *g, float miny, float h, unsigned inst, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+    const size_t st = sizeof(PModel);
+
+    if (n <= 0 || g->n <= 0 || inst == 0 || !props_begin(s_pinst, img, tex, x1, y1, x2, y2, fogo)) {
+        return;
+    }
+    props_cam(cam);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_pinst, "mode"), 3);
+    GL(glUniform2f)(GL(glGetUniformLocation)(s_pinst, "mmesh"), miny, h);
+    GL(glBindVertexArray)(g->vao);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, inst);
+    GL(glEnableVertexAttribArray)(5);
+    GL(glVertexAttribPointer)(5, 4, GL_FLOAT, GL_FALSE, st, (void *)(first * st + offsetof(PModel, pos)));
+    GL(glEnableVertexAttribArray)(6);
+    GL(glVertexAttribPointer)(6, 4, GL_FLOAT, GL_FALSE, st, (void *)(first * st + offsetof(PModel, rot)));
+    GL(glEnableVertexAttribArray)(7);
+    GL(glVertexAttribPointer)(7, 4, GL_FLOAT, GL_FALSE, st, (void *)(first * st + offsetof(PModel, tint)));
+    for (int a = 5; a < 8; a++) {
+        GL(glVertexAttribDivisor)(a, 1);
+    }
+    GL(glDrawArraysInstanced)(GL_TRIANGLES, 0, g->n, n);
     props_end();
 }
 
