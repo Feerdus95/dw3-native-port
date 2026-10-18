@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.13.0 (beta)
+
+- **Props in the fight stages** (`data/mods/fightstages/<id>/props.json`, written by the model viewer's Stages tab):
+  billboards (grass, flowers, rocks), falling-particle emitters (petals, snow, embers), the stage's own falling leaves
+  and small 3D models (an OBJ with a PNG), placed anywhere in the stage. Up to 100000 billboards, 64 emitters of 5000
+  particles, 5000 leaves and 64 models. They are hidden by the stage and by the fighters where those are nearer, bend in
+  the stage's wind, and take its fog (or a fog of their own).
+- **The grass is trodden down under a fighter**: a blade near a fighter's surface is flattened, so the feet no longer
+  clip through it.
+- All of it is drawn on the card from tables uploaded once: billboards, particles, leaves and 3D models (a mesh kept
+  there, one instanced draw per mesh), so the props cost next to nothing: twelve trees of 6000 triangles take 0.07 ms
+  of the CPU, where they took 4 ms.
+- A stage's props list is baked into a cache (`data/cache/props_<id>.bin`) the first time it is read, and is read again
+  only when the JSON changes. A fight keeps its props through a signature move's own stage.
+- **Effects' own pictures no longer hitch** the first frames of a signature move: each effect folder of `mods/effects`
+  is read when the game starts and its pictures are put on the card one a frame.
+- **Performance meter** (F10, or `perf = 1` in `native.ini`): a corner graph while a fight runs, frames stacked by
+  game, drawing and swap against the vsync budget, with late frames marked and the card's times for the scene and the
+  props; every frame goes to `perf/battle_<time>.csv`.
+
 ## v0.12.0 (beta)
 
 - Fight stages edited in the model viewer (v0.5.0 on: its Stages tab, parts moved, removed or taken from other stages,
