@@ -117,7 +117,7 @@ void gl_props_inst(const struct SDL_Surface *img, unsigned *tex, unsigned b, int
 void gl_props_part(const struct SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
 int gte_camera_get(PCam *c); /* the battle camera (gte.c); 0 when no stage was drawn lately */
 /* The battle's performance meter (perf.c): CPU sections timed with perf_begin / perf_end, the card's times from gl.c's queries */
-enum { PF_DRAW, PF_PROPS, PF_PRESENT, PF_WAIT, PF_GPU, PF_GPU_PROPS, PF_N };
+enum { PF_DRAW, PF_PROPS, PF_PRESENT, PF_WAIT, PF_GPU, PF_GPU_PROPS, PF_PLOAD, PF_PGL, PF_PFLUSH, PF_PTEX, PF_N };
 extern int g_perf; /* F10, perf in native.ini */
 int perf_on(void); /* the meter is on and a fight is running */
 void perf_begin(int section);

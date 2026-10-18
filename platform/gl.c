@@ -898,10 +898,16 @@ static int props_begin(GLuint prog, const SDL_Surface *img, unsigned *tex, int x
     if (s == 0) {
         return 0;
     }
+    perf_begin(PF_PGL);
+    perf_begin(PF_PFLUSH);
     flush();
+    perf_end(PF_PFLUSH);
+    perf_begin(PF_PTEX);
     if (!image_tex(img, tex)) {
+        perf_end(PF_PTEX);
         return 0;
     }
+    perf_end(PF_PTEX);
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fbo);
     GL(glViewport)(0, 0, VRAM_W * s, VRAM_H * s);
     GL(glEnable)(GL_SCISSOR_TEST);
@@ -931,6 +937,7 @@ static int props_begin(GLuint prog, const SDL_Surface *img, unsigned *tex, int x
 
 static void props_end(void) {
     gq_end();
+    perf_end(PF_PGL);
     GL(glDisable)(GL_DEPTH_TEST);
     GL(glDisable)(GL_SCISSOR_TEST);
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);

@@ -695,7 +695,9 @@ static void props_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
         return; /* the stage is hidden (a signature move's dark scene): the list stays loaded for when it comes back */
     }
     if (s_shown != s_props_stage) {
+        perf_begin(PF_PLOAD);
         props_load(s_shown);
+        perf_end(PF_PLOAD);
     }
     if (s_nbb == 0 && s_nem == 0 && s_nmd == 0) {
         return;
