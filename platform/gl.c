@@ -25,7 +25,8 @@
     X(glGenRenderbuffers) X(glDeleteRenderbuffers) X(glBindRenderbuffer) X(glRenderbufferStorage)                \
     X(glFramebufferRenderbuffer) X(glDepthFunc) X(glDepthMask) X(glClearDepth) X(glClearStencil)                  \
     X(glStencilFunc) X(glStencilOp) X(glPolygonOffset) X(glGenerateMipmap) X(glDrawArraysInstanced)              \
-    X(glVertexAttribDivisor) X(glDeleteBuffers)
+    X(glVertexAttribDivisor) X(glDeleteBuffers) X(glGenQueries) X(glBeginQuery) X(glEndQuery)      \
+    X(glGetQueryObjectiv) X(glGetQueryObjectui64v)
 
 #define X(f) static __typeof__(f) *p_##f;
 GL_FUNCS(X)
@@ -370,6 +371,66 @@ static GLuint s_prop, s_prop_vao, s_prop_vbo, s_sd_tex, s_sd_fbo; /* props; the 
 static GLuint s_pinst, s_inst_vao, s_part_vao; /* the props from tables (PINST_VS) */
 static GLint s_prop_depth_loc, s_prop_fog_loc, s_prop_fogz_loc;
 static int s_sd_valid;
+
+/* The card's own times (the battle's performance meter, perf.c): a timer query around each batch and each props draw,
+   read back a few frames later so nothing waits for them */
+#define QSLOTS 4
+#define QMAX 600
+static GLuint s_q[QSLOTS][QMAX];
+static unsigned char s_qkind[QSLOTS][QMAX];
+static int s_qn[QSLOTS], s_qslot, s_qopen = -1, s_q_made;
+
+static void gq_begin(int kind) {
+    int n;
+
+    if (!perf_on() || s_qopen >= 0) {
+        return;
+    }
+    if (!s_q_made) {
+        int i;
+
+        for (i = 0; i < QSLOTS; i++) {
+            GL(glGenQueries)(QMAX, s_q[i]);
+        }
+        s_q_made = 1;
+    }
+    n = s_qn[s_qslot];
+    if (n >= QMAX) {
+        return;
+    }
+    GL(glBeginQuery)(GL_TIME_ELAPSED, s_q[s_qslot][n]);
+    s_qkind[s_qslot][n] = (unsigned char)kind;
+    s_qopen = n;
+}
+
+static void gq_end(void) {
+    if (s_qopen >= 0) {
+        GL(glEndQuery)(GL_TIME_ELAPSED);
+        s_qn[s_qslot]++;
+        s_qopen = -1;
+    }
+}
+
+/* Once a frame, after the swap: the oldest slot's results go to the meter and it is the one used next */
+static void gq_frame(void) {
+    int old = (s_qslot + 1) % QSLOTS, i;
+
+    if (!s_q_made) {
+        return;
+    }
+    for (i = 0; i < s_qn[old]; i++) {
+        GLint ok = 0;
+        GLuint64 ns = 0;
+
+        GL(glGetQueryObjectiv)(s_q[old][i], GL_QUERY_RESULT_AVAILABLE, &ok);
+        if (ok) {
+            GL(glGetQueryObjectui64v)(s_q[old][i], GL_QUERY_RESULT, &ns);
+            perf_gpu(s_qkind[old][i], (double)ns / 1e6);
+        }
+    }
+    s_qn[old] = 0;
+    s_qslot = old;
+}
 static GLint s_soft_dir_loc, s_soft_str_loc;
 static int s_mask_box[4] = {VRAM_W, VRAM_H, -1, -1}; /* what the mask holds, in VRAM pixels */
 static GLuint s_movie_tex, s_menu_tex;
@@ -486,7 +547,7 @@ void gl_vram_dirty(int x, int y, int w, int h) {
 
 /* The batch, in its two passes when some of it is semi-transparent: the
    opaque pixels first, then the blended ones over them */
-static void flush(void) {
+static void flush_batch(void) {
     int s = s_scale;
 
     if (s_count == 0) {
@@ -558,6 +619,15 @@ static void flush(void) {
     GL(glDisable)(GL_SCISSOR_TEST);
     s_count = 0;
     s_semi = -1;
+}
+
+static void flush(void) {
+    if (s_count == 0) {
+        return;
+    }
+    gq_begin(PF_GPU);
+    flush_batch();
+    gq_end();
 }
 
 /* Triangles (n a multiple of 3) for the copy, with gpu_draw.c's state: the
@@ -855,10 +925,12 @@ static int props_begin(GLuint prog, const SDL_Surface *img, unsigned *tex, int x
         GL(glDepthMask)(GL_TRUE);
     }
     GL(glDisable)(GL_BLEND);
+    gq_begin(PF_GPU_PROPS);
     return 1;
 }
 
 static void props_end(void) {
+    gq_end();
     GL(glDisable)(GL_DEPTH_TEST);
     GL(glDisable)(GL_SCISSOR_TEST);
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
@@ -1213,5 +1285,7 @@ void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
         GL(glReadPixels)(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, (*shot)->pixels);
         SDL_FlipSurface(*shot, SDL_FLIP_VERTICAL);
     }
+    gq_end();
     SDL_GL_SwapWindow(s_window);
+    gq_frame();
 }

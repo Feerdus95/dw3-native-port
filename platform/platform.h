@@ -116,6 +116,16 @@ void gl_inst_free(unsigned b);
 void gl_props_inst(const struct SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
 void gl_props_part(const struct SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
 int gte_camera_get(PCam *c); /* the battle camera (gte.c); 0 when no stage was drawn lately */
+/* The battle's performance meter (perf.c): CPU sections timed with perf_begin / perf_end, the card's times from gl.c's queries */
+enum { PF_DRAW, PF_PROPS, PF_PRESENT, PF_WAIT, PF_GPU, PF_GPU_PROPS, PF_N };
+extern int g_perf; /* F10, perf in native.ini */
+int perf_on(void); /* the meter is on and a fight is running */
+void perf_begin(int section);
+void perf_end(int section);
+void perf_gpu(int section, double ms);
+void perf_enter(double budget_ms); /* at each vsync */
+void perf_reset(void);
+void perf_draw(struct SDL_Renderer *r);
 void gl_depth_save(void); /* the stage's depth, kept for the props (gl.c) */
 void gl_props(const struct SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo);
 void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2);

@@ -33,13 +33,16 @@ unsigned native_frame(void) {
 static void vblank(void) {
     uint64_t now = SDL_GetTicksNS();
 
+    perf_enter(period_ns() / 1e6);
     s_real = g_ff_speed <= 1 || movie_playing() || ++s_ff_tick >= g_ff_speed;
     if (s_real) {
         s_ff_tick = 0;
         if (s_next_ns == 0 || now > s_next_ns + 100000000ull) {
             s_next_ns = now; /* first one, or we fell behind (debugger): don't catch up */
         } else if (now < s_next_ns) {
+            perf_begin(PF_WAIT);
             SDL_DelayPrecise(s_next_ns - now);
+            perf_end(PF_WAIT);
         }
         s_next_ns += period_ns();
     }
@@ -55,9 +58,12 @@ static void vblank(void) {
             exit(0);
         }
         s_next_ns = 0;
+        perf_reset();
     }
     if (s_real) {
+        perf_begin(PF_PRESENT);
         present_frame();
+        perf_end(PF_PRESENT);
     }
     pad_update();
     if (s_vsync_cb != NULL && !s_in_cb) {

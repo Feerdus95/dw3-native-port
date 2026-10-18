@@ -96,6 +96,7 @@ you copy it there.
 | Enter | Start |
 | Backspace | Select |
 | F11 or Alt+Enter | Fullscreen |
+| F10 | Performance meter in fights (`perf = 1` starts it on); writes `perf/battle_<time>.csv` |
 | Tab (gamepad: R3) | Fast forward: x2, x3, x5, off |
 | Esc (gamepad: Back) | Options menu |
 

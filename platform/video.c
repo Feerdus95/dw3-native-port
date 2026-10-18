@@ -79,6 +79,10 @@ int pump_events(void) {
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && e.key.key == SDLK_F12) {
             s_screenshot = 1;
         }
+        /* F10: the battle's performance meter on and off */
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && e.key.key == SDLK_F10) {
+            g_perf = !g_perf;
+        }
         /* F11 or Alt+Enter: fullscreen on and off */
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
             (e.key.key == SDLK_F11 || (e.key.key == SDLK_RETURN && (e.key.mod & SDL_KMOD_ALT)))) {
@@ -143,10 +147,10 @@ void present_frame(void) {
     SDL_Surface *shot = NULL;
     int n = dump_due(), screenshot = s_screenshot && !menu_active();
 
-    int ff = !menu_active() && g_ff_speed > 1;
+    int ff = !menu_active() && g_ff_speed > 1, pf = !menu_active() && perf_on();
 
     gl_sync(0);
-    if (menu_active() || ff) {
+    if (menu_active() || ff || pf) {
         SDL_SetRenderDrawColor(s_menu_renderer, 0, 0, 0, 0);
         SDL_RenderClear(s_menu_renderer);
         menu_draw(s_menu_renderer);
@@ -161,6 +165,9 @@ void present_frame(void) {
             SDL_SetRenderDrawColor(s_menu_renderer, 255, 255, 255, 255);
             SDL_RenderDebugText(s_menu_renderer, bg.x + 4, bg.y + 3, text);
         }
+        if (pf) {
+            perf_draw(s_menu_renderer);
+        }
         SDL_RenderPresent(s_menu_renderer);
     }
     if (screenshot) {
@@ -171,7 +178,7 @@ void present_frame(void) {
         }
         shot = NULL;
     }
-    gl_present(menu_active() || ff ? s_menu : NULL, n ? &shot : NULL);
+    gl_present(menu_active() || ff || pf ? s_menu : NULL, n ? &shot : NULL);
     if (n) {
         dump_vram(n, shot);
     }

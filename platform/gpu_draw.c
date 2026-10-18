@@ -749,6 +749,7 @@ static void wide_plan(uint32_t *p) {
 void DrawOTag(uint32_t *p) {
     int guard = 0, wide = gte_widescreen() && g_draw_layer == WIDE_MENUS_LAYER, k = 0;
 
+    perf_begin(PF_DRAW);
     gl_sync(0);
     gl_depth_clear();
     if (wide) {
@@ -785,6 +786,9 @@ void DrawOTag(uint32_t *p) {
         gl_depth_save();
     }
     if (gte_in_battle() && g_draw_layer == 0x1004) { /* fightstg/types.h's BATTLE_LAYER_MODELS */
+        perf_begin(PF_PROPS);
         stagefx_draw(g.ox, g.oy, CLIP);
+        perf_end(PF_PROPS);
     }
+    perf_end(PF_DRAW);
 }
