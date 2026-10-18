@@ -280,7 +280,7 @@ static void leaves_draw(int n, float bright, int ox, int oy, int x1, int y1, int
    upright billboards and particle emitters of the mod's own PNGs, placed in the
    world (the game's units, y up, 0 the ground). Drawn over the models with the
    stage's depth (gl_props), so the stage's trees and the fighters hide them. */
-#define MAX_BB 200
+#define MAX_BB 600
 #define MAX_EM 8
 #define MAX_PART 300
 #define MAX_IMG 48
