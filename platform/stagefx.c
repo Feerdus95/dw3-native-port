@@ -728,6 +728,12 @@ static void props_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
         return; /* the stage is hidden (a signature move's dark scene): the list stays loaded for when it comes back */
     }
     if (s_shown != s_props_stage) {
+        char path[1100];
+
+        SDL_snprintf(path, sizeof path, "%s/mods/fightstages/%d/props.json", data_dir(), s_shown);
+        if (!SDL_GetPathInfo(path, NULL)) {
+            return; /* a stage without a list (a signature move's own): the loaded one stays for when its stage returns */
+        }
         perf_begin(PF_PLOAD);
         props_load(s_shown);
         perf_end(PF_PLOAD);
