@@ -127,6 +127,7 @@ void perf_enter(double budget_ms); /* at each vsync */
 void perf_reset(void);
 void perf_draw(struct SDL_Renderer *r);
 void gl_depth_save(void); /* the stage's depth, kept for the props (gl.c) */
+void gl_depth_models(void); /* the fighters' depth, kept for the props: the grass under a fighter is trodden down */
 void gl_props(const struct SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo);
 void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2);
 /* GP0 1D (native.h): images KEY >> 12 at tick KEY & 0xFFF around (x, y),

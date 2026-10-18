@@ -789,6 +789,7 @@ void DrawOTag(uint32_t *p) {
     }
     if (gte_in_battle() && g_draw_layer == 0x1004) { /* fightstg/types.h's BATTLE_LAYER_MODELS */
         perf_begin(PF_PROPS);
+        gl_depth_models();
         stagefx_draw(g.ox, g.oy, CLIP);
         perf_end(PF_PROPS);
     }

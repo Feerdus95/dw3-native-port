@@ -170,6 +170,10 @@ static const char *BLIT_FS =
     "out vec4 frag;\n"
     "void main() { frag = texture(tex, uv); }\n";
 
+/* A fighter treads the grass under it: a blade whose foot is this close (the game's units, in depth) to the fighter's
+   surface is flattened, fully by 40% of it */
+#define PROP_CLEAR 600.0f
+
 /* The world's props (stagefx.c): a textured billboard or mesh with its own RGBA
    image, drawn over the models. Cut out by alpha, and hidden by the stage where
    the stage is nearer (the stage's depth, saved before the models' table clears
@@ -221,6 +225,9 @@ static const char *PINST_VS =
     "layout(location = 2) in vec4 icol;\n"  /* tint, fog */
     "layout(location = 3) in float ifixed;\n"
     "uniform vec2 size;\n"
+    "uniform sampler2D fdepth;\n" /* the fighters' depth: a blade under one is trodden down */
+    "uniform int usefd;\n"
+    "uniform float clearz;\n"
     "uniform vec4 cam0, cam1, cam2;\n"      /* the world to the view: a row, its offset */
     "uniform vec4 camp;\n"                  /* focal length, screen offset x, y, the wide screen's 0.75 or 1 */
     "uniform vec4 clk;\n"                   /* the frame clock, brightness, the drawing offset */
@@ -254,6 +261,17 @@ static const char *PINST_VS =
     "    float dir = 0.6 + 0.5 * sin(t * 0.0013);\n"
     "    return vec2(cos(dir), sin(dir)) * 18.0 * w * gust;\n"
     "}\n"
+    "float trodden(vec3 s0, vec3 s1, float hw) {\n" /* 0-1: how much a fighter stands on, or is covered by, the blade from S0 (its foot) to S1 (its tip); hw: its half width, pixels */
+    "    if (usefd == 0) return 0.0;\n"
+    "    vec2 k = vec2(textureSize(fdepth, 0)) / size, a = s0.xy + clk.zw, b = s1.xy + clk.zw;\n"
+    "    float r = max(hw, 3.0), sum = 0.0;\n"
+    "    for (int j = 0; j < 7; j++) {\n" /* along it, and a point to each side of its middle: grass in front of a foot covers it as much as grass under it */
+    "        vec2 p = j < 5 ? mix(a, b, float(j) * 0.25) : mix(a, b, 0.5) + vec2(j == 5 ? -r : r, 0.0);\n"
+    "        float f = texelFetch(fdepth, ivec2(p * k), 0).r;\n"
+    "        if (f < 1.0) sum += 1.0 - smoothstep(clearz * 0.4, clearz, abs(64.0 / (1.0 - f) - s0.z));\n"
+    "    }\n"
+    "    return min(sum / 3.0, 1.0);\n" /* a third of the points on a fighter treads it all */
+    "}\n"
     "const int TRI[6] = int[6](0, 1, 2, 1, 3, 2);\n"
     "const int TRD[6] = int[6](0, 1, 2, 0, 2, 3);\n"
     "const vec3 PAL[10] = vec3[10](vec3(58, 102, 34), vec3(92, 140, 52), vec3(74, 118, 38), vec3(120, 156, 62),\n"
@@ -273,7 +291,12 @@ static const char *PINST_VS =
     "        vec3 s0, s1;\n"
     "        if (ifixed < 0.5) {\n"
     "            if (!project(base, s0) || !project(top, s1)) { kill(); return; }\n"
-    "            float hw = w * 0.5 * (camp.x / s0.z) * camp.w, full = h * (camp.x / s0.z);\n"
+    "            float hw = w * 0.5 * (camp.x / s0.z) * camp.w, press = trodden(s0, s1, hw);\n"
+    "            if (press > 0.0) {\n" /* flattened to a sixth under or before a foot */
+    "                h *= 1.0 - 0.85 * press, top = base + (top - base) * (1.0 - 0.85 * press);\n"
+    "                if (!project(top, s1)) { kill(); return; }\n"
+    "            }\n"
+    "            float full = h * (camp.x / s0.z);\n"
     "            if (s0.y - s1.y < full * 0.6) s1.y = s0.y - full * 0.6;\n" /* from above it keeps 60% of its height */
     "            float r = s0.z / s1.z, side = (c & 1) == 1 ? 1.0 : -1.0;\n"
     "            if (c < 2) put(vec3(s1.x + side * hw * r, s1.y, s1.z), tc, cc);\n"
@@ -371,6 +394,8 @@ static GLuint s_prop, s_prop_vao, s_prop_vbo, s_sd_tex, s_sd_fbo; /* props; the 
 static GLuint s_pinst, s_inst_vao, s_part_vao; /* the props from tables (PINST_VS) */
 static GLint s_prop_depth_loc, s_prop_fog_loc, s_prop_fogz_loc;
 static int s_sd_valid;
+static GLuint s_fd_tex, s_fd_fbo; /* the fighters' depth, kept for the props */
+static int s_fd_valid;
 
 /* The card's own times (the battle's performance meter, perf.c): a timer query around each batch and each props draw,
    read back a few frames later so nothing waits for them */
@@ -888,6 +913,22 @@ void gl_depth_save(void) {
     s_sd_valid = 1;
 }
 
+/* The depth buffer as the fighters' table left it (it started empty): the grass is trodden down where a fighter is */
+void gl_depth_models(void) {
+    int s = s_scale;
+
+    s_fd_valid = 0;
+    if (s == 0 || !s_fd_fbo || !g_depth) {
+        return;
+    }
+    flush();
+    GL(glBindFramebuffer)(GL_READ_FRAMEBUFFER, s_fbo);
+    GL(glBindFramebuffer)(GL_DRAW_FRAMEBUFFER, s_fd_fbo);
+    GL(glBlitFramebuffer)(0, 0, VRAM_W * s, VRAM_H * s, 0, 0, VRAM_W * s, VRAM_H * s, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
+    s_fd_valid = 1;
+}
+
 /* Triangles (n a multiple of 3) textured with an image of the port's own
    (platform.h's PropVtx), cut out by its alpha, by the depth where the depth
    buffer is on. FOGO: NULL for the battle's fog, else {r, g, b, amount, start} */
@@ -915,9 +956,13 @@ static int props_begin(GLuint prog, const SDL_Surface *img, unsigned *tex, int x
     GL(glUseProgram)(prog);
     GL(glActiveTexture)(GL_TEXTURE1);
     GL(glBindTexture)(GL_TEXTURE_2D, s_sd_tex);
+    GL(glActiveTexture)(GL_TEXTURE2);
+    GL(glBindTexture)(GL_TEXTURE_2D, s_fd_tex);
     GL(glActiveTexture)(GL_TEXTURE0);
     GL(glBindTexture)(GL_TEXTURE_2D, *tex);
     GL(glUniform1i)(GL(glGetUniformLocation)(prog, "usedepth"), g_depth && s_sd_valid);
+    GL(glUniform1i)(GL(glGetUniformLocation)(prog, "usefd"), g_depth && s_fd_valid);
+    GL(glUniform1f)(GL(glGetUniformLocation)(prog, "clearz"), PROP_CLEAR);
     if (fogo != NULL) { /* the list's own fog: colour 0-255, how much, where it starts (0-1 of the far side) */
         GL(glUniform4f)(GL(glGetUniformLocation)(prog, "fog"), fogo[0] / 255.0f * 31.0f, fogo[1] / 255.0f * 31.0f, fogo[2] / 255.0f * 31.0f, fogo[3]);
         GL(glUniform2f)(GL(glGetUniformLocation)(prog, "fogz"), zf * fogo[4], zf);
@@ -1049,8 +1094,10 @@ void gl_sync(int force) {
             GL(glDeleteTextures)(1, &s_blur_tex);
             GL(glDeleteFramebuffers)(1, &s_sd_fbo);
             GL(glDeleteTextures)(1, &s_sd_tex);
+            GL(glDeleteFramebuffers)(1, &s_fd_fbo);
+            GL(glDeleteTextures)(1, &s_fd_tex);
         }
-        s_sd_valid = 0;
+        s_sd_valid = 0, s_fd_valid = 0;
         s_scale = want;
         s_fbo_tex = texture(GL_RGBA8, VRAM_W * want, VRAM_H * want, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
         s_fbo = framebuffer(s_fbo_tex);
@@ -1070,6 +1117,10 @@ void gl_sync(int force) {
         GL(glGenFramebuffers)(1, &s_sd_fbo);
         GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_sd_fbo);
         GL(glFramebufferTexture2D)(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, s_sd_tex, 0);
+        s_fd_tex = texture(GL_DEPTH24_STENCIL8, VRAM_W * want, VRAM_H * want, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, GL_NEAREST);
+        GL(glGenFramebuffers)(1, &s_fd_fbo);
+        GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fd_fbo);
+        GL(glFramebufferTexture2D)(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, s_fd_tex, 0);
         GL(glClearColor)(0, 0, 0, 0);
         GL(glClear)(GL_COLOR_BUFFER_BIT);
         GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_mask_fbo);
@@ -1123,6 +1174,7 @@ int gl_init(SDL_Window *window) {
     GL(glUseProgram)(s_prop);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_prop, "tex"), 0);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_prop, "sdepth"), 1);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_prop, "fdepth"), 2);
     GL(glUniform2f)(GL(glGetUniformLocation)(s_prop, "size"), VRAM_W, VRAM_H);
     s_prop_depth_loc = GL(glGetUniformLocation)(s_prop, "usedepth");
     s_prop_fog_loc = GL(glGetUniformLocation)(s_prop, "fog");
@@ -1130,6 +1182,7 @@ int gl_init(SDL_Window *window) {
     GL(glUseProgram)(s_pinst);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_pinst, "tex"), 0);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_pinst, "sdepth"), 1);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_pinst, "fdepth"), 2);
     GL(glUniform2f)(GL(glGetUniformLocation)(s_pinst, "size"), VRAM_W, VRAM_H);
 
     GL(glGenVertexArrays)(1, &s_vao);
