@@ -95,6 +95,27 @@ typedef struct {
     float x, y, z, u, v; /* VRAM pixels, view depth, texels 0-1 */
     uint8_t r, g, b, a;
 } PropVtx;
+/* The props drawn from tables (gl.c's PINST_VS): the camera as gte_camera_project has it, the clock and wind */
+typedef struct {
+    float row[3][4];         /* view = row . (x, y, z, 1) */
+    float h, ofx, ofy, wide; /* focal length, screen offset, 0.75 on the wide screen else 1 */
+    float t, bright, ox, oy; /* the frame clock, the stage's brightness, the drawing offset */
+    float wind[2];           /* the billboards' */
+} PCam;
+typedef struct {
+    float pos[3];                  /* the ground point, y up */
+    float w, h, sway, rot, fixed;  /* size, sway, turn (degrees), 1: flat in the world */
+    uint8_t c[4];                  /* tint, fog */
+} PInst;
+typedef struct {
+    float center[3], radius, top, fall, wind, above, size[2], floor, tint[3], fog;
+    int count, leaf;
+} PPart;
+unsigned gl_inst_make(const PInst *v, int n);
+void gl_inst_free(unsigned b);
+void gl_props_inst(const struct SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
+void gl_props_part(const struct SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
+int gte_camera_get(PCam *c); /* the battle camera (gte.c); 0 when no stage was drawn lately */
 void gl_depth_save(void); /* the stage's depth, kept for the props (gl.c) */
 void gl_props(const struct SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo);
 void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2);

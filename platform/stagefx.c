@@ -155,24 +155,11 @@ float native_stage_horizon(void) {
    in two greens / browns facing the camera, by the depth buffer among the
    fighters, after them. ponytail: a fixed palette and shape; a per-stage
    leaf_color when another forest wants autumn */
-#define LEAVES 200
+#define LEAVES 5000
 #define ARENA 9000.0f
-#define TOP -7500.0f
+#define TOP 7500.0f
 
-typedef struct {
-    float p[3];
-    float size, phase, spin, angle, fall;
-    int shade;
-} Leaf;
-
-static Leaf s_leaves[LEAVES];
-static int s_leaf_count = -1, s_leaf_stage = -1;
-static unsigned s_rng = 0x2003;
-
-static float rnd(void) { /* 0-1, its own: the game's RNG is left alone */
-    s_rng = s_rng * 1664525u + 1013904223u;
-    return (s_rng >> 8) / 16777216.0f;
-}
+static int s_leaf_count = -1;
 
 static void wind_at(float t, float w, float out[2]) {
     float gust = 0.6f + 0.4f * sinf(t * 0.011f) * sinf(t * 0.0037f + 1.0f);
@@ -182,97 +169,39 @@ static void wind_at(float t, float w, float out[2]) {
     out[1] = sinf(dir) * 18.0f * w * gust;
 }
 
-static void spawn(Leaf *l, int anywhere, const float wind[2]) {
-    float a = rnd() * 6.2831853f, r = sqrtf(rnd()) * ARENA;
-
-    l->p[0] = cosf(a) * r, l->p[2] = sinf(a) * r;
-    l->p[1] = anywhere ? TOP + rnd() * -TOP * 0.95f : TOP - rnd() * 1500.0f;
-    if (!anywhere) { /* upwind, so it crosses the arena; kept inside it */
-        float d;
-
-        l->p[0] -= wind[0] * 120.0f, l->p[2] -= wind[1] * 120.0f;
-        d = sqrtf(l->p[0] * l->p[0] + l->p[2] * l->p[2]);
-        if (d > ARENA) {
-            l->p[0] *= ARENA / d, l->p[2] *= ARENA / d;
-        }
+/* The camera for the card, with the clock and the wind of factor WINDK; 0 when no stage was drawn lately */
+static int cam_get(PCam *cam, float bright, int ox, int oy, float windk) {
+    if (!gte_camera_get(cam)) {
+        return 0;
     }
-    l->size = 70.0f + rnd() * 70.0f;
-    l->phase = rnd() * 6.2831853f;
-    l->spin = (rnd() - 0.5f) * 0.12f;
-    l->angle = rnd() * 6.2831853f;
-    l->fall = 5.0f + rnd() * 6.0f;
-    l->shade = (int)(rnd() * 5) % 5;
+    cam->t = (float)s_now, cam->bright = bright, cam->ox = (float)ox, cam->oy = (float)oy;
+    wind_at(cam->t, windk, cam->wind);
+    return 1;
 }
 
-static void leaves_step(int n, float w) {
-    float wind[2], t = (float)s_now; /* the frames' clock, as the trees' (native_stage_sway) */
-    int i;
+/* A white pixel: what a leaf is drawn with */
+static SDL_Surface *s_white;
+static unsigned s_white_tex;
 
-    wind_at(t, w, wind);
-    for (i = 0; i < n; i++) {
-        Leaf *l = &s_leaves[i];
-        float sway = sinf(t * 0.045f + l->phase);
+/* The leaves are worked out on the card, from their number and the clock (gl.c's PINST_VS): where each is, how it
+   turns, which green or brown. Nothing is kept or stepped here. */
+static void leaves_draw(int n, float lwind, float bright, int ox, int oy, int x1, int y1, int x2, int y2) {
+    PCam cam;
+    PPart p;
 
-        l->p[0] += wind[0] + sway * 9.0f;
-        l->p[2] += wind[1] + cosf(t * 0.037f + l->phase) * 6.0f;
-        l->p[1] += l->fall * (0.7f + 0.3f * fabsf(sway)); /* slower at the ends of the swing */
-        l->angle += l->spin;
-        if (l->p[1] > -40.0f || l->p[0] * l->p[0] + l->p[2] * l->p[2] > ARENA * ARENA * 1.6f) {
-            spawn(l, 0, wind);
+    if (s_white == NULL) {
+        s_white = SDL_CreateSurface(1, 1, SDL_PIXELFORMAT_RGBA32);
+        if (s_white != NULL) {
+            SDL_FillSurfaceRect(s_white, NULL, SDL_MapSurfaceRGBA(s_white, 255, 255, 255, 255));
         }
     }
-}
-
-static void leaves_draw(int n, float bright, int ox, int oy, int x1, int y1, int x2, int y2) {
-    static const uint8_t PALETTE[5][2][3] = {
-        {{58, 102, 34}, {92, 140, 52}}, {{74, 118, 38}, {120, 156, 62}}, {{110, 120, 40}, {150, 160, 70}},
-        {{128, 86, 36}, {170, 124, 60}}, {{96, 70, 34}, {136, 104, 52}},
-    };
-    static GVtx v[LEAVES * 6];
-    float t = (float)s_now;
-    int i, k = 0;
-
-    for (i = 0; i < n; i++) {
-        Leaf *l = &s_leaves[i];
-        float s[3], half, flip, c, sn, dx[4], dy[4];
-        int j;
-        static const int TRI[6] = {0, 1, 2, 0, 2, 3};
-
-        if (!gte_camera_project(l->p, s)) {
-            continue;
-        }
-        half = l->size * gte_camera_scale(s[2]) * 0.5f;
-        if (half < 0.35f) {
-            continue;
-        }
-        flip = 0.25f + 0.75f * fabsf(cosf(t * 0.06f + l->phase * 2.0f)); /* its width as it turns over */
-        c = cosf(l->angle), sn = sinf(l->angle);
-        /* a diamond along its length, narrow across */
-        {
-            float lx[4] = {0, 0.45f * flip, 0, -0.45f * flip}, ly[4] = {-1, 0, 1, 0};
-
-            for (j = 0; j < 4; j++) {
-                dx[j] = (lx[j] * c - ly[j] * sn) * half * (gte_camera_wide() ? 0.75f : 1.0f);
-                dy[j] = (lx[j] * sn + ly[j] * c) * half;
-            }
-        }
-        for (j = 0; j < 6; j++) {
-            GVtx *o = &v[k++];
-            int corner = TRI[j];
-            const uint8_t *col = PALETTE[l->shade][corner == 1 ? 1 : 0]; /* one side lit */
-
-            SDL_memset(o, 0, sizeof *o);
-            o->x = s[0] + dx[corner] + ox;
-            o->y = s[1] + dy[corner] + oy;
-            o->r = (uint8_t)(col[0] * bright), o->g = (uint8_t)(col[1] * bright), o->b = (uint8_t)(col[2] * bright);
-            o->umax = o->vmax = 255;
-            o->z = g_depth ? s[2] : 0;
-            o->w = s[2];
-        }
+    if (s_white == NULL || !cam_get(&cam, bright, ox, oy, 1.0f)) {
+        return;
     }
-    if (k > 0) {
-        gl_triangles(v, k, x1, y1, x2, y2, 0);
-    }
+    SDL_zero(p);
+    p.radius = ARENA, p.top = TOP, p.fall = 1, p.wind = lwind, p.above = 1500, p.size[0] = 70, p.size[1] = 140, p.floor = 40;
+    p.fog = 1, p.count = n, p.leaf = 1;
+    gl_props_part(s_white, &s_white_tex, &p, &cam, x1, y1, x2, y2, NULL);
 }
 
 /* --- the stage's list of props and emitters ---
@@ -280,20 +209,14 @@ static void leaves_draw(int n, float bright, int ox, int oy, int x1, int y1, int
    upright billboards and particle emitters of the mod's own PNGs, placed in the
    world (the game's units, y up, 0 the ground). Drawn over the models with the
    stage's depth (gl_props), so the stage's trees and the fighters hide them. */
-#define MAX_BB 600
-#define MAX_EM 8
-#define MAX_PART 300
-#define MAX_IMG 48
-
-typedef struct {
-    int img, fixed;
-    float pos[3], size[2], scale, sway, tint[3], rot, fog;
-} Billboard;
+#define MAX_BB 100000
+#define MAX_EM 64
+#define MAX_PART 5000
+#define MAX_IMG 128
 
 typedef struct {
     int img, count;
     float center[3], radius, top, fall, wind, size[2], tint[3], fog;
-    Leaf *p;
 } Emitter;
 
 static struct {
@@ -302,15 +225,15 @@ static struct {
     unsigned tex;
 } s_img[MAX_IMG]; /* by path, kept across stages */
 static int s_nimg;
-static Billboard s_bb[MAX_BB];
+static PInst *s_inst;     /* the stage's billboards, grouped by image; the card keeps them (s_ivbo) */
+static unsigned s_ivbo;
+static int s_ibeg[MAX_IMG], s_icnt[MAX_IMG];
 static Emitter s_em[MAX_EM];
-static Leaf s_pool[MAX_EM * MAX_PART];
 static int s_nbb, s_nem, s_props_stage = -2;
 static float s_pwind = 1; /* the list's wind, a factor of the stage's */
 static int s_pleaves = -1; /* the list's own count of falling leaves, -1: the stage's (stages.ini) */
 static float s_pfog[5];    /* the list's own fog: r, g, b (0-255), how much, where it starts */
 static int s_pfog_on;
-static PropVtx s_pv[(MAX_BB + MAX_EM * MAX_PART) * 6];
 
 static float jnum(Json *o, const char *k, float d) {
     Json *v = json_get(o, k);
@@ -361,21 +284,6 @@ static int image_of(const char *dir, Json *o) {
         }
     }
     return s_img[s_nimg++].surf != NULL ? s_nimg - 1 : -1;
-}
-
-static void spawn_part(const Emitter *e, Leaf *l, int anywhere, const float wind[2]) {
-    float a = rnd() * 6.2831853f, r = sqrtf(rnd()) * e->radius;
-
-    l->p[0] = e->center[0] + cosf(a) * r, l->p[2] = e->center[2] + sinf(a) * r;
-    l->p[1] = -(e->center[1] + (anywhere ? rnd() * e->top : e->top + rnd() * 300.0f));
-    if (!anywhere) { /* upwind, so it crosses the area */
-        l->p[0] -= wind[0] * 120.0f, l->p[2] -= wind[1] * 120.0f;
-    }
-    l->size = e->size[0] + rnd() * (e->size[1] - e->size[0]);
-    l->phase = rnd() * 6.2831853f;
-    l->spin = (rnd() - 0.5f) * 0.12f;
-    l->angle = rnd() * 6.2831853f;
-    l->fall = e->fall * (5.0f + rnd() * 6.0f);
 }
 
 /* --- 3D models: an OBJ with a PNG texture, posed in the world ---
@@ -637,6 +545,10 @@ static void props_load(int id) {
     Json *root, *list, *o;
     int i;
 
+    gl_inst_free(s_ivbo);
+    SDL_free(s_inst);
+    s_inst = NULL, s_ivbo = 0;
+    SDL_memset(s_icnt, 0, sizeof s_icnt);
     s_nbb = s_nem = s_nmd = 0, s_props_stage = id, s_pwind = 1, s_pfog_on = 0, s_pleaves = -1;
     SDL_snprintf(dir, sizeof dir, "%s/mods/fightstages/%d", data_dir(), id);
     SDL_snprintf(path, sizeof path, "%s/props.json", dir);
@@ -651,7 +563,7 @@ static void props_load(int id) {
         return;
     }
     s_pwind = jnum(root, "wind", 1.0f);
-    s_pleaves = (int)SDL_clamp(jnum(root, "leaves", -1.0f), -1.0f, 200.0f);
+    s_pleaves = (int)SDL_clamp(jnum(root, "leaves", -1.0f), -1.0f, (float)LEAVES);
     if ((list = json_get(root, "fog")) != NULL && list->type == '{') {
         s_pfog[0] = s_pfog[1] = s_pfog[2] = 128.0f, s_pfog[3] = 0.6f, s_pfog[4] = 0.3f;
         jvec(list, "color", s_pfog, 3);
@@ -659,28 +571,53 @@ static void props_load(int id) {
         s_pfog_on = 1;
     }
     list = json_get(root, "props");
-    for (i = 0; i < json_len(list) && s_nbb < MAX_BB; i++) {
-        Billboard *b = &s_bb[s_nbb];
-        Json *f;
+    {
+        int total = SDL_min(json_len(list), MAX_BB), m = 0;
+        PInst *tmp = total > 0 ? SDL_malloc((size_t)total * sizeof *tmp) : NULL;
+        int *timg = total > 0 ? SDL_malloc((size_t)total * sizeof *timg) : NULL;
 
-        o = json_at(list, i);
-        b->img = image_of(dir, o);
-        if (b->img < 0) {
-            continue;
+        for (i = 0; tmp != NULL && timg != NULL && i < total; i++) {
+            PInst *b = &tmp[m];
+            float pos[3] = {0, 0, 0}, size[2] = {100, 100}, tint[3] = {255, 255, 255}, scale, fog;
+            Json *f;
+
+            o = json_at(list, i);
+            timg[m] = image_of(dir, o);
+            if (timg[m] < 0) {
+                continue;
+            }
+            jvec(o, "pos", pos, 3), jvec(o, "size", size, 2), jvec(o, "tint", tint, 3);
+            scale = jnum(o, "scale", 1.0f), fog = jnum(o, "fog", 1.0f);
+            f = json_get(o, "facing");
+            b->pos[0] = pos[0], b->pos[1] = pos[1], b->pos[2] = pos[2];
+            b->w = size[0] * scale, b->h = size[1] * scale, b->sway = jnum(o, "sway", 0), b->rot = jnum(o, "rot", 0);
+            b->fixed = f != NULL && f->type == 's' && SDL_strcmp(f->str, "fixed") == 0;
+            b->c[0] = (uint8_t)SDL_clamp(tint[0], 0, 255), b->c[1] = (uint8_t)SDL_clamp(tint[1], 0, 255), b->c[2] = (uint8_t)SDL_clamp(tint[2], 0, 255);
+            b->c[3] = (uint8_t)SDL_clamp(fog * 255.0f, 0, 255);
+            s_icnt[timg[m]]++;
+            m++;
         }
-        b->size[0] = b->size[1] = 100, b->tint[0] = b->tint[1] = b->tint[2] = 255;
-        jvec(o, "pos", b->pos, 3), jvec(o, "size", b->size, 2), jvec(o, "tint", b->tint, 3);
-        b->scale = jnum(o, "scale", 1.0f), b->sway = jnum(o, "sway", 0), b->rot = jnum(o, "rot", 0), b->fog = jnum(o, "fog", 1.0f);
-        f = json_get(o, "facing");
-        b->fixed = f != NULL && f->type == 's' && SDL_strcmp(f->str, "fixed") == 0;
-        s_nbb++;
+        if (m > 0) { /* grouped by image, so each image is one draw */
+            int at[MAX_IMG], k, run = 0;
+
+            s_inst = SDL_malloc((size_t)m * sizeof *s_inst);
+            for (k = 0; k < MAX_IMG; k++) {
+                s_ibeg[k] = at[k] = run, run += s_icnt[k];
+            }
+            for (i = 0; s_inst != NULL && i < m; i++) {
+                s_inst[at[timg[i]]++] = tmp[i];
+            }
+            if (s_inst != NULL) {
+                s_nbb = m, s_ivbo = gl_inst_make(s_inst, m);
+            }
+        }
+        SDL_free(tmp);
+        SDL_free(timg);
     }
     list = json_get(root, "emitters");
     for (i = 0; i < json_len(list) && s_nem < MAX_EM; i++) {
         Emitter *e = &s_em[s_nem];
         Json *area;
-        int k;
-        float wind[2];
 
         o = json_at(list, i);
         e->img = image_of(dir, o); /* an emitter needs its image; the stage's leaves are stages.ini's */
@@ -699,11 +636,6 @@ static void props_load(int id) {
         jvec(o, "size", e->size, 2);
         e->tint[0] = e->tint[1] = e->tint[2] = 255;
         jvec(o, "tint", e->tint, 3);
-        e->p = &s_pool[s_nem * MAX_PART];
-        wind_at((float)s_now, e->wind, wind);
-        for (k = 0; k < e->count; k++) {
-            spawn_part(e, &e->p[k], 1, wind);
-        }
         s_nem++;
     }
     list = json_get(root, "models");
@@ -725,149 +657,35 @@ static void props_load(int id) {
     LOG("props: stage %d: %d billboards, %d emitters, %d models", id, s_nbb, s_nem, s_nmd);
 }
 
-static void emit_quad(PropVtx *v, const float sx[4], const float sy[4], const float sz[4], const float col[3], float fog) {
-    static const int TRI[6] = {0, 1, 2, 1, 3, 2}; /* 0 1 / 2 3: top left, top right, bottom left, bottom right */
-    static const float U[4] = {0, 1, 0, 1}, V[4] = {0, 0, 1, 1};
-    int j;
+/* The billboards and the emitters' particles, all on the card: one draw for each image's billboards, one for each emitter */
+static void props_gpu(float bright, int ox, int oy, int x1, int y1, int x2, int y2) {
+    PCam cam;
+    const StageFx *fx;
+    float fb;
+    int im, i;
 
-    for (j = 0; j < 6; j++) {
-        int c = TRI[j];
-
-        v[j].x = sx[c], v[j].y = sy[c], v[j].z = sz[c], v[j].u = U[c], v[j].v = V[c];
-        v[j].r = (uint8_t)SDL_clamp(col[0], 0, 255), v[j].g = (uint8_t)SDL_clamp(col[1], 0, 255), v[j].b = (uint8_t)SDL_clamp(col[2], 0, 255);
-        v[j].a = (uint8_t)SDL_clamp(fog * 255.0f, 0, 255);
+    fx = stagefx_current(&fb);
+    if (!cam_get(&cam, bright, ox, oy, (fx != NULL ? fx->wind : 1.0f) * s_pwind)) {
+        return;
     }
-}
-
-/* The billboards and the emitters' particles with image I, in one call */
-static void props_image(int im, float bright, int ox, int oy, int x1, int y1, int x2, int y2) {
-    int n = 0, i, k;
-    float wide = gte_camera_wide() ? 0.75f : 1.0f, t = (float)s_now;
-
-    for (i = 0; i < s_nbb; i++) {
-        const Billboard *b = &s_bb[i];
-        float w = b->size[0] * b->scale, h = b->size[1] * b->scale, col[3], sx[4], sy[4], sz[4], s0[3], s1[3], ww[2];
-        float base[3] = {b->pos[0], -b->pos[1], b->pos[2]}, top[3];
-        const StageFx *fx;
-        float fb;
-
-        if (b->img != im) {
-            continue;
+    for (im = 0; im < s_nimg; im++) {
+        if (s_icnt[im] > 0) {
+            gl_props_inst(s_img[im].surf, &s_img[im].tex, s_ivbo, s_ibeg[im], s_icnt[im], &cam, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
         }
-        for (k = 0; k < 3; k++) {
-            col[k] = b->tint[k] * bright;
-        }
-        fx = stagefx_current(&fb);
-        wind_at(t, (fx != NULL ? fx->wind : 1.0f) * s_pwind, ww);
-        top[0] = base[0], top[1] = base[1] - h, top[2] = base[2];
-        if (b->sway > 0) { /* the tip leans and swings in the wind, as the trees (native_stage_sway) */
-            float move = 0.5f + sinf(t * 0.042f + (base[0] + base[2]) * 0.0004f);
-
-            top[0] += ww[0] / 18.0f * b->sway * h * 0.3f * move;
-            top[2] += ww[1] / 18.0f * b->sway * h * 0.3f * move;
-        }
-        if (!b->fixed) { /* faces the camera: upright on the screen, its tip where the sway puts it */
-            float hw;
-
-            if (!gte_camera_project(base, s0) || !gte_camera_project(top, s1)) {
-                continue;
-            }
-            hw = w * 0.5f * gte_camera_scale(s0[2]) * wide;
-            { /* seen from above its height shrinks to nothing: kept at 60% of its size, as if it leaned toward the camera */
-                float full = h * gte_camera_scale(s0[2]), shown = s0[1] - s1[1];
-
-                if (shown < full * 0.6f) {
-                    s1[1] = s0[1] - full * 0.6f;
-                }
-            }
-            sx[0] = s1[0] - hw * (s0[2] / s1[2]), sx[1] = s1[0] + hw * (s0[2] / s1[2]), sx[2] = s0[0] - hw, sx[3] = s0[0] + hw;
-            sy[0] = sy[1] = s1[1], sy[2] = sy[3] = s0[1];
-            sz[0] = sz[1] = s1[2], sz[2] = sz[3] = s0[2];
-        } else { /* flat in the world, turned rot degrees about the vertical */
-            float a = b->rot * 0.017453293f, rx = cosf(a) * w * 0.5f, rz = sinf(a) * w * 0.5f, c[4][3], pr[3];
-            int ok = 1;
-
-            for (k = 0; k < 4; k++) { /* top left, top right, bottom left, bottom right */
-                float side = k & 1 ? 1.0f : -1.0f, up = k < 2 ? h : 0;
-
-                c[k][0] = base[0] + rx * side + (k < 2 ? top[0] - base[0] : 0), c[k][1] = base[1] - up, c[k][2] = base[2] + rz * side + (k < 2 ? top[2] - base[2] : 0);
-                ok &= gte_camera_project(c[k], pr);
-                sx[k] = pr[0], sy[k] = pr[1], sz[k] = pr[2];
-            }
-            if (!ok) {
-                continue;
-            }
-        }
-        for (k = 0; k < 4; k++) {
-            sx[k] += ox, sy[k] += oy;
-        }
-        emit_quad(&s_pv[n], sx, sy, sz, col, b->fog);
-        n += 6;
     }
     for (i = 0; i < s_nem; i++) {
-        Emitter *e = &s_em[i];
+        const Emitter *e = &s_em[i];
+        PPart p;
 
-        if (e->img != im) {
-            continue;
-        }
-        for (k = 0; k < e->count; k++) {
-            Leaf *l = &e->p[k];
-            float s[3], half, flip, c = cosf(l->angle), sn = sinf(l->angle), px[4], py[4], pz[4], col[3];
-            int j;
-
-            if (!gte_camera_project(l->p, s)) {
-                continue;
-            }
-            half = l->size * gte_camera_scale(s[2]) * 0.5f;
-            if (half < 0.35f) {
-                continue;
-            }
-            flip = 0.25f + 0.75f * fabsf(cosf(t * 0.06f + l->phase * 2.0f));
-            for (j = 0; j < 4; j++) {
-                float lx = (j & 1 ? 0.5f : -0.5f) * flip * 2.0f, ly = j < 2 ? -1.0f : 1.0f;
-
-                px[j] = s[0] + (lx * c - ly * sn) * half * wide + ox, py[j] = s[1] + (lx * sn + ly * c) * half + oy, pz[j] = s[2];
-            }
-            for (j = 0; j < 3; j++) {
-                col[j] = e->tint[j] * bright;
-            }
-            emit_quad(&s_pv[n], px, py, pz, col, e->fog);
-            n += 6;
-        }
-    }
-    if (n > 0) {
-        gl_props(s_img[im].surf, &s_img[im].tex, s_pv, n, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
-    }
-}
-
-static void emitters_step(void) {
-    float t = (float)s_now;
-    int i, k;
-
-    for (i = 0; i < s_nem; i++) {
-        Emitter *e = &s_em[i];
-        float wind[2];
-
-        wind_at(t, e->wind, wind);
-        for (k = 0; k < e->count; k++) {
-            Leaf *l = &e->p[k];
-            float sway = sinf(t * 0.045f + l->phase), dx = l->p[0] - e->center[0], dz = l->p[2] - e->center[2];
-
-            l->p[0] += wind[0] + sway * 9.0f;
-            l->p[2] += wind[1] + cosf(t * 0.037f + l->phase) * 6.0f;
-            l->p[1] += l->fall * (0.7f + 0.3f * fabsf(sway));
-            l->angle += l->spin;
-            if (l->p[1] > -e->center[1] - 20.0f || dx * dx + dz * dz > e->radius * e->radius * 2.5f) {
-                spawn_part(e, l, 0, wind);
-            }
-        }
+        SDL_zero(p);
+        SDL_memcpy(p.center, e->center, sizeof p.center), SDL_memcpy(p.size, e->size, sizeof p.size), SDL_memcpy(p.tint, e->tint, sizeof p.tint);
+        p.radius = e->radius, p.top = e->top, p.fall = e->fall, p.wind = e->wind, p.above = 300, p.floor = 20, p.fog = e->fog, p.count = e->count;
+        gl_props_part(s_img[e->img].surf, &s_img[e->img].tex, &p, &cam, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
     }
 }
 
 /* Once a frame, after the fighters: the stage's list, if the mod has one */
 static void props_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
-    int i;
-
     if (!gte_in_battle() || (int)s_now - s_frame > 2 || s_shown < 0 || s_shown >= STAGES) {
         s_props_stage = -2;
         return;
@@ -878,18 +696,15 @@ static void props_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
     if (s_nbb == 0 && s_nem == 0 && s_nmd == 0) {
         return;
     }
-    emitters_step();
-    for (i = 0; i < s_nimg; i++) {
-        props_image(i, s_bright / 128.0f, ox, oy, x1, y1, x2, y2);
-    }
+    props_gpu(s_bright / 128.0f, ox, oy, x1, y1, x2, y2);
     models_draw(s_bright / 128.0f, ox, oy, x1, y1, x2, y2);
 }
 
 /* After the fighters' table (gpu_draw.c), once a frame */
 void stagefx_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
-    float bright, wind[2], lwind = 1;
+    float bright, lwind = 1;
     const StageFx *fx = stagefx_current(&bright);
-    int i, n = fx != NULL ? SDL_min(fx->leaves, LEAVES) : 0;
+    int n = fx != NULL ? SDL_min(fx->leaves, LEAVES) : 0;
 
     props_draw(ox, oy, x1, y1, x2, y2);
     if (fx != NULL) {
@@ -902,15 +717,8 @@ void stagefx_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
         s_leaf_count = -1;
         return;
     }
-    if (n != s_leaf_count || s_shown != s_leaf_stage) { /* a new stage: leaves all through the air */
-        wind_at((float)s_now, lwind, wind);
-        for (i = 0; i < n; i++) {
-            spawn(&s_leaves[i], 1, wind);
-        }
-        s_leaf_count = n, s_leaf_stage = s_shown;
-    }
-    leaves_step(n, lwind);
-    leaves_draw(n, bright, ox, oy, x1, y1, x2, y2);
+    s_leaf_count = n;
+    leaves_draw(n, lwind, bright, ox, oy, x1, y1, x2, y2);
 }
 
 /* --- the stage's own meshes: drifting clouds, swaying trees ---

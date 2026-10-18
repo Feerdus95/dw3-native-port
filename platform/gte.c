@@ -644,6 +644,23 @@ int gte_camera_project(const float p[3], float out[3]) {
     return 1;
 }
 
+/* The same camera for the card to project with (gl.c's PINST_VS) */
+int gte_camera_get(PCam *c) {
+    int i, j;
+
+    if (s_frame - s_cam_frame > 2) {
+        return 0;
+    }
+    for (i = 0; i < 3; i++) {
+        for (j = 0; j < 3; j++) {
+            c->row[i][j] = (float)(s_cam.m[i][j] / 4096.0);
+        }
+        c->row[i][3] = (float)s_cam.t[i];
+    }
+    c->h = (float)s_cam_h, c->ofx = (float)s_cam_ofx, c->ofy = (float)s_cam_ofy, c->wide = s_cam_wide ? 0.75f : 1.0f;
+    return 1;
+}
+
 /* The screen size of a world length at view depth z, across and down */
 float gte_camera_scale(float z) {
     return (float)(s_cam_h / z);

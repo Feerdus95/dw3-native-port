@@ -24,7 +24,8 @@
     X(glFramebufferTexture2D) X(glCheckFramebufferStatus) X(glBlitFramebuffer)                                  \
     X(glGenRenderbuffers) X(glDeleteRenderbuffers) X(glBindRenderbuffer) X(glRenderbufferStorage)                \
     X(glFramebufferRenderbuffer) X(glDepthFunc) X(glDepthMask) X(glClearDepth) X(glClearStencil)                  \
-    X(glStencilFunc) X(glStencilOp) X(glPolygonOffset) X(glGenerateMipmap)
+    X(glStencilFunc) X(glStencilOp) X(glPolygonOffset) X(glGenerateMipmap) X(glDrawArraysInstanced)              \
+    X(glVertexAttribDivisor) X(glDeleteBuffers)
 
 #define X(f) static __typeof__(f) *p_##f;
 GL_FUNCS(X)
@@ -207,6 +208,123 @@ static const char *PROP_FS =
     "    frag = vec4(c, 1.0);\n"
     "}\n";
 
+
+/* The same props from tables, the card doing what stagefx.c used to do for each one every frame: the camera
+   (gte.c's gte_camera_project), the wind's sway, and for the particles where each one is at this frame, found
+   from its own number alone (no state kept: a hash of its number and of the round it is on gives its randoms).
+   mode 0: an instance of the billboards' table; 1: a particle of an emitter; 2: a leaf, a diamond in greens */
+static const char *PINST_VS =
+    "#version 330 core\n"
+    "layout(location = 0) in vec3 ipos;\n"
+    "layout(location = 1) in vec4 idim;\n"  /* width, height, sway, turn in degrees */
+    "layout(location = 2) in vec4 icol;\n"  /* tint, fog */
+    "layout(location = 3) in float ifixed;\n"
+    "uniform vec2 size;\n"
+    "uniform vec4 cam0, cam1, cam2;\n"      /* the world to the view: a row, its offset */
+    "uniform vec4 camp;\n"                  /* focal length, screen offset x, y, the wide screen's 0.75 or 1 */
+    "uniform vec4 clk;\n"                   /* the frame clock, brightness, the drawing offset */
+    "uniform vec2 wnd;\n"                   /* the billboards' wind */
+    "uniform int mode;\n"
+    "uniform vec4 pc;\n"                    /* centre, radius */
+    "uniform vec4 pa;\n"                    /* top, fall, wind, how far above the top they start */
+    "uniform vec4 pb;\n"                    /* sizes, where they land, count */
+    "uniform vec4 ptint;\n"                 /* tint 0-1, fog */
+    "out vec2 uv;\n"
+    "out vec4 col;\n"
+    "out float vz;\n"
+    "bool project(vec3 p, out vec3 s) {\n"
+    "    vec3 v = vec3(dot(cam0.xyz, p), dot(cam1.xyz, p), dot(cam2.xyz, p)) + vec3(cam0.w, cam1.w, cam2.w);\n"
+    "    s = vec3(0.0);\n"
+    "    if (v.z <= camp.x * 0.5) return false;\n"
+    "    s = vec3(camp.x * v.x / v.z * camp.w + camp.y, camp.x * v.y / v.z + camp.z, v.z);\n"
+    "    return true;\n"
+    "}\n"
+    "void kill() { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); uv = vec2(0.0); col = vec4(0.0); vz = 1.0; }\n"
+    "void put(vec3 s, vec2 tc, vec4 c) {\n"
+    "    s.xy += clk.zw;\n"
+    "    float zn = clamp(1.0 - 64.0 / s.z, 0.0, 1.0) * 2.0 - 1.0;\n" /* as PROP_VS */
+    "    gl_Position = vec4(s.xy / size * 2.0 - 1.0, zn, 1.0) * s.z;\n"
+    "    uv = tc; col = c; vz = s.z;\n"
+    "}\n"
+    "uint hsh(uint x) { x ^= x >> 16; x *= 0x7feb352du; x ^= x >> 15; x *= 0x846ca68bu; x ^= x >> 16; return x; }\n"
+    "float rnd(uint x) { return float(hsh(x) >> 8) / 16777216.0; }\n"
+    "vec2 windat(float t, float w) {\n" /* stagefx.c's wind_at */
+    "    float gust = 0.6 + 0.4 * sin(t * 0.011) * sin(t * 0.0037 + 1.0);\n"
+    "    float dir = 0.6 + 0.5 * sin(t * 0.0013);\n"
+    "    return vec2(cos(dir), sin(dir)) * 18.0 * w * gust;\n"
+    "}\n"
+    "const int TRI[6] = int[6](0, 1, 2, 1, 3, 2);\n"
+    "const int TRD[6] = int[6](0, 1, 2, 0, 2, 3);\n"
+    "const vec3 PAL[10] = vec3[10](vec3(58, 102, 34), vec3(92, 140, 52), vec3(74, 118, 38), vec3(120, 156, 62),\n"
+    "    vec3(110, 120, 40), vec3(150, 160, 70), vec3(128, 86, 36), vec3(170, 124, 60), vec3(96, 70, 34), vec3(136, 104, 52));\n"
+    "void main() {\n"
+    "    int k = gl_VertexID % 6;\n"
+    "    if (mode == 0) {\n"
+    "        int c = TRI[k];\n"
+    "        float w = idim.x, h = idim.y;\n"
+    "        vec3 base = vec3(ipos.x, -ipos.y, ipos.z), top = vec3(base.x, base.y - h, base.z);\n"
+    "        vec4 cc = vec4(clamp(icol.rgb * clk.y, 0.0, 1.0), icol.a);\n"
+    "        if (idim.z > 0.0) {\n" /* the tip leans and swings in the wind */
+    "            float move = 0.5 + sin(clk.x * 0.042 + (base.x + base.z) * 0.0004);\n"
+    "            top.xz += wnd / 18.0 * idim.z * h * 0.3 * move;\n"
+    "        }\n"
+    "        vec2 tc = vec2(float(c & 1), float(c >> 1));\n"
+    "        vec3 s0, s1;\n"
+    "        if (ifixed < 0.5) {\n"
+    "            if (!project(base, s0) || !project(top, s1)) { kill(); return; }\n"
+    "            float hw = w * 0.5 * (camp.x / s0.z) * camp.w, full = h * (camp.x / s0.z);\n"
+    "            if (s0.y - s1.y < full * 0.6) s1.y = s0.y - full * 0.6;\n" /* from above it keeps 60% of its height */
+    "            float r = s0.z / s1.z, side = (c & 1) == 1 ? 1.0 : -1.0;\n"
+    "            if (c < 2) put(vec3(s1.x + side * hw * r, s1.y, s1.z), tc, cc);\n"
+    "            else put(vec3(s0.x + side * hw, s0.y, s0.z), tc, cc);\n"
+    "        } else {\n" /* flat in the world, turned about the vertical */
+    "            float a = idim.w * 0.017453293, rx = cos(a) * w * 0.5, rz = sin(a) * w * 0.5;\n"
+    "            vec3 mine = vec3(0.0);\n"
+    "            for (int j = 0; j < 4; j++) {\n"
+    "                float side = (j & 1) == 1 ? 1.0 : -1.0;\n"
+    "                vec3 pw = vec3(base.x + rx * side + (j < 2 ? top.x - base.x : 0.0), base.y - (j < 2 ? h : 0.0), base.z + rz * side + (j < 2 ? top.z - base.z : 0.0)), s;\n"
+    "                if (!project(pw, s)) { kill(); return; }\n"
+    "                if (j == c) mine = s;\n"
+    "            }\n"
+    "            put(mine, tc, cc);\n"
+    "        }\n"
+    "        return;\n"
+    "    }\n"
+    "    uint i = uint(gl_InstanceID);\n"
+    "    if (float(i) >= pb.w) { kill(); return; }\n"
+    "    float vfall = pa.y * (5.0 + rnd(i * 7u + 1u) * 6.0) * 0.89;\n" /* the average of its fall's slowing at the swing's ends */
+    "    float L = max((pa.x + pa.w * 0.5 - pb.z) / vfall, 1.0);\n"
+    "    float ph = clk.x + rnd(i * 7u + 2u) * L, cyc = floor(ph / L), age = ph - cyc * L;\n"
+    "    uint hs = i * 7919u + uint(cyc) * 104729u + 13u;\n"
+    "    float a0 = rnd(hs) * 6.2831853, r = sqrt(rnd(hs + 1u)) * pc.w;\n"
+    "    float psize = pb.x + rnd(hs + 2u) * (pb.y - pb.x), phase = rnd(hs + 3u) * 6.2831853;\n"
+    "    float spin = (rnd(hs + 4u) - 0.5) * 0.12, ang = rnd(hs + 5u) * 6.2831853 + spin * age;\n"
+    "    float ts = clk.x - age;\n"
+    "    vec2 w0 = windat(clk.x - age * 0.5, pa.z), ws = windat(ts, pa.z) * 120.0;\n" /* the wind it was carried by, and upwind of where it came in */
+    "    float dx = w0.x * age + 9.0 / 0.045 * (cos(0.045 * ts + phase) - cos(0.045 * clk.x + phase));\n"
+    "    float dz = w0.y * age + 6.0 / 0.037 * (sin(0.037 * clk.x + phase) - sin(0.037 * ts + phase));\n"
+    "    vec3 wp = vec3(pc.x + cos(a0) * r - ws.x + dx, -(pc.y + pa.x + pa.w * 0.5 - vfall * age), pc.z + sin(a0) * r - ws.y + dz), s;\n"
+    "    if (!project(wp, s)) { kill(); return; }\n"
+    "    float half_ = psize * (camp.x / s.z) * 0.5;\n"
+    "    if (half_ < 0.35) { kill(); return; }\n"
+    "    float flip = 0.25 + 0.75 * abs(cos(clk.x * 0.06 + phase * 2.0)), cs = cos(ang), sn = sin(ang), lx, ly;\n"
+    "    vec4 cc;\n"
+    "    int c;\n"
+    "    if (mode == 1) {\n"
+    "        c = TRI[k];\n"
+    "        lx = ((c & 1) == 1 ? 0.5 : -0.5) * flip * 2.0, ly = c < 2 ? -1.0 : 1.0;\n"
+    "        cc = vec4(clamp(ptint.rgb * clk.y, 0.0, 1.0), ptint.a);\n"
+    "    } else {\n" /* a diamond along its length, narrow across, one side lit */
+    "        c = TRD[k];\n"
+    "        lx = (c == 1 ? 0.45 : c == 3 ? -0.45 : 0.0) * flip, ly = c == 0 ? -1.0 : c == 2 ? 1.0 : 0.0;\n"
+    "        int sh = int(rnd(hs + 6u) * 5.0) % 5;\n"
+    "        cc = vec4(clamp(PAL[sh * 2 + (c == 1 ? 1 : 0)] / 255.0 * clk.y, 0.0, 1.0), 1.0);\n"
+    "    }\n"
+    "    s.x += (lx * cs - ly * sn) * half_ * camp.w;\n"
+    "    s.y += (lx * sn + ly * cs) * half_;\n"
+    "    put(s, mode == 1 ? vec2(float(c & 1), float(c >> 1)) : vec2(0.5), cc);\n"
+    "}\n";
+
 /* Battle shadows: the mask blurred one way into another, then the other way
    as it darkens the copy (gl_shadows_resolve) */
 static const char *SOFT_FS =
@@ -249,6 +367,7 @@ static GLuint s_tmp_fbo, s_tmp_tex;  /* for a VRAM to VRAM copy */
 static GLuint s_mask_fbo, s_mask_tex, s_blur_fbo, s_blur_tex; /* battle shadows: where they fall, blurred */
 static GLuint s_soft;
 static GLuint s_prop, s_prop_vao, s_prop_vbo, s_sd_tex, s_sd_fbo; /* props; the stage's depth saved */
+static GLuint s_pinst, s_inst_vao, s_part_vao; /* the props from tables (PINST_VS) */
 static GLint s_prop_depth_loc, s_prop_fog_loc, s_prop_fogz_loc;
 static int s_sd_valid;
 static GLint s_soft_dir_loc, s_soft_str_loc;
@@ -702,36 +821,33 @@ void gl_depth_save(void) {
 /* Triangles (n a multiple of 3) textured with an image of the port's own
    (platform.h's PropVtx), cut out by its alpha, by the depth where the depth
    buffer is on. FOGO: NULL for the battle's fog, else {r, g, b, amount, start} */
-void gl_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo) {
+static int props_begin(GLuint prog, const SDL_Surface *img, unsigned *tex, int x1, int y1, int x2, int y2, const float *fogo) {
     int s = s_scale;
     float zf = s_zfar > 0 ? s_zfar : 24000.0f;
 
-    if (s == 0 || n <= 0) {
-        return;
+    if (s == 0) {
+        return 0;
     }
     flush();
     if (!image_tex(img, tex)) {
-        return;
+        return 0;
     }
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_fbo);
     GL(glViewport)(0, 0, VRAM_W * s, VRAM_H * s);
     GL(glEnable)(GL_SCISSOR_TEST);
     GL(glScissor)(x1 * s, y1 * s, (x2 - x1 + 1) * s, (y2 - y1 + 1) * s);
-    GL(glUseProgram)(s_prop);
-    GL(glBindVertexArray)(s_prop_vao);
-    GL(glBindBuffer)(GL_ARRAY_BUFFER, s_prop_vbo);
-    GL(glBufferData)(GL_ARRAY_BUFFER, (GLsizeiptr)(n * sizeof *v), v, GL_STREAM_DRAW);
+    GL(glUseProgram)(prog);
     GL(glActiveTexture)(GL_TEXTURE1);
     GL(glBindTexture)(GL_TEXTURE_2D, s_sd_tex);
     GL(glActiveTexture)(GL_TEXTURE0);
     GL(glBindTexture)(GL_TEXTURE_2D, *tex);
-    GL(glUniform1i)(s_prop_depth_loc, g_depth && s_sd_valid);
+    GL(glUniform1i)(GL(glGetUniformLocation)(prog, "usedepth"), g_depth && s_sd_valid);
     if (fogo != NULL) { /* the list's own fog: colour 0-255, how much, where it starts (0-1 of the far side) */
-        GL(glUniform4f)(s_prop_fog_loc, fogo[0] / 255.0f * 31.0f, fogo[1] / 255.0f * 31.0f, fogo[2] / 255.0f * 31.0f, fogo[3]);
-        GL(glUniform2f)(s_prop_fogz_loc, zf * fogo[4], zf);
+        GL(glUniform4f)(GL(glGetUniformLocation)(prog, "fog"), fogo[0] / 255.0f * 31.0f, fogo[1] / 255.0f * 31.0f, fogo[2] / 255.0f * 31.0f, fogo[3]);
+        GL(glUniform2f)(GL(glGetUniformLocation)(prog, "fogz"), zf * fogo[4], zf);
     } else {
-        GL(glUniform4f)(s_prop_fog_loc, s_fog[0], s_fog[1], s_fog[2], s_fog_shown && s_zfar > 0 ? s_fog_amount : 0.0f); /* as flush() */
-        GL(glUniform2f)(s_prop_fogz_loc, s_zfar * s_fog_from, s_zfar);
+        GL(glUniform4f)(GL(glGetUniformLocation)(prog, "fog"), s_fog[0], s_fog[1], s_fog[2], s_fog_shown && s_zfar > 0 ? s_fog_amount : 0.0f); /* as flush() */
+        GL(glUniform2f)(GL(glGetUniformLocation)(prog, "fogz"), s_zfar * s_fog_from, s_zfar);
     }
     if (g_depth) {
         GL(glEnable)(GL_DEPTH_TEST);
@@ -739,10 +855,97 @@ void gl_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, in
         GL(glDepthMask)(GL_TRUE);
     }
     GL(glDisable)(GL_BLEND);
-    GL(glDrawArrays)(GL_TRIANGLES, 0, n);
+    return 1;
+}
+
+static void props_end(void) {
     GL(glDisable)(GL_DEPTH_TEST);
     GL(glDisable)(GL_SCISSOR_TEST);
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
+}
+
+void gl_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo) {
+    if (n <= 0 || !props_begin(s_prop, img, tex, x1, y1, x2, y2, fogo)) {
+        return;
+    }
+    GL(glBindVertexArray)(s_prop_vao);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, s_prop_vbo);
+    GL(glBufferData)(GL_ARRAY_BUFFER, (GLsizeiptr)(n * sizeof *v), v, GL_STREAM_DRAW);
+    GL(glDrawArrays)(GL_TRIANGLES, 0, n);
+    props_end();
+}
+
+/* A table of billboards, uploaded once (the card keeps it); 0 when it can't */
+unsigned gl_inst_make(const PInst *v, int n) {
+    GLuint b = 0;
+
+    if (s_scale == 0 || n <= 0) {
+        return 0;
+    }
+    GL(glGenBuffers)(1, &b);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, b);
+    GL(glBufferData)(GL_ARRAY_BUFFER, (GLsizeiptr)n * sizeof *v, v, GL_STATIC_DRAW);
+    return b;
+}
+
+void gl_inst_free(unsigned b) {
+    if (b != 0) {
+        GL(glDeleteBuffers)(1, &b);
+    }
+}
+
+static void props_cam(const PCam *c) {
+    GL(glUniform4f)(GL(glGetUniformLocation)(s_pinst, "cam0"), c->row[0][0], c->row[0][1], c->row[0][2], c->row[0][3]);
+    GL(glUniform4f)(GL(glGetUniformLocation)(s_pinst, "cam1"), c->row[1][0], c->row[1][1], c->row[1][2], c->row[1][3]);
+    GL(glUniform4f)(GL(glGetUniformLocation)(s_pinst, "cam2"), c->row[2][0], c->row[2][1], c->row[2][2], c->row[2][3]);
+    GL(glUniform4f)(GL(glGetUniformLocation)(s_pinst, "camp"), c->h, c->ofx, c->ofy, c->wide);
+    GL(glUniform4f)(GL(glGetUniformLocation)(s_pinst, "clk"), c->t, c->bright, c->ox, c->oy);
+    GL(glUniform2f)(GL(glGetUniformLocation)(s_pinst, "wnd"), c->wind[0], c->wind[1]);
+}
+
+/* N billboards of the table B from FIRST, with image IMG, by the camera */
+void gl_props_inst(const SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+    const size_t st = sizeof(PInst);
+
+    if (n <= 0 || b == 0 || !props_begin(s_pinst, img, tex, x1, y1, x2, y2, fogo)) {
+        return;
+    }
+    props_cam(cam);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_pinst, "mode"), 0);
+    GL(glBindVertexArray)(s_inst_vao);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, b);
+    GL(glEnableVertexAttribArray)(0);
+    GL(glVertexAttribPointer)(0, 3, GL_FLOAT, GL_FALSE, st, (void *)(first * st + offsetof(PInst, pos)));
+    GL(glEnableVertexAttribArray)(1);
+    GL(glVertexAttribPointer)(1, 4, GL_FLOAT, GL_FALSE, st, (void *)(first * st + offsetof(PInst, w)));
+    GL(glEnableVertexAttribArray)(2);
+    GL(glVertexAttribPointer)(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, st, (void *)(first * st + offsetof(PInst, c)));
+    GL(glEnableVertexAttribArray)(3);
+    GL(glVertexAttribPointer)(3, 1, GL_FLOAT, GL_FALSE, st, (void *)(first * st + offsetof(PInst, fixed)));
+    for (int a = 0; a < 4; a++) {
+        GL(glVertexAttribDivisor)(a, 1);
+    }
+    GL(glDrawArraysInstanced)(GL_TRIANGLES, 0, 6, n);
+    props_end();
+}
+
+/* An emitter's particles, or the stage's leaves (P->leaf): no data at all, each one's place is worked out from its number */
+void gl_props_part(const SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+    GLint loc;
+
+    if (p->count <= 0 || !props_begin(s_pinst, img, tex, x1, y1, x2, y2, fogo)) {
+        return;
+    }
+    props_cam(cam);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_pinst, "mode"), p->leaf ? 2 : 1);
+    GL(glUniform4f)(GL(glGetUniformLocation)(s_pinst, "pc"), p->center[0], p->center[1], p->center[2], p->radius);
+    GL(glUniform4f)(GL(glGetUniformLocation)(s_pinst, "pa"), p->top, p->fall, p->wind, p->above);
+    GL(glUniform4f)(GL(glGetUniformLocation)(s_pinst, "pb"), p->size[0], p->size[1], p->floor, (float)p->count);
+    loc = GL(glGetUniformLocation)(s_pinst, "ptint");
+    GL(glUniform4f)(loc, p->tint[0] / 255.0f, p->tint[1] / 255.0f, p->tint[2] / 255.0f, SDL_clamp(p->fog, 0.0f, 1.0f));
+    GL(glBindVertexArray)(s_part_vao);
+    GL(glDrawArraysInstanced)(GL_TRIANGLES, 0, 6, p->count);
+    props_end();
 }
 
 /* Follows render_scale: a new copy, made from the 1x VRAM; force: VRAM
@@ -818,7 +1021,7 @@ int gl_init(SDL_Window *window) {
     GL_FUNCS(X)
 #undef X
     if ((s_main = program(MAIN_VS, MAIN_FS)) == 0 || (s_blit = program(BLIT_VS, BLIT_FS)) == 0 ||
-        (s_soft = program(BLIT_VS, SOFT_FS)) == 0 || (s_prop = program(PROP_VS, PROP_FS)) == 0) {
+        (s_soft = program(BLIT_VS, SOFT_FS)) == 0 || (s_prop = program(PROP_VS, PROP_FS)) == 0 || (s_pinst = program(PINST_VS, PROP_FS)) == 0) {
         return 0;
     }
     s_soft_dir_loc = GL(glGetUniformLocation)(s_soft, "dir");
@@ -845,6 +1048,10 @@ int gl_init(SDL_Window *window) {
     s_prop_depth_loc = GL(glGetUniformLocation)(s_prop, "usedepth");
     s_prop_fog_loc = GL(glGetUniformLocation)(s_prop, "fog");
     s_prop_fogz_loc = GL(glGetUniformLocation)(s_prop, "fogz");
+    GL(glUseProgram)(s_pinst);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_pinst, "tex"), 0);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_pinst, "sdepth"), 1);
+    GL(glUniform2f)(GL(glGetUniformLocation)(s_pinst, "size"), VRAM_W, VRAM_H);
 
     GL(glGenVertexArrays)(1, &s_vao);
     GL(glBindVertexArray)(s_vao);
@@ -877,6 +1084,9 @@ int gl_init(SDL_Window *window) {
     GL(glVertexAttribPointer)(1, 2, GL_FLOAT, GL_FALSE, sizeof(PropVtx), (void *)offsetof(PropVtx, u));
     GL(glEnableVertexAttribArray)(2);
     GL(glVertexAttribPointer)(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(PropVtx), (void *)offsetof(PropVtx, r));
+
+    GL(glGenVertexArrays)(1, &s_inst_vao);
+    GL(glGenVertexArrays)(1, &s_part_vao); /* no attributes: a particle is its number */
 
     GL(glGenVertexArrays)(1, &s_quad_vao);
     GL(glBindVertexArray)(s_quad_vao);
