@@ -307,6 +307,7 @@ static Emitter s_em[MAX_EM];
 static Leaf s_pool[MAX_EM * MAX_PART];
 static int s_nbb, s_nem, s_props_stage = -2;
 static float s_pwind = 1; /* the list's wind, a factor of the stage's */
+static int s_pleaves = -1; /* the list's own count of falling leaves, -1: the stage's (stages.ini) */
 static float s_pfog[5];    /* the list's own fog: r, g, b (0-255), how much, where it starts */
 static int s_pfog_on;
 static PropVtx s_pv[(MAX_BB + MAX_EM * MAX_PART) * 6];
@@ -636,7 +637,7 @@ static void props_load(int id) {
     Json *root, *list, *o;
     int i;
 
-    s_nbb = s_nem = s_nmd = 0, s_props_stage = id, s_pwind = 1, s_pfog_on = 0;
+    s_nbb = s_nem = s_nmd = 0, s_props_stage = id, s_pwind = 1, s_pfog_on = 0, s_pleaves = -1;
     SDL_snprintf(dir, sizeof dir, "%s/mods/fightstages/%d", data_dir(), id);
     SDL_snprintf(path, sizeof path, "%s/props.json", dir);
     if ((text = SDL_LoadFile(path, NULL)) == NULL) {
@@ -650,6 +651,7 @@ static void props_load(int id) {
         return;
     }
     s_pwind = jnum(root, "wind", 1.0f);
+    s_pleaves = (int)SDL_clamp(jnum(root, "leaves", -1.0f), -1.0f, 200.0f);
     if ((list = json_get(root, "fog")) != NULL && list->type == '{') {
         s_pfog[0] = s_pfog[1] = s_pfog[2] = 128.0f, s_pfog[3] = 0.6f, s_pfog[4] = 0.3f;
         jvec(list, "color", s_pfog, 3);
@@ -885,23 +887,29 @@ static void props_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
 
 /* After the fighters' table (gpu_draw.c), once a frame */
 void stagefx_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
-    float bright, wind[2];
+    float bright, wind[2], lwind = 1;
     const StageFx *fx = stagefx_current(&bright);
     int i, n = fx != NULL ? SDL_min(fx->leaves, LEAVES) : 0;
 
     props_draw(ox, oy, x1, y1, x2, y2);
+    if (fx != NULL) {
+        lwind = fx->wind;
+    }
+    if (s_pleaves >= 0 && s_props_stage == s_shown && gte_in_battle()) { /* the list's own count, even for a stage left as it is */
+        n = SDL_min(s_pleaves, LEAVES), bright = s_bright / 128.0f;
+    }
     if (n == 0) {
         s_leaf_count = -1;
         return;
     }
     if (n != s_leaf_count || s_shown != s_leaf_stage) { /* a new stage: leaves all through the air */
-        wind_at((float)s_now, fx->wind, wind);
+        wind_at((float)s_now, lwind, wind);
         for (i = 0; i < n; i++) {
             spawn(&s_leaves[i], 1, wind);
         }
         s_leaf_count = n, s_leaf_stage = s_shown;
     }
-    leaves_step(n, fx->wind);
+    leaves_step(n, lwind);
     leaves_draw(n, bright, ox, oy, x1, y1, x2, y2);
 }
 
