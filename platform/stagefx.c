@@ -687,9 +687,12 @@ static void props_gpu(float bright, int ox, int oy, int x1, int y1, int x2, int 
 
 /* Once a frame, after the fighters: the stage's list, if the mod has one */
 static void props_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
-    if (!gte_in_battle() || (int)s_now - s_frame > 2 || s_shown < 0 || s_shown >= STAGES) {
-        s_props_stage = -2;
+    if (!gte_in_battle()) {
+        s_props_stage = -2; /* the fight is over: the next one reads the list again */
         return;
+    }
+    if ((int)s_now - s_frame > 2 || s_shown < 0 || s_shown >= STAGES) {
+        return; /* the stage is hidden (a signature move's dark scene): the list stays loaded for when it comes back */
     }
     if (s_shown != s_props_stage) {
         props_load(s_shown);
@@ -711,7 +714,7 @@ void stagefx_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
     if (fx != NULL) {
         lwind = fx->wind;
     }
-    if (s_pleaves >= 0 && s_props_stage == s_shown && gte_in_battle()) { /* the list's own count, even for a stage left as it is */
+    if (s_pleaves >= 0 && s_props_stage == s_shown && gte_in_battle() && (int)s_now - s_frame <= 2) { /* the list's own count, even for a stage left as it is */
         n = SDL_min(s_pleaves, LEAVES), bright = s_bright / 128.0f;
     }
     if (n == 0) {
