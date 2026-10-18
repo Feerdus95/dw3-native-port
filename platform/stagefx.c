@@ -595,13 +595,14 @@ static void props_load(int id) {
         int total = SDL_min(json_len(list), MAX_BB), m = 0;
         PInst *tmp = total > 0 ? SDL_malloc((size_t)total * sizeof *tmp) : NULL;
         int *timg = total > 0 ? SDL_malloc((size_t)total * sizeof *timg) : NULL;
+        Json *cur = list != NULL ? list->child : NULL; /* json_at(list, i) walks from the start: a list of thousands would be quadratic */
 
-        for (i = 0; tmp != NULL && timg != NULL && i < total; i++) {
+        for (i = 0; tmp != NULL && timg != NULL && i < total && cur != NULL; i++, cur = cur->next) {
             PInst *b = &tmp[m];
             float pos[3] = {0, 0, 0}, size[2] = {100, 100}, tint[3] = {255, 255, 255}, scale, fog;
             Json *f;
 
-            o = json_at(list, i);
+            o = cur;
             timg[m] = image_of(dir, o);
             if (timg[m] < 0) {
                 continue;
