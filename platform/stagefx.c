@@ -119,11 +119,16 @@ static void stagefx_log(void);
 
 /* The frame the stage's own polygons were last drawn in (gpu_draw.c counts them): the props go with the floor, as
    when a signature move or the end of the fight takes the stage away while its task goes on */
-static int s_stage_drawn = -10;
+static int s_stage_drawn = -10, s_stage_peak, s_fight_over = 1;
 
+/* A stage that is going away still draws a polygon or two (a fade's black), so it counts as there only with a
+   fair part of the most it drew in the fight */
 void stagefx_stage_drawn(int polygons) {
     perf_gpu(PF_SPOLY, polygons); /* the meter's csv: what the stage layer drew */
-    if (polygons > 0) {
+    if (polygons > s_stage_peak) {
+        s_stage_peak = polygons;
+    }
+    if (polygons > 1 && polygons * 4 >= s_stage_peak) {
         s_stage_drawn = (int)s_now;
     }
 }
@@ -134,6 +139,9 @@ static int stage_drawn_now(void) {
 
 void stagefx_frame(void) {
     s_now++;
+    if (!gte_in_battle()) {
+        s_fight_over = 1, s_stage_peak = 0; /* the next fight reads its props again */
+    }
     if (s_now % 60 == 0) {
         stagefx_log();
     }
@@ -736,8 +744,10 @@ static void props_gpu(float bright, int ox, int oy, int x1, int y1, int x2, int 
 /* Once a frame, after the fighters: the stage's list, if the mod has one */
 static void props_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
     if (!gte_in_battle()) {
-        s_props_stage = -2; /* the fight is over: the next one reads the list again */
         return;
+    }
+    if (s_fight_over) {
+        s_fight_over = 0, s_props_stage = -2; /* a new fight: its list is read again */
     }
     if (!stage_drawn_now() || s_shown < 0 || s_shown >= STAGES) {
         return; /* the stage is hidden (a signature move's dark scene): the list stays loaded for when it comes back */
