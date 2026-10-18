@@ -747,7 +747,7 @@ static void wide_plan(uint32_t *p) {
 
 /* Walks an ordering table: each tag is {next address: 24, words: 8}, then the words */
 void DrawOTag(uint32_t *p) {
-    int guard = 0, wide = gte_widescreen() && g_draw_layer == WIDE_MENUS_LAYER, k = 0;
+    int guard = 0, wide = gte_widescreen() && g_draw_layer == WIDE_MENUS_LAYER, k = 0, drawn = 0;
 
     perf_begin(PF_DRAW);
     gl_sync(0);
@@ -773,6 +773,7 @@ void DrawOTag(uint32_t *p) {
                 k++;
             }
             gpu_packet(p + 1, n);
+            drawn++;
         }
         if ((tag & 0xFFFFFF) == 0xFFFFFF) {
             break;
@@ -783,6 +784,7 @@ void DrawOTag(uint32_t *p) {
     s_clip_a = 0, s_clip_s = 1;
     gl_shadows_resolve();
     if (gte_in_battle() && g_draw_layer == 0x1002) { /* BATTLE_LAYER_STAGE: its depth, for the props (stagefx.c) */
+        stagefx_stage_drawn(drawn);
         gl_depth_save();
     }
     if (gte_in_battle() && g_draw_layer == 0x1004) { /* fightstg/types.h's BATTLE_LAYER_MODELS */

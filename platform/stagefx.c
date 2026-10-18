@@ -117,6 +117,20 @@ void native_stage_shown(int id, int bright) {
 static int s_swayed, s_drifted;
 static void stagefx_log(void);
 
+/* The frame the stage's own polygons were last drawn in (gpu_draw.c counts them): the props go with the floor, as
+   when a signature move or the end of the fight takes the stage away while its task goes on */
+static int s_stage_drawn = -10;
+
+void stagefx_stage_drawn(int polygons) {
+    if (polygons > 0) {
+        s_stage_drawn = (int)s_now;
+    }
+}
+
+static int stage_drawn_now(void) {
+    return s_stage_drawn == (int)s_now;
+}
+
 void stagefx_frame(void) {
     s_now++;
     if (s_now % 60 == 0) {
@@ -724,7 +738,7 @@ static void props_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
         s_props_stage = -2; /* the fight is over: the next one reads the list again */
         return;
     }
-    if ((int)s_now - s_frame > 2 || s_shown < 0 || s_shown >= STAGES) {
+    if (!stage_drawn_now() || s_shown < 0 || s_shown >= STAGES) {
         return; /* the stage is hidden (a signature move's dark scene): the list stays loaded for when it comes back */
     }
     if (s_shown != s_props_stage) {
@@ -749,13 +763,13 @@ static void props_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
 void stagefx_draw(int ox, int oy, int x1, int y1, int x2, int y2) {
     float bright, lwind = 1;
     const StageFx *fx = stagefx_current(&bright);
-    int n = fx != NULL ? SDL_min(fx->leaves, LEAVES) : 0;
+    int n = fx != NULL && stage_drawn_now() ? SDL_min(fx->leaves, LEAVES) : 0;
 
     props_draw(ox, oy, x1, y1, x2, y2);
     if (fx != NULL) {
         lwind = fx->wind;
     }
-    if (s_pleaves >= 0 && s_props_stage == s_shown && gte_in_battle() && (int)s_now - s_frame <= 2) { /* the list's own count, even for a stage left as it is */
+    if (s_pleaves >= 0 && s_props_stage == s_shown && gte_in_battle() && stage_drawn_now()) { /* the list's own count, even for a stage left as it is */
         n = SDL_min(s_pleaves, LEAVES), bright = s_bright / 128.0f;
     }
     if (n == 0) {

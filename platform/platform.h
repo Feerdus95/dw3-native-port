@@ -204,6 +204,7 @@ int gte_camera_project(const float p[3], float out[3]); /* the battle camera's (
 float gte_camera_scale(float z);
 int gte_camera_wide(void);
 const StageFx *stagefx_current(float *bright); /* the stage shown's, NULL for none (stagefx.c) */
+void stagefx_stage_drawn(int polygons);       /* the stage layer's ordering table drew this many (stagefx.c) */
 void stagefx_frame(void);                     /* a frame drawn */
 void gl_battle_fog(int r, int g, int b); /* a battle's sky drawn, its horizon's colour (gl.c) */
 extern int g_battle_shadows; /* battle_shadows = 0: the fighters cast none (gl.c, native.h) */  /* soft_shadows = 1: the field's shadows see-through and smooth (gl.c, native.h) */
