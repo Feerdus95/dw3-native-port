@@ -283,15 +283,14 @@ static void jvec(Json *o, const char *k, float *out, int n) {
 }
 
 /* The image's index, loaded the first time (-1: none) */
-static int image_of_untimed(const char *dir, Json *o) {
-    Json *v = json_get(o, "image");
+static int image_named(const char *dir, const char *name) {
     char path[1100];
     int i;
 
-    if (v == NULL || v->type != 's' || v->str == NULL || SDL_strchr(v->str, '/') || SDL_strchr(v->str, '\\') || SDL_strstr(v->str, "..")) {
+    if (name == NULL || SDL_strchr(name, '/') || SDL_strchr(name, '\\') || SDL_strstr(name, "..")) {
         return -1;
     }
-    SDL_snprintf(path, sizeof path, "%s/%s", dir, v->str);
+    SDL_snprintf(path, sizeof path, "%s/%s", dir, name);
     for (i = 0; i < s_nimg; i++) {
         if (SDL_strcmp(s_img[i].path, path) == 0) {
             return s_img[i].surf != NULL ? i : -1;
@@ -312,6 +311,12 @@ static int image_of_untimed(const char *dir, Json *o) {
         }
     }
     return s_img[s_nimg++].surf != NULL ? s_nimg - 1 : -1;
+}
+
+static int image_of_untimed(const char *dir, Json *o) {
+    Json *v = json_get(o, "image");
+
+    return v != NULL && v->type == 's' ? image_named(dir, v->str) : -1;
 }
 
 /* --- 3D models: an OBJ with a PNG texture, posed in the world ---
@@ -468,17 +473,16 @@ fail:
 }
 
 /* The mesh of the OBJ named by "model" (-1: none) */
-static int mesh_of(const char *dir, Json *o) {
-    Json *v = json_get(o, "model");
+static int mesh_named(const char *dir, const char *name) {
     char path[1100];
     int i;
     Mesh *m;
     char *text;
 
-    if (v == NULL || v->type != 's' || v->str == NULL || SDL_strchr(v->str, '/') || SDL_strchr(v->str, '\\') || SDL_strstr(v->str, "..")) {
+    if (name == NULL || SDL_strchr(name, '/') || SDL_strchr(name, '\\') || SDL_strstr(name, "..")) {
         return -1;
     }
-    SDL_snprintf(path, sizeof path, "%s/%s", dir, v->str);
+    SDL_snprintf(path, sizeof path, "%s/%s", dir, name);
     for (i = 0; i < s_nmesh; i++) {
         if (SDL_strcmp(s_mesh[i].path, path) == 0) {
             return s_mesh[i].v != NULL ? i : -1;
@@ -505,6 +509,12 @@ static int mesh_of(const char *dir, Json *o) {
     }
     s_nmesh++;
     return m->v != NULL ? s_nmesh - 1 : -1;
+}
+
+static int mesh_of(const char *dir, Json *o) {
+    Json *v = json_get(o, "model");
+
+    return v != NULL && v->type == 's' ? mesh_named(dir, v->str) : -1;
 }
 
 /* Every model, one draw each: turned about the vertical, bent by the wind
@@ -574,6 +584,315 @@ static int image_of(const char *dir, Json *o) {
     return r;
 }
 
+
+/* --- the baked list: data/cache/props_<id>.bin ---
+   props.json and the PNGs / OBJs are the mod; this is what the port makes of them the first time, so the next fight
+   (or game) reads a few arrays instead of parsing thousands of lines. It is only ever a copy: it is dropped when the
+   JSON's size or time differ from the ones it was made from, or its version does, and a mod needs nothing but its
+   own files. Layout: a header, then sections {tag, length, payload}, each a part of the list; a section a build does
+   not know is skipped, so new kinds of effect add sections without breaking an older cache. */
+#define CACHE_MAGIC 0x42505744u /* "DWPB" */
+#define CACHE_VERSION 1u
+#define TAG(a, b, c, d) ((uint32_t)(a) | (uint32_t)(b) << 8 | (uint32_t)(c) << 16 | (uint32_t)(d) << 24)
+
+typedef struct {
+    uint8_t *p;
+    size_t n, cap;
+} Buf;
+
+static void buf_put(Buf *b, const void *d, size_t n) {
+    if (b->n + n > b->cap) {
+        uint8_t *q;
+
+        b->cap = SDL_max(b->cap * 2, b->n + n + 4096);
+        if ((q = SDL_realloc(b->p, b->cap)) == NULL) {
+            return;
+        }
+        b->p = q;
+    }
+    if (b->p != NULL) {
+        SDL_memcpy(b->p + b->n, d, n);
+        b->n += n;
+    }
+}
+
+static void buf_u32(Buf *b, uint32_t v) {
+    buf_put(b, &v, 4);
+}
+
+static void buf_str(Buf *b, const char *s) {
+    uint16_t n = (uint16_t)SDL_min(SDL_strlen(s), 255);
+
+    buf_put(b, &n, 2);
+    buf_put(b, s, n);
+}
+
+static const char *base_name(const char *path) {
+    const char *s = SDL_strrchr(path, '/');
+
+    return s != NULL ? s + 1 : path;
+}
+
+static void cache_path(char *out, size_t size, int id) {
+    SDL_snprintf(out, size, "%s/cache/props_%d.bin", data_dir(), id);
+}
+
+static void put_section(Buf *file, uint32_t tag, const Buf *body) {
+    buf_u32(file, tag);
+    buf_u32(file, (uint32_t)body->n);
+    buf_put(file, body->p, body->n);
+}
+
+static void cache_save(int id, const char *json_path) {
+    SDL_PathInfo info;
+    Buf f = {0}, sec;
+    char path[1100];
+    uint64_t size;
+    int64_t mtime;
+    uint32_t nsec = 3 + (s_nmd > 0), k;
+    FILE *out;
+
+    if (!SDL_GetPathInfo(json_path, &info)) {
+        return;
+    }
+    size = info.size, mtime = info.modify_time;
+    buf_u32(&f, CACHE_MAGIC), buf_u32(&f, CACHE_VERSION), buf_u32(&f, (uint32_t)sizeof(PInst)), buf_u32(&f, nsec);
+    buf_put(&f, &mtime, 8), buf_put(&f, &size, 8);
+    SDL_zero(sec);
+    buf_put(&sec, &s_pwind, 4), buf_put(&sec, &s_pleaves, 4), buf_put(&sec, &s_pfog_on, 4), buf_put(&sec, s_pfog, sizeof s_pfog);
+    put_section(&f, TAG('M', 'E', 'T', 'A'), &sec);
+    sec.n = 0; /* the billboards: a group of instances for each image, in the order they are drawn */
+    {
+        uint32_t groups = 0;
+        int im;
+
+        for (im = 0; im < s_nimg; im++) {
+            groups += s_icnt[im] > 0;
+        }
+        buf_u32(&sec, groups), buf_u32(&sec, (uint32_t)s_nbb);
+        for (im = 0; im < s_nimg; im++) {
+            if (s_icnt[im] > 0) {
+                buf_str(&sec, base_name(s_img[im].path)), buf_u32(&sec, (uint32_t)s_icnt[im]);
+                buf_put(&sec, &s_inst[s_ibeg[im]], (size_t)s_icnt[im] * sizeof(PInst));
+            }
+        }
+    }
+    put_section(&f, TAG('B', 'I', 'L', 'L'), &sec);
+    sec.n = 0;
+    buf_u32(&sec, (uint32_t)s_nem);
+    for (k = 0; k < (uint32_t)s_nem; k++) {
+        const Emitter *e = &s_em[k];
+        float v[14] = {(float)e->count, e->center[0], e->center[1], e->center[2], e->radius, e->top, e->fall, e->wind, e->size[0], e->size[1], e->tint[0], e->tint[1], e->tint[2], e->fog};
+
+        buf_str(&sec, base_name(s_img[e->img].path)), buf_put(&sec, v, sizeof v);
+    }
+    put_section(&f, TAG('E', 'M', 'I', 'T'), &sec);
+    if (s_nmd > 0) {
+        sec.n = 0;
+        buf_u32(&sec, (uint32_t)s_nmd);
+        for (k = 0; k < (uint32_t)s_nmd; k++) {
+            const ModelProp *m = &s_md[k];
+            float v[10] = {m->pos[0], m->pos[1], m->pos[2], m->scale, m->rot, m->sway, m->tint[0], m->tint[1], m->tint[2], m->fog};
+
+            buf_str(&sec, base_name(s_mesh[m->mesh].path)), buf_str(&sec, base_name(s_img[m->img].path)), buf_put(&sec, v, sizeof v);
+        }
+        put_section(&f, TAG('M', 'O', 'D', 'L'), &sec);
+    }
+    SDL_free(sec.p);
+    SDL_snprintf(path, sizeof path, "%s/cache", data_dir());
+    SDL_CreateDirectory(path);
+    cache_path(path, sizeof path, id);
+    if (f.p != NULL && (out = fopen(path, "wb")) != NULL) {
+        fwrite(f.p, 1, f.n, out);
+        fclose(out);
+    }
+    SDL_free(f.p);
+}
+
+typedef struct {
+    const uint8_t *p, *end;
+    int bad;
+} Rd;
+
+static const uint8_t *rd_raw(Rd *r, size_t n) {
+    const uint8_t *q = r->p;
+
+    if (r->bad || (size_t)(r->end - r->p) < n) {
+        r->bad = 1;
+        return NULL;
+    }
+    r->p += n;
+    return q;
+}
+
+static uint32_t rd_u32(Rd *r) {
+    const uint8_t *q = rd_raw(r, 4);
+    uint32_t v = 0;
+
+    if (q != NULL) {
+        SDL_memcpy(&v, q, 4);
+    }
+    return v;
+}
+
+static int rd_str(Rd *r, char *out, size_t size) {
+    const uint8_t *q = rd_raw(r, 2);
+    uint16_t n = 0;
+
+    if (q == NULL) {
+        return 0;
+    }
+    SDL_memcpy(&n, q, 2);
+    if (n >= size || (q = rd_raw(r, n)) == NULL) {
+        r->bad = 1;
+        return 0;
+    }
+    SDL_memcpy(out, q, n);
+    out[n] = 0;
+    return 1;
+}
+
+/* The list from the cache; 0 when there is none or it is not of this JSON (then the JSON is read and the cache made) */
+static int cache_load(int id, const char *dir, const char *json_path) {
+    SDL_PathInfo info;
+    char path[1100], name[300], name2[300];
+    size_t len = 0;
+    uint8_t *file;
+    Rd r;
+    uint64_t size;
+    int64_t mtime;
+    uint32_t nsec, k;
+    int ok = 1;
+
+    if (!SDL_GetPathInfo(json_path, &info)) {
+        return 0;
+    }
+    cache_path(path, sizeof path, id);
+    if ((file = SDL_LoadFile(path, &len)) == NULL) {
+        return 0;
+    }
+    r.p = file, r.end = file + len, r.bad = 0;
+    if (rd_u32(&r) != CACHE_MAGIC || rd_u32(&r) != CACHE_VERSION || rd_u32(&r) != (uint32_t)sizeof(PInst)) {
+        SDL_free(file);
+        return 0;
+    }
+    nsec = rd_u32(&r);
+    SDL_memcpy(&mtime, rd_raw(&r, 8) != NULL ? r.p - 8 : (const uint8_t *)&mtime, 8);
+    SDL_memcpy(&size, rd_raw(&r, 8) != NULL ? r.p - 8 : (const uint8_t *)&size, 8);
+    if (r.bad || mtime != (int64_t)info.modify_time || size != (uint64_t)info.size) {
+        SDL_free(file);
+        return 0;
+    }
+    for (k = 0; k < nsec && ok && !r.bad; k++) {
+        uint32_t tag = rd_u32(&r), blen = rd_u32(&r), i, n;
+        Rd s;
+        const uint8_t *body = rd_raw(&r, blen);
+
+        if (body == NULL) {
+            break;
+        }
+        s.p = body, s.end = body + blen, s.bad = 0;
+        if (tag == TAG('M', 'E', 'T', 'A')) {
+            const uint8_t *m = rd_raw(&s, 12 + sizeof s_pfog);
+
+            if (m != NULL) {
+                SDL_memcpy(&s_pwind, m, 4), SDL_memcpy(&s_pleaves, m + 4, 4), SDL_memcpy(&s_pfog_on, m + 8, 4), SDL_memcpy(s_pfog, m + 12, sizeof s_pfog);
+            }
+        } else if (tag == TAG('B', 'I', 'L', 'L')) {
+            uint32_t groups = rd_u32(&s), total = rd_u32(&s);
+            int at = 0;
+
+            if (groups > MAX_IMG || total > MAX_BB) {
+                ok = 0;
+                break;
+            }
+            s_inst = total > 0 ? SDL_malloc((size_t)total * sizeof *s_inst) : NULL;
+            for (i = 0; i < groups && !s.bad; i++) {
+                uint32_t count;
+                const uint8_t *data;
+                int im;
+
+                if (!rd_str(&s, name, sizeof name)) {
+                    break;
+                }
+                count = rd_u32(&s);
+                data = rd_raw(&s, (size_t)count * sizeof(PInst));
+                if (data == NULL || at + (int)count > (int)total || s_inst == NULL) {
+                    ok = 0;
+                    break;
+                }
+                im = image_named(dir, name);
+                if (im < 0) {
+                    continue; /* its picture is gone: as the JSON would have it, those are left out */
+                }
+                SDL_memcpy(&s_inst[at], data, (size_t)count * sizeof(PInst));
+                s_ibeg[im] = at, s_icnt[im] = (int)count, at += (int)count;
+            }
+            s_nbb = at;
+        } else if (tag == TAG('E', 'M', 'I', 'T')) {
+            n = rd_u32(&s);
+            for (i = 0; i < n && i < MAX_EM && !s.bad; i++) {
+                float v[14];
+                const uint8_t *data;
+                Emitter *e = &s_em[s_nem];
+
+                if (!rd_str(&s, name, sizeof name) || (data = rd_raw(&s, sizeof v)) == NULL) {
+                    break;
+                }
+                SDL_memcpy(v, data, sizeof v);
+                if ((e->img = image_named(dir, name)) < 0) {
+                    continue;
+                }
+                e->count = SDL_clamp((int)v[0], 1, MAX_PART);
+                SDL_memcpy(e->center, &v[1], 12), e->radius = v[4], e->top = v[5], e->fall = v[6], e->wind = v[7];
+                e->size[0] = v[8], e->size[1] = v[9], SDL_memcpy(e->tint, &v[10], 12), e->fog = v[13];
+                s_nem++;
+            }
+        } else if (tag == TAG('M', 'O', 'D', 'L')) {
+            n = rd_u32(&s);
+            for (i = 0; i < n && i < MAX_MD && !s.bad; i++) {
+                float v[10];
+                const uint8_t *data;
+                ModelProp *m = &s_md[s_nmd];
+
+                if (!rd_str(&s, name, sizeof name) || !rd_str(&s, name2, sizeof name2) || (data = rd_raw(&s, sizeof v)) == NULL) {
+                    break;
+                }
+                SDL_memcpy(v, data, sizeof v);
+                m->mesh = mesh_named(dir, name), m->img = image_named(dir, name2);
+                if (m->mesh < 0 || m->img < 0) {
+                    continue;
+                }
+                SDL_memcpy(m->pos, &v[0], 12), m->scale = v[3], m->rot = v[4], m->sway = v[5], SDL_memcpy(m->tint, &v[6], 12), m->fog = v[9];
+                s_nmd++;
+            }
+        } /* any other section is for a newer build: skipped */
+        if (s.bad) {
+            ok = 0;
+        }
+    }
+    SDL_free(file);
+    if (!ok || r.bad) {
+        return 0; /* the caller starts over from the JSON */
+    }
+    if (s_inst != NULL && s_nbb > 0) {
+        s_ivbo = gl_inst_make(s_inst, s_nbb);
+    }
+    return 1;
+}
+
+static void props_load_log(int id, uint64_t t0, const char *from) {
+    char line[1200];
+    FILE *f;
+
+    SDL_snprintf(line, sizeof line, "%sperf/props_load.txt", SDL_GetBasePath());
+    f = perf_on() ? fopen(line, "a") : NULL;
+    if (f != NULL) {
+        fprintf(f, "stage %d from %s: %d billboards, %d emitters, %d models: %.1f ms (images %.1f, card upload %.1f)\n", id, from, s_nbb, s_nem, s_nmd, ms_since(t0), s_ms_img, s_ms_up);
+        fclose(f);
+    }
+}
+
 static void props_load(int id) {
     char dir[1024], path[1100];
     char *text;
@@ -595,6 +914,16 @@ static void props_load(int id) {
     s_nbb = s_nem = s_nmd = 0, s_props_stage = id, s_pwind = 1, s_pfog_on = 0, s_pleaves = -1;
     SDL_snprintf(dir, sizeof dir, "%s/mods/fightstages/%d", data_dir(), id);
     SDL_snprintf(path, sizeof path, "%s/props.json", dir);
+    if (cache_load(id, dir, path)) {
+        props_load_log(id, t0, "cache");
+        return;
+    }
+    /* a cache that failed halfway left things in the tables: start clean */
+    gl_inst_free(s_ivbo);
+    SDL_free(s_inst);
+    s_inst = NULL, s_ivbo = 0;
+    SDL_memset(s_icnt, 0, sizeof s_icnt);
+    s_nbb = s_nem = s_nmd = 0, s_pwind = 1, s_pfog_on = 0, s_pleaves = -1;
     if ((text = SDL_LoadFile(path, NULL)) == NULL) {
         return;
     }
@@ -701,17 +1030,8 @@ static void props_load(int id) {
         s_nmd++;
     }
     json_free(root);
-    {
-        char line[1200];
-        FILE *f;
-
-        SDL_snprintf(line, sizeof line, "%sperf/props_load.txt", SDL_GetBasePath());
-        f = perf_on() ? fopen(line, "a") : NULL;
-        if (f != NULL) {
-            fprintf(f, "stage %d: %d billboards, %d emitters, %d models: %.1f ms (images %.1f, card upload %.1f)\n", id, s_nbb, s_nem, s_nmd, ms_since(t0), s_ms_img, s_ms_up);
-            fclose(f);
-        }
-    }
+    cache_save(id, path);
+    props_load_log(id, t0, "json");
 }
 
 /* The billboards and the emitters' particles, all on the card: one draw for each image's billboards, one for each emitter */
