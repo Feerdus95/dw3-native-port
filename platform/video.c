@@ -116,6 +116,7 @@ static void dump_vram(int n, SDL_Surface *shot) {
     char name[32];
     int i;
 
+    soft_all();
     for (i = 0; i < VRAM_W * VRAM_H; i++) {
         uint16_t p = g_vram[i];
         ((uint32_t *)s->pixels)[i] = (uint32_t)((p & 31) << 19 | (p >> 5 & 31) << 11 | (p >> 10 & 31) << 3);

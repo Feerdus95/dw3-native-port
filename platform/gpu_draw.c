@@ -4,11 +4,13 @@
    screen shows, finer. Reference: the PSX GPU as documented in psx-spx
    (nocash). */
 #include <stdlib.h>
+#include <math.h>
 #include <string.h>
+#include <SDL3/SDL_stdinc.h>
 #include "platform.h"
 
 /* Drawing state (GP0 E1-E6) */
-SAVED static struct {
+typedef struct {
     int tx, ty;        /* texture page base, in pixels */
     int semi;          /* semi-transparency mode 0-3 */
     int depth;         /* 0: 4 bpp, 1: 8 bpp, 2: 15 bpp */
@@ -17,7 +19,8 @@ SAVED static struct {
     int x1, y1, x2, y2; /* drawing area, inclusive */
     int ox, oy;        /* drawing offset */
     int set_mask, check_mask;
-} g;
+} DrawState;
+SAVED static DrawState g;
 
 /* --- pixels --- */
 
@@ -320,27 +323,29 @@ static void precise(const uint32_t *w, float *x, float *y, float *z) {
 
 /* --- rectangles and lines --- */
 
-static void rect(int x, int y, int w, int h, int col, int textured, int raw, int semi, int u0, int v0, int clut, int soft) {
-    int i, j, bit;
+/* A rectangle into the 1x VRAM */
+static void rect_px(int x, int y, int w, int h, int col, int textured, int raw, int semi, int u0, int v0, int clut, int soft) {
+    int i, j;
     int r = col & 255, gg = col >> 8 & 255, b = col >> 16 & 255;
-    struct SDL_Surface *img;
-    unsigned *tex;
-
-    /* a face button in the game's text, as the icons chosen (controls.c):
-       square, centred where the glyph was */
-    if (w > 0 && h > 0 && textured && (bit = controls_glyph(g.tx, g.ty, g.depth, u0, v0, w, h)) >= 0 &&
-        controls_game_icon(bit, &img, &tex)) {
-        float c = s_map_a + (x + w / 2.0f - s_map_a) * s_map_s + s_map_d;
-
-        gl_image(img, tex, c - h / 2.0f, (float)y, c + h / 2.0f, (float)(y + h), 0, CLIP);
-    } else if (w > 0 && h > 0) {
-        gl_rect(x, y, w, h, r, gg, b, (textured ? 2 : 0) | (textured && raw ? 4 : 0) | (semi ? 8 : 0) | (soft ? 512 : 0), u0, v0, clut);
-    }
 
     for (j = 0; j < h; j++) {
         for (i = 0; i < w; i++) {
             int c, s = semi;
 
+            if (soft && textured) { /* the card's ellipse (gl.c), for the copy a battle's transition shows */
+                float dx = (i + 0.5f - w * 0.484f) / (w * 0.42f), dy = (j + 0.5f - h * 0.469f) / (h * 0.4f);
+                float d = sqrtf(dx * dx + dy * dy), k = (d - 0.6f) / 0.4f;
+                int tex = texel(u0 + (int)(w * 0.484f), v0 + (int)(h * 0.469f), clut);
+
+                if (d >= 1.0f || tex == 0) {
+                    continue;
+                }
+                k = k <= 0 ? 1.0f : 1.0f - k * k * (3.0f - 2.0f * k);
+                c = raw ? tex : modulate(tex, r, gg, b, 0);
+                c = ((int)((c & 31) * k + 0.5f)) | ((int)((c >> 5 & 31) * k + 0.5f)) << 5 | ((int)((c >> 10 & 31) * k + 0.5f)) << 10;
+                plot(x + i, y + j, c, 1);
+                continue;
+            }
             if (textured) {
                 int tex = texel(u0 + i, v0 + j, clut);
 
@@ -357,7 +362,8 @@ static void rect(int x, int y, int w, int h, int col, int textured, int raw, int
     }
 }
 
-static void line(int x0, int y0, int c0, int x1, int y1, int c1, int gouraud, int semi) {
+/* A line's pixels: into the 1x VRAM (px), or to the card */
+static void line_walk(int x0, int y0, int c0, int x1, int y1, int c1, int gouraud, int semi, int px) {
     int dx = x1 - x0, dy = y1 - y0, n = (dx < 0 ? -dx : dx) > (dy < 0 ? -dy : dy) ? (dx < 0 ? -dx : dx) : (dy < 0 ? -dy : dy);
     int i;
 
@@ -374,9 +380,256 @@ static void line(int x0, int y0, int c0, int x1, int y1, int c1, int gouraud, in
             int b = (c0 >> 16 & 255) + ((c1 >> 16 & 255) - (c0 >> 16 & 255)) * i / n;
             c = r | gg << 8 | b << 16;
         }
-        plot(x, y, rgb15(c & 255, c >> 8 & 255, c >> 16 & 255, d), semi);
-        gl_rect(x, y, 1, 1, c & 255, c >> 8 & 255, c >> 16 & 255, semi ? 8 : 0, 0, 0, 0);
+        if (px) {
+            plot(x, y, rgb15(c & 255, c >> 8 & 255, c >> 16 & 255, d), semi);
+        } else {
+            gl_rect(x, y, 1, 1, c & 255, c >> 8 & 255, c >> 16 & 255, semi ? 8 : 0, 0, 0, 0);
+        }
     }
+}
+
+/* --- the 1x VRAM, drawn when read ---
+   What the primitives draw into g_vram is only read back when the game
+   samples it as a texture, moves it (MoveImage), or a state is saved: most
+   of a frame's drawing is covered by the next one's background first. So the
+   primitives are queued with their drawing state and drawn into g_vram, in
+   order, only when something reads where they draw; those an opaque fill or
+   rectangle covers before that are dropped. The 64x64 blocks they write and
+   read are kept as masks, so a check is O(1) unless it touches them. */
+enum { SOFT_TRI, SOFT_RECT, SOFT_LINE };
+typedef struct {
+    int kind;
+    int box[4];     /* what it writes, inclusive, in the drawing area */
+    int read[2][4]; /* the texture page and CLUT it reads; x1 > x2: none */
+    DrawState g;
+    union {
+        struct { Vtx a, b, c; int flags, clut; } tri;
+        struct { int x, y, w, h, col, textured, raw, semi, u0, v0, clut, soft; } rect;
+        struct { int x0, y0, c0, x1, y1, c1, gouraud, semi; } line;
+    } u;
+} Soft;
+
+#define SOFT_MAX 16384 /* about four frames; when full, drawn */
+static Soft *s_soft;
+static int s_nsoft;
+static uint16_t s_soft_w[8], s_soft_r[8]; /* the blocks the queue writes, reads */
+
+static void blocks(uint16_t m[8], int x1, int y1, int x2, int y2) {
+    int r, c;
+
+    for (r = SDL_max(y1, 0) >> 6; r <= SDL_min(y2, VRAM_H - 1) >> 6; r++) {
+        for (c = SDL_max(x1, 0) >> 6; c <= SDL_min(x2, VRAM_W - 1) >> 6; c++) {
+            m[r] |= (uint16_t)(1u << c);
+        }
+    }
+}
+
+static int blocks_meet(const uint16_t a[8], const uint16_t b[8]) {
+    int r;
+
+    for (r = 0; r < 8; r++) {
+        if (a[r] & b[r]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void soft_masks(void) {
+    int i, k;
+
+    SDL_memset(s_soft_w, 0, sizeof s_soft_w);
+    SDL_memset(s_soft_r, 0, sizeof s_soft_r);
+    for (i = 0; i < s_nsoft; i++) {
+        blocks(s_soft_w, s_soft[i].box[0], s_soft[i].box[1], s_soft[i].box[2], s_soft[i].box[3]);
+        for (k = 0; k < 2; k++) {
+            if (s_soft[i].read[k][0] <= s_soft[i].read[k][2]) {
+                blocks(s_soft_r, s_soft[i].read[k][0], s_soft[i].read[k][1], s_soft[i].read[k][2], s_soft[i].read[k][3]);
+            }
+        }
+    }
+}
+
+/* Everything queued, into g_vram */
+void soft_all(void) {
+    DrawState saved = g;
+    int i;
+
+    if (s_nsoft == 0) {
+        return;
+    }
+    perf_begin(PF_SOFT);
+    for (i = 0; i < s_nsoft; i++) {
+        const Soft *e = &s_soft[i];
+
+        g = e->g;
+        if (e->kind == SOFT_TRI) {
+            triangle(e->u.tri.a, e->u.tri.b, e->u.tri.c, e->u.tri.flags, e->u.tri.clut);
+        } else if (e->kind == SOFT_RECT) {
+            rect_px(e->u.rect.x, e->u.rect.y, e->u.rect.w, e->u.rect.h, e->u.rect.col, e->u.rect.textured, e->u.rect.raw,
+                    e->u.rect.semi, e->u.rect.u0, e->u.rect.v0, e->u.rect.clut, e->u.rect.soft);
+        } else {
+            line_walk(e->u.line.x0, e->u.line.y0, e->u.line.c0, e->u.line.x1, e->u.line.y1, e->u.line.c1, e->u.line.gouraud,
+                      e->u.line.semi, 1);
+        }
+    }
+    perf_gpu(PF_SOFT_N, s_nsoft);
+    perf_end(PF_SOFT);
+    g = saved;
+    s_nsoft = 0;
+    SDL_memset(s_soft_w, 0, sizeof s_soft_w);
+    SDL_memset(s_soft_r, 0, sizeof s_soft_r);
+}
+
+/* A loaded state replaced g_vram: what was queued is gone with the old one */
+void soft_discard(void) {
+    s_nsoft = 0;
+    SDL_memset(s_soft_w, 0, sizeof s_soft_w);
+    SDL_memset(s_soft_r, 0, sizeof s_soft_r);
+}
+
+/* The blocks NEED (gl.c's masks) are about to be read */
+void soft_need(const uint16_t need[8]) {
+    if (blocks_meet(need, s_soft_w)) {
+        soft_all();
+    }
+}
+
+void soft_read(int x, int y, int w, int h) {
+    uint16_t m[8] = {0};
+
+    if (w > 0 && h > 0) {
+        blocks(m, x, y, x + w - 1, y + h - 1);
+        soft_need(m);
+    }
+}
+
+/* Drops the queued primitives that only write inside x1-y2, which an opaque
+   write is about to cover; 0 when it can't: one reads there, or (OUTSIDE, a
+   write from outside the queue) one also writes there but not only there */
+static int soft_cover(int x1, int y1, int x2, int y2, int outside) {
+    uint16_t m[8] = {0};
+    int i, n = 0;
+
+    blocks(m, x1, y1, x2, y2);
+    if (blocks_meet(m, s_soft_r)) {
+        return 0;
+    }
+    if (!blocks_meet(m, s_soft_w)) {
+        return 1;
+    }
+#define INSIDE(b) ((b)[0] >= x1 && (b)[1] >= y1 && (b)[2] <= x2 && (b)[3] <= y2)
+    for (i = 0; outside && i < s_nsoft; i++) {
+        const int *b = s_soft[i].box;
+
+        if (!INSIDE(b) && b[0] <= x2 && b[2] >= x1 && b[1] <= y2 && b[3] >= y1) {
+            return 0; /* it would draw over the write when drawn later */
+        }
+    }
+    for (i = 0; i < s_nsoft; i++) {
+        if (!INSIDE(s_soft[i].box)) {
+            s_soft[n++] = s_soft[i];
+        }
+    }
+#undef INSIDE
+    s_nsoft = n;
+    soft_masks();
+    return 1;
+}
+
+/* Something outside the queue (a fill, LoadImage, MoveImage) is about to
+   write x, y, w, h */
+void soft_write(int x, int y, int w, int h) {
+    if (w > 0 && h > 0 && s_nsoft > 0 && !soft_cover(x, y, SDL_min(x + w, VRAM_W) - 1, SDL_min(y + h, VRAM_H) - 1, 1)) {
+        soft_all();
+    }
+}
+
+/* Queues E (its kind and arguments set) with the drawing state, writing
+   x1-y2 (clipped here to the drawing area); OPAQUE: it covers that box */
+static void soft_queue(Soft *e, int x1, int y1, int x2, int y2, int textured, int clut, int opaque) {
+    int w = 64 << SDL_min(g.depth, 2);
+
+    e->box[0] = SDL_max(x1, g.x1), e->box[1] = SDL_max(y1, g.y1);
+    e->box[2] = SDL_min(x2, g.x2), e->box[3] = SDL_min(y2, g.y2);
+    if (e->box[0] > e->box[2] || e->box[1] > e->box[3]) {
+        return; /* nothing of it in the drawing area */
+    }
+    e->read[0][0] = e->read[1][0] = 1, e->read[0][2] = e->read[1][2] = 0;
+    if (textured) {
+        /* the page (wrapping past x 1023: all across) and the CLUT row */
+        int cx = (clut & 0x3F) << 4, cy = clut >> 6 & 0x1FF, cw = g.depth == 0 ? 16 : 256;
+
+        e->read[0][0] = g.tx + w > VRAM_W ? 0 : g.tx, e->read[0][1] = g.ty;
+        e->read[0][2] = g.tx + w > VRAM_W ? VRAM_W - 1 : g.tx + w - 1, e->read[0][3] = SDL_min(g.ty + 255, VRAM_H - 1);
+        if (g.depth < 2) {
+            e->read[1][0] = cx + cw > VRAM_W ? 0 : cx, e->read[1][1] = cy;
+            e->read[1][2] = cx + cw > VRAM_W ? VRAM_W - 1 : cx + cw - 1, e->read[1][3] = cy;
+        }
+    }
+    if (opaque && !g.check_mask && s_nsoft > 0) {
+        soft_cover(e->box[0], e->box[1], e->box[2], e->box[3], 0);
+    }
+    if (s_soft == NULL && (s_soft = SDL_malloc(SOFT_MAX * sizeof(Soft))) == NULL) {
+        return;
+    }
+    if (s_nsoft == SOFT_MAX) {
+        soft_all();
+    }
+    e->g = g;
+    s_soft[s_nsoft++] = *e;
+    blocks(s_soft_w, e->box[0], e->box[1], e->box[2], e->box[3]);
+    if (textured) {
+        blocks(s_soft_r, e->read[0][0], e->read[0][1], e->read[0][2], e->read[0][3]);
+        if (e->read[1][0] <= e->read[1][2]) {
+            blocks(s_soft_r, e->read[1][0], e->read[1][1], e->read[1][2], e->read[1][3]);
+        }
+    }
+}
+
+static void soft_tri(Vtx a, Vtx b, Vtx c, int flags, int clut) {
+    Soft e;
+
+    e.kind = SOFT_TRI;
+    e.u.tri.a = a, e.u.tri.b = b, e.u.tri.c = c, e.u.tri.flags = flags, e.u.tri.clut = clut;
+    soft_queue(&e, SDL_min(SDL_min(a.x, b.x), c.x), SDL_min(SDL_min(a.y, b.y), c.y), SDL_max(SDL_max(a.x, b.x), c.x),
+               SDL_max(SDL_max(a.y, b.y), c.y), flags & 2, clut, 0);
+}
+
+static void rect(int x, int y, int w, int h, int col, int textured, int raw, int semi, int u0, int v0, int clut, int soft) {
+    int bit;
+    struct SDL_Surface *img;
+    unsigned *tex;
+    Soft e;
+
+    /* a face button in the game's text, as the icons chosen (controls.c):
+       square, centred where the glyph was */
+    if (w > 0 && h > 0 && textured && (bit = controls_glyph(g.tx, g.ty, g.depth, u0, v0, w, h)) >= 0 &&
+        controls_game_icon(bit, &img, &tex)) {
+        float c = s_map_a + (x + w / 2.0f - s_map_a) * s_map_s + s_map_d;
+
+        gl_image(img, tex, c - h / 2.0f, (float)y, c + h / 2.0f, (float)(y + h), 0, CLIP);
+    } else if (w > 0 && h > 0) {
+        gl_rect(x, y, w, h, col & 255, col >> 8 & 255, col >> 16 & 255,
+                (textured ? 2 : 0) | (textured && raw ? 4 : 0) | (semi ? 8 : 0) | (soft ? 512 : 0), u0, v0, clut);
+    }
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+    e.kind = SOFT_RECT;
+    e.u.rect.x = x, e.u.rect.y = y, e.u.rect.w = w, e.u.rect.h = h, e.u.rect.col = col, e.u.rect.textured = textured;
+    e.u.rect.raw = raw, e.u.rect.semi = semi, e.u.rect.u0 = u0, e.u.rect.v0 = v0, e.u.rect.clut = clut, e.u.rect.soft = soft;
+    soft_queue(&e, x, y, x + w - 1, y + h - 1, textured, clut, !textured && !semi);
+}
+
+static void line(int x0, int y0, int c0, int x1, int y1, int c1, int gouraud, int semi) {
+    Soft e;
+
+    line_walk(x0, y0, c0, x1, y1, c1, gouraud, semi, 0);
+    e.kind = SOFT_LINE;
+    e.u.line.x0 = x0, e.u.line.y0 = y0, e.u.line.c0 = c0, e.u.line.x1 = x1, e.u.line.y1 = y1, e.u.line.c1 = c1;
+    e.u.line.gouraud = gouraud, e.u.line.semi = semi;
+    soft_queue(&e, SDL_min(x0, x1), SDL_min(y0, y1), SDL_max(x0, x1), SDL_max(y0, y1), 0, 0, 0);
 }
 
 /* --- packets --- */
@@ -421,9 +674,9 @@ void gpu_gp0(const uint32_t *p, int n) {
         if (!tex && semi) {
             i |= 8;
         }
-        triangle(v[0], v[1], v[2], i, clut);
+        soft_tri(v[0], v[1], v[2], i, clut);
         if (quad) {
-            triangle(v[1], v[2], v[3], i, clut);
+            soft_tri(v[1], v[2], v[3], i, clut);
         }
         {
             int dither = g.dither && g_dither_on && (gouraud || (tex && !raw));
@@ -537,6 +790,11 @@ void gpu_gp0(const uint32_t *p, int n) {
         int x = p[1] & 0x3F0, y = p[1] >> 16 & 0x1FF, w = ((p[2] & 0x3FF) + 15) & ~15, h = p[2] >> 16 & 0x1FF, i, j;
         int c = rgb15(p[0] & 255, p[0] >> 8 & 255, p[0] >> 16 & 255, 0);
 
+        if (x + w > VRAM_W || y + h > VRAM_H) {
+            soft_all(); /* wraps: it covers what it covers */
+        } else {
+            soft_write(x, y, w, h);
+        }
         for (j = 0; j < h; j++) {
             for (i = 0; i < w; i++) {
                 g_vram[((y + j) & 511) * VRAM_W + ((x + i) & 1023)] = (uint16_t)c;
@@ -553,6 +811,7 @@ void gpu_gp0(const uint32_t *p, int n) {
 
         if (w == 0) w = 0x400;
         if (h == 0) h = 0x200;
+        soft_all(); /* a copy reads and writes VRAM: rare, so everything first */
         for (j = 0; j < h; j++)
             for (i = 0; i < w; i++)
                 tmp[j * w + i] = g_vram[((sy0 + j) & 511) * VRAM_W + ((sx0 + i) & 1023)];

@@ -48,6 +48,7 @@ int DrawSync(int mode) {
 static void fill(const RECT *r, uint16_t c) {
     int x, y;
 
+    soft_write(r->x, r->y, r->w, r->h);
     for (y = r->y; y < r->y + r->h && y < VRAM_H; y++) {
         for (x = r->x; x < r->x + r->w && x < VRAM_W; x++) {
             g_vram[y * VRAM_W + x] = c;
@@ -70,7 +71,7 @@ int LoadImage(RECT *r, uint32_t *p) {
     const uint16_t *src = (const uint16_t *)p;
     int y;
 
-
+    soft_write(r->x, r->y, r->w, r->h);
     for (y = 0; y < r->h && r->y + y < VRAM_H; y++) {
         memcpy(&g_vram[(r->y + y) * VRAM_W + r->x], src + y * r->w, (size_t)r->w * 2);
     }
@@ -86,7 +87,8 @@ int MoveImage(RECT *r, int x, int y) {
     if (tmp == NULL) {
         tmp = malloc(VRAM_W * VRAM_H * 2);
     }
-
+    soft_read(r->x, r->y, r->w, r->h);
+    soft_write(x, y, r->w, r->h);
     for (j = 0; j < r->h; j++) {
         memcpy(&tmp[j * r->w], &g_vram[(r->y + j) * VRAM_W + r->x], (size_t)r->w * 2);
     }

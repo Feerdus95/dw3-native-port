@@ -94,6 +94,7 @@ static void save_state(void) {
     FILE *f;
     int ok;
 
+    soft_all();
     state_path(path, sizeof path);
     snprintf(tmp, sizeof tmp, "%s.tmp", path);
     if ((f = fopen(tmp, "wb")) == NULL) {
@@ -142,6 +143,7 @@ static void load_state(void) {
     }
     fclose(f);
     spu_cd_clear();
+    soft_discard();
     gl_sync(1);
     LOG("state: loaded %s", path);
 }

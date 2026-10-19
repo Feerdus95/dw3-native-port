@@ -69,6 +69,12 @@ int gl_init(struct SDL_Window *window);
 void gl_sync(int force);         /* follows render_scale; force: VRAM was replaced */
 void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi);
 void gl_vram_dirty(int x, int y, int w, int h);
+/* The primitives' drawing into the 1x VRAM, queued until read (gpu_draw.c) */
+void soft_all(void);                          /* everything queued, drawn now */
+void soft_discard(void);                      /* VRAM was replaced (a loaded state) */
+void soft_need(const uint16_t need[8]);       /* these 64x64 blocks are about to be read */
+void soft_read(int x, int y, int w, int h);   /* this rect is about to be read */
+void soft_write(int x, int y, int w, int h);  /* this rect is about to be overwritten */
 void gl_shadows_resolve(void); /* an ordering table drawn: its battle shadows onto the copy */
 void gl_depth_clear(void); /* a new ordering table: its 3D drawn over what came before */
 void gl_refresh(int x, int y, int w, int h); /* the copy from VRAM, after the CPU wrote it */
@@ -131,7 +137,7 @@ void gl_props_inst(const struct SDL_Surface *img, unsigned *tex, unsigned b, int
 void gl_props_part(const struct SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
 int gte_camera_get(PCam *c); /* the battle camera (gte.c); 0 when no stage was drawn lately */
 /* The battle's performance meter (perf.c): CPU sections timed with perf_begin / perf_end, the card's times from gl.c's queries */
-enum { PF_DRAW, PF_PROPS, PF_PRESENT, PF_WAIT, PF_GPU, PF_GPU_PROPS, PF_PLOAD, PF_PGL, PF_PFLUSH, PF_PTEX, PF_SPOLY, PF_BRIGHT, PF_PDRAW, PF_N };
+enum { PF_DRAW, PF_PROPS, PF_PRESENT, PF_WAIT, PF_GPU, PF_GPU_PROPS, PF_PLOAD, PF_PGL, PF_PFLUSH, PF_PTEX, PF_SPOLY, PF_BRIGHT, PF_PDRAW, PF_SOFT, PF_SOFT_N, PF_N };
 extern int g_perf; /* F10, perf in native.ini */
 int perf_on(void); /* the meter is on and a fight is running */
 void perf_begin(int section);
