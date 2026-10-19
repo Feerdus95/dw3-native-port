@@ -502,6 +502,22 @@ static void why(const char *what, int x, int y, int w, int h) {
     s_why = what, s_why_r[0] = x, s_why_r[1] = y, s_why_r[2] = w, s_why_r[3] = h;
 }
 
+/* One queued primitive into g_vram, with its drawing state (left in g) */
+static void soft_run(const Soft *e) {
+    g = e->g;
+    if (e->kind == SOFT_TRI) {
+        triangle(e->u.tri.a, e->u.tri.b, e->u.tri.c, e->u.tri.flags, e->u.tri.clut);
+    } else if (e->kind == SOFT_RECT) {
+        rect_px(e->u.rect.x, e->u.rect.y, e->u.rect.w, e->u.rect.h, e->u.rect.col, e->u.rect.textured, e->u.rect.raw,
+                e->u.rect.semi, e->u.rect.u0, e->u.rect.v0, e->u.rect.clut, e->u.rect.soft);
+    } else if (e->kind == SOFT_LINE) {
+        line_walk(e->u.line.x0, e->u.line.y0, e->u.line.c0, e->u.line.x1, e->u.line.y1, e->u.line.c1, e->u.line.gouraud,
+                  e->u.line.semi, 1);
+    } else {
+        copy_px(e->u.copy.sx, e->u.copy.sy, e->u.copy.dx, e->u.copy.dy, e->u.copy.w, e->u.copy.h);
+    }
+}
+
 /* Everything queued, into g_vram */
 void soft_all(void) {
     DrawState saved = g;
@@ -516,20 +532,7 @@ void soft_all(void) {
     s_why = "?";
     perf_begin(PF_SOFT);
     for (i = 0; i < s_nsoft; i++) {
-        const Soft *e = &s_soft[i];
-
-        g = e->g;
-        if (e->kind == SOFT_TRI) {
-            triangle(e->u.tri.a, e->u.tri.b, e->u.tri.c, e->u.tri.flags, e->u.tri.clut);
-        } else if (e->kind == SOFT_RECT) {
-            rect_px(e->u.rect.x, e->u.rect.y, e->u.rect.w, e->u.rect.h, e->u.rect.col, e->u.rect.textured, e->u.rect.raw,
-                    e->u.rect.semi, e->u.rect.u0, e->u.rect.v0, e->u.rect.clut, e->u.rect.soft);
-        } else if (e->kind == SOFT_LINE) {
-            line_walk(e->u.line.x0, e->u.line.y0, e->u.line.c0, e->u.line.x1, e->u.line.y1, e->u.line.c1, e->u.line.gouraud,
-                      e->u.line.semi, 1);
-        } else {
-            copy_px(e->u.copy.sx, e->u.copy.sy, e->u.copy.dx, e->u.copy.dy, e->u.copy.w, e->u.copy.h);
-        }
+        soft_run(&s_soft[i]);
     }
     perf_gpu(PF_SOFT_N, s_nsoft);
     perf_end(PF_SOFT);
@@ -544,75 +547,100 @@ void soft_discard(void) {
     SDL_memset(&s_soft_r, 0, sizeof s_soft_r);
 }
 
-void soft_read(int x, int y, int w, int h) {
-    if (w > 0 && h > 0 && s_nsoft > 0 && meets(&s_soft_w, x, y, x + w - 1, y + h - 1)) {
-        why("a read of", x, y, w, h);
-        soft_all();
-    }
+/* What soft_resolve is for: x1-y2 is about to be read; written from outside
+   the queue (a fill, LoadImage, MoveImage); or covered by an opaque primitive
+   queued next */
+enum { RESOLVE_READ, RESOLVE_WRITE, RESOLVE_COVER };
+
+static int rects_meet(const int *a, int x1, int y1, int x2, int y2) {
+    return a[0] <= a[2] && a[0] <= x2 && a[2] >= x1 && a[1] <= y2 && a[3] >= y1;
 }
 
-/* The meter's csv: a big cover that dropped nothing, and which queued primitive it is waiting on */
-static void cover_failed(int x1, int y1, int x2, int y2, const char *how) {
-    int i, k;
+/* Only what x1-y2 depends on: the queued primitives it needs drawn (a read:
+   those drawing there; a write: those reading there or drawing partly
+   there) and, back through the queue, all they depend on (earlier ones
+   drawing where they read or draw) or that depend on them going first
+   (earlier ones reading where they draw), are drawn now, in order; for a
+   cover they are only kept. Then a write or cover drops the rest that draws
+   only inside it. What is left stays queued, in order. One pass, backwards. */
+static void soft_resolve(int x1, int y1, int x2, int y2, int mode) {
+    static Cells uw, urw; /* where the needed ones draw; draw or read */
+    static uint8_t *need;
+    int i, k, n = 0, drawn = 0, dropped = 0;
+    DrawState saved = g;
 
-    if (!perf_on() || (x2 - x1 + 1) * (y2 - y1 + 1) < 160 * 120) {
+    if (need == NULL && (need = SDL_malloc(SOFT_MAX)) == NULL) {
+        soft_all();
         return;
     }
-    for (i = 0; i < s_nsoft; i++) {
+    SDL_memset(&uw, 0, sizeof uw);
+    SDL_memset(&urw, 0, sizeof urw);
+    for (i = s_nsoft - 1; i >= 0; i--) {
         const Soft *e = &s_soft[i];
+        const int *b = e->box;
+        int inside = b[0] >= x1 && b[1] >= y1 && b[2] <= x2 && b[3] <= y2, over = rects_meet(b, x1, y1, x2, y2);
+        int reads = rects_meet(e->read[0], x1, y1, x2, y2) || rects_meet(e->read[1], x1, y1, x2, y2);
 
-        for (k = 0; k < 2; k++) {
-            const int *r = e->read[k];
-
-            if (r[0] <= r[2] && r[0] <= x2 && r[2] >= x1 && r[1] <= y2 && r[3] >= y1) {
-                perf_note("cover %d,%d-%d,%d %s: kind %d reads %d,%d-%d,%d (page %d,%d depth %d), %d queued", x1, y1, x2, y2, how,
-                          e->kind, r[0], r[1], r[2], r[3], e->g.tx, e->g.ty, e->g.depth, s_nsoft);
-                return;
+        need[i] = mode == RESOLVE_READ ? over : reads || (mode == RESOLVE_WRITE && over && !inside);
+        if (!need[i] && meets(&urw, b[0], b[1], b[2], b[3])) {
+            need[i] = 1;
+        }
+        for (k = 0; k < 2 && !need[i]; k++) {
+            need[i] = e->read[k][0] <= e->read[k][2] && meets(&uw, e->read[k][0], e->read[k][1], e->read[k][2], e->read[k][3]);
+        }
+        if (need[i]) {
+            mark(&uw, b[0], b[1], b[2], b[3]);
+            mark(&urw, b[0], b[1], b[2], b[3]);
+            for (k = 0; k < 2; k++) {
+                if (e->read[k][0] <= e->read[k][2]) {
+                    mark(&urw, e->read[k][0], e->read[k][1], e->read[k][2], e->read[k][3]);
+                }
             }
         }
     }
-    perf_note("cover %d,%d-%d,%d %s, %d queued", x1, y1, x2, y2, how, s_nsoft);
-}
-
-/* Drops the queued primitives that only write inside x1-y2, which an opaque
-   write is about to cover; 0 when it can't: one reads there, or (OUTSIDE, a
-   write from outside the queue) one also writes there but not only there */
-static int soft_cover(int x1, int y1, int x2, int y2, int outside) {
-    int i, n = 0;
-
-    if (meets(&s_soft_r, x1, y1, x2, y2)) {
-        cover_failed(x1, y1, x2, y2, "is read");
-        return 0;
-    }
-    if (!meets(&s_soft_w, x1, y1, x2, y2)) {
-        return 1;
-    }
-#define INSIDE(b) ((b)[0] >= x1 && (b)[1] >= y1 && (b)[2] <= x2 && (b)[3] <= y2)
-    for (i = 0; outside && i < s_nsoft; i++) {
-        const int *b = s_soft[i].box;
-
-        if (!INSIDE(b) && b[0] <= x2 && b[2] >= x1 && b[1] <= y2 && b[3] >= y1) {
-            cover_failed(x1, y1, x2, y2, "is partly drawn");
-            return 0; /* it would draw over the write when drawn later */
+    if (mode != RESOLVE_COVER) {
+        perf_begin(PF_SOFT);
+        for (i = 0; i < s_nsoft; i++) {
+            if (need[i]) {
+                soft_run(&s_soft[i]);
+                drawn++;
+            }
         }
+        perf_end(PF_SOFT);
+        perf_gpu(PF_SOFT_N, drawn);
+        g = saved;
     }
     for (i = 0; i < s_nsoft; i++) {
-        if (!INSIDE(s_soft[i].box)) {
+        const int *b = s_soft[i].box;
+        int inside = b[0] >= x1 && b[1] >= y1 && b[2] <= x2 && b[3] <= y2;
+
+        if (mode == RESOLVE_COVER ? need[i] || !inside : !need[i] && (mode == RESOLVE_READ || !inside)) {
             s_soft[n++] = s_soft[i];
+        } else if (!need[i]) {
+            dropped++;
         }
     }
-#undef INSIDE
+    if (perf_on() && drawn >= 64) {
+        perf_note("soft: %d drawn, %d dropped, %d left, for %s %d,%d-%d,%d", drawn, dropped, n,
+                  mode == RESOLVE_READ ? "a read of" : mode == RESOLVE_WRITE ? "a write of" : "a cover of", x1, y1, x2, y2);
+    }
     s_nsoft = n;
     soft_masks();
-    return 1;
+}
+
+void soft_read(int x, int y, int w, int h) {
+    if (w > 0 && h > 0 && s_nsoft > 0 && meets(&s_soft_w, x, y, x + w - 1, y + h - 1)) {
+        soft_resolve(x, y, SDL_min(x + w, VRAM_W) - 1, SDL_min(y + h, VRAM_H) - 1, RESOLVE_READ);
+    }
 }
 
 /* Something outside the queue (a fill, LoadImage, MoveImage) is about to
    write x, y, w, h */
 void soft_write(int x, int y, int w, int h) {
-    if (w > 0 && h > 0 && s_nsoft > 0 && !soft_cover(x, y, SDL_min(x + w, VRAM_W) - 1, SDL_min(y + h, VRAM_H) - 1, 1)) {
-        why("a write of", x, y, w, h);
-        soft_all();
+    int x2 = SDL_min(x + w, VRAM_W) - 1, y2 = SDL_min(y + h, VRAM_H) - 1;
+
+    if (w > 0 && h > 0 && s_nsoft > 0 && (meets(&s_soft_w, x, y, x2, y2) || meets(&s_soft_r, x, y, x2, y2))) {
+        soft_resolve(x, y, x2, y2, RESOLVE_WRITE);
     }
 }
 
@@ -645,11 +673,8 @@ static void soft_queue(Soft *e, int x1, int y1, int x2, int y2, int textured, in
 
 /* Queues E, its box and reads set, with the drawing state; OPAQUE: it covers its box */
 static void soft_push(Soft *e, int opaque) {
-    if (opaque && !g.check_mask && s_nsoft > 0) {
-        soft_cover(e->box[0], e->box[1], e->box[2], e->box[3], 0);
-    } else if (perf_on() && (e->box[2] - e->box[0] + 1) * (e->box[3] - e->box[1] + 1) >= 256 * 200) {
-        perf_note("big kind %d %d,%d-%d,%d not a cover: opaque %d, mask check %d, %d queued", e->kind, e->box[0], e->box[1],
-                  e->box[2], e->box[3], opaque, g.check_mask, s_nsoft);
+    if (opaque && !g.check_mask && s_nsoft > 0 && meets(&s_soft_w, e->box[0], e->box[1], e->box[2], e->box[3])) {
+        soft_resolve(e->box[0], e->box[1], e->box[2], e->box[3], RESOLVE_COVER);
     }
     if (s_soft == NULL && (s_soft = SDL_malloc(SOFT_MAX * sizeof(Soft))) == NULL) {
         return;

@@ -143,6 +143,11 @@ static void run(uint16_t *out) {
         for (i = 0; i < 8; i++) {
             prim(64, 64);
         }
+        if ((f % 6 == 0 && f > 0) || f == 39) { /* read back at once, while last frame's sprite that read it is
+                                                     still queued (on the last frame nothing covers that sprite) */
+            r = (RECT){768, 256, 64, 64}, MoveImage(&r, 896, 128);
+            if (s_eager) soft_all();
+        }
         env(768, 256, 2, 1, x0, 0, x0 + 319, 239, 0);
         p[0] = 0x64000000u | col(), p[1] = xy(320, 240), p[2] = 0; /* u, v 0: what was just drawn */
         {
@@ -169,6 +174,18 @@ static void run(uint16_t *out) {
             r = (RECT){x0 + 40, 50, 100, 100}, LoadImage(&r, (uint32_t *)data);
             if (s_eager) soft_all();
         }
+    }
+    { /* a sprite reads the page, the page is drawn again and read back: the
+         sprite has to be drawn before it (nothing covers it after) */
+        uint32_t q[4] = {0x64000000u | col(), 10u | 10u << 16, 0, 64u | 64u << 16};
+
+        env(768, 256, 2, 1, 0, 0, 319, 239, 0);
+        gp0(q, 4);
+        env(640, 0, 0, 0, 768, 256, 831, 319, 0);
+        for (i = 0; i < 8; i++) {
+            prim(64, 64);
+        }
+        r = (RECT){768, 256, 64, 64}, MoveImage(&r, 896, 192);
     }
     soft_all();
     memcpy(out, g_vram, VRAM_W * VRAM_H * 2);
