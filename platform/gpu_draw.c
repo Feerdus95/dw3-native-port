@@ -396,7 +396,7 @@ static void line_walk(int x0, int y0, int c0, int x1, int y1, int c1, int gourau
    order, only when something reads where they draw; those an opaque fill or
    rectangle covers before that are dropped. The 64x64 blocks they write and
    read are kept as masks, so a check is O(1) unless it touches them. */
-enum { SOFT_TRI, SOFT_RECT, SOFT_LINE };
+enum { SOFT_TRI, SOFT_RECT, SOFT_LINE, SOFT_COPY };
 typedef struct {
     int kind;
     int box[4];     /* what it writes, inclusive, in the drawing area */
@@ -406,47 +406,91 @@ typedef struct {
         struct { Vtx a, b, c; int flags, clut; } tri;
         struct { int x, y, w, h, col, textured, raw, semi, u0, v0, clut, soft; } rect;
         struct { int x0, y0, c0, x1, y1, c1, gouraud, semi; } line;
+        struct { int sx, sy, dx, dy, w, h; } copy;
     } u;
 } Soft;
+
+/* A VRAM to VRAM copy (GP0 80), wrapping at the edges */
+static void copy_px(int sx0, int sy0, int dx, int dy, int w, int h) {
+    static uint16_t *tmp;
+    int i, j;
+
+    if (tmp == NULL && (tmp = malloc(VRAM_W * VRAM_H * 2)) == NULL) {
+        return;
+    }
+    for (j = 0; j < h; j++)
+        for (i = 0; i < w; i++)
+            tmp[j * w + i] = g_vram[((sy0 + j) & 511) * VRAM_W + ((sx0 + i) & 1023)];
+    for (j = 0; j < h; j++)
+        for (i = 0; i < w; i++)
+            g_vram[((dy + j) & 511) * VRAM_W + ((dx + i) & 1023)] = tmp[j * w + i];
+    gl_vram_dirty(dx, dy, w, h);
+}
 
 #define SOFT_MAX 16384 /* about four frames; when full, drawn */
 static Soft *s_soft;
 static int s_nsoft;
-static uint16_t s_soft_w[8], s_soft_r[8]; /* the blocks the queue writes, reads */
+/* Where the queue writes or reads: 64x64 blocks, and 8x8 cells for when a
+   block is shared (the CLUTs under the frame buffers) */
+typedef struct {
+    uint16_t block[8];
+    uint8_t cell[64][16];
+} Cells;
+static Cells s_soft_w, s_soft_r;
 
-static void blocks(uint16_t m[8], int x1, int y1, int x2, int y2) {
+static void mark(Cells *m, int x1, int y1, int x2, int y2) {
     int r, c;
 
-    for (r = SDL_max(y1, 0) >> 6; r <= SDL_min(y2, VRAM_H - 1) >> 6; r++) {
-        for (c = SDL_max(x1, 0) >> 6; c <= SDL_min(x2, VRAM_W - 1) >> 6; c++) {
-            m[r] |= (uint16_t)(1u << c);
+    x1 = SDL_max(x1, 0), y1 = SDL_max(y1, 0), x2 = SDL_min(x2, VRAM_W - 1), y2 = SDL_min(y2, VRAM_H - 1);
+    for (r = y1 >> 6; r <= y2 >> 6; r++) {
+        for (c = x1 >> 6; c <= x2 >> 6; c++) {
+            m->block[r] |= (uint16_t)(1u << c);
+        }
+    }
+    for (r = y1 >> 3; r <= y2 >> 3; r++) {
+        for (c = x1 >> 3; c <= x2 >> 3; c++) {
+            m->cell[r][c >> 3] |= (uint8_t)(1u << (c & 7));
         }
     }
 }
 
-static int blocks_meet(const uint16_t a[8], const uint16_t b[8]) {
-    int r;
+static int meets(const Cells *m, int x1, int y1, int x2, int y2) {
+    int r, c, hit = 0;
 
-    for (r = 0; r < 8; r++) {
-        if (a[r] & b[r]) {
-            return 1;
+    x1 = SDL_max(x1, 0), y1 = SDL_max(y1, 0), x2 = SDL_min(x2, VRAM_W - 1), y2 = SDL_min(y2, VRAM_H - 1);
+    for (r = y1 >> 6; r <= y2 >> 6 && !hit; r++) {
+        for (c = x1 >> 6; c <= x2 >> 6 && !hit; c++) {
+            hit = m->block[r] >> c & 1;
+        }
+    }
+    for (r = y1 >> 3; r <= y2 >> 3 && hit; r++) {
+        for (c = x1 >> 3; c <= x2 >> 3; c++) {
+            if (m->cell[r][c >> 3] >> (c & 7) & 1) {
+                return 1;
+            }
         }
     }
     return 0;
 }
 
-static void soft_masks(void) {
-    int i, k;
+static void soft_mark(const Soft *e) {
+    int k;
 
-    SDL_memset(s_soft_w, 0, sizeof s_soft_w);
-    SDL_memset(s_soft_r, 0, sizeof s_soft_r);
-    for (i = 0; i < s_nsoft; i++) {
-        blocks(s_soft_w, s_soft[i].box[0], s_soft[i].box[1], s_soft[i].box[2], s_soft[i].box[3]);
-        for (k = 0; k < 2; k++) {
-            if (s_soft[i].read[k][0] <= s_soft[i].read[k][2]) {
-                blocks(s_soft_r, s_soft[i].read[k][0], s_soft[i].read[k][1], s_soft[i].read[k][2], s_soft[i].read[k][3]);
-            }
+    mark(&s_soft_w, e->box[0], e->box[1], e->box[2], e->box[3]);
+    for (k = 0; k < 2; k++) {
+        if (e->read[k][0] <= e->read[k][2]) {
+            mark(&s_soft_r, e->read[k][0], e->read[k][1], e->read[k][2], e->read[k][3]);
         }
+    }
+}
+
+static void soft_masks(void) {
+    int i;
+
+    SDL_memset(&s_soft_w, 0, sizeof s_soft_w);
+    SDL_memset(&s_soft_r, 0, sizeof s_soft_r);
+    for (i = 0; i < s_nsoft; i++) {
+        soft_mark(&s_soft[i]);
     }
 }
 
@@ -468,39 +512,29 @@ void soft_all(void) {
         } else if (e->kind == SOFT_RECT) {
             rect_px(e->u.rect.x, e->u.rect.y, e->u.rect.w, e->u.rect.h, e->u.rect.col, e->u.rect.textured, e->u.rect.raw,
                     e->u.rect.semi, e->u.rect.u0, e->u.rect.v0, e->u.rect.clut, e->u.rect.soft);
-        } else {
+        } else if (e->kind == SOFT_LINE) {
             line_walk(e->u.line.x0, e->u.line.y0, e->u.line.c0, e->u.line.x1, e->u.line.y1, e->u.line.c1, e->u.line.gouraud,
                       e->u.line.semi, 1);
+        } else {
+            copy_px(e->u.copy.sx, e->u.copy.sy, e->u.copy.dx, e->u.copy.dy, e->u.copy.w, e->u.copy.h);
         }
     }
     perf_gpu(PF_SOFT_N, s_nsoft);
     perf_end(PF_SOFT);
     g = saved;
-    s_nsoft = 0;
-    SDL_memset(s_soft_w, 0, sizeof s_soft_w);
-    SDL_memset(s_soft_r, 0, sizeof s_soft_r);
+    soft_discard();
 }
 
 /* A loaded state replaced g_vram: what was queued is gone with the old one */
 void soft_discard(void) {
     s_nsoft = 0;
-    SDL_memset(s_soft_w, 0, sizeof s_soft_w);
-    SDL_memset(s_soft_r, 0, sizeof s_soft_r);
-}
-
-/* The blocks NEED (gl.c's masks) are about to be read */
-void soft_need(const uint16_t need[8]) {
-    if (blocks_meet(need, s_soft_w)) {
-        soft_all();
-    }
+    SDL_memset(&s_soft_w, 0, sizeof s_soft_w);
+    SDL_memset(&s_soft_r, 0, sizeof s_soft_r);
 }
 
 void soft_read(int x, int y, int w, int h) {
-    uint16_t m[8] = {0};
-
-    if (w > 0 && h > 0) {
-        blocks(m, x, y, x + w - 1, y + h - 1);
-        soft_need(m);
+    if (w > 0 && h > 0 && s_nsoft > 0 && meets(&s_soft_w, x, y, x + w - 1, y + h - 1)) {
+        soft_all();
     }
 }
 
@@ -508,14 +542,12 @@ void soft_read(int x, int y, int w, int h) {
    write is about to cover; 0 when it can't: one reads there, or (OUTSIDE, a
    write from outside the queue) one also writes there but not only there */
 static int soft_cover(int x1, int y1, int x2, int y2, int outside) {
-    uint16_t m[8] = {0};
     int i, n = 0;
 
-    blocks(m, x1, y1, x2, y2);
-    if (blocks_meet(m, s_soft_r)) {
+    if (meets(&s_soft_r, x1, y1, x2, y2)) {
         return 0;
     }
-    if (!blocks_meet(m, s_soft_w)) {
+    if (!meets(&s_soft_w, x1, y1, x2, y2)) {
         return 1;
     }
 #define INSIDE(b) ((b)[0] >= x1 && (b)[1] >= y1 && (b)[2] <= x2 && (b)[3] <= y2)
@@ -545,6 +577,8 @@ void soft_write(int x, int y, int w, int h) {
     }
 }
 
+static void soft_push(Soft *e, int opaque);
+
 /* Queues E (its kind and arguments set) with the drawing state, writing
    x1-y2 (clipped here to the drawing area); OPAQUE: it covers that box */
 static void soft_queue(Soft *e, int x1, int y1, int x2, int y2, int textured, int clut, int opaque) {
@@ -567,6 +601,11 @@ static void soft_queue(Soft *e, int x1, int y1, int x2, int y2, int textured, in
             e->read[1][2] = cx + cw > VRAM_W ? VRAM_W - 1 : cx + cw - 1, e->read[1][3] = cy;
         }
     }
+    soft_push(e, opaque);
+}
+
+/* Queues E, its box and reads set, with the drawing state; OPAQUE: it covers its box */
+static void soft_push(Soft *e, int opaque) {
     if (opaque && !g.check_mask && s_nsoft > 0) {
         soft_cover(e->box[0], e->box[1], e->box[2], e->box[3], 0);
     }
@@ -578,13 +617,7 @@ static void soft_queue(Soft *e, int x1, int y1, int x2, int y2, int textured, in
     }
     e->g = g;
     s_soft[s_nsoft++] = *e;
-    blocks(s_soft_w, e->box[0], e->box[1], e->box[2], e->box[3]);
-    if (textured) {
-        blocks(s_soft_r, e->read[0][0], e->read[0][1], e->read[0][2], e->read[0][3]);
-        if (e->read[1][0] <= e->read[1][2]) {
-            blocks(s_soft_r, e->read[1][0], e->read[1][1], e->read[1][2], e->read[1][3]);
-        }
-    }
+    soft_mark(e);
 }
 
 static void soft_tri(Vtx a, Vtx b, Vtx c, int flags, int clut) {
@@ -804,21 +837,28 @@ void gpu_gp0(const uint32_t *p, int n) {
         gl_refresh(x, y, w, h);
     } else if (cmd >= 0x80 && cmd < 0xA0) { /* VRAM to VRAM */
         int sx0 = p[1] & 1023, sy0 = p[1] >> 16 & 511, dx = p[2] & 1023, dy = p[2] >> 16 & 511;
-        int w = p[3] & 0xFFFF, h = p[3] >> 16, i, j;
-        static uint16_t *tmp;
-
-        if (tmp == NULL) tmp = malloc(VRAM_W * VRAM_H * 2);
+        int w = p[3] & 0xFFFF, h = p[3] >> 16;
 
         if (w == 0) w = 0x400;
         if (h == 0) h = 0x200;
-        soft_all(); /* a copy reads and writes VRAM: rare, so everything first */
-        for (j = 0; j < h; j++)
-            for (i = 0; i < w; i++)
-                tmp[j * w + i] = g_vram[((sy0 + j) & 511) * VRAM_W + ((sx0 + i) & 1023)];
-        for (j = 0; j < h; j++)
-            for (i = 0; i < w; i++)
-                g_vram[((dy + j) & 511) * VRAM_W + ((dx + i) & 1023)] = tmp[j * w + i];
-        gl_vram_dirty(dx, dy, w, h);
+        /* the faces' parts (page to page, nothing queued there): at once;
+           the cursor's bar (onto the screen the queue draws): queued after it */
+        if (sx0 + w > VRAM_W || sy0 + h > VRAM_H || dx + w > VRAM_W || dy + h > VRAM_H) {
+            soft_all(); /* wraps */
+            copy_px(sx0, sy0, dx, dy, w, h);
+        } else if (s_nsoft == 0 || !(meets(&s_soft_w, sx0, sy0, sx0 + w - 1, sy0 + h - 1) ||
+                                     meets(&s_soft_w, dx, dy, dx + w - 1, dy + h - 1) || meets(&s_soft_r, dx, dy, dx + w - 1, dy + h - 1))) {
+            copy_px(sx0, sy0, dx, dy, w, h);
+        } else {
+            Soft e;
+
+            e.kind = SOFT_COPY;
+            e.u.copy.sx = sx0, e.u.copy.sy = sy0, e.u.copy.dx = dx, e.u.copy.dy = dy, e.u.copy.w = w, e.u.copy.h = h;
+            e.box[0] = dx, e.box[1] = dy, e.box[2] = dx + w - 1, e.box[3] = dy + h - 1;
+            e.read[0][0] = sx0, e.read[0][1] = sy0, e.read[0][2] = sx0 + w - 1, e.read[0][3] = sy0 + h - 1;
+            e.read[1][0] = 1, e.read[1][2] = 0;
+            soft_push(&e, 0);
+        }
         gl_copy_to(sx0, sy0, w, h, s_map_a + (dx - s_map_a) * s_map_s, dy, w * s_map_s); /* a menu's highlight, placed with it */
     } else if (cmd >= 0xE1 && cmd <= 0xE6) {
         gp0_env(p[0]);

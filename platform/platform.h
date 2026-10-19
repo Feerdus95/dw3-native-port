@@ -72,7 +72,6 @@ void gl_vram_dirty(int x, int y, int w, int h);
 /* The primitives' drawing into the 1x VRAM, queued until read (gpu_draw.c) */
 void soft_all(void);                          /* everything queued, drawn now */
 void soft_discard(void);                      /* VRAM was replaced (a loaded state) */
-void soft_need(const uint16_t need[8]);       /* these 64x64 blocks are about to be read */
 void soft_read(int x, int y, int w, int h);   /* this rect is about to be read */
 void soft_write(int x, int y, int w, int h);  /* this rect is about to be overwritten */
 void gl_shadows_resolve(void); /* an ordering table drawn: its battle shadows onto the copy */

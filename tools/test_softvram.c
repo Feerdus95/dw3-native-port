@@ -38,7 +38,8 @@ int gte_widescreen(void) { return 0; }
 int gte_in_battle(void) { return 0; }
 void perf_begin(int s) {}
 void perf_end(int s) {}
-void perf_gpu(int s, double ms) {}
+static double s_drawn; /* the primitives drawn into g_vram (perf PF_SOFT_N) */
+void perf_gpu(int s, double ms) { s_drawn += s == PF_SOFT_N ? ms : 0; }
 const StageFx *stagefx_current(float *bright) { return NULL; }
 void stagefx_stage_drawn(int polygons) {}
 void stagefx_draw(int ox, int oy, int x1, int y1, int x2, int y2) {}
@@ -73,9 +74,10 @@ static void env(int tx, int ty, int depth, int semi, int x1, int y1, int x2, int
 static uint32_t xy(int w, int h) { return (uint32_t)(rnd(w + 40) - 20) | (uint32_t)(rnd(h + 40) - 20) << 16; }
 static uint32_t col(void) { return (uint32_t)rnd(0x1000000); }
 
-/* A random primitive in a w x h area, textured ones from the page at 640, 0 (4 bpp, CLUT at 0, 480) */
+/* A random primitive in a w x h area, textured ones from the page at 640, 0 (4 bpp, CLUT at 0, 240: in the
+   frame buffer's 64x64 block, as the battle has them) */
 static void prim(int w, int h) {
-    uint32_t p[12], tp = 640 >> 6 | 1u << 9, clut = 480u << 6;
+    uint32_t p[12], tp = 640 >> 6 | 1u << 9, clut = 240u << 6;
 
     switch (rnd(6)) {
     case 0: /* textured triangle */
@@ -118,7 +120,7 @@ static void run(uint16_t *out) {
         data[i] = (uint16_t)rnd(65536);
     }
     r = (RECT){640, 0, 64, 256}, LoadImage(&r, (uint32_t *)data);
-    r = (RECT){0, 480, 16, 1}, LoadImage(&r, (uint32_t *)data);
+    r = (RECT){0, 240, 16, 1}, LoadImage(&r, (uint32_t *)data);
     for (f = 0; f < 40; f++) {
         int x0 = f % 2 * 320;
         uint32_t p[3];
@@ -145,6 +147,13 @@ static void run(uint16_t *out) {
             uint32_t q[4] = {p[0], p[1], p[2], 64u | 64u << 16};
             gp0(q, 4);
         }
+        { /* a face's part, page to page, and the cursor's bar, page to this buffer (DR_MOVE) */
+            uint32_t m[4] = {0x80000000u, 640u | 16u << 16, 704u | 16u << 16, 16u | 16u << 16};
+            uint32_t b[4] = {0x80000000u, 640u | 32u << 16, (uint32_t)(x0 + 100) | 100u << 16, 32u | 8u << 16};
+
+            gp0(m, 4);
+            gp0(b, 4);
+        }
         /* each case on frames of its own, the last ones left uncovered at the end */
         if (f % 6 == 1) { /* a move out of this buffer, to where nothing reads */
             r = (RECT){x0 + 10, 20, 64, 64}, MoveImage(&r, 896, 64);
@@ -166,14 +175,22 @@ static void run(uint16_t *out) {
 int main(int argc, char **argv) {
     static uint16_t eager[VRAM_W * VRAM_H], queued[VRAM_W * VRAM_H];
     int i, diff = 0;
+    double all;
 
+    setvbuf(stdout, NULL, _IONBF, 0);
     ResetGraph(0);
     s_eager = 1, run(eager);
+    printf("drawn at once: %.0f primitives\n", s_drawn);
+    all = s_drawn, s_drawn = 0;
     s_eager = 0, run(queued);
+    printf("queued: %.0f drawn\n", s_drawn);
     for (i = 0; i < VRAM_W * VRAM_H; i++) {
         diff += eager[i] != queued[i];
     }
     printf("%d pixels differ\n", diff);
     assert(diff == 0);
+    /* the covered frames dropped, not drawn (a CLUT in the frame buffer's
+       block kept them all once); this test reads back far more than a frame does */
+    assert(s_drawn > 0 && s_drawn < all * 0.85);
     return 0;
 }

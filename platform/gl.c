@@ -699,7 +699,8 @@ void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi
 
         need_rect(need, v[0].tx, v[0].ty, 64 << depth, 256);
         need_rect(need, v[0].clut_x, v[0].clut_y, depth == 0 ? 16 : 256, 1);
-        soft_need(need);
+        soft_read(v[0].tx, v[0].ty, 64 << depth, 256);
+        soft_read(v[0].clut_x, v[0].clut_y, depth == 0 ? 16 : 256, 1);
         if ((need[0] & g_vram_dirty[0]) | (need[1] & g_vram_dirty[1]) | (need[2] & g_vram_dirty[2]) | (need[3] & g_vram_dirty[3]) |
             (need[4] & g_vram_dirty[4]) | (need[5] & g_vram_dirty[5]) | (need[6] & g_vram_dirty[6]) | (need[7] & g_vram_dirty[7])) {
             flush();
