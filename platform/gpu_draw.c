@@ -494,6 +494,14 @@ static void soft_masks(void) {
     }
 }
 
+/* Why the queue is being drawn, for the meter's csv (perf_note) */
+static const char *s_why = "?";
+static int s_why_r[4];
+
+static void why(const char *what, int x, int y, int w, int h) {
+    s_why = what, s_why_r[0] = x, s_why_r[1] = y, s_why_r[2] = w, s_why_r[3] = h;
+}
+
 /* Everything queued, into g_vram */
 void soft_all(void) {
     DrawState saved = g;
@@ -502,6 +510,10 @@ void soft_all(void) {
     if (s_nsoft == 0) {
         return;
     }
+    if (perf_on() && s_nsoft >= 64) {
+        perf_note("soft: %d drawn for %s %d,%d %dx%d", s_nsoft, s_why, s_why_r[0], s_why_r[1], s_why_r[2], s_why_r[3]);
+    }
+    s_why = "?";
     perf_begin(PF_SOFT);
     for (i = 0; i < s_nsoft; i++) {
         const Soft *e = &s_soft[i];
@@ -534,8 +546,32 @@ void soft_discard(void) {
 
 void soft_read(int x, int y, int w, int h) {
     if (w > 0 && h > 0 && s_nsoft > 0 && meets(&s_soft_w, x, y, x + w - 1, y + h - 1)) {
+        why("a read of", x, y, w, h);
         soft_all();
     }
+}
+
+/* The meter's csv: a big cover that dropped nothing, and which queued primitive it is waiting on */
+static void cover_failed(int x1, int y1, int x2, int y2, const char *how) {
+    int i, k;
+
+    if (!perf_on() || (x2 - x1 + 1) * (y2 - y1 + 1) < 160 * 120) {
+        return;
+    }
+    for (i = 0; i < s_nsoft; i++) {
+        const Soft *e = &s_soft[i];
+
+        for (k = 0; k < 2; k++) {
+            const int *r = e->read[k];
+
+            if (r[0] <= r[2] && r[0] <= x2 && r[2] >= x1 && r[1] <= y2 && r[3] >= y1) {
+                perf_note("cover %d,%d-%d,%d %s: kind %d reads %d,%d-%d,%d (page %d,%d depth %d), %d queued", x1, y1, x2, y2, how,
+                          e->kind, r[0], r[1], r[2], r[3], e->g.tx, e->g.ty, e->g.depth, s_nsoft);
+                return;
+            }
+        }
+    }
+    perf_note("cover %d,%d-%d,%d %s, %d queued", x1, y1, x2, y2, how, s_nsoft);
 }
 
 /* Drops the queued primitives that only write inside x1-y2, which an opaque
@@ -545,6 +581,7 @@ static int soft_cover(int x1, int y1, int x2, int y2, int outside) {
     int i, n = 0;
 
     if (meets(&s_soft_r, x1, y1, x2, y2)) {
+        cover_failed(x1, y1, x2, y2, "is read");
         return 0;
     }
     if (!meets(&s_soft_w, x1, y1, x2, y2)) {
@@ -555,6 +592,7 @@ static int soft_cover(int x1, int y1, int x2, int y2, int outside) {
         const int *b = s_soft[i].box;
 
         if (!INSIDE(b) && b[0] <= x2 && b[2] >= x1 && b[1] <= y2 && b[3] >= y1) {
+            cover_failed(x1, y1, x2, y2, "is partly drawn");
             return 0; /* it would draw over the write when drawn later */
         }
     }
@@ -573,6 +611,7 @@ static int soft_cover(int x1, int y1, int x2, int y2, int outside) {
    write x, y, w, h */
 void soft_write(int x, int y, int w, int h) {
     if (w > 0 && h > 0 && s_nsoft > 0 && !soft_cover(x, y, SDL_min(x + w, VRAM_W) - 1, SDL_min(y + h, VRAM_H) - 1, 1)) {
+        why("a write of", x, y, w, h);
         soft_all();
     }
 }
@@ -608,12 +647,15 @@ static void soft_queue(Soft *e, int x1, int y1, int x2, int y2, int textured, in
 static void soft_push(Soft *e, int opaque) {
     if (opaque && !g.check_mask && s_nsoft > 0) {
         soft_cover(e->box[0], e->box[1], e->box[2], e->box[3], 0);
+    } else if (perf_on() && (e->box[2] - e->box[0] + 1) * (e->box[3] - e->box[1] + 1) >= 256 * 200) {
+        perf_note("big kind %d %d,%d-%d,%d not a cover: opaque %d, mask check %d, %d queued", e->kind, e->box[0], e->box[1],
+                  e->box[2], e->box[3], opaque, g.check_mask, s_nsoft);
     }
     if (s_soft == NULL && (s_soft = SDL_malloc(SOFT_MAX * sizeof(Soft))) == NULL) {
         return;
     }
     if (s_nsoft == SOFT_MAX) {
-        soft_all();
+        why("a full queue", 0, 0, 0, 0), soft_all();
     }
     e->g = g;
     s_soft[s_nsoft++] = *e;
@@ -824,7 +866,7 @@ void gpu_gp0(const uint32_t *p, int n) {
         int c = rgb15(p[0] & 255, p[0] >> 8 & 255, p[0] >> 16 & 255, 0);
 
         if (x + w > VRAM_W || y + h > VRAM_H) {
-            soft_all(); /* wraps: it covers what it covers */
+            why("a wrapping fill", x, y, w, h), soft_all(); /* wraps: it covers what it covers */
         } else {
             soft_write(x, y, w, h);
         }
@@ -844,7 +886,7 @@ void gpu_gp0(const uint32_t *p, int n) {
         /* the faces' parts (page to page, nothing queued there): at once;
            the cursor's bar (onto the screen the queue draws): queued after it */
         if (sx0 + w > VRAM_W || sy0 + h > VRAM_H || dx + w > VRAM_W || dy + h > VRAM_H) {
-            soft_all(); /* wraps */
+            why("a wrapping copy", dx, dy, w, h), soft_all(); /* wraps */
             copy_px(sx0, sy0, dx, dy, w, h);
         } else if (s_nsoft == 0 || !(meets(&s_soft_w, sx0, sy0, sx0 + w - 1, sy0 + h - 1) ||
                                      meets(&s_soft_w, dx, dy, dx + w - 1, dy + h - 1) || meets(&s_soft_r, dx, dy, dx + w - 1, dy + h - 1))) {

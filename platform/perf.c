@@ -6,6 +6,7 @@
    card's own timer queries (gl.c), the GPU's (the scene's batches, the props).
    The GPU's come a few frames late and are put with the frame they arrive in. */
 #include <SDL3/SDL.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,6 +28,22 @@ static double s_prev_enter, s_budget = 20;
 static FILE *s_csv;
 static int s_hist[BINS], s_late;
 static double s_max, s_sum;
+static int s_notes; /* perf_note's lines in this fight's csv */
+
+/* A line about the frame being made, into the csv as a comment: "# <frame>: ..." */
+void perf_note(const char *fmt, ...) {
+    char line[256];
+    va_list ap;
+
+    if (s_csv == NULL || s_notes >= 3000) {
+        return;
+    }
+    va_start(ap, fmt);
+    SDL_vsnprintf(line, sizeof line, fmt, ap);
+    va_end(ap);
+    fprintf(s_csv, "# %d: %s\n", s_count, line);
+    s_notes++;
+}
 
 static double now_ms(void) {
     return (double)SDL_GetPerformanceCounter() * 1000.0 / (double)SDL_GetPerformanceFrequency();
@@ -93,6 +110,7 @@ static void open_csv(void) {
     if (s_csv != NULL) {
         fprintf(s_csv, "# budget %.2f ms; late: the frame took over 1.2 budgets; gpu times arrive ~3 frames late\n", s_budget);
         fprintf(s_csv, "frame,interval_ms,game_ms,draw_ms,props_cpu_ms,present_ms,wait_ms,gpu_scene_ms,gpu_props_ms,late,props_load_ms,props_gl_ms,props_flush_ms,props_tex_ms,stage_polys,stage_bright,props_drawn,soft_ms,soft_prims\n");
+        s_notes = 0;
         LOG("perf: %s", path);
     }
 }

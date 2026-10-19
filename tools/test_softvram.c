@@ -38,6 +38,8 @@ int gte_widescreen(void) { return 0; }
 int gte_in_battle(void) { return 0; }
 void perf_begin(int s) {}
 void perf_end(int s) {}
+int perf_on(void) { return 0; }
+void perf_note(const char *fmt, ...) {}
 static double s_drawn; /* the primitives drawn into g_vram (perf PF_SOFT_N) */
 void perf_gpu(int s, double ms) { s_drawn += s == PF_SOFT_N ? ms : 0; }
 const StageFx *stagefx_current(float *bright) { return NULL; }

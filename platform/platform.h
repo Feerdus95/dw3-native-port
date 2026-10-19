@@ -142,6 +142,7 @@ int perf_on(void); /* the meter is on and a fight is running */
 void perf_begin(int section);
 void perf_end(int section);
 void perf_gpu(int section, double ms);
+void perf_note(const char *fmt, ...); /* a comment line in the fight's csv, with the frame */
 void perf_enter(double budget_ms); /* at each vsync */
 void perf_reset(void);
 void perf_draw(struct SDL_Renderer *r);
