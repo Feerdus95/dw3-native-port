@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.14.0 (beta)
+
+- **Faster drawing**: the game's own 1x picture (the PlayStation's VRAM, which the game reads back for some textures)
+  is no longer drawn in software for every primitive. Primitives are queued and drawn only when something reads or
+  writes that part of the VRAM, and only those the read depends on; a frame the next clear covers is dropped. In battle
+  the CPU's drawing went from 7 ms a frame to 1.6 ms, and the late frames of a fight from about 12 to 2-7.
+- What still has to be drawn in software is 2.7 times faster, pixel for pixel the same.
+- Screens with no full clear (the title, loading screens, the step from the EXP screen back to the field) draw what is
+  queued three frames later, a little each frame, instead of all at once when the queue fills.
+- The first fight's props load faster: a stage's OBJ models are read in 2 ms instead of 26, so the fight no longer
+  starts with a 78 ms frame.
+- The performance meter's CSV notes why the queued VRAM was drawn on each frame it was.
+
 ## v0.13.0 (beta)
 
 - **Props in the fight stages** (`data/mods/fightstages/<id>/props.json`, written by the model viewer's Stages tab):
