@@ -127,8 +127,15 @@ static void run(uint16_t *out) {
         int x0 = f % 2 * 320;
         uint32_t p[3];
 
+        soft_age(); /* a vsync */
         env(640, 0, 0, rnd(4), x0, 0, x0 + 319, 239, f % 7 == 3 ? 3 : 0);
-        if (f % 3 == 0) { /* the frame's background: a fill, or an opaque rectangle */
+        if (f >= 32) {
+            /* the last frames: no background and nothing read, as on the title: only soft_age draws what is old */
+            for (i = 0; i < 60; i++) {
+                prim(320, 240);
+            }
+            continue;
+        } else if (f % 3 == 0) { /* the frame's background: a fill, or an opaque rectangle */
             p[0] = 0x02000000u | col(), p[1] = (uint32_t)x0, p[2] = 320u | 240u << 16;
             gp0(p, 3);
         } else {

@@ -443,6 +443,7 @@ static void line_walk(int x0, int y0, int c0, int x1, int y1, int c1, int gourau
 enum { SOFT_TRI, SOFT_RECT, SOFT_LINE, SOFT_COPY };
 typedef struct {
     int kind;
+    unsigned frame; /* the vsync it was queued in (soft_age) */
     int box[4];     /* what it writes, inclusive, in the drawing area */
     int read[2][4]; /* the texture page and CLUT it reads; x1 > x2: none */
     DrawState g;
@@ -474,6 +475,7 @@ static void copy_px(int sx0, int sy0, int dx, int dy, int w, int h) {
 #define SOFT_MAX 16384 /* about four frames; when full, drawn */
 static Soft *s_soft;
 static int s_nsoft;
+static unsigned s_soft_frame; /* vsyncs, as soft_age counts them */
 /* Where the queue writes or reads: 64x64 blocks, and 8x8 cells for when a
    block is shared (the CLUTs under the frame buffers) */
 typedef struct {
@@ -727,8 +729,38 @@ static void soft_push(Soft *e, int opaque) {
         why("a full queue", 0, 0, 0, 0), soft_all();
     }
     e->g = g;
+    e->frame = s_soft_frame;
     s_soft[s_nsoft++] = *e;
     soft_mark(e);
+}
+
+/* At each vsync: what was queued three frames ago or before is drawn, the
+   queue's oldest first. A scene that never covers its screen (the title,
+   the loading screens, a fade) would otherwise pile up until something reads
+   it or the queue is full, and draw it all in one frame; drawing the front
+   of the queue in order is always right. A double-buffered screen is
+   covered two frames on, so in a battle this draws nothing */
+void soft_age(void) {
+    DrawState saved = g;
+    int i, n = 0;
+
+    s_soft_frame++;
+    while (n < s_nsoft && s_soft_frame - s_soft[n].frame > 3) {
+        n++;
+    }
+    if (n == 0) {
+        return;
+    }
+    perf_begin(PF_SOFT);
+    for (i = 0; i < n; i++) {
+        soft_run(&s_soft[i]);
+    }
+    perf_end(PF_SOFT);
+    perf_gpu(PF_SOFT_N, n);
+    g = saved;
+    s_nsoft -= n;
+    SDL_memmove(s_soft, s_soft + n, (size_t)s_nsoft * sizeof(Soft));
+    soft_masks();
 }
 
 static void soft_tri(Vtx a, Vtx b, Vtx c, int flags, int clut) {

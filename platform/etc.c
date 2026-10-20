@@ -34,6 +34,7 @@ static void vblank(void) {
     uint64_t now = SDL_GetTicksNS();
 
     perf_enter(period_ns() / 1e6);
+    soft_age();
     s_real = g_ff_speed <= 1 || movie_playing() || ++s_ff_tick >= g_ff_speed;
     if (s_real) {
         s_ff_tick = 0;
