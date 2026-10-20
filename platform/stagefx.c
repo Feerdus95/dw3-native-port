@@ -356,6 +356,34 @@ static int obj_int(const char **s) {
     return (int)v;
 }
 
+/* An OBJ's number: [-]digits[.digits] read here (SDL_strtod's 0.3 us each made a big model's parse 20 ms), anything
+   else by SDL_strtod */
+static float obj_float(const char *s, char **end) {
+    double v = 0, k = 1;
+    const char *p = s;
+    int neg = 0, digits = 0;
+
+    while (*p == ' ' || *p == '	') {
+        p++;
+    }
+    if (*p == '-' || *p == '+') {
+        neg = *p++ == '-';
+    }
+    for (; *p >= '0' && *p <= '9'; p++, digits++) {
+        v = v * 10 + (*p - '0');
+    }
+    if (*p == '.') {
+        for (p++; *p >= '0' && *p <= '9'; p++, digits++) {
+            v = v * 10 + (*p - '0'), k *= 10;
+        }
+    }
+    if (digits == 0 || digits > 15 || *p == 'e' || *p == 'E' || *p == 'n' || *p == 'N' || *p == 'i' || *p == 'I') {
+        return (float)SDL_strtod(s, end); /* exponents, long or odd numbers: exact */
+    }
+    *end = (char *)p;
+    return (float)((neg ? -v : v) / k);
+}
+
 /* An OBJ's vertices, 8 floats each; NULL if it has no triangles */
 static float *obj_parse(const char *text, int *count) {
     float *pos = NULL, *uv = NULL, *nrm = NULL, *out = NULL;
@@ -378,7 +406,7 @@ static float *obj_parse(const char *text, int *count) {
             for (i = 0; i < need; i++) {
                 char *e;
 
-                f[i] = (float)SDL_strtod(q, &e);
+                f[i] = obj_float(q, &e);
                 q = e;
             }
             *arr = SDL_realloc(*arr, (size_t)(*cnt + 1) * need * sizeof(float));
