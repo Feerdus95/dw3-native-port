@@ -207,6 +207,12 @@ int main(int argc, char **argv) {
         diff += eager[i] != queued[i];
     }
     printf("%d pixels differ\n", diff);
+    if (argc > 1) { /* the VRAM, to compare two builds of the rasteriser */
+        FILE *f = fopen(argv[1], "wb");
+
+        fwrite(eager, 2, VRAM_W * VRAM_H, f);
+        fclose(f);
+    }
     assert(diff == 0);
     /* the covered frames dropped, not drawn (a CLUT in the frame buffer's
        block kept them all once); this test reads back far more than a frame does */

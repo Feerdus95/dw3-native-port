@@ -138,14 +138,20 @@ typedef struct {
     int x, y, r, g, b, u, v;
 } Vtx;
 
-static int64_t edge(const Vtx *a, const Vtx *b, int x, int y) {
-    return (int64_t)(b->x - a->x) * (y - a->y) - (int64_t)(b->y - a->y) * (x - a->x);
+/* Within a triangle the GPU draws (under 1024x512, see triangle) the edge
+   functions stay under 2^20 and a colour or UV's weighted sum under 2^30:
+   32 bits are enough, and on the 32-bit build a 64-bit division is a
+   library call, five a pixel */
+static int32_t edge(const Vtx *a, const Vtx *b, int x, int y) {
+    return (b->x - a->x) * (y - a->y) - (b->y - a->y) * (x - a->x);
 }
 
-/* A triangle: flags bit 0 gouraud, 1 textured, 2 raw texture, 3 semi */
+/* A triangle: flags bit 0 gouraud, 1 textured, 2 raw texture, 3 semi. The
+   edge functions and the colours' and UVs' weighted sums go up by a fixed
+   step a pixel; each value is its sum / area, as the barycentric weights give it */
 static void triangle(Vtx a, Vtx b, Vtx c, int flags, int clut) {
     int minx, maxx, miny, maxy, x, y;
-    int64_t area = edge(&a, &b, c.x, c.y);
+    int32_t area = edge(&a, &b, c.x, c.y);
     Vtx t;
 
     if (area == 0) {
@@ -166,33 +172,68 @@ static void triangle(Vtx a, Vtx b, Vtx c, int flags, int clut) {
     if (miny < g.y1) miny = g.y1;
     if (maxx > g.x2 + 1) maxx = g.x2 + 1;
     if (maxy > g.y2 + 1) maxy = g.y2 + 1;
-    for (y = miny; y < maxy; y++) {
-        for (x = minx; x < maxx; x++) {
+    if (minx >= maxx || miny >= maxy) {
+        return;
+    }
+    {
+        /* a step in x, in y, of each edge function */
+        int32_t x0 = b.y - c.y, x1 = c.y - a.y, x2 = a.y - b.y, y0 = c.x - b.x, y1 = a.x - c.x, y2 = b.x - a.x;
+        int32_t row0 = edge(&b, &c, minx, miny), row1 = edge(&c, &a, minx, miny), row2 = edge(&a, &b, minx, miny);
+        /* the top-left rule: a pixel on an edge is drawn only on a top or left one */
+        int tl0 = (c.y < b.y) || (c.y == b.y && c.x > b.x), tl1 = (a.y < c.y) || (a.y == c.y && a.x > c.x);
+        int tl2 = (b.y < a.y) || (b.y == a.y && b.x > a.x);
+        int dith = g.dither && g_dither_on && (flags & 1 || (flags & 6) == 2);
+#define SUM(f, w0, w1, w2) ((w0) * a.f + (w1) * b.f + (w2) * c.f)
+#define DIV(s) ((s) / area)
+
+        int32_t dr = SUM(r, x0, x1, x2), dg = SUM(g, x0, x1, x2), db = SUM(b, x0, x1, x2);
+        int32_t du = SUM(u, x0, x1, x2), dv = SUM(v, x0, x1, x2);
+
+    for (y = miny; y < maxy; y++, row0 += y0, row1 += y1, row2 += y2) {
+        /* the row's pixels inside all three edges: from lo to hi steps in */
+        int32_t lo = 0, hi = maxx - minx - 1, w0, w1, w2, sr, sg, sb, su, sv;
+        const int32_t wk[3] = {row0, row1, row2}, xk[3] = {x0, x1, x2};
+        int k;
+
+        for (k = 0; k < 3; k++) {
+            if (xk[k] > 0 && wk[k] < 0) {
+                lo = SDL_max(lo, (-wk[k] + xk[k] - 1) / xk[k]);
+            } else if (xk[k] < 0) {
+                hi = SDL_min(hi, wk[k] >= 0 ? wk[k] / -xk[k] : -1);
+            } else if (xk[k] == 0 && wk[k] < 0) {
+                hi = -1;
+            }
+        }
+        if (lo > hi) {
+            continue;
+        }
+        w0 = row0 + lo * x0, w1 = row1 + lo * x1, w2 = row2 + lo * x2;
+        sr = SUM(r, w0, w1, w2), sg = SUM(g, w0, w1, w2), sb = SUM(b, w0, w1, w2);
+        su = SUM(u, w0, w1, w2), sv = SUM(v, w0, w1, w2);
+
+        for (x = minx + lo; x <= minx + hi; x++, w0 += x0, w1 += x1, w2 += x2, sr += dr, sg += dg, sb += db, su += du, sv += dv) {
             /* pixel centres, top-left rule: right and bottom edges are left out */
-            int64_t w0 = edge(&b, &c, x, y), w1 = edge(&c, &a, x, y), w2 = edge(&a, &b, x, y);
             int r, gg, bb, col, semi, d;
 
-            if (w0 < 0 || w1 < 0 || w2 < 0) {
+            if ((w0 | w1 | w2) < 0) {
                 continue;
             }
-            if ((w0 == 0 && !((c.y < b.y) || (c.y == b.y && c.x > b.x))) ||
-                (w1 == 0 && !((a.y < c.y) || (a.y == c.y && a.x > c.x))) ||
-                (w2 == 0 && !((b.y < a.y) || (b.y == a.y && b.x > a.x)))) {
+            if ((w0 == 0 && !tl0) || (w1 == 0 && !tl1) || (w2 == 0 && !tl2)) {
                 continue;
             }
             if (flags & 1) {
-                r = (int)((w0 * a.r + w1 * b.r + w2 * c.r) / area);
-                gg = (int)((w0 * a.g + w1 * b.g + w2 * c.g) / area);
-                bb = (int)((w0 * a.b + w1 * b.b + w2 * c.b) / area);
+                r = DIV(sr);
+                gg = DIV(sg);
+                bb = DIV(sb);
             } else {
                 r = a.r; gg = a.g; bb = a.b;
             }
             /* dithered: shaded or texture-blended polygons, while E1 asks for it */
-            d = g.dither && g_dither_on && (flags & 1 || (flags & 6) == 2) ? DITHER[y & 3][x & 3] : 0;
+            d = dith ? DITHER[y & 3][x & 3] : 0;
             semi = flags & 8;
             if (flags & 2) {
-                int u = (int)((w0 * a.u + w1 * b.u + w2 * c.u) / area);
-                int v = (int)((w0 * a.v + w1 * b.v + w2 * c.v) / area);
+                int u = DIV(su);
+                int v = DIV(sv);
                 int tex = texel(u, v, clut);
 
                 if (tex == 0) {
@@ -205,6 +246,9 @@ static void triangle(Vtx a, Vtx b, Vtx c, int flags, int clut) {
             }
             plot(x, y, col, semi);
         }
+    }
+#undef SUM
+#undef DIV
     }
 }
 
