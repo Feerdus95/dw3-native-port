@@ -5,7 +5,7 @@
  
  /* The techniques, from 1: technique n is TECHS[n - 1] */
 +#ifdef NATIVE
-+TechData TECHS[NATIVE_SOLAR_LASER] = { /* and the port's Solar Laser, 444 (native.h) */
++TechData TECHS[NATIVE_TECH_COUNT] = { /* and the port's techniques, 444 on (native.h) */
 +#else
  TechData TECHS[443] = {
 +#endif

@@ -84,6 +84,25 @@ const void *native_packs_text(int language);
 #define NATIVE_SOLAR_LASER 444 /* its signature: a technique past the game's 443 */
 extern int g_bladegarurumon;
 void native_bladegarurumon_setup(void);
+/* Flamedramon, the second extra form: the Armour Digimon of Digimon World 2, its
+   model made for this game (dw2-extractor, data/mods/7100.bin), DIGIMON_DATA[52]
+   made its own (native_flamedramon_setup), its own techniques 445-450 with Flaming
+   Rocket the signature, learnt while g_flamedramon is on (stfgtrep/growth.c) */
+#define NATIVE_FLAMEDRAMON 472
+#define NATIVE_FLAMEDRAMON_DATA 52
+#define NATIVE_EXTRA_FORMS 2
+#define NATIVE_FLAMEDRAMON_FID 7100 /* its model, a file of data/mods: without it the form isn't offered */
+#define NATIVE_FLAMEDRAMON_NAME 251 /* its name: a string past the game's 251 in the Digimon names */
+#define NATIVE_FLAMEDRAMON_TECH 445 /* its six techniques, the last the signature Flaming Rocket */
+#define NATIVE_TECH_COUNT 450       /* TECHS: the game's 443, Solar Laser and Flamedramon's */
+extern int g_flamedramon;
+extern int g_give_form; /* --give ID: the form is given to every partner on a load (a development aid) */
+void native_flamedramon_setup(void);
+static const unsigned short NATIVE_FORM_IDS[NATIVE_EXTRA_FORMS] = {NATIVE_BLADEGARURUMON, NATIVE_FLAMEDRAMON};
+/* the DIGIMON_DATA entry of an extra form's id, or -1 */
+static int __attribute__((unused)) native_form_slot(int id) {
+    return id == NATIVE_BLADEGARURUMON ? NATIVE_BLADEGARURUMON_DATA : id == NATIVE_FLAMEDRAMON ? NATIVE_FLAMEDRAMON_DATA : -1;
+}
 /* listPartnerEntries into room for max ids, BladeGarurumon included when there is */
 int native_list_partner_entries(int partner, unsigned short *out, int max);
 

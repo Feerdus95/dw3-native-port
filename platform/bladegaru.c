@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "platform.h"
+#include "../include/native.h"
 
 #define FIGHTERS_FILE 0x1CC /* SMDLDATA.PRO */
 #define NEW_FID 1           /* the Japanese MSAMTMAP, which the European game never reads */
@@ -472,42 +473,20 @@ static long find_key(const uint8_t *f, long size, int model, uint32_t *end) {
     return found;
 }
 
-/* SMDLDATA with model 471: a key past the list's last and a partner's record
-   past the partners' table (469's, its files 1's, and MetalGarurumon's
-   cameras where the DNA forms have none). The records' face pointers past
-   the keys move with the 4 bytes inserted */
-static uint8_t *build_fighters(const uint8_t *f, long size, long *out_size, int *bg_fid, int *mg_fid) {
-    uint32_t base, o1, o2, o3, end, off, ptr, n_player;
-    long old, donor;
-    uint8_t rec[RECORD], *out;
+/* The fighters' file with a partner's record for MODEL, REC, past the partners' table, and a key for it
+   past the list's last. The records' face pointers past the keys move with the 4 bytes inserted */
+static uint8_t *insert_record(const uint8_t *f, long size, long *out_size, int model, const uint8_t *rec, int kind) {
+    uint32_t base = rd32(f), o2 = rd32(f + 8), o3 = rd32(f + 12), end, off, ptr, n_player = (o3 - o2) / RECORD;
+    uint8_t *out;
     int i;
 
-    if (size < 16) {
+    if (find_key(f, size, model, &end) >= 0) {
         return NULL;
-    }
-    base = rd32(f), o1 = rd32(f + 4), o2 = rd32(f + 8), o3 = rd32(f + 12);
-    old = find_key(f, size, OLD_MODEL, &end);
-    donor = find_key(f, size, MG_MODEL, &end);
-    if (o1 >= o2 || o2 >= o3 || o3 > (uint32_t)size || old < 0 || donor < 0 || find_key(f, size, NEW_MODEL, &end) >= 0) {
-        return NULL;
-    }
-    if (o2 + (f[old + 2] + 1) * RECORD > o3 || o2 + (f[donor + 2] + 1) * RECORD > o3) {
-        return NULL;
-    }
-    n_player = (o3 - o2) / RECORD;
-    memcpy(rec, f + o2 + f[old + 2] * RECORD, RECORD);
-    for (i = 0; i < (int)(sizeof CAM_FILL / sizeof CAM_FILL[0]); i++) {
-        memcpy(rec + CAM_FILL[i][0], f + o2 + f[donor + 2] * RECORD + CAM_FILL[i][0], CAM_FILL[i][1] - CAM_FILL[i][0]);
-    }
-    *bg_fid = (int)(rd32(rec) >> 16);
-    *mg_fid = (int)(rd32(f + o2 + f[donor + 2] * RECORD) >> 16);
-    for (i = 0; i < 3; i++) { /* its skeleton, motions and effects: (fid, sub) */
-        wr32(rec + 4 * i, NEW_FID << 16 | (rd32(rec + 4 * i) & 0xFFFF));
     }
     *out_size = size + 4 + RECORD;
     out = malloc(*out_size);
     memcpy(out, f, end);
-    out[end] = (uint8_t)NEW_MODEL, out[end + 1] = NEW_MODEL >> 8, out[end + 2] = (uint8_t)n_player, out[end + 3] = f[old + 3];
+    out[end] = (uint8_t)model, out[end + 1] = model >> 8, out[end + 2] = (uint8_t)n_player, out[end + 3] = (uint8_t)kind;
     memcpy(out + end + 4, f + end, o3 - end);
     memcpy(out + o3 + 4, rec, RECORD);
     memcpy(out + o3 + 4 + RECORD, f + o3, size - o3);
@@ -524,6 +503,61 @@ static uint8_t *build_fighters(const uint8_t *f, long size, long *out_size, int 
         }
     }
     return out;
+}
+
+/* SMDLDATA with model 471: a key past the list's last and a partner's record
+   past the partners' table (469's, its files 1's, and MetalGarurumon's
+   cameras where the DNA forms have none). The records' face pointers past
+   the keys move with the 4 bytes inserted */
+static uint8_t *build_fighters(const uint8_t *f, long size, long *out_size, int *bg_fid, int *mg_fid) {
+    uint32_t o1, o2, o3, end;
+    long old, donor;
+    uint8_t rec[RECORD];
+    int i;
+
+    if (size < 16) {
+        return NULL;
+    }
+    o1 = rd32(f + 4), o2 = rd32(f + 8), o3 = rd32(f + 12);
+    old = find_key(f, size, OLD_MODEL, &end);
+    donor = find_key(f, size, MG_MODEL, &end);
+    if (o1 >= o2 || o2 >= o3 || o3 > (uint32_t)size || old < 0 || donor < 0 || find_key(f, size, NEW_MODEL, &end) >= 0) {
+        return NULL;
+    }
+    if (o2 + (f[old + 2] + 1) * RECORD > o3 || o2 + (f[donor + 2] + 1) * RECORD > o3) {
+        return NULL;
+    }
+    memcpy(rec, f + o2 + f[old + 2] * RECORD, RECORD);
+    for (i = 0; i < (int)(sizeof CAM_FILL / sizeof CAM_FILL[0]); i++) {
+        memcpy(rec + CAM_FILL[i][0], f + o2 + f[donor + 2] * RECORD + CAM_FILL[i][0], CAM_FILL[i][1] - CAM_FILL[i][0]);
+    }
+    *bg_fid = (int)(rd32(rec) >> 16);
+    *mg_fid = (int)(rd32(f + o2 + f[donor + 2] * RECORD) >> 16);
+    for (i = 0; i < 3; i++) { /* its skeleton, motions and effects: (fid, sub) */
+        wr32(rec + 4 * i, NEW_FID << 16 | (rd32(rec + 4 * i) & 0xFFFF));
+    }
+    return insert_record(f, size, out_size, NEW_MODEL, rec, f[old + 3]);
+}
+
+/* Flamedramon: a partner's record for model 472, ExVeemon's (its cameras, face, distance) with the file the model is in
+   (NATIVE_FLAMEDRAMON_FID) and the entries dw2-extractor's converter puts it at. NULL when it can't be made */
+#define EXVEEMON_MODEL 259
+#define FLAME_SUBS {40, 0, 41} /* its skeleton, motions and effects: the converter's FighterInfo */
+static uint8_t *add_flamedramon(const uint8_t *f, long size, long *out_size) {
+    static const int SUBS[3] = FLAME_SUBS;
+    uint32_t o2 = rd32(f + 8), o3 = rd32(f + 12), end;
+    long ex = find_key(f, size, EXVEEMON_MODEL, &end);
+    uint8_t rec[RECORD];
+    int i;
+
+    if (size < 16 || ex < 0 || o2 + (f[ex + 2] + 1) * RECORD > o3 || o3 > (uint32_t)size) {
+        return NULL;
+    }
+    memcpy(rec, f + o2 + f[ex + 2] * RECORD, RECORD);
+    for (i = 0; i < 3; i++) {
+        wr32(rec + 4 * i, (uint32_t)NATIVE_FLAMEDRAMON_FID << 16 | SUBS[i]);
+    }
+    return insert_record(f, size, out_size, NATIVE_FLAMEDRAMON, rec, f[ex + 3]);
 }
 
 /* Solar Laser, technique 444 (past the game's 443: NATIVE_SOLAR_LASER), in
@@ -553,26 +587,46 @@ static const uint8_t *const SOLAR_LASER_HELP[5] = {
                       0x3B, 0x28, 0x38, 0x3C, 0x2C, 0x01, 0x01, 0x34, 0x01, 0x5F, 0x2E, 0x30, 0x2A, 0x36, 0x01, 0x05, 0x00},
 };
 
-/* a text file with strings up to `index`, that one `text` */
-static uint8_t *with_string(int fid, uint32_t index, const uint8_t *text, long *size) {
+typedef struct {
+    uint32_t index;
+    const uint8_t *text;
+} Add;
+
+/* a text file with the strings ADD names (past its last, in order), the ones between empty; NULL when it has
+   them already (a translation's file stays) */
+static uint8_t *with_strings(int fid, const Add *add, int n_add, long *size) {
     uint8_t *f, *out;
     long fsize = native_read_raw(fid, &f);
-    uint32_t n = fsize >= 4 ? rd32(f) : 0, count = index + 1, i, at, room;
+    uint32_t n = fsize >= 4 ? rd32(f) : 0, count = 0, i, at, room = 0;
+    int k;
 
-    if (n == 0 || n >= count || 4 + 4 * n > (uint32_t)fsize) { /* not a text file, or it has it */
+    for (k = 0; k < n_add; k++) {
+        count = add[k].index + 1 > count ? add[k].index + 1 : count;
+        room += (uint32_t)strlen((const char *)add[k].text) + 1;
+    }
+    if (n == 0 || n >= count || 4 + 4 * n > (uint32_t)fsize) { /* not a text file, or it has them */
         free(f);
         return NULL;
     }
-    room = (uint32_t)fsize + 4 * count + (uint32_t)strlen((const char *)text) + 2 + count;
+    room += (uint32_t)fsize + 4 * count + 2 + count;
     out = calloc(1, room + 2048);
     wr32(out, count);
     at = 4 + 4 * count;
     for (i = 0; i < count; i++) {
-        const uint8_t *s = i == index ? text : i < n ? f + rd32(f + 4 + 4 * i) : (const uint8_t *)"";
-        size_t len = i == index || i >= n ? strlen((const char *)s) + 1 : strnlen((const char *)s, fsize - (s - f)) + 1;
+        const uint8_t *str = (const uint8_t *)"";
+        size_t len;
 
+        for (k = 0; k < n_add; k++) {
+            str = add[k].index == i ? add[k].text : str;
+        }
+        if (i < n) {
+            str = f + rd32(f + 4 + 4 * i);
+            len = strnlen((const char *)str, fsize - (str - f)) + 1;
+        } else {
+            len = strlen((const char *)str) + 1;
+        }
         wr32(out + 4 + 4 * i, at);
-        memcpy(out + at, s, len);
+        memcpy(out + at, str, len);
         at += len;
     }
     *size = (at + 2047) / 2048 * 2048;
@@ -580,18 +634,68 @@ static uint8_t *with_string(int fid, uint32_t index, const uint8_t *text, long *
     return out;
 }
 
+/* ASCII (letters, space, comma, full stop) in the game's glyphs: A-Z from 0x0E, a-z from 0x28, and a prefix 0x01 before
+   a space (01), a comma (04) and a full stop (05); 0 ends. Into OUT (room for 2 bytes a character) */
+static uint8_t *glyphs(const char *s, uint8_t *out) {
+    uint8_t *w = out;
+
+    for (; *s; s++) {
+        if (*s >= 'A' && *s <= 'Z') {
+            *w++ = 0x0E + *s - 'A';
+        } else if (*s >= 'a' && *s <= 'z') {
+            *w++ = 0x28 + *s - 'a';
+        } else {
+            *w++ = 0x01, *w++ = *s == ',' ? 0x04 : *s == '.' ? 0x05 : 0x01;
+        }
+    }
+    *w = 0;
+    return out;
+}
+
+/* Flamedramon's techniques 445-450 and its name (NATIVE_FLAMEDRAMON_NAME), in the five languages' order of the Solar Laser
+   help: English, French, Italian, German, Spanish. No accents: the glyphs of those are the game's own to find */
+static const char *const FLAME_TECH_NAMES[6] = {"Ember Jab", "Burning Dash", "Blazing Burst", "Blazing Knuckle", "Inferno Charge", "Flaming Rocket"};
+static const char *const FLAME_TECH_HELP[5][6] = {
+    {"Ember jab. Fire attack.", "Burning dash. Fire charge.", "Blazing burst. Fire blast.", "Blazing knuckle. Heavy fire hit.",
+     "Inferno charge. Fire attack.", "Shoots a blazing missile at a single target."},
+    {"Coup de braise. Attaque de feu.", "Charge brulante. Attaque de feu.", "Explosion de flammes. Attaque de feu.",
+     "Poing flamboyant. Gros coup de feu.", "Charge infernale. Attaque de feu.", "Tire un missile enflamme sur une cible."},
+    {"Pugno di brace. Attacco di fuoco.", "Scatto rovente. Attacco di fuoco.", "Esplosione di fiamme. Attacco di fuoco.",
+     "Pugno fiammeggiante. Colpo di fuoco.", "Carica infernale. Attacco di fuoco.", "Lancia un missile infuocato su un bersaglio."},
+    {"Glutschlag. Feuerangriff.", "Flammenansturm. Feuerangriff.", "Flammenstoss. Feuerangriff.", "Flammenfaust. Schwerer Feuerhieb.",
+     "Infernoansturm. Feuerangriff.", "Feuert eine Flammenrakete auf ein Ziel."},
+    {"Golpe de brasas. Ataque de fuego.", "Embestida ardiente. Ataque de fuego.", "Rafaga de llamas. Ataque de fuego.",
+     "Puno llameante. Golpe de fuego.", "Carga infernal. Ataque de fuego.", "Dispara un misil ardiente a un solo objetivo."}};
+
+#define DIGIMON_NAMES 0x4E /* DIGNAM: the files 78-84, of which the languages are some */
+
 /* The fighters' file and model 471, made the first time either is read;
    NULL for the game's own (or when they can't be made: logged) */
 const uint8_t *bladegaru_file(int fid, long *size) {
-    static uint8_t *fighters, *model, *texts[10];
-    static long fighters_size, model_size, texts_size[10];
-    static int tried, made[10];
-    int t = fid >= SKILL_NAMES && fid < SKILL_NAMES + 5 ? fid - SKILL_NAMES : fid >= SKILL_INFO && fid < SKILL_INFO + 5 ? 5 + fid - SKILL_INFO : -1;
+    static uint8_t *fighters, *model, *texts[20];
+    static long fighters_size, model_size, texts_size[20];
+    static int tried, made[20];
+    int t = fid >= SKILL_NAMES && fid < SKILL_NAMES + 5 ? fid - SKILL_NAMES
+          : fid >= SKILL_INFO && fid < SKILL_INFO + 5 ? 5 + fid - SKILL_INFO
+          : fid >= DIGIMON_NAMES && fid < DIGIMON_NAMES + 7 ? 10 + fid - DIGIMON_NAMES : -1;
 
     if (t >= 0) {
         if (!made[t]) {
+            Add add[7];
+            uint8_t buf[7][160];
+            int i, n = 0;
+
             made[t] = 1;
-            texts[t] = with_string(fid, SOLAR_LASER_TECH, t < 5 ? SOLAR_LASER_NAME : SOLAR_LASER_HELP[t - 5], &texts_size[t]);
+            if (t >= 10) { /* Flamedramon's name */
+                add[n].index = NATIVE_FLAMEDRAMON_NAME, add[n++].text = glyphs("Flamedramon", buf[0]);
+            } else {
+                add[n].index = SOLAR_LASER_TECH, add[n++].text = t < 5 ? SOLAR_LASER_NAME : SOLAR_LASER_HELP[t - 5];
+                for (i = 0; i < 6; i++, n++) {
+                    add[n].index = NATIVE_FLAMEDRAMON_TECH + i;
+                    add[n].text = glyphs(t < 5 ? FLAME_TECH_NAMES[i] : FLAME_TECH_HELP[t - 5][i], buf[1 + i]);
+                }
+            }
+            texts[t] = with_strings(fid, add, n, &texts_size[t]);
         }
         *size = texts_size[t];
         return texts[t];
@@ -617,6 +721,17 @@ const uint8_t *bladegaru_file(int fid, long *size) {
             free(fighters);
             fighters = NULL;
             LOG("bladegarurumon: the fighters' file stays the game's");
+        }
+        if (fsize > 0 && native_file_exists(NATIVE_FLAMEDRAMON_FID)) { /* and Flamedramon's, past BladeGarurumon's */
+            long gsize;
+            uint8_t *g = add_flamedramon(fighters != NULL ? fighters : f, fighters != NULL ? fighters_size : fsize, &gsize);
+
+            if (g != NULL) {
+                free(fighters);
+                fighters = g, fighters_size = gsize;
+            } else {
+                LOG("flamedramon: its record can't be added to the fighters' file");
+            }
         }
         free(f);
     }

@@ -1,11 +1,11 @@
 --- a/src/main/game/partner.c
 +++ b/src/main/game/partner.c
-@@ -1,4 +1,92 @@
+@@ -1,5 +1,111 @@
  #include "game.h"
-+
+ 
 +#ifdef NATIVE
-+/* BladeGarurumon (native.h): every partner can have it past its 44 Digimon, as entry
-+   PARTNER_ENTRY_COUNT, kept in the port's store of extra forms (platform/forms.c), which
++/* The port's extra forms (native.h: BladeGarurumon, Flamedramon): every partner can have them past its 44 Digimon, as entries
++   PARTNER_ENTRY_COUNT and up, kept in the port's store of extra forms (platform/forms.c), which
 +   a card's file carries in its unused tail (an area a slot): its level (0 while the
 +   partner hasn't it), exp, and which of its six skills it has, known and marked, 3 bits
 +   each. So the game's own bytes stay a standard card's. A skill is its own
@@ -18,21 +18,21 @@
 +   (native_extra_loaded), and where both have it, the one that got further is kept */
 +#define BG_ENTRY PARTNER_ENTRY_COUNT
 +
-+static s32 hasBladeGarurumon(s32 partner) {
-+    return native_form_get(partner, NATIVE_BLADEGARURUMON, NULL);
++static s32 hasForm(s32 partner, s32 id) {
++    return native_form_get(partner, id, NULL);
 +}
 +
-+static void getBladeGarurumon(s32 partner, PartnerEntry *out) {
++static void getForm(s32 partner, s32 id, PartnerEntry *out) {
 +    NativeForm form;
-+    DigimonData *d = &DIGIMON_DATA[NATIVE_BLADEGARURUMON_DATA];
++    DigimonData *d = &DIGIMON_DATA[native_form_slot(id)];
 +    u32 bits;
 +    s32 i;
 +
-+    if (!native_form_get(partner, NATIVE_BLADEGARURUMON, &form)) {
++    if (!native_form_get(partner, id, &form)) {
 +        form.level = 0, form.exp = 0, form.skills = 0;
 +    }
 +    bits = form.skills;
-+    out->id = NATIVE_BLADEGARURUMON;
++    out->id = id;
 +    out->level = form.level;
 +    out->exp = form.exp;
 +    for (i = 0; i < 6; i++, bits >>= 3) {
@@ -42,11 +42,11 @@
 +    }
 +}
 +
-+static void setBladeGarurumon(s32 partner, PartnerEntry *in) {
++static void setForm(s32 partner, s32 id, PartnerEntry *in) {
 +    NativeForm form;
 +    u8 *p = GAME.partners[partner].pad;
 +    u8 *f = &GAME.pad10[partner * 3];
-+    DigimonData *d = &DIGIMON_DATA[NATIVE_BLADEGARURUMON_DATA];
++    DigimonData *d = &DIGIMON_DATA[native_form_slot(id)];
 +    u32 bits = 0;
 +    s32 i;
 +
@@ -55,14 +55,16 @@
 +            bits |= (1 | (in->skills[i] & SKILL_KNOWN ? 2 : 0) | (in->skills[i] & SKILL_MARKED ? 4 : 0)) << (i * 3);
 +        }
 +    }
-+    form.partner = partner, form.id = NATIVE_BLADEGARURUMON;
++    form.partner = partner, form.id = id;
 +    form.level = in->level < 1 ? 1 : in->level;
 +    form.exp = in->exp & 0xFFFFFF; /* up to 9999999: 24 bits */
 +    form.skills = bits;
 +    native_form_set(&form);
-+    p[0] = form.level;
-+    p[1] = form.exp, p[2] = form.exp >> 8, p[3] = form.exp >> 16;
-+    f[0] = bits, f[1] = bits >> 8, f[2] = bits >> 16;
++    if (id == NATIVE_BLADEGARURUMON) { /* only the first version's form has the old bytes */
++        p[0] = form.level;
++        p[1] = form.exp, p[2] = form.exp >> 8, p[3] = form.exp >> 16;
++        f[0] = bits, f[1] = bits >> 8, f[2] = bits >> 16;
++    }
 +}
 +
 +/* A slot is in GAME (stgmcard/saves.c, after a load): its forms are the game's, and
@@ -83,29 +85,48 @@
 +            native_form_merge_legacy(&old);
 +        }
 +    }
++    /* --give ID (a development aid): the form at level 70 with all its skills, for every
++       partner that lacks it. It goes into the card with the next save: use a copy of it */
++    if (g_give_form > 0 && native_form_slot(g_give_form) >= 0) {
++        for (partner = 0; partner < 8; partner++) {
++            if (!hasForm(partner, g_give_form)) {
++                PartnerEntry entry = {0};
++                s32 i;
++
++                entry.level = 70;
++                for (i = 0; i < 6; i++) {
++                    entry.skills[i] = DIGIMON_DATA[native_form_slot(g_give_form)].skills[i + 1] | SKILL_KNOWN;
++                }
++                setForm(partner, g_give_form, &entry);
++            }
++        }
++    }
 +}
 +
-+/* an entry's id, BladeGarurumon's past the 44 */
++/* an entry's id, an extra form's past the 44 */
 +static s32 entryId(s32 partner, s32 index) {
-+    return index == BG_ENTRY ? NATIVE_BLADEGARURUMON : GAME.partners[partner].info.entries[index].id;
++    return index >= BG_ENTRY ? NATIVE_FORM_IDS[index - BG_ENTRY] : GAME.partners[partner].info.entries[index].id;
 +}
 +#endif
- 
++
  /* The index of Digimon `id` among a partner's entries, or -1 */
  s32 findPartnerEntry(s32 partner, s32 id) {
-@@ -12,6 +100,11 @@
+     s32 i;
+@@ -12,6 +118,13 @@
              return i;
          }
      }
 +#ifdef NATIVE
-+    if (id == NATIVE_BLADEGARURUMON && hasBladeGarurumon(partner)) {
-+        return BG_ENTRY;
++    for (i = 0; i < NATIVE_EXTRA_FORMS; i++) {
++        if (id == NATIVE_FORM_IDS[i] && hasForm(partner, id)) {
++            return BG_ENTRY + i;
++        }
 +    }
 +#endif
      return -1;
  }
  
-@@ -24,10 +117,17 @@
+@@ -24,10 +137,17 @@
      for (i = 0, n = 0; i < PARTNER_SLOT_COUNT; i++) {
          if (GAME.partners[partner].info.slots[i] >= FIRST_ENTRY_ID) {
              index = findPartnerEntry(partner, GAME.partners[partner].info.slots[i]);
@@ -123,7 +144,7 @@
          }
      }
      for (i = n; i < PARTNER_SLOT_COUNT; i++) {
-@@ -44,18 +144,23 @@
+@@ -44,19 +164,51 @@
      for (i = 0; i < PARTNER_SLOT_COUNT; i++) {
          index = findPartnerEntry(partner, ids[i]);
          if (index >= 0) {
@@ -138,24 +159,23 @@
      }
  }
  
--/* Copies the ids of a partner's Digimon, zero-filled; returns how many there are */
--s32 listPartnerEntries(s32 partner, u16 *out) {
 +#ifdef NATIVE
 +/* listPartnerEntries into room for max ids: PARTNER_ENTRY_COUNT, or one more
 +   for BladeGarurumon past a partner's 44 */
 +s32 native_list_partner_entries(s32 partner, u16 *out, s32 max) {
-     s32 i;
-     s32 n;
--    s32 count;
- 
-     for (n = i = 0; i < PARTNER_ENTRY_COUNT; i++) {
-         if (GAME.partners[partner].info.entries[i].id >= FIRST_ENTRY_ID) {
-@@ -63,6 +168,31 @@
-             n++;
-         }
-     }
-+    if (hasBladeGarurumon(partner) && n < max) {
-+        out[n++] = NATIVE_BLADEGARURUMON;
++    s32 i;
++    s32 n;
++
++    for (n = i = 0; i < PARTNER_ENTRY_COUNT; i++) {
++        if (GAME.partners[partner].info.entries[i].id >= FIRST_ENTRY_ID) {
++            out[n] = GAME.partners[partner].info.entries[i].id;
++            n++;
++        }
++    }
++    for (i = 0; i < NATIVE_EXTRA_FORMS; i++) {
++        if (hasForm(partner, NATIVE_FORM_IDS[i]) && n < max) {
++            out[n++] = NATIVE_FORM_IDS[i];
++        }
 +    }
 +    for (i = n; i < max; i++) {
 +        out[i] = 0;
@@ -164,60 +184,54 @@
 +}
 +#endif
 +
-+/* Copies the ids of a partner's Digimon, zero-filled; returns how many there are */
-+s32 listPartnerEntries(s32 partner, u16 *out) {
-+    s32 i;
-+    s32 n;
-+    s32 count;
-+
+ /* Copies the ids of a partner's Digimon, zero-filled; returns how many there are */
+ s32 listPartnerEntries(s32 partner, u16 *out) {
+     s32 i;
+     s32 n;
+     s32 count;
+ 
 +#ifdef NATIVE
 +    return native_list_partner_entries(partner, out, PARTNER_ENTRY_COUNT);
 +#endif
-+    for (n = i = 0; i < PARTNER_ENTRY_COUNT; i++) {
-+        if (GAME.partners[partner].info.entries[i].id >= FIRST_ENTRY_ID) {
-+            out[n] = GAME.partners[partner].info.entries[i].id;
-+            n++;
-+        }
-+    }
-     count = n;
-     for (; n < PARTNER_ENTRY_COUNT; n++) {
-         out[n] = 0;
-@@ -78,6 +208,15 @@
+     for (n = i = 0; i < PARTNER_ENTRY_COUNT; i++) {
+         if (GAME.partners[partner].info.entries[i].id >= FIRST_ENTRY_ID) {
+             out[n] = GAME.partners[partner].info.entries[i].id;
+@@ -78,6 +230,15 @@
      if (findPartnerEntry(partner, id) != -1) {
          return 0;
      }
 +#ifdef NATIVE
-+    if (id == NATIVE_BLADEGARURUMON) { /* past the 44, at level 1 */
++    if (native_form_slot(id) >= 0) { /* past the 44, at level 1 */
 +        PartnerEntry entry = {0};
 +
 +        entry.level = 1;
-+        setBladeGarurumon(partner, &entry);
++        setForm(partner, id, &entry);
 +        return 1;
 +    }
 +#endif
      for (i = 0, index = -1; i < PARTNER_ENTRY_COUNT; i++) {
          if (GAME.partners[partner].info.entries[i].id == 0) {
              index = i;
-@@ -97,6 +236,12 @@
+@@ -97,6 +258,12 @@
  s32 getPartnerEntry(s32 partner, s32 id, PartnerEntry *out) {
      s32 i = findPartnerEntry(partner, id);
  
 +#ifdef NATIVE
-+    if (i == BG_ENTRY) {
-+        getBladeGarurumon(partner, out);
++    if (i >= BG_ENTRY) {
++        getForm(partner, id, out);
 +        return i;
 +    }
 +#endif
      if (i != -1) {
          *out = GAME.partners[partner].info.entries[i];
      }
-@@ -107,6 +252,12 @@
+@@ -107,6 +274,12 @@
  s32 setPartnerEntry(s32 partner, s32 id, PartnerEntry *in) {
      s32 i = findPartnerEntry(partner, id);
  
 +#ifdef NATIVE
-+    if (i == BG_ENTRY) {
-+        setBladeGarurumon(partner, in);
++    if (i >= BG_ENTRY) {
++        setForm(partner, id, in);
 +        return i;
 +    }
 +#endif

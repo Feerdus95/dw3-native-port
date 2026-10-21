@@ -271,10 +271,12 @@ extern int g_map_objective; /* map_objective = 1: the map blinks the story's nex
 extern int g_journal;       /* journal = 1: the field menu's journal row (mods.c) */
 extern int g_fast_travel;   /* fast_travel = 1: X on the map screen travels there (mods.c) */
 extern int g_extra_packs;   /* extra_packs = 0: the starter choice has the game's three (packs.c) */
+extern int g_flamedramon; /* flamedramon = 0: partners don't learn it (mods.c) */
 extern int g_bladegarurumon; /* bladegarurumon = 0: partners don't learn it (mods.c) */
 /* a file an option makes anew, whole, or NULL for the game's (mods.c; packs.c, bladegaru.c) */
 const uint8_t *made_file(int fid, long *size);
-void native_bladegarurumon_setup(void); /* the game's main/game/digimon.c (patched) */
+void native_bladegarurumon_setup(void);
+void native_flamedramon_setup(void); /* the game's main/game/digimon.c (patched) */
 const uint8_t *packs_file(int fid, long *size);
 const uint8_t *bladegaru_file(int fid, long *size);
 long native_read_raw(int fid, uint8_t **out); /* files.c: a file on disk whole, malloc'd; its size */

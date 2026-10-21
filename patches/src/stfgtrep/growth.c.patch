@@ -1,23 +1,40 @@
 --- a/src/stfgtrep/growth.c
 +++ b/src/stfgtrep/growth.c
-@@ -139,7 +139,23 @@
+@@ -137,9 +137,40 @@
+     s32 id;
+     s32 i;
      s32 j;
++#ifdef NATIVE
++    s32 total;
++#endif
  
      list = STFGTREP_evolutions[partner];
 +#ifdef NATIVE
-+    /* and BladeGarurumon past the 44 (native.h): Growlmon's and Grizzmon's
-+       DNA partner, learnt with both at level 40 */
++    /* and the port's extra forms past the 44 (native.h): BladeGarurumon, Growlmon's and
++       Grizzmon's DNA partner, learnt with both at level 40; Flamedramon, learnt with
++       ExVeemon and Growlmon at level 30 */
 +    {
-+        static Evolution all[45];
++        static Evolution all[46];
 +
++        total = 44;
 +        memcpy(all, list, 44 * sizeof(Evolution));
-+        all[44].digimon = NATIVE_BLADEGARURUMON_DATA + 1;
-+        all[44].needs[0].digimon = 14, all[44].needs[0].level = 40; /* Growlmon */
-+        all[44].needs[1].digimon = 11, all[44].needs[1].level = 40; /* Grizzmon */
-+        all[44].stat = 0, all[44].value = 1;
++        if (g_bladegarurumon) {
++            all[total].digimon = NATIVE_BLADEGARURUMON_DATA + 1;
++            all[total].needs[0].digimon = 14, all[total].needs[0].level = 40; /* Growlmon */
++            all[total].needs[1].digimon = 11, all[total].needs[1].level = 40; /* Grizzmon */
++            all[total].stat = 0, all[total].value = 1;
++            total++;
++        }
++        if (g_flamedramon && native_file_exists(NATIVE_FLAMEDRAMON_FID)) {
++            all[total].digimon = NATIVE_FLAMEDRAMON_DATA + 1;
++            all[total].needs[0].digimon = 13, all[total].needs[0].level = 30; /* ExVeemon */
++            all[total].needs[1].digimon = 14, all[total].needs[1].level = 30; /* Growlmon */
++            all[total].stat = 0, all[total].value = 1;
++            total++;
++        }
 +        list = all;
 +    }
-+    for (n = 0; n < (g_bladegarurumon ? 45 : 44); n++) {
++    for (n = 0; n < total; n++) {
 +#else
      for (n = 0; n < 44; n++) {
 +#endif

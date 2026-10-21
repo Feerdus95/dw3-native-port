@@ -99,6 +99,11 @@ extra_packs = 1
 # at level 40), with its signature Solar Laser
 bladegarurumon = 1
 
+# 1: partners can learn Flamedramon (Digimon World 2's Armour Digimon: ExVeemon and
+# Growlmon at level 30), with its signature Flaming Rocket. Needs its model in
+# data/mods/7100.bin (made from a DW2 disc by dw2-extractor); without it, off
+flamedramon = 1
+
 # 1: debug keys. F1 the developers' stage select (stages, sound test, test
 # battles), F3 the sound test, F4 the vibration test, F2 the game state to game_<n>.bin, F5 / F9 save / load a state
 # (saves/quick.state, only for this same build)

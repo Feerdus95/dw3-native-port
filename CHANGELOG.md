@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Flamedramon** (options menu, on while its model is in `data/mods/7100.bin`): a 46th Digimon of its own, from Digimon
+  World 2. A quick fire attacker (strength and speed high, fire-immune, weak to water) with six techniques of its own
+  (Ember Jab to Inferno Charge) and the signature Flaming Rocket; learnt with ExVeemon and Growlmon at level 30. The port
+  now holds a list of extra forms rather than one. `--give 472` gives it to every partner on a load (a development aid:
+  it goes into the card on the next save, so use a copy).
 - **BladeGarurumon's progress is kept in the save file's own spare space.** The memory card file has 2 KB at its end that
   the game never reads or writes; each save slot now has an area there for the forms the port adds (BladeGarurumon, and
   the ones to come), with a checksum and a version. The game's own bytes are unchanged, so a card is still a standard one.

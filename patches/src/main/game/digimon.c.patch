@@ -1,6 +1,6 @@
 --- a/src/main/game/digimon.c
 +++ b/src/main/game/digimon.c
-@@ -127,8 +127,58 @@
+@@ -127,9 +127,111 @@
              return i;
          }
      }
@@ -9,10 +9,13 @@
 +    if (id == NATIVE_BLADEGARURUMON) {
 +        return NATIVE_BLADEGARURUMON_DATA;
 +    }
++    if (id == NATIVE_FLAMEDRAMON) {
++        return NATIVE_FLAMEDRAMON_DATA;
++    }
 +#endif
      return -1;
  }
-+
+ 
 +#ifdef NATIVE
 +/* BladeGarurumon as a partner's Digimon (native.h): its DNA form's record,
 +   1s, made MetalGarurumon's with a model of its own (471, which the port
@@ -55,7 +58,57 @@
 +    TECHS[NATIVE_SOLAR_LASER - 1].power = 350;
 +    TECHS[NATIVE_SOLAR_LASER - 1].element = 7;
 +}
++
++/* Flamedramon as a partner's Digimon (native.h): DIGIMON_DATA[52], a stub in the
++   game, made a quick fire attacker of its own: strength and speed high, defense and
++   wisdom low, fire-immune but weak to water. Its six techniques (445-450, past
++   BladeGarurumon's) take their scripts, sprites and sounds from an existing fire
++   technique of the kit it uses, with cost, power and element of its own: the
++   cost per point of power on the game's own 5 to 6 line, the signature Flaming
++   Rocket cheaper (30 MP for 210) as the DW2 one is. Once the game's tables are read
++   (platform/main.c) */
++void native_flamedramon_setup(void) {
++    static const u16 STATS[5] = {52, 18, 20, 12, 58}; /* strength, defense, spirit, wisdom, speed */
++    static const u16 RESISTS[7] = {80, 0, 55, 35, 35, 35, 35}; /* fire, water, ice, wind, thunder, machine, dark */
++    static const u8 STATUS[5] = {20, 35, 10, 20, 30};
++    static const u8 LEARN[6] = {10, 25, 40, 65, 90, 70};
++    static const u8 KNOWN[5] = {30, 45, 60, 80, 99};
++    /* the technique it is made from, its cost, power and element power */
++    static const u16 TECH[6][4] = {{137, 12, 65, 16}, {138, 26, 150, 24}, {139, 38, 220, 32},
++                                   {139, 70, 430, 48}, {140, 120, 700, 64}, {65, 30, 210, 40}};
++    DigimonData *d = &DIGIMON_DATA[NATIVE_FLAMEDRAMON_DATA];
++    u8 nameId = d->nameId;
++    s32 i;
++
++    *d = DIGIMON_DATA[40]; /* MetalGarurumon: the growth tables of a wolf of the same rate */
++    d->id = NATIVE_FLAMEDRAMON;
++    d->nameId = NATIVE_FLAMEDRAMON_NAME;
++    d->hp -= d->hp / 8;
++    d->mp -= d->mp / 8;
++    for (i = 0; i < 5; i++) {
++        d->battleStats[i] = STATS[i];
++        d->statusResists[i] = STATUS[i];
++        d->knownLevels[i] = KNOWN[i];
++    }
++    for (i = 0; i < 7; i++) {
++        d->resistances[i] = RESISTS[i];
++    }
++    d->skills[0] = 13; /* the plain attack */
++    for (i = 0; i < 6; i++) {
++        d->skills[i + 1] = NATIVE_FLAMEDRAMON_TECH + i;
++        d->skillLevels[i] = LEARN[i];
++        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1] = TECHS[TECH[i][0] - 1];
++        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].mp = TECH[i][1];
++        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].power = TECH[i][2];
++        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].elementPower = TECH[i][3];
++        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].element = 2;
++    }
++    d->pairTech = 0;
++    d->pairPartner = 0;
++    (void)nameId;
++}
 +#endif
- 
++
  /* The DIGIMON_DATA entry of Digimon `id`, or NULL */
  DigimonData *getDigimon(s32 id) {
+     s32 index = findDigimon(id);

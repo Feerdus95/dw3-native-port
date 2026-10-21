@@ -6,7 +6,7 @@
      GAME.funcs.getPartnerSlots(member, screen->slots);
 +#ifdef NATIVE
 +    /* entries[47]: room for BladeGarurumon past a partner's 44 (native.h) */
-+    screen->entryCount = native_list_partner_entries(member, (u16 *)screen->entries, PARTNER_ENTRY_COUNT + 1);
++    screen->entryCount = native_list_partner_entries(member, (u16 *)screen->entries, PARTNER_ENTRY_COUNT + NATIVE_EXTRA_FORMS);
 +#else
      screen->entryCount = GAME.funcs.listPartnerEntries(member, screen->entries);
 +#endif
