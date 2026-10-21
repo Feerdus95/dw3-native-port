@@ -96,6 +96,9 @@ void native_bladegarurumon_setup(void);
 #define NATIVE_FLAMEDRAMON_TECH 445 /* its six techniques, the last the signature Flaming Rocket */
 #define NATIVE_TECH_COUNT 450       /* TECHS: the game's 443, Solar Laser and Flamedramon's */
 extern int g_flamedramon;
+/* an effect model of the port's (Flaming Rocket's rocket, 450, and the dome of flames, 451: data/mods/7101.bin, 7102.bin, made by
+   dw2-extractor) as FIGHTSTG_effectModels' entry: 1 with its model's file and index and its motions' (fightstg/effect_model.c) */
+int native_effect_model(int id, int *file, int *motionFile);
 extern int g_give_form; /* --give ID: the form is given to every partner on a load (a development aid) */
 void native_flamedramon_setup(void);
 static const unsigned short NATIVE_FORM_IDS[NATIVE_EXTRA_FORMS] = {NATIVE_BLADEGARURUMON, NATIVE_FLAMEDRAMON};

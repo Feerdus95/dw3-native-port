@@ -1,0 +1,38 @@
+--- a/src/fightstg/effect_model.c
++++ b/src/fightstg/effect_model.c
+@@ -306,6 +306,13 @@
+ /* The model file of effect model id (FIGHTSTG_effectModels), or 0 for none */
+ s32 FIGHTSTG_getEffectModelFile(s32 id) {
+     EffectModelEntry *entry;
++#ifdef NATIVE
++    s32 file, motion;
++
++    if (native_effect_model(id, &file, &motion)) { /* the port's own (native.h) */
++        return file >> 16;
++    }
++#endif
+ 
+     for (entry = FIGHTSTG_effectModels; entry->id != 0; entry++) {
+         if (entry->id == id) {
+@@ -324,6 +331,21 @@
+     EffectModelEntry *entry;
+ 
+     task->effect = 0;
++#ifdef NATIVE
++    {
++        s32 file, motion;
++
++        if (native_effect_model(id, &file, &motion)) { /* the port's own (native.h) */
++            task->effect = id;
++            task->motionFile = motion;
++            task->file = file;
++            task->texPos = (Vec2){ 0x280, 0x100 };
++            task->pos = *pos;
++            task->rot = *rot;
++            return task;
++        }
++    }
++#endif
+     for (entry = FIGHTSTG_effectModels; entry->id != 0; entry++) {
+         if (entry->id == id) {
+             task->effect = id;

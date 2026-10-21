@@ -560,6 +560,30 @@ static uint8_t *add_flamedramon(const uint8_t *f, long size, long *out_size) {
     return insert_record(f, size, out_size, NATIVE_FLAMEDRAMON, rec, f[ex + 3]);
 }
 
+/* Flaming Rocket's effect models (native.h): their files hold the model's bones last */
+int native_effect_model(int id, int *file, int *motionFile) {
+    static const int FIDS[2] = {7101, 7102}; /* the rocket (450) and the dome (451) */
+    static int bones[2] = {-1, -1};
+    int i = id - (NATIVE_FLAMEDRAMON_TECH + 5);
+
+    if (i < 0 || i > 1 || !g_flamedramon) {
+        return 0;
+    }
+    if (bones[i] < 0) {
+        uint8_t *f;
+        long size = native_read_raw(FIDS[i], &f);
+
+        bones[i] = size >= 4 && rd32(f) >= 8 ? (int)(rd32(f) / 4) - 1 : 0;
+        free(f);
+    }
+    if (bones[i] == 0) {
+        return 0;
+    }
+    *file = FIDS[i] << 16 | bones[i];
+    *motionFile = FIDS[i] << 16;
+    return 1;
+}
+
 /* Solar Laser, technique 444 (past the game's 443: NATIVE_SOLAR_LASER), in
    the techniques' texts, a copy a language from English to Spanish: its
    name (SKLNAM, by technique) and its help (SKLINF, which has strings up to

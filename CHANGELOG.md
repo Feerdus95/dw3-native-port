@@ -7,6 +7,8 @@
   (Ember Jab to Inferno Charge) and the signature Flaming Rocket; learnt with ExVeemon and Greymon at level 30. The port
   now holds a list of extra forms rather than one. `--give 472` gives it to every partner on a load (a development aid:
   it goes into the card on the next save, so use a copy).
+- Flaming Rocket is its own: an orange missile model (and the burst of flames where it lands) taken from Digimon World 2's
+  files and converted to this game's effect model format (`data/mods/7101.bin`, `7102.bin`), with its own action script.
 - **BladeGarurumon's progress is kept in the save file's own spare space.** The memory card file has 2 KB at its end that
   the game never reads or writes; each save slot now has an area there for the forms the port adds (BladeGarurumon, and
   the ones to come), with a checksum and a version. The game's own bytes are unchanged, so a card is still a standard one.
