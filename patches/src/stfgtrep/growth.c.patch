@@ -12,7 +12,7 @@
 +#ifdef NATIVE
 +    /* and the port's extra forms past the 44 (native.h): BladeGarurumon, Growlmon's and
 +       Grizzmon's DNA partner, learnt with both at level 40; Flamedramon, learnt with
-+       ExVeemon and Growlmon at level 30 */
++       ExVeemon and Greymon at level 30 */
 +    {
 +        static Evolution all[46];
 +
@@ -28,7 +28,7 @@
 +        if (g_flamedramon && native_file_exists(NATIVE_FLAMEDRAMON_FID)) {
 +            all[total].digimon = NATIVE_FLAMEDRAMON_DATA + 1;
 +            all[total].needs[0].digimon = 13, all[total].needs[0].level = 30; /* ExVeemon */
-+            all[total].needs[1].digimon = 14, all[total].needs[1].level = 30; /* Growlmon */
++            all[total].needs[1].digimon = 12, all[total].needs[1].level = 30; /* Greymon */
 +            all[total].stat = 0, all[total].value = 1;
 +            total++;
 +        }
