@@ -557,6 +557,17 @@ static uint8_t *add_flamedramon(const uint8_t *f, long size, long *out_size) {
     for (i = 0; i < 3; i++) {
         wr32(rec + 4 * i, (uint32_t)NATIVE_FLAMEDRAMON_FID << 16 | SUBS[i]);
     }
+    /* the portrait cameras (6 and 7) are ExVeemon's, whose head leans back: Flamedramon's is level, 380 units further along the
+       facing, so the cameras' eye and target both move that much to keep it in the middle of the frame */
+    for (i = 6; i < 8; i++) {
+        int at;
+
+        for (at = 0x1A + 6 * i + 4; at < 0x62 + 6 * i + 5; at += 0x62 - 0x1A) {
+            int16_t z = (int16_t)(rec[at] | rec[at + 1] << 8) + 380;
+
+            rec[at] = (uint8_t)z, rec[at + 1] = (uint8_t)(z >> 8);
+        }
+    }
     return insert_record(f, size, out_size, NATIVE_FLAMEDRAMON, rec, f[ex + 3]);
 }
 
