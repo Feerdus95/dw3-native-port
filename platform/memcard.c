@@ -4,6 +4,7 @@
 #include <string.h>
 #include <SDL3/SDL.h>
 #include "platform.h"
+#include "../include/native_forms.h"
 
 #define CARD_SIZE 0x20000
 #define BLOCK 0x2000
@@ -25,12 +26,18 @@ static char s_path[1100];
 SAVED static long s_cmd, s_result;
 SAVED static int s_pending;
 
+/* The card image, written whole to a file beside and renamed over the card: a crash
+   or a full disk mid-write leaves the card as it was, not half a save */
 static void save_card(void) {
-    FILE *f = fopen(s_path, "wb");
+    char tmp[1110];
+    FILE *f;
 
-    if (f == NULL || fwrite(s_card, CARD_SIZE, 1, f) != 1) {
-        LOG("memcard: can't write %s", s_path);
+    snprintf(tmp, sizeof tmp, "%s.tmp", s_path);
+    f = fopen(tmp, "wb");
+    if (f != NULL && fwrite(s_card, CARD_SIZE, 1, f) == 1 && fclose(f) == 0 && SDL_RenamePath(tmp, s_path)) {
+        return;
     }
+    LOG("memcard: can't write %s", s_path);
     if (f != NULL) {
         fclose(f);
     }
@@ -72,8 +79,8 @@ static int next_block(int b) {
     return n == 0xFFFF ? 0 : n + 1;
 }
 
-/* copies `bytes` at `ofs` of a file to or from `buf` */
-static long file_io(const char *name, uint8_t *buf, long ofs, long bytes, int write) {
+/* copies `bytes` at `ofs` of a file to or from `buf`, the card in memory only */
+static long file_copy(const char *name, uint8_t *buf, long ofs, long bytes, int write) {
     int b = find_file(name);
 
     if (!formatted()) {
@@ -102,10 +109,87 @@ static long file_io(const char *name, uint8_t *buf, long ofs, long bytes, int wr
         ofs += n;
         bytes -= n;
     }
-    if (write) {
+    return ERR_NONE;
+}
+
+/* the same, and the card written when it was a write */
+static long file_io(const char *name, uint8_t *buf, long ofs, long bytes, int write) {
+    long r = file_copy(name, buf, ofs, bytes, write);
+
+    if (write && r == ERR_NONE) {
         save_card();
     }
-    return ERR_NONE;
+    return r;
+}
+
+/* --- the extra forms (forms.c): the save file is 4 blocks, a summary and three slots' data sections, and the
+   0x800 bytes after them are never touched by the game, which is where the forms' areas are --- */
+#define TAIL_OFS 0x7800
+#define TAIL_SIZE 0x800
+#define SLOT_OFS 0x300 /* the first slot's data section: the header, 3 icons and the summary come first */
+#define SLOT_SIZE 0x2700
+#define SLOTS 3
+
+static int tail_io(const char *file, uint8_t *tail, int write) {
+    return file_copy(file, tail, TAIL_OFS, TAIL_SIZE, write) == ERR_NONE;
+}
+
+/* a copy of the card as it was before the first thing this port's areas did to it, kept once */
+static void backup_once(void) {
+    char bk[1110];
+    FILE *f;
+
+    snprintf(bk, sizeof bk, "%s/../saves/card1.pre-dw3x.mcd", data_dir());
+    if (SDL_GetPathInfo(bk, NULL)) {
+        return;
+    }
+    f = fopen(bk, "wb");
+    if (f != NULL) {
+        if (fwrite(s_card, CARD_SIZE, 1, f) == 1) {
+            LOG("memcard: the card as it was is kept as %s", bk);
+        }
+        fclose(f);
+    }
+}
+
+/* the slot whose data section starts at `ofs`, or -1 */
+static int slot_at(long ofs) {
+    return ofs >= SLOT_OFS && (ofs - SLOT_OFS) % SLOT_SIZE == 0 && (ofs - SLOT_OFS) / SLOT_SIZE < SLOTS ? (int)((ofs - SLOT_OFS) / SLOT_SIZE) : -1;
+}
+
+/* a read of a slot's data section begins: its area is staged for the load (the game's once the slot is in GAME) */
+static void forms_reading(const char *file, int slot) {
+    uint8_t tail[TAIL_SIZE];
+
+    if (!tail_io(file, tail, 0)) {
+        return;
+    }
+    if (native_forms_stage(tail, slot) != NATIVE_AREA_OK) {
+        backup_once(); /* a save from before the areas, or one whose area isn't ours: the card as the player had it */
+    }
+}
+
+/* a write of a slot's data section begins */
+static void forms_writing(const char *file, int slot) {
+    uint8_t tail[TAIL_SIZE];
+
+    if (tail_io(file, tail, 0) && native_forms_area_state(tail, slot) != NATIVE_AREA_OK) {
+        backup_once();
+    }
+}
+
+/* a slot's data section is written: the store goes to its area */
+static void forms_written(const char *file, int slot) {
+    uint8_t tail[TAIL_SIZE];
+
+    if (!tail_io(file, tail, 0)) {
+        return;
+    }
+    if (native_forms_write(tail, slot) != 0) {
+        LOG("memcard: slot %d's area holds data this port doesn't own, left as it is", slot + 1);
+        return;
+    }
+    tail_io(file, tail, 1);
 }
 
 static long finish(long cmd, long chan, long result) {
@@ -162,11 +246,28 @@ long MemCardAccept(long chan) {
 }
 
 long MemCardReadFile(long chan, const char *file, void *adrs, long ofs, long bytes) {
-    return finish(3, chan, chan == 0 ? file_io(file, adrs, ofs, bytes, 0) : ERR_NO_CARD);
+    long r = chan == 0 ? file_io(file, adrs, ofs, bytes, 0) : ERR_NO_CARD;
+
+    if (r == ERR_NONE && slot_at(ofs) >= 0) {
+        forms_reading(file, slot_at(ofs));
+    }
+    return finish(3, chan, r);
 }
 
 long MemCardWriteFile(long chan, const char *file, void *adrs, long ofs, long bytes) {
-    return finish(4, chan, chan == 0 ? file_io(file, adrs, ofs, bytes, 1) : ERR_NO_CARD);
+    long r;
+
+    if (chan == 0 && slot_at(ofs) >= 0) {
+        forms_writing(file, slot_at(ofs));
+    }
+    r = chan == 0 ? file_copy(file, adrs, ofs, bytes, 1) : ERR_NO_CARD;
+    if (r == ERR_NONE && ofs + bytes >= SLOT_OFS + SLOT_SIZE && (ofs + bytes - SLOT_OFS) % SLOT_SIZE == 0 && (ofs + bytes - SLOT_OFS) / SLOT_SIZE <= SLOTS) {
+        forms_written(file, (int)((ofs + bytes - SLOT_OFS) / SLOT_SIZE) - 1); /* the slot's last sector */
+    }
+    if (r == ERR_NONE) {
+        save_card();
+    }
+    return finish(4, chan, r);
 }
 
 /* the synchronous ones return their McErr* themselves */

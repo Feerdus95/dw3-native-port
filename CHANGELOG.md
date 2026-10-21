@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **BladeGarurumon's progress is kept in the save file's own spare space.** The memory card file has 2 KB at its end that
+  the game never reads or writes; each save slot now has an area there for the forms the port adds (BladeGarurumon, and
+  the ones to come), with a checksum and a version. The game's own bytes are unchanged, so a card is still a standard one.
+- **Saves made before this are carried over**: loading one reads BladeGarurumon from where it was kept before, and the
+  next save writes it into its area. It is also still written where it was, so such a save still loads in the previous
+  version with its progress. The first time a save without an area is read or saved, the card is copied once to
+  `saves/card1.pre-dw3x.mcd`.
+- The memory card is written to a temporary file and renamed over `card1.mcd`, so a crash while saving can't leave a
+  half-written card.
+
 ## v0.14.0 (beta)
 
 - **Faster drawing**: the game's own 1x picture (the PlayStation's VRAM, which the game reads back for some textures)

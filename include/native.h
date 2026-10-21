@@ -2,6 +2,7 @@
    platform layer. Force-included into every game file (-include native.h). */
 #ifndef NATIVE_H
 #define NATIVE_H
+#include "native_forms.h"
 
 /* The heap arena (platform/memory.c); the PSX had 0x800AB800-0x801FF000, ~1.3 MB.
    Bigger on purpose: room for mods and expansions. The file cache, which on the
