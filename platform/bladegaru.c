@@ -547,7 +547,7 @@ static uint8_t *add_flamedramon(const uint8_t *f, long size, long *out_size) {
     static const int SUBS[3] = FLAME_SUBS;
     uint32_t o2 = rd32(f + 8), o3 = rd32(f + 12), end;
     long ex = find_key(f, size, EXVEEMON_MODEL, &end);
-    uint8_t rec[RECORD];
+    uint8_t rec[RECORD], *out;
     int i;
 
     if (size < 16 || ex < 0 || o2 + (f[ex + 2] + 1) * RECORD > o3 || o3 > (uint32_t)size) {
@@ -568,7 +568,24 @@ static uint8_t *add_flamedramon(const uint8_t *f, long size, long *out_size) {
             rec[at] = (uint8_t)z, rec[at + 1] = (uint8_t)(z >> 8);
         }
     }
-    return insert_record(f, size, out_size, NATIVE_FLAMEDRAMON, rec, f[ex + 3]);
+    out = insert_record(f, size, out_size, NATIVE_FLAMEDRAMON, rec, f[ex + 3]);
+    if (out != NULL) {
+        /* ExVeemon's face parts are rectangles of its own image: over Flamedramon's they would paint its thighs. Its own face is its
+           eyes (dw2-extractor's blink.py): a part of the model's image with the open, half shut and shut frames beside it, then the
+           table's end mark, past the file's end */
+        static const uint8_t FACE[20] = {2, 3, 8, 17, 32, 3, 40, 3, 48, 3, 0xFF};
+        uint8_t *g = realloc(out, *out_size + sizeof FACE);
+
+        if (g == NULL) {
+            free(out);
+            return NULL;
+        }
+        memcpy(g + *out_size, FACE, sizeof FACE);
+        wr32(g + o3 + 4 + 12, rd32(g) + (uint32_t)*out_size);
+        *out_size += sizeof FACE;
+        out = g;
+    }
+    return out;
 }
 
 /* Flaming Rocket's effect models (native.h): their files hold the model's bones last */
