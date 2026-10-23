@@ -10,3 +10,13 @@
  } Mesh;
  
  /* A Mesh's drawing state while its drawer (FIGHTSTG_drawMesh) walks its command
+@@ -319,6 +322,9 @@
+     /* 0x060 */ FacePart parts[16];
+     /* 0x1A0 */ s32 blinkTimer;
+     /* 0x1A4 */ s32 time;
++#ifdef NATIVE
++    s32 nativeTired; /* its eyes never open in the weak idle (native.h: Flamedramon's, for now) */
++#endif
+ } Face;
+ 
+ /* The jump heights and speeds (t per frame) of the Jump kinds 1-6 */

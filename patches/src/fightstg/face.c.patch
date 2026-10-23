@@ -1,0 +1,25 @@
+--- a/src/fightstg/face.c
++++ b/src/fightstg/face.c
+@@ -84,6 +84,12 @@
+         } else {
+             task->blinkTimer = 0;
+         }
++#ifdef NATIVE
++        /* a tired fighter's weak idle (motion 1): the eyes blink between half shut and shut, as often as ever, and never open */
++        if (task->nativeTired && task->model->motion == 1 && eyes == 0) {
++            eyes = 1;
++        }
++#endif
+         task->time += FIGHTSTG_battle.frames;
+         frame = task->time % 18 / 6;
+         layer = GFX.funcs.getLayer(SCREEN_LAYER);
+@@ -126,6 +132,9 @@
+     task = createTask(FIGHTSTG_updateFace, sizeof(Face), 0);
+     task->model = model;
+     task->texPos = model->texPos;
++#ifdef NATIVE
++    task->nativeTired = fighter == NATIVE_FLAMEDRAMON;
++#endif
+     rects = FIGHTSTG_fighterCache.getFace(fighter);
+     for (i = 15; i >= 0; i--) {
+         task->parts[i].used = 0;
