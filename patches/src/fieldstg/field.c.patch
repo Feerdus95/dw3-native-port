@@ -1,6 +1,24 @@
 --- a/src/fieldstg/field.c
 +++ b/src/fieldstg/field.c
-@@ -490,7 +490,11 @@
+@@ -278,8 +278,17 @@
+         if (task->width > SCREEN_WIDTH / 2) {
+             GAME.funcs.requestMode(task->nextMode, task->nextModeArg);
+             GAME.fieldMode = GAME.funcs.getMode();
++#ifdef NATIVE
++            /* an event (calling Digmon or Submarimon) has taken the player's
++               actor away: the PSX read these through NULL, keep the saved ones */
++            if (children->actors[0] != NULL) {
++                GAME.fieldPos = children->actors[0]->pos;
++                GAME.fieldDir = children->actors[0]->dir;
++            }
++#else
+             GAME.fieldPos = children->actors[0]->pos;
+             GAME.fieldDir = children->actors[0]->dir;
++#endif
+             task->nextSubstate(task);
+         }
+         FIELDSTG_drawCover(FIELD_LAYER_COVER, 0x8000);
+@@ -490,7 +499,11 @@
      s32 mode;
  
      if (FIELDSTG_keepsFileCache() == 0) {
@@ -12,7 +30,7 @@
      }
      setUpFieldScreen();
      if (FIELDSTG_keepsFileCache() == 0) {
-@@ -507,7 +511,14 @@
+@@ -507,7 +520,14 @@
      if (FIELDSTG_state.stageInit != NULL) {
          children->stage = FIELDSTG_state.stageInit(task);
      }
@@ -27,7 +45,7 @@
      FLAGS_00.applyAction(FIELD_VISITED_FLAG(GAME.funcs.getMode()), 1);
      mode = GAME.funcs.getPrevMode();
      /* from other than a field (0x2xx, 0x3xx), STDWTITL,
-@@ -628,6 +639,13 @@
+@@ -628,6 +648,13 @@
          switch (task->substate) {
          case 0:
          default:
@@ -41,7 +59,7 @@
              openFieldMenu(task, children);
              break;
          case 1:
-@@ -1012,7 +1030,12 @@
+@@ -1012,7 +1039,12 @@
      FieldTask *field = TASK_REGISTRY.funcs.find(FIELD_TASK_FIELD, -1, -1);
      FieldChildren *children = field->children;
  
