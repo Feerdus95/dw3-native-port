@@ -1,14 +1,18 @@
 # Changelog
 
-## Unreleased
+## v0.15.0 (beta)
 
-- **Flamedramon** (options menu, on while its model is in `data/mods/7100.bin`): a 46th Digimon of its own, from Digimon
+- **Flamedramon's signatures** are Digital Card Battle's three fire attacks, with the animation, camera and effects of that
+  game: Fire Rocket (60 MP, power 300), Knuckle Fire (84 MP, 480) and Express Claw (four hits of 150, 110 MP), learnt at
+  levels 50, 70 and 85 and shown as signature techniques with their own descriptions. It now needs ExVeemon and Greymon at
+  level 40, and its model is `data/mods/7120.bin` (made by dw2-extractor).
+- **Textured fire that moves**: Digital Card Battle's effect models scroll their texture as the original did, in their own
+  VRAM page. Only those effects (452-458) do; every effect of the game is as it was.
+- **Flamedramon** (options menu, on while its model is in `data/mods/7120.bin`): a 46th Digimon of its own, from Digimon
   World 2. A quick fire attacker (strength and speed high, fire-immune, weak to water) with six techniques of its own
-  (Ember Jab to Inferno Charge) and the signature Flaming Rocket; learnt with ExVeemon and Greymon at level 30. The port
+  (Ember Jab to Express Claw); learnt with ExVeemon and Greymon. The port
   now holds a list of extra forms rather than one. `--give 472` gives it to every partner on a load (a development aid:
   it goes into the card on the next save, so use a copy).
-- Flaming Rocket is its own: an orange missile model (and the burst of flames where it lands) taken from Digimon World 2's
-  files and converted to this game's effect model format (`data/mods/7101.bin`, `7102.bin`), with its own action script.
 - **BladeGarurumon's progress is kept in the save file's own spare space.** The memory card file has 2 KB at its end that
   the game never reads or writes; each save slot now has an area there for the forms the port adds (BladeGarurumon, and
   the ones to come), with a checksum and a version. The game's own bytes are unchanged, so a card is still a standard one.
