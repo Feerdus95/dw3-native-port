@@ -85,20 +85,26 @@ const void *native_packs_text(int language);
 extern int g_bladegarurumon;
 void native_bladegarurumon_setup(void);
 /* Flamedramon, the second extra form: the Armour Digimon of Digimon World 2, its
-   model made for this game (dw2-extractor, data/mods/7100.bin), DIGIMON_DATA[52]
-   made its own (native_flamedramon_setup), its own techniques 445-450 with Flaming
-   Rocket the signature, learnt while g_flamedramon is on (stfgtrep/growth.c) */
+   model made for this game (dw2-extractor, data/mods/7120.bin), DIGIMON_DATA[52]
+   made its own (native_flamedramon_setup), its own techniques 445-450 with Express
+   Claw the signature, learnt while g_flamedramon is on (stfgtrep/growth.c) */
 #define NATIVE_FLAMEDRAMON 472
 #define NATIVE_FLAMEDRAMON_DATA 52
 #define NATIVE_EXTRA_FORMS 2
-#define NATIVE_FLAMEDRAMON_FID 7100 /* its model, a file of data/mods: without it the form isn't offered */
+#define NATIVE_FLAMEDRAMON_FID 7120 /* its model, a file of data/mods (dw2-extractor/flame_dcb.py): without it the form isn't offered */
 #define NATIVE_FLAMEDRAMON_NAME 251 /* its name: a string past the game's 251 in the Digimon names */
-#define NATIVE_FLAMEDRAMON_TECH 445 /* its six techniques, the last the signature Flaming Rocket */
+#define NATIVE_FLAMEDRAMON_TECH 445 /* its six techniques, the last the signature Express Claw (Fire Rocket and Knuckle Fire before it) */
 #define NATIVE_TECH_COUNT 450       /* TECHS: the game's 443, Solar Laser and Flamedramon's */
 extern int g_flamedramon;
 /* an effect model of the port's (Flaming Rocket's rocket, 450, and the dome of flames, 451: data/mods/7101.bin, 7102.bin, made by
    dw2-extractor) as FIGHTSTG_effectModels' entry: 1 with its model's file and index and its motions' (fightstg/effect_model.c) */
 int native_effect_model(int id, int *file, int *motionFile);
+/* ... and what Digital Card Battle's fire needs besides (452-458): the VRAM page its image goes to, and its texture scrolling (SUG_scrollTexture), begun
+   when the model is made and ticked while it runs; every other effect model is left as it is */
+int native_effect_texture_x(int id);
+void native_effect_scroll_begin(int id);
+void native_effect_scroll(int id, int x, int y);
+void native_vram_roll(int x, int y, int w, int h, int dx);
 extern int g_give_form; /* --give ID: the form is given to every partner on a load (a development aid) */
 void native_flamedramon_setup(void);
 static const unsigned short NATIVE_FORM_IDS[NATIVE_EXTRA_FORMS] = {NATIVE_BLADEGARURUMON, NATIVE_FLAMEDRAMON};

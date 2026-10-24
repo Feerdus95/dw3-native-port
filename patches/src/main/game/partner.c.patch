@@ -38,7 +38,7 @@
 +    for (i = 0; i < 6; i++, bits >>= 3) {
 +        out->skills[i] = !(bits & 1) ? 0
 +                                     : d->skills[i + 1] | (bits & 2 ? SKILL_KNOWN : 0) | (bits & 4 ? SKILL_MARKED : 0) |
-+                                           (i == 5 ? SKILL_LAST : 0);
++                                           (i == 5 || (id == NATIVE_FLAMEDRAMON && i >= 3) ? SKILL_LAST : 0);
 +    }
 +}
 +

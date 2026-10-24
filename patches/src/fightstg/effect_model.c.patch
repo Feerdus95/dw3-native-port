@@ -1,6 +1,22 @@
 --- a/src/fightstg/effect_model.c
 +++ b/src/fightstg/effect_model.c
-@@ -306,6 +306,13 @@
+@@ -19,9 +19,15 @@
+         task->control.rot.y = task->rot.vy;
+         task->control.rot.z = task->rot.vz;
+         children[0] = FIGHTSTG_createPlainModel(task->file, task->motionFile, task->texPos, &task->control);
++#ifdef NATIVE
++        native_effect_scroll_begin(task->effect);
++#endif
+         task->nextState(task);
+         break;
+     case TASK_RUN:
++#ifdef NATIVE
++        native_effect_scroll(task->effect, task->texPos.x, task->texPos.y); /* the port's own (native.h) */
++#endif
+         if (task->control.motionDone) {
+             task->setState(task, TASK_KILL);
+         }
+@@ -306,6 +312,13 @@
  /* The model file of effect model id (FIGHTSTG_effectModels), or 0 for none */
  s32 FIGHTSTG_getEffectModelFile(s32 id) {
      EffectModelEntry *entry;
@@ -14,7 +30,7 @@
  
      for (entry = FIGHTSTG_effectModels; entry->id != 0; entry++) {
          if (entry->id == id) {
-@@ -324,6 +331,21 @@
+@@ -324,6 +337,21 @@
      EffectModelEntry *entry;
  
      task->effect = 0;
@@ -26,7 +42,7 @@
 +            task->effect = id;
 +            task->motionFile = motion;
 +            task->file = file;
-+            task->texPos = (Vec2){ 0x280, 0x100 };
++            task->texPos = (Vec2){ native_effect_texture_x(id), 0x100 };
 +            task->pos = *pos;
 +            task->rot = *rot;
 +            return task;

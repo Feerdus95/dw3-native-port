@@ -100,6 +100,31 @@ int MoveImage(RECT *r, int x, int y) {
     return 0;
 }
 
+/* A rect of VRAM with its rows rolled DX halfwords to the right (the ones past its edge come back at the other): SUG_scrollTexture's */
+void native_vram_roll(int x, int y, int w, int h, int dx) {
+    uint16_t row[VRAM_W];
+    int i, j;
+
+    if (w <= 0 || h <= 0 || x < 0 || y < 0 || x + w > VRAM_W || y + h > VRAM_H || (dx %= w) == 0) {
+        return;
+    }
+    if (dx < 0) {
+        dx += w;
+    }
+    soft_read(x, y, w, h);
+    soft_write(x, y, w, h);
+    for (j = 0; j < h; j++) {
+        uint16_t *p = &g_vram[(y + j) * VRAM_W + x];
+
+        for (i = 0; i < w; i++) {
+            row[(i + dx) % w] = p[i];
+        }
+        memcpy(p, row, (size_t)w * 2);
+    }
+    gl_vram_dirty(x, y, w, h);
+    gl_refresh(x, y, w, h);
+}
+
 void GsInitGraph(uint16_t w, uint16_t h, uint16_t intmode, uint16_t dith, uint16_t vrammode) {
     (void)w, (void)h, (void)intmode, (void)dith, (void)vrammode;
 }

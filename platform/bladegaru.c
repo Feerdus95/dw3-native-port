@@ -590,11 +590,13 @@ static uint8_t *add_flamedramon(const uint8_t *f, long size, long *out_size) {
 
 /* Flaming Rocket's effect models (native.h): their files hold the model's bones last */
 int native_effect_model(int id, int *file, int *motionFile) {
-    static const int FIDS[2] = {7101, 7102}; /* the rocket (450) and the dome (451) */
-    static int bones[2] = {-1, -1};
+    /* the rocket (450) and the dome (451), then Digital Card Battle's fire (dw2-extractor/flame_fx.py): the fire dome, two spirals and the burst of
+       Fire Rocket (452-455), the fist's flame, its glow and the fireball of Knuckle Fire (456-458) */
+    static const int FIDS[9] = {7101, 7102, 7121, 7122, 7123, 7124, 7125, 7126, 7127};
+    static int bones[9] = {-1, -1, -1, -1, -1, -1, -1, -1, -1};
     int i = id - (NATIVE_FLAMEDRAMON_TECH + 5);
 
-    if (i < 0 || i > 1 || !g_flamedramon) {
+    if (i < 0 || i > 8 || !g_flamedramon) {
         return 0;
     }
     if (bones[i] < 0) {
@@ -610,6 +612,58 @@ int native_effect_model(int id, int *file, int *motionFile) {
     *file = FIDS[i] << 16 | bones[i];
     *motionFile = FIDS[i] << 16;
     return 1;
+}
+
+/* Digital Card Battle's scrolling textures (SUG_scrollTexture), for the fire of dw2-extractor/flame_fx.py: the image's 32x56 halfwords at the model's
+   texture position roll STEP halfwords to the right every PERIOD ticks (the first on its first). A model DCB starts later than the one before it
+   (the burst after the dome, the ball after the fist) shares the image the scroll has been rolling all along, so it starts START ticks in. The
+   spirals and the glow go to the page next to the others': their images are not the dome's and the fist's, and one page holds one image */
+static const struct {
+    int id, step, period, start, page;
+} SCROLLS[] = {
+    {452, 3, 1, 0, 0x280}, {453, 0, 0, 0, 0x2C0}, {454, 0, 0, 0, 0x2C0}, {455, 3, 1, 43, 0x280},
+    {456, 3, 1, 0, 0x280}, {457, 1, 2, 0, 0x2C0},  {458, 3, 1, 124, 0x280},
+};
+static int scroll_age[7];
+
+static int scroll_of(int id) {
+    int i;
+
+    for (i = 0; i < 7; i++) {
+        if (SCROLLS[i].id == id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int native_effect_texture_x(int id) {
+    int i = scroll_of(id);
+
+    return i < 0 ? 0x280 : SCROLLS[i].page;
+}
+
+void native_effect_scroll_begin(int id) {
+    int i = scroll_of(id);
+
+    if (i >= 0) {
+        scroll_age[i] = 0;
+    }
+}
+
+/* once a tick while the model runs. Its image is loaded by the tick after it is made: the first roll is the one the model is late by */
+void native_effect_scroll(int id, int x, int y) {
+    int i = scroll_of(id), a;
+
+    if (i < 0 || SCROLLS[i].step == 0) {
+        return;
+    }
+    a = ++scroll_age[i];
+    if (a == 1) {
+        native_vram_roll(x, y, 32, 56, SCROLLS[i].step * ((SCROLLS[i].start + SCROLLS[i].period - 1) / SCROLLS[i].period));
+    } else if ((a - 1) % SCROLLS[i].period == 0) {
+        native_vram_roll(x, y, 32, 56, SCROLLS[i].step);
+    }
 }
 
 /* Solar Laser, technique 444 (past the game's 443: NATIVE_SOLAR_LASER), in
@@ -706,18 +760,18 @@ static uint8_t *glyphs(const char *s, uint8_t *out) {
 
 /* Flamedramon's techniques 445-450 and its name (NATIVE_FLAMEDRAMON_NAME), in the five languages' order of the Solar Laser
    help: English, French, Italian, German, Spanish. No accents: the glyphs of those are the game's own to find */
-static const char *const FLAME_TECH_NAMES[6] = {"Ember Jab", "Burning Dash", "Blazing Burst", "Blazing Knuckle", "Inferno Charge", "Flaming Rocket"};
+static const char *const FLAME_TECH_NAMES[6] = {"Ember Jab", "Burning Dash", "Blazing Burst", "Fire Rocket", "Knuckle Fire", "Express Claw"};
 static const char *const FLAME_TECH_HELP[5][6] = {
-    {"Ember jab. Fire attack.", "Burning dash. Fire charge.", "Blazing burst. Fire blast.", "Blazing knuckle. Heavy fire hit.",
-     "Inferno charge. Fire attack.", "Shoots a blazing missile at a single target."},
+    {"Ember jab. Fire attack.", "Burning dash. Fire charge.", "Blazing burst. Fire blast.", "Launch a blazing rocket at the enemy.",
+     "Punch with fire, then throw a fireball.", "Slash the enemy four times with claws."},
     {"Coup de braise. Attaque de feu.", "Charge brulante. Attaque de feu.", "Explosion de flammes. Attaque de feu.",
-     "Poing flamboyant. Gros coup de feu.", "Charge infernale. Attaque de feu.", "Tire un missile enflamme sur une cible."},
+     "Lance une fusee de feu sur un ennemi.", "Frappe de feu, puis boule de feu.", "Quatre coups de griffes."},
     {"Pugno di brace. Attacco di fuoco.", "Scatto rovente. Attacco di fuoco.", "Esplosione di fiamme. Attacco di fuoco.",
-     "Pugno fiammeggiante. Colpo di fuoco.", "Carica infernale. Attacco di fuoco.", "Lancia un missile infuocato su un bersaglio."},
-    {"Glutschlag. Feuerangriff.", "Flammenansturm. Feuerangriff.", "Flammenstoss. Feuerangriff.", "Flammenfaust. Schwerer Feuerhieb.",
-     "Infernoansturm. Feuerangriff.", "Feuert eine Flammenrakete auf ein Ziel."},
+     "Lancia un razzo di fuoco al nemico.", "Pugno di fuoco e palla infuocata.", "Quattro colpi di artigli al nemico."},
+    {"Glutschlag. Feuerangriff.", "Flammenansturm. Feuerangriff.", "Flammenstoss. Feuerangriff.", "Feuert eine Feuerrakete auf den Feind.",
+     "Feuerfaust, dann ein Feuerball.", "Vier Krallenhiebe auf den Feind."},
     {"Golpe de brasas. Ataque de fuego.", "Embestida ardiente. Ataque de fuego.", "Rafaga de llamas. Ataque de fuego.",
-     "Puno llameante. Golpe de fuego.", "Carga infernal. Ataque de fuego.", "Dispara un misil ardiente a un solo objetivo."}};
+     "Lanza un cohete de fuego al enemigo.", "Punetazo de fuego y bola de fuego.", "Cuatro zarpazos al enemigo."}};
 
 #define DIGIMON_NAMES 0x4E /* DIGNAM: the files 78-84, of which the languages are some */
 

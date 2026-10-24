@@ -1,6 +1,6 @@
 --- a/src/main/game/digimon.c
 +++ b/src/main/game/digimon.c
-@@ -127,9 +127,111 @@
+@@ -127,9 +127,117 @@
              return i;
          }
      }
@@ -29,7 +29,7 @@
 +    static const u16 RESISTS[7] = {0, 0, 40, 40, 80, 80, 40};
 +    static const u16 SKILLS[6] = {41, 156, 202, 158, 203, 111}; /* Thunder Bolt, Speed Up, Electro Bolt, Mega Boost, Lightning Slash */
 +    static const u8 STATUS[5] = {20, 40, 10, 20, 30};
-+    static const u8 LEARN[6] = {10, 25, 40, 65, 90, 70};
++    static const u8 LEARN[6] = {10, 25, 40, 50, 70, 85};
 +    static const u8 KNOWN[5] = {30, 45, 60, 80, 99};
 +    DigimonData *d = &DIGIMON_DATA[NATIVE_BLADEGARURUMON_DATA];
 +    u8 nameId = d->nameId;
@@ -62,20 +62,23 @@
 +/* Flamedramon as a partner's Digimon (native.h): DIGIMON_DATA[52], a stub in the
 +   game, made a quick fire attacker of its own: strength and speed high, defense and
 +   wisdom low, fire-immune but weak to water. Its six techniques (445-450, past
-+   BladeGarurumon's) take their scripts, sprites and sounds from an existing fire
-+   technique of the kit it uses, with cost, power and element of its own: the
-+   cost per point of power on the game's own 5 to 6 line, the signature Flaming
-+   Rocket cheaper (30 MP for 210) as the DW2 one is. Once the game's tables are read
-+   (platform/main.c) */
++   BladeGarurumon's) take their sprites and sounds from an existing technique of the
++   kit it uses, with cost, power and element of its own: the cost per point of power on
++   the game's own 5 to 6 line. The last three are the Digital Card Battle attacks
++   (dw2-extractor/flame_dcb.py) with a script each: Fire Rocket (11) a Champions'
++   signature's size (60 MP for 300, as Greymon's), Knuckle Fire (18) an Ultimate's
++   (84 for 480) and Express Claw (19) the signature: four physical hits of 150, like
++   the game's four-hit technique 61 grown to a Mega's 110 MP. Once the game's tables
++   are read (platform/main.c) */
 +void native_flamedramon_setup(void) {
 +    static const u16 STATS[5] = {52, 18, 20, 12, 58}; /* strength, defense, spirit, wisdom, speed */
 +    static const u16 RESISTS[7] = {80, 0, 55, 35, 35, 35, 35}; /* fire, water, ice, wind, thunder, machine, dark */
 +    static const u8 STATUS[5] = {20, 35, 10, 20, 30};
-+    static const u8 LEARN[6] = {10, 25, 40, 65, 90, 70};
++    static const u8 LEARN[6] = {10, 25, 40, 50, 70, 85};
 +    static const u8 KNOWN[5] = {30, 45, 60, 80, 99};
-+    /* the technique it is made from, its cost, power and element power */
-+    static const u16 TECH[6][4] = {{137, 12, 65, 16}, {138, 26, 150, 24}, {139, 38, 220, 32},
-+                                   {139, 70, 430, 48}, {140, 120, 700, 64}, {65, 30, 210, 40}};
++    /* the technique it is made from, its cost, power and element power (1: none), its script (0: the model's own) */
++    static const u16 TECH[6][5] = {{137, 12, 65, 16, 0}, {138, 26, 150, 24, 0}, {139, 38, 220, 32, 0},
++                                   {65, 60, 300, 48, 11}, {65, 84, 480, 56, 18}, {61, 110, 150, 1, 19}};
 +    DigimonData *d = &DIGIMON_DATA[NATIVE_FLAMEDRAMON_DATA];
 +    u8 nameId = d->nameId;
 +    s32 i;
@@ -101,7 +104,10 @@
 +        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].mp = TECH[i][1];
 +        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].power = TECH[i][2];
 +        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].elementPower = TECH[i][3];
-+        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].element = 2;
++        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].element = TECH[i][3] > 1 ? 2 : 1;
++        if (TECH[i][4] != 0) {
++            TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].script = TECH[i][4];
++        }
 +    }
 +    d->pairTech = 0;
 +    d->pairPartner = 0;
