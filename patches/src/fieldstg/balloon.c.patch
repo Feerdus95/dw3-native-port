@@ -1,0 +1,16 @@
+--- a/src/fieldstg/balloon.c
++++ b/src/fieldstg/balloon.c
+@@ -21,6 +21,13 @@
+     Point pos;
+     s32 frame;
+ 
++#ifdef NATIVE
++    /* a balloon shut before its TASK_INIT found an actor: the PSX read the
++       NULL actor's position from low RAM */
++    if (task->actor == NULL) {
++        return;
++    }
++#endif
+     pos.x = task->actor->tile.x;
+     pos.y = task->actor->tile.y - (task->actor->z >> 8);
+     initSpriteDrawer(&sprite);
