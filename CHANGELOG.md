@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.15.1 (beta)
+
+- Fixed: Flamedramon's eyes were half shut in its normal pose. They stay half shut only in the weak pose (a quarter of its HP or less).
+
 ## v0.15.0 (beta)
 
 - **Flamedramon's signatures** are Digital Card Battle's three fire attacks, with the animation, camera and effects of that
