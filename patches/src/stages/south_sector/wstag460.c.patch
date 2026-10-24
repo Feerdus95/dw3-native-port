@@ -1,0 +1,19 @@
+--- a/src/stages/south_sector/wstag460.c
++++ b/src/stages/south_sector/wstag460.c
+@@ -304,6 +304,16 @@
+     StageTile *object;
+     StageTile *fading;
+     s32 frame;
++#ifdef NATIVE
++    /* a wanderer whose map object the stage doesn't have: a tile of its own,
++       not in the stage's table, so not drawn (the PSX wrote these through
++       NULL, into low RAM) */
++    static StageTile s_noTile[8];
++
++    if (task->tile.tile == NULL) {
++        task->tile.tile = &s_noTile[task->tileAnim & 7];
++    }
++#endif
+ 
+     switch (task->state) {
+     case TASK_INIT:
