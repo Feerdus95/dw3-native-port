@@ -100,7 +100,14 @@ extern int g_flamedramon;
    other partner has (DIGIMON_DATA ids); the pair fuses into Flamedramon, which does one of its three signatures at random (wfightmn/menu.c).
    NATIVE_FLAME_PAIR_TECH is only the cost of the fusion in the menu (both pay it) */
 #define NATIVE_FLAME_PAIR_TECH 451
-static const unsigned short NATIVE_PAIRS[][2] = {{259, 5}, {5, 259}}; /* ExVeemon + Greymon, both ways */
+#define NATIVE_PAIR_A 259 /* ExVeemon */
+#define NATIVE_PAIR_B 5   /* Greymon */
+static const unsigned short NATIVE_PAIRS[][2] = {{NATIVE_PAIR_A, NATIVE_PAIR_B}, {NATIVE_PAIR_B, NATIVE_PAIR_A}};
+/* While the fusion's technique plays: the other partner's id (0 for no fusion). The fighter's own script 12 (the pair's DNA of the game, Paildramon's for
+   ExVeemon) is then played from a copy with the other partner and Flamedramon in place of its partner and DNA form, and one of Flamedramon's three
+   attacks (motions 50, 62, 63) in place of the DNA attack (56) at the random number RND (fightstg/battle_script.c) */
+extern int g_dna_other;
+short *native_dna_script(const short *pc, int other, unsigned rnd);
 static int __attribute__((unused)) native_pair_tech(int active, int partner) {
     unsigned i;
     if (g_flamedramon && native_file_exists(NATIVE_FLAMEDRAMON_FID)) {

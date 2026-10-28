@@ -11,6 +11,24 @@ int g_map_objective = 0; /* map_objective = 1: the map blinks the story's next a
 int g_journal = 0; /* journal = 1: the field menu's journal row (ststatus/item_list.c) */
 int g_ff_speed = 1;  /* fast forward: the game's ticks a frame shown (etc.c); not saved */
 int g_give_form; /* --give ID (main.c) */
+int g_dna_other; /* native.h */
+short *native_dna_script(const short *pc, int other, unsigned rnd) {
+    static short w[512];
+    int i;
+
+    memcpy(w, pc, sizeof w); /* script 12 is under 110 words and has the archive's other scripts after it */
+    for (i = 0; i < 60; i++) { /* the commands "model add" (2, 6, who, fighter): the partner is model 2, the DNA form 3 */
+        if (w[i] == 2 && w[i + 1] == 6 && (w[i + 2] == 2 || w[i + 2] == 3)) {
+            w[i + 3] = (short)(w[i + 2] == 2 ? other : NATIVE_FLAMEDRAMON);
+        }
+    }
+    for (i = 0; i < 400; i++) { /* the DNA form's attack: motion 56 */
+        if (w[i] == 2 && w[i + 1] == 0 && w[i + 2] == 3 && w[i + 3] == 56) {
+            w[i + 3] = (short)(50 + (rnd % 3 == 0 ? 0 : rnd % 3 == 1 ? 12 : 13));
+        }
+    }
+    return w;
+}
 int g_flamedramon = 1; /* flamedramon = 0: partners don't learn it (stfgtrep's growth.c) */
 int g_bladegarurumon = 1; /* bladegarurumon = 0: partners don't learn it (stfgtrep's growth.c) */
 

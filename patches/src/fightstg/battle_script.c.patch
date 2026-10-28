@@ -1,0 +1,14 @@
+--- a/src/fightstg/battle_script.c
++++ b/src/fightstg/battle_script.c
+@@ -554,6 +554,11 @@
+             script->archive = FIGHTSTG_fighterCache.partnerInfo->effects;
+             /* getArchiveEntry gives the entry as a u8 * */
+             script->pc = FILE_CACHE.getArchiveEntry(script->index, FILE_CACHE.getEntry(script->archive));
++#ifdef NATIVE
++            if (script->index == 12 && g_dna_other != 0) {
++                script->pc = native_dna_script(script->pc, g_dna_other, RANDOM.next());
++            }
++#endif
+             if (script->index != 12) {
+                 script->nextState(script);
+                 break;

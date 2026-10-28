@@ -1,47 +1,23 @@
 --- a/src/wfightmn/menu.c
 +++ b/src/wfightmn/menu.c
-@@ -424,6 +424,9 @@
-    and incoming partners do commands->pairTech, then the incoming one tags in
-    (state 5, past its message) while an enemy is left; otherwise the turn ends
-    with the partner marked as fought */
-+#ifdef NATIVE
-+static s32 nativePairForm; /* the Digimon the fighter was before the fusion */
-+#endif
- void WFIGHTMN_pairTech(BattleMenu *task, BattleMenuChildren *children) {
-     s32 i;
-     BattleFighter *unit;
-@@ -431,9 +434,34 @@
+@@ -431,11 +431,20 @@
      switch (task->step) {
      case 0:
      default:
 +#ifdef NATIVE
-+        if (children->commands->pairTech == NATIVE_FLAME_PAIR_TECH) {
-+            /* the pair fuses into Flamedramon, which does one of its signatures at random (native.h) */
-+            unit = &FIGHTSTG_battle.fighters[0][FIGHTSTG_battle.active[0]];
-+            nativePairForm = unit->id;
-+            unit->id = NATIVE_FLAMEDRAMON;
-+            children->task.change = FIGHTSTG_startDigimonChange(unit->id, 0);
-+            task->step = 2;
-+            break;
-+        }
++        /* the fusion into Flamedramon is the pair's script 12 with the other partner and the DNA form changed (native.h) */
++        g_dna_other = children->commands->pairTech == NATIVE_FLAME_PAIR_TECH
++                          ? (FIGHTSTG_battle.fighters[0][FIGHTSTG_battle.active[0]].id == NATIVE_PAIR_A ? NATIVE_PAIR_B : NATIVE_PAIR_A)
++                          : 0;
 +#endif
          children->task.tech = FIGHTSTG_startTechAction(0, children->commands->pairTech);
          task->step++;
          break;
-+#ifdef NATIVE
-+    case 2:
-+        if (children->task.task == NULL) {
-+            children->task.tech = FIGHTSTG_startTechAction(0, NATIVE_FLAMEDRAMON_TECH + 3 + RANDOM.next() % 3);
-+            task->step = 3;
-+        }
-+        break;
-+    case 3:
-+        if (children->task.task == NULL) {
-+            FIGHTSTG_battle.fighters[0][FIGHTSTG_battle.active[0]].id = nativePairForm;
-+            task->step = 1;
-+        }
-+        break;
-+#endif
      case 1:
          if (children->task.task == NULL) {
++#ifdef NATIVE
++            g_dna_other = 0;
++#endif
              for (i = 0, unit = FIGHTSTG_battle.fighters[1]; i < 3; i++, unit++) {
+                 if (unit->id != 0 && unit->hp != 0) {
+                     task->setSubstate(task, 5);
