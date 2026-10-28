@@ -47,6 +47,7 @@ static const short *flame_finale(int k, int *n) {
    (the commands from its motion 56 to the stage's return) is one of Flamedramon's three, at the random number RND */
 short *native_dna_script(const short *pc, int other, unsigned rnd) {
     static short v[1024], w[2048];
+    static const short bridge[] = {7, 0, 15, 11, 15, 5, 0, 0, 5, 2, 1, 4, 2, 2, 3, 7, 1, 30, 11, 30};
     const short *fin;
     int i, k = -1, tail = -1, end = -1, n = 0, m = 0;
 
@@ -54,6 +55,11 @@ short *native_dna_script(const short *pc, int other, unsigned rnd) {
     for (i = 0; i < 60; i++) { /* "model add" (2, 6, who, fighter): the partner is model 2, the DNA form 3 */
         if (v[i] == 2 && v[i + 1] == 6 && (v[i + 2] == 2 || v[i + 2] == 3)) {
             v[i + 3] = (short)(v[i + 2] == 2 ? other : NATIVE_FLAMEDRAMON);
+        }
+    }
+    for (i = 0; other == NATIVE_PAIR_B && i < 160; i++) { /* Greymon is bigger than the game's Stingmon: its flight a camera's length farther */
+        if (v[i] == 2 && v[i + 1] == 3 && v[i + 2] == 2) {
+            v[i + 5] -= 940;
         }
     }
     for (i = 0; i < 1000 && k < 0; i++) { /* the DNA form's attack: motion 56 */
@@ -72,11 +78,19 @@ short *native_dna_script(const short *pc, int other, unsigned rnd) {
         }
         return v;
     }
+    if (v[k - 2] == 11) { /* the form's entrance lasts the motion's 60 ticks, not the 180 of the game's own forms */
+        v[k - 1] = 75;
+    }
     memcpy(w, v, k * sizeof *w);
     memcpy(w + k, fin, n * sizeof *w);
-    memcpy(w + k + n, v + tail, (end + 1 - tail) * sizeof *w);
-    m = k + n + end + 1 - tail;
-    (void)m;
+    m = k + n;
+    if (w[m - 2] == 11 && w[m - 1] > 20) { /* the attack's own pause after its last hit */
+        w[m - 1] = 20;
+    }
+    /* the DNA form's leaving, as the game's: a white fade, the field's camera, the form hidden, the fade back in */
+    memcpy(w + m, bridge, sizeof bridge);
+    m += sizeof bridge / sizeof *bridge;
+    memcpy(w + m, v + tail, (end + 1 - tail) * sizeof *w);
     return w;
 }
 int g_flamedramon = 1; /* flamedramon = 0: partners don't learn it (stfgtrep's growth.c) */
