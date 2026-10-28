@@ -94,8 +94,24 @@ void native_bladegarurumon_setup(void);
 #define NATIVE_FLAMEDRAMON_FID 7120 /* its model, a file of data/mods (dw2-extractor/flame_dcb.py): without it the form isn't offered */
 #define NATIVE_FLAMEDRAMON_NAME 251 /* its name: a string past the game's 251 in the Digimon names */
 #define NATIVE_FLAMEDRAMON_TECH 445 /* its six techniques, the last the signature Express Claw (Fire Rocket and Knuckle Fire before it) */
-#define NATIVE_TECH_COUNT 450       /* TECHS: the game's 443, Solar Laser and Flamedramon's */
+#define NATIVE_TECH_COUNT 451       /* TECHS: the game's 443, Solar Laser, Flamedramon's and its pair's */
 extern int g_flamedramon;
+/* Pair techniques (the Tag menu) past the game's one pairPartner/pairTech a form has: any number of pairs for a form. A row is the active form and the form the
+   other partner has (DIGIMON_DATA ids); the pair fuses into Flamedramon, which does one of its three signatures at random (wfightmn/menu.c).
+   NATIVE_FLAME_PAIR_TECH is only the cost of the fusion in the menu (both pay it) */
+#define NATIVE_FLAME_PAIR_TECH 451
+static const unsigned short NATIVE_PAIRS[][2] = {{259, 5}, {5, 259}}; /* ExVeemon + Greymon, both ways */
+static int __attribute__((unused)) native_pair_tech(int active, int partner) {
+    unsigned i;
+    if (g_flamedramon && native_file_exists(NATIVE_FLAMEDRAMON_FID)) {
+        for (i = 0; i < sizeof NATIVE_PAIRS / sizeof NATIVE_PAIRS[0]; i++) {
+            if (NATIVE_PAIRS[i][0] == active && NATIVE_PAIRS[i][1] == partner) {
+                return NATIVE_FLAME_PAIR_TECH;
+            }
+        }
+    }
+    return 0;
+}
 /* an effect model of the port's (Flaming Rocket's rocket, 450, and the dome of flames, 451: data/mods/7101.bin, 7102.bin, made by
    dw2-extractor) as FIGHTSTG_effectModels' entry: 1 with its model's file and index and its motions' (fightstg/effect_model.c) */
 int native_effect_model(int id, int *file, int *motionFile);

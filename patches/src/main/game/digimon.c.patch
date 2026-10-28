@@ -1,6 +1,6 @@
 --- a/src/main/game/digimon.c
 +++ b/src/main/game/digimon.c
-@@ -127,9 +127,117 @@
+@@ -127,9 +127,118 @@
              return i;
          }
      }
@@ -111,6 +111,7 @@
 +    }
 +    d->pairTech = 0;
 +    d->pairPartner = 0;
++    TECHS[NATIVE_FLAME_PAIR_TECH - 1] = TECHS[373]; /* Paildramon's pair: the cost of the fusion, 100 MP each */
 +    (void)nameId;
 +}
 +#endif

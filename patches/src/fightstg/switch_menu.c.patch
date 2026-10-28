@@ -1,0 +1,17 @@
+--- a/src/fightstg/switch_menu.c
++++ b/src/fightstg/switch_menu.c
+@@ -17,6 +17,14 @@
+     fighter = &FIGHTSTG_battle.fighters[0][index];
+     next = GET_DIGIMON(fighter->id)->pairPartner;
+     count = GAME.funcs.getPartnerSlots(partner, task->slots);
++#ifdef NATIVE
++    /* and the port's pairs, as many as it likes for a form (native.h) */
++    for (i = 0; i < count; i++) {
++        if (native_pair_tech(fighter->id, task->slots[i]) != 0) {
++            return 1;
++        }
++    }
++#endif
+     if (count <= 0 || next == 0) {
+         return 0;
+     }
