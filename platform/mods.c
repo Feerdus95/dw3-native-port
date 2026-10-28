@@ -12,21 +12,71 @@ int g_journal = 0; /* journal = 1: the field menu's journal row (ststatus/item_l
 int g_ff_speed = 1;  /* fast forward: the game's ticks a frame shown (etc.c); not saved */
 int g_give_form; /* --give ID (main.c) */
 int g_dna_other; /* native.h */
-short *native_dna_script(const short *pc, int other, unsigned rnd) {
-    static short w[512];
-    int i;
+/* the finale of the fusion: Flamedramon's attack K (script 21, 28 or 29 of its file: dw2-extractor/flame_dcb.py dna_body) without its end, or NULL */
+static uint32_t rd32(const uint8_t *p) {
+    return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24;
+}
+static const short *flame_finale(int k, int *n) {
+    static uint8_t *f;
+    static long size = -1;
+    uint32_t subs, a, c, from, to;
 
-    memcpy(w, pc, sizeof w); /* script 12 is under 110 words and has the archive's other scripts after it */
-    for (i = 0; i < 60; i++) { /* the commands "model add" (2, 6, who, fighter): the partner is model 2, the DNA form 3 */
-        if (w[i] == 2 && w[i + 1] == 6 && (w[i + 2] == 2 || w[i + 2] == 3)) {
-            w[i + 3] = (short)(w[i + 2] == 2 ? other : NATIVE_FLAMEDRAMON);
+    if (size < 0) {
+        size = native_read_raw(NATIVE_FLAMEDRAMON_FID, &f);
+    }
+    if (size < 4 || (subs = rd32(f) / 4) < 42 || rd32(f + 4 * 41) >= size) {
+        return NULL;
+    }
+    a = rd32(f + 4 * 41); /* the scripts' archive: a table of offsets, then the scripts */
+    c = rd32(f + a) / 4;
+    if (k >= c) {
+        return NULL;
+    }
+    from = a + rd32(f + a + 4 * k);
+    to = k + 1 < c ? a + rd32(f + a + 4 * (k + 1)) : (uint32_t)size;
+    for (*n = (int)(to - from) / 2; *n > 0 && ((const short *)(f + from))[*n - 1] == 0; (*n)--) {
+    }
+    if (*n < 2 || ((const short *)(f + from))[*n - 1] != 255) {
+        return NULL;
+    }
+    (*n)--; /* its own end */
+    return (const short *)(f + from);
+}
+
+/* script 12 of a pair's fighter (the game's DNA fusion) with the other partner and Flamedramon as the DNA form; the form's attack
+   (the commands from its motion 56 to the stage's return) is one of Flamedramon's three, at the random number RND */
+short *native_dna_script(const short *pc, int other, unsigned rnd) {
+    static short v[1024], w[2048];
+    const short *fin;
+    int i, k = -1, tail = -1, end = -1, n = 0, m = 0;
+
+    memcpy(v, pc, sizeof v); /* script 12 is a few hundred words and has the archive's other scripts after it */
+    for (i = 0; i < 60; i++) { /* "model add" (2, 6, who, fighter): the partner is model 2, the DNA form 3 */
+        if (v[i] == 2 && v[i + 1] == 6 && (v[i + 2] == 2 || v[i + 2] == 3)) {
+            v[i + 3] = (short)(v[i + 2] == 2 ? other : NATIVE_FLAMEDRAMON);
         }
     }
-    for (i = 0; i < 400; i++) { /* the DNA form's attack: motion 56 */
-        if (w[i] == 2 && w[i + 1] == 0 && w[i + 2] == 3 && w[i + 3] == 56) {
-            w[i + 3] = (short)(50 + (rnd % 3 == 0 ? 0 : rnd % 3 == 1 ? 12 : 13));
-        }
+    for (i = 0; i < 1000 && k < 0; i++) { /* the DNA form's attack: motion 56 */
+        k = v[i] == 2 && v[i + 1] == 0 && v[i + 2] == 3 && v[i + 3] == 56 ? i : -1;
     }
+    for (i = k + 4; k >= 0 && i < 1000 && tail < 0; i++) { /* the stage's return (4, 0, 0) and the script's end (255) */
+        tail = v[i] == 4 && v[i + 1] == 0 && v[i + 2] == 0 ? i : -1;
+    }
+    for (i = tail; tail >= 0 && i < 1020 && end < 0; i++) {
+        end = v[i] == 255 ? i : -1;
+    }
+    fin = end >= 0 ? flame_finale(rnd % 3 == 0 ? 21 : rnd % 3 == 1 ? 28 : 29, &n) : NULL;
+    if (fin == NULL) { /* no finale: the old way, only its motion */
+        for (i = 0; k >= 0 && i < 1; i++) {
+            v[k + 3] = (short)(rnd % 3 == 0 ? 50 : rnd % 3 == 1 ? 62 : 63);
+        }
+        return v;
+    }
+    memcpy(w, v, k * sizeof *w);
+    memcpy(w + k, fin, n * sizeof *w);
+    memcpy(w + k + n, v + tail, (end + 1 - tail) * sizeof *w);
+    m = k + n + end + 1 - tail;
+    (void)m;
     return w;
 }
 int g_flamedramon = 1; /* flamedramon = 0: partners don't learn it (stfgtrep's growth.c) */
