@@ -57,9 +57,9 @@ short *native_dna_script(const short *pc, int other, unsigned rnd) {
             v[i + 3] = (short)(v[i + 2] == 2 ? other : NATIVE_FLAMEDRAMON);
         }
     }
-    for (i = 0; other == NATIVE_PAIR_B && i < 160; i++) { /* Greymon is bigger than the game's Stingmon: its flight a camera's length farther */
+    for (i = 0; other == NATIVE_PAIR_B && i < 160; i++) { /* Greymon is bigger than the game's Stingmon: its flight farther still */
         if (v[i] == 2 && v[i + 1] == 3 && v[i + 2] == 2) {
-            v[i + 5] -= 940;
+            v[i + 5] -= 3000;
         }
     }
     for (i = 0; i < 1000 && k < 0; i++) { /* the DNA form's attack: motion 56 */
