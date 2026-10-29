@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.16.0 (beta)
+
+- **Flamedramon as a DNA fusion in the Tag menu**, like Paildramon: a partner with ExVeemon tags a partner with Greymon
+  (either way round) and the pair fuses into Flamedramon, using the game's own DNA animation (dark stage, entrance, the
+  form's attack, the white flash back). The attack is one of its three signatures, chosen at random, played inside that
+  same stage. The fusion costs 100 MP each and is fire. It needs the same `data/mods/7120.bin` as Flamedramon itself.
+- **More than one pair per Digimon**: the game's data holds a single Tag partner per form; the port now keeps a table of
+  extra pairs, so a form can fuse with several.
+
 ## v0.15.1 (beta)
 
 - Fixed: Flamedramon's eyes were half shut in its normal pose. They stay half shut only in the weak pose (a quarter of its HP or less).
