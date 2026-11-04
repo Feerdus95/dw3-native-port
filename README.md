@@ -64,16 +64,27 @@ different games for the port and are refused.
 ## Setup
 
 1. Unzip the port anywhere you can write (a folder of your own, not `Program Files`).
-2. Run `dw2003.exe`. The first time, a window asks for your disc image: drop the `.cue` (or `.bin`) on it, or click
-   **Browse...**. It checks the version and reads the disc into `data/` next to the game, in a few seconds. The window
-   speaks English, Spanish, French, German and Italian (top right; it starts in your system's language).
-3. From then on, `dw2003.exe` starts the game straight away. The image isn't needed any more.
+2. Run `dw3launcher.exe` (or `dw2003.exe`, which opens it while there's no data). The first time, it asks for your disc
+   image: drop the `.cue` (or `.bin`) on it, or click **Browse...**. It checks the version and reads the disc into
+   `data/` next to the game, in a few seconds. It speaks English, Spanish, French, German and Italian (top right; it
+   starts in your system's language).
+3. From then on, the launcher's **Play** starts the game, and `dw2003.exe` starts it straight away. The image isn't
+   needed any more.
+
+The launcher also has **Settings** (the options below, before you start, with the controls' keys and buttons and a
+description of each mod), a notice when a newer port is out, and **Tools**: the
+[model viewer](https://github.com/Feerdus95/dw3-model-viewer) and the
+[field editor](https://github.com/Feerdus95/dw3-field-editor), downloaded from GitHub on request into a folder of their
+own next to the port, set up to read `data/`, and opened from there. A viewer or editor already beside the port is used
+instead of downloading. If `data/` was read by an older version, the viewer asks for the disc image once, for the
+file names (`data/names.txt`).
 
 The port's folder then holds:
 
 | | |
 |---|---|
 | `dw2003.exe`, `SDL3.dll` | the port |
+| `dw3launcher.exe`, `launcher.ini`, `launcher.log` | the launcher, its language and what it reports |
 | `dw2003.fill` | where the game's own tables are in `data/`: the exe reads them from there at startup. Keep it next to the exe |
 | `data/` | the game read from your disc. Yours: don't share it |
 | `saves/card1.mcd` | your memory card |
@@ -129,8 +140,8 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Controls | each PlayStation button's two keys and gamepad button: pick a slot, press the key or button (Esc / Back cancels); Del / Y clears it, the last line puts the defaults back. A key or button set to one leaves any other it was on |
 | Button icons | the menu's icons: PS1 (the game's own in its texts), PS3, PS4, PS5 (the default), Xbox 360, Xbox One, Xbox Series, Switch, Keyboard, or Auto (the keyboard or the gamepad you used last, by its maker). The game's texts show their buttons (✕ ○ □ △) the same way, as the key or button each is bound to. By [Xelu](https://thoseawesomeguys.com/prompts/) |
 | Vibration, Stick deadzone | the gamepad |
-| Fast text | holding X advances the texts, outside battles and card games |
-| Fast travel | on the map screen (the field menu's Map), X on a visited area asks, and Yes takes you there as the menu closes, through one of the game's own doors into it that is open at that point of the story. Once you have been to Amaterasu, Square switches between the two servers' maps. Off by default. After Flawe's Fast Travel hack |
+| Fast text | holding X advances the texts, outside battles and card games. After [Dmw2003FastText](https://github.com/markisha64/Dmw2003FastText), by markisha64 |
+| Fast travel | on the map screen (the field menu's Map), X on a visited area asks, and Yes takes you there as the menu closes, through one of the game's own doors into it that is open at that point of the story. Once you have been to Amaterasu, Square switches between the two servers' maps. Off by default. After [Flawe's Mod](https://www.romhacking.net/hacks/9376/), by Flawe |
 | Objective on map | the map screen blinks the area where the story's next step happens (visited or not); on the other server's map when the step is there. Off by default |
 | Digilog | a last row of the field menu, DIGILOG: a journal in the item list's own panels, two tabs turned with left / right. Active: the story's current step and the side quests found (8 DDNA bosses, the old weapons, the dungeons' knights and masters, the Black Kings, the Undersea Base's two (while the story is there) and a few errands, each titled with its reward's name); Done: what is behind. Each with the place it happens at and what to do; L1 / R1 turn the pages, X shows the place on the map. Off by default |
 | Fast forward | x2, x3 or x5 (Tab or R3 while playing); the music keeps its speed. Not saved |
@@ -233,6 +244,18 @@ The first build has no `data/` yet, so its exe keeps the game's tables and can r
 after that takes them out (`tools/asset_scan.py`) and writes `dw2003.fill`. `python tools/smoke.py` builds and boots the
 game unattended for 20 seconds; `python build.py --sanitize` builds with UBSan into `build-san/`.
 
+## Credits
+
+The port stands on [dw3_decomp](https://github.com/ReGame-Labs/dw3_decomp) (ReGame-Labs, juandav). Also:
+[ddw3](https://github.com/markisha64/ddw3) (markisha64, Zenithsiz) for the game's text format;
+[Dmw2003FastText](https://github.com/markisha64/Dmw2003FastText) (markisha64) and
+[Flawe's Mod](https://www.romhacking.net/hacks/9376/) (Flawe) for the ideas of Fast text and Fast travel;
+[dw2_decomp](https://github.com/Wyrelade/Digimon-World-2-Decomp) (Wyrelade) and
+[dcb_decomp](https://github.com/ReGame-Labs/dcb_decomp) (ReGame-Labs) for Flamedramon's model and attacks;
+[SDL 3](https://libsdl.org), [Xelu's prompts](https://thoseawesomeguys.com/prompts/) for the button icons,
+[psx-spx](https://psx-spx.consoledev.net) for the hardware, and the Pixel Digivolve font (Pixel Sagas) in the launcher.
+What each one gave, with its license, is in [`CREDITS.md`](CREDITS.md).
+
 ## Legal
 
 © 2026 Feerdus. The port's own code is under the MIT License (`LICENSE`); what it builds on, and their licenses, is in
@@ -282,3 +305,6 @@ Si sale **"The game's data doesn't match..."**, borra `data/` y arranca el juego
 
 © 2026 Feerdus, licencia MIT. Proyecto de fans, sin relación con Bandai Namco. Digimon World 2003 es © Bandai /
 Bandai Namco.
+
+**Créditos.** Lo que usa el port y de quién (dw3_decomp, ddw3, markisha64, Flawe, dw2_decomp, dcb_decomp, SDL 3, Xelu...) está en
+la sección [Credits](#credits) y en [`CREDITS.md`](CREDITS.md).

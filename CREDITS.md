@@ -7,6 +7,16 @@ The native port of Digimon World 2003 builds on the work of others:
   would be no port.
 - **[Dmw2003FastText](https://github.com/markisha64/Dmw2003FastText)** (MIT License, by markisha64). The idea of
   Fast text: the text boxes reading X held as well as pressed, outside battles.
+- **[ddw3](https://github.com/markisha64/ddw3)** (markisha64, Zenithsiz). A decompilation of the game, whose
+  `mklang-file` encodes the extra starter packs' texts in the game's own text format (`tools/packs_text.py`).
+- **[Flawe's Mod](https://www.romhacking.net/hacks/9376/)** (by Flawe, on Romhacking). The idea of Fast travel: no part
+  of it is copied, the port's goes through the game's own doors.
+- **[dw2_decomp](https://github.com/Wyrelade/Digimon-World-2-Decomp)** (CC0, by Wyrelade and its contributors). The
+  decompiled Digimon World 2 that Flamedramon's model was read through.
+- **[dcb_decomp](https://github.com/ReGame-Labs/dcb_decomp)** (MIT License, ReGame-Labs). The decompiled Digimon Digital
+  Card Battle that Flamedramon's attacks were read through.
+- **Pixel Digivolve** (by Neale Davidson, Pixel Sagas). The launcher's font, baked into `dw3launcher.exe`; its license
+  is in `licenses/`.
 - **[SDL 3](https://libsdl.org)** (zlib License, Copyright (C) 1997-2026 Sam Lantinga). The window, input and audio.
   `SDL3.dll` ships as it comes.
 - **[Xelu's free controller prompts](https://thoseawesomeguys.com/prompts/)** (CC0, by Nicolae "Xelu" Berbece, in

@@ -12,9 +12,7 @@ int video_init(int scale, int fullscreen);
 void install_crash_handler(void);
 void native_snapshot_overlays(void);
 int native_fill(const char *data);
-int native_extract_disc(const char *data);
-int native_extract(const char *image, const char *data, void (*progress)(int percent));
-const char *native_extract_error(int e);
+#include "extract.h"
 extern uint8_t STAGE_VRAM[], OVERLAY_VRAM[];
 extern uint32_t HEAP_BASE[];
 
@@ -188,6 +186,24 @@ static void read_ini(int data_only) {
     fclose(f);
 }
 
+/* No game yet: the launcher, next to the exe, reads the disc. Not if it started this very run, which would loop. */
+static int open_launcher(void) {
+    char path[1100];
+    const char *args[] = {path, NULL};
+    SDL_Process *launcher;
+
+    if (getenv("DW3_FROM_LAUNCHER") != NULL) {
+        return 0;
+    }
+    snprintf(path, sizeof path, "%sdw3launcher.exe", SDL_GetBasePath());
+    launcher = SDL_GetPathInfo(path, NULL) ? SDL_CreateProcess(args, false) : NULL;
+    if (launcher == NULL) {
+        return 0;
+    }
+    SDL_DestroyProcess(launcher); /* it goes on by itself */
+    return 1;
+}
+
 int main(int argc, char **argv) {
     const char *env = getenv("DW3_DATA");
 
@@ -210,8 +226,17 @@ int main(int argc, char **argv) {
     /* the first run reads the player's disc; then the game's tables, before
        anything touches the game's variables (fill.c) */
     snprintf(exe, sizeof exe, "%s/SLES_039.36", s_data);
-    if (!SDL_GetPathInfo(exe, NULL) && (argc > 1 || !native_extract_disc(s_data))) {
+    if (!SDL_GetPathInfo(exe, NULL)) {
         LOG("no game in %s", s_data);
+        if (argc > 1) {
+            return 1;
+        }
+        if (open_launcher()) {
+            return 0;
+        }
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Digimon World 2003",
+                                 "The game's data isn't there yet. Open dw3launcher.exe to read your disc, "
+                                 "or run: dw2003 --extract IMAGE", NULL);
         return 1;
     }
     if (!native_fill(s_data)) {

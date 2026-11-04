@@ -1,20 +1,25 @@
 /* The player's disc, read once into data/ on the first run (what
-   tools/extract_iso.py did): the game asks for its image (.bin/.cue, or a
-   plain .iso, whose movies have no sound), checks it is Digimon World 2003
+   tools/extract_iso.py did): the launcher or --extract gives its image (.bin/.cue,
+   or a plain .iso, whose movies have no sound). It checks it is Digimon World 2003
    (Europe, SLES-03936) and writes
 
        data/files/NNNN.bin   every file of the game's file table, by fid
        data/files/NNNN.str   the movies again, whole sectors (2336 bytes:
                              XA subheader + data), as their audio is in
                              Form 2 sectors that the 2048-byte copy loses
+       data/names.txt        the disc's file names, line N for file N (for the model viewer)
        data/SLES_039.36      the executable, last: its presence means done
 
+   All of it goes to data/.extract-tmp first, and moves into place only when complete.
    The game finds its files by fid through two tables of the executable
    (FILE_SECTORS: first sector, FILE_SECTOR_COUNTS: sectors). */
 #include <SDL3/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <windows.h>
+
+#include "extract.h"
 
 void native_log(const char *fmt, ...);
 
@@ -23,10 +28,22 @@ void native_log(const char *fmt, ...);
 #define FILE_SECTORS 0x80044F6Cu       /* s32[2382] */
 #define FILE_SECTOR_COUNTS 0x800474A4u /* u16[2382] */
 #define FILE_COUNT 2382
+/* ponytail: the tested disc's size with its movies, rounded up; a plain .iso needs less, but the check is only a courtesy */
+#define NEED_BYTES (900ull << 20)
 
 static FILE *s_disc;
 static int s_raw;     /* raw 2352-byte sectors (.bin), or plain 2048 (.iso) */
 static long s_sectors;
+
+/* fopen with the UTF-8 paths SDL's dialogs and drops give, whatever the system's code page */
+static FILE *open_utf8(const char *path, const wchar_t *mode) {
+    wchar_t wide[1200];
+
+    if (MultiByteToWideChar(CP_UTF8, 0, path, -1, wide, SDL_arraysize(wide)) == 0) {
+        return NULL;
+    }
+    return _wfopen(wide, mode);
+}
 
 /* The 2048 user bytes of `count` sectors (Mode 2 Form 1 in a raw image) */
 static int read_sectors(long lba, long count, uint8_t *out) {
@@ -73,439 +90,309 @@ static long find(const char *name, long *size) {
 }
 
 static int write_file(const char *path, const void *data, size_t size) {
-    FILE *f = fopen(path, "wb");
+    FILE *f = open_utf8(path, L"wb");
     int ok = f != NULL && fwrite(data, 1, size, f) == size;
 
     if (f != NULL) {
         ok &= fclose(f) == 0;
     }
+    if (!ok) {
+        native_log("can't write %s", path);
+    }
     return ok;
 }
 
-/* What can go wrong, for T[][] below */
-enum { E_NONE, E_OPEN, E_GAME, E_BAD, E_WRITE };
+/* A .cue names its data file in a FILE line, relative to the .cue. If that isn't there (a renamed .bin), the
+   .bin of the .cue's own name. Anything but a .cue is the data itself. E_NONE, or what's wrong. */
+static int open_image(const char *image) {
+    char path[1200], name[1000];
+    const char *dot = strrchr(image, '.');
+    FILE *cue;
+    int files = 0;
 
-/* Extracts `image` into `data`, telling `progress` (if any) how far, in
-   percent; E_NONE when done, else what went wrong (native_extract_error).
-   Also dw2003 --extract IMAGE. */
-int native_extract(const char *image, const char *data, void (*progress)(int percent)) {
-    char path[1200];
-    uint8_t *exe, *buf = NULL;
-    long exe_lba, exe_size = 0, movies = 0;
-    const int32_t *starts;
-    const uint16_t *counts;
-    long long bytes;
-    char *dot;
-
-    /* a .cue's data is the .bin of the same name */
-    snprintf(path, sizeof path, "%s", image);
-    dot = strrchr(path, '.');
-    if (dot != NULL && SDL_strcasecmp(dot, ".cue") == 0) {
-        strcpy(dot, ".bin");
+    s_disc = NULL;
+    if (dot == NULL || SDL_strcasecmp(dot, ".cue") != 0) {
+        s_disc = open_utf8(image, L"rb");
+        return s_disc != NULL ? E_NONE : E_OPEN;
     }
-    s_disc = fopen(path, "rb");
-    if (s_disc == NULL) {
+    if ((cue = open_utf8(image, L"r")) == NULL) {
         return E_OPEN;
+    }
+    name[0] = 0;
+    while (fgets(path, sizeof path, cue) != NULL) {
+        char quoted[1000];
+        if (sscanf(path, " FILE \"%999[^\"]\"", quoted) == 1 || sscanf(path, " FILE %999s", quoted) == 1) {
+            if (files++ == 0) {
+                SDL_strlcpy(name, quoted, sizeof name);
+            }
+        }
+    }
+    fclose(cue);
+    if (files > 1) {
+        return E_CUE; /* the tested disc is one data track in one file */
+    }
+    if (name[0] != 0) {
+        const char *slash = SDL_max(strrchr(image, '/'), strrchr(image, '\\'));
+        int dir = slash != NULL ? (int)(slash - image) + 1 : 0;
+        int absolute = name[0] == '/' || name[0] == '\\' || name[1] == ':';
+        snprintf(path, sizeof path, "%.*s%s", absolute ? 0 : dir, image, name);
+        s_disc = open_utf8(path, L"rb");
+    }
+    if (s_disc == NULL) {
+        snprintf(path, sizeof path, "%.*s.bin", (int)(dot - image), image);
+        s_disc = open_utf8(path, L"rb");
+    }
+    return s_disc != NULL ? E_NONE : E_OPEN;
+}
+
+/* The files of a folder with no folders in it, then the folder */
+static void remove_folder(const char *dir) {
+    char path[1200];
+    int n = 0;
+    char **names = SDL_GlobDirectory(dir, NULL, 0, &n);
+
+    for (int i = 0; names != NULL && i < n; i++) {
+        snprintf(path, sizeof path, "%s/%s", dir, names[i]);
+        SDL_RemovePath(path);
+    }
+    SDL_free(names);
+    SDL_RemovePath(dir);
+}
+
+static void remove_tmp(const char *tmp) {
+    char path[1200];
+
+    snprintf(path, sizeof path, "%s/files", tmp);
+    remove_folder(path);
+    remove_folder(tmp);
+}
+
+static int enough_space(const char *data) {
+    wchar_t wide[1200];
+    ULARGE_INTEGER free_bytes;
+
+    if (MultiByteToWideChar(CP_UTF8, 0, data, -1, wide, SDL_arraysize(wide)) == 0 ||
+        !GetDiskFreeSpaceExW(wide, &free_bytes, NULL, NULL)) {
+        return 1; /* can't tell: the writes will */
+    }
+    return free_bytes.QuadPart >= NEED_BYTES;
+}
+
+/* The complete game from tmp into data: the marker goes first and comes back last */
+static int move_into_place(const char *tmp, const char *data) {
+    char from[1200], to[1200];
+
+    snprintf(to, sizeof to, "%s/SLES_039.36", data);
+    SDL_RemovePath(to);
+    snprintf(to, sizeof to, "%s/files", data);
+    remove_folder(to); /* what an earlier run left: the marker wasn't there, so it wasn't complete */
+    snprintf(from, sizeof from, "%s/files", tmp);
+    if (!SDL_RenamePath(from, to)) {
+        native_log("can't move %s to %s: %s", from, to, SDL_GetError());
+        return 0;
+    }
+    snprintf(from, sizeof from, "%s/names.txt", tmp);
+    snprintf(to, sizeof to, "%s/names.txt", data);
+    if (!SDL_RenamePath(from, to)) {
+        native_log("can't move %s to %s: %s", from, to, SDL_GetError());
+        return 0;
+    }
+    snprintf(from, sizeof from, "%s/SLES_039.36", tmp);
+    snprintf(to, sizeof to, "%s/SLES_039.36", data);
+    if (!SDL_RenamePath(from, to)) {
+        native_log("can't move %s to %s: %s", from, to, SDL_GetError());
+        return 0;
+    }
+    return 1;
+}
+
+static int copy_files(const uint8_t *exe, long exe_size, const char *tmp, int (*progress)(int percent), long *movies) {
+    const int32_t *starts = (const int32_t *)(exe + 0x800 + (FILE_SECTORS - EXE_VRAM));
+    const uint16_t *counts = (const uint16_t *)(exe + 0x800 + (FILE_SECTOR_COUNTS - EXE_VRAM));
+    char path[1200];
+    uint8_t *buf = NULL;
+    int result = E_NONE;
+
+    for (int fid = 0; fid < FILE_COUNT && result == E_NONE; fid++) {
+        long start = starts[fid], count = counts[fid];
+
+        if (progress != NULL && !progress(fid * 100 / FILE_COUNT)) {
+            result = E_CANCELLED;
+        } else if (start <= 0 || count == 0) {
+            continue;
+        } else if (start + count > s_sectors) {
+            native_log("the image ends at sector %ld, and file %d goes on to %ld", s_sectors, fid, start + count);
+            result = E_TRUNCATED;
+        } else {
+            buf = realloc(buf, count * 2352);
+            snprintf(path, sizeof path, "%s/files/%04d.bin", tmp, fid);
+            if (buf == NULL || !read_sectors(start, count, buf)) {
+                native_log("can't read file %d from the image", fid);
+                result = E_READ;
+            } else if (!write_file(path, buf, count * 2048)) {
+                result = E_WRITE;
+            } else if (s_raw) {
+                /* whole sectors past the sync and header: subheader + 2328 bytes */
+                int form2 = 0;
+                for (long n = 0; n < count && result == E_NONE; n++) {
+                    if (_fseeki64(s_disc, (long long)(start + n) * 2352 + 16, SEEK_SET) != 0 ||
+                        fread(buf + n * 2336, 1, 2336, s_disc) != 2336) {
+                        native_log("can't read file %d from the image", fid);
+                        result = E_READ;
+                    } else {
+                        form2 |= buf[n * 2336 + 2] & 0x20;
+                    }
+                }
+                snprintf(path, sizeof path, "%s/files/%04d.str", tmp, fid);
+                if (result == E_NONE && form2 && !write_file(path, buf, count * 2336)) {
+                    result = E_WRITE;
+                }
+                *movies += form2 != 0;
+            }
+        }
+    }
+    free(buf);
+    snprintf(path, sizeof path, "%s/SLES_039.36", tmp);
+    if (result == E_NONE && !write_file(path, exe, exe_size)) {
+        result = E_WRITE;
+    }
+    return result;
+}
+
+/* Every file's name, line N for file N, into dir/names.txt. They are in directory records the disc's root doesn't
+   list, so every sector is searched for them; the file table says which name is which file. */
+static int write_names(const uint8_t *exe, const char *dir, int (*progress)(int percent)) {
+    const int32_t *starts = (const int32_t *)(exe + 0x800 + (FILE_SECTORS - EXE_VRAM));
+    char (*by_lba)[16] = calloc(s_sectors, 16), path[1200];
+    uint8_t sector[2048];
+    FILE *f;
+    int result = by_lba != NULL ? E_NONE : E_READ;
+
+    for (long lba = 0; lba < s_sectors && result == E_NONE; lba++) {
+        if (lba % 4096 == 0 && progress != NULL && !progress(99)) {
+            result = E_CANCELLED;
+        } else if (!read_sectors(lba, 1, sector)) {
+            result = E_READ;
+        }
+        for (int i = 0; result == E_NONE && i + 34 <= 2048;) {
+            const int n = sector[i], len = sector[i + 32];
+            uint32_t start;
+
+            /* a record's extent is stored little and big-endian, and a file's name ends ;1 */
+            if (n < 34 || i + n > 2048 || 33 + len > n || sector[i + 2] != sector[i + 9] || sector[i + 3] != sector[i + 8] ||
+                sector[i + 4] != sector[i + 7] || sector[i + 5] != sector[i + 6]) {
+                break;
+            }
+            memcpy(&start, sector + i + 2, 4);
+            if (len > 2 && len - 2 < 16 && memcmp(sector + i + 33 + len - 2, ";1", 2) == 0 && start < (uint32_t)s_sectors) {
+                memcpy(by_lba[start], sector + i + 33, len - 2);
+                by_lba[start][len - 2] = 0;
+            }
+            i += n;
+        }
+    }
+    snprintf(path, sizeof path, "%s/names.txt", dir);
+    if (result == E_NONE && (f = open_utf8(path, L"wb")) != NULL) {
+        for (int fid = 0; fid < FILE_COUNT; fid++) {
+            fprintf(f, "%s\n", starts[fid] > 0 && starts[fid] < s_sectors ? by_lba[starts[fid]] : "");
+        }
+        result = fclose(f) == 0 ? E_NONE : E_WRITE;
+    } else if (result == E_NONE) {
+        native_log("can't write %s", path);
+        result = E_WRITE;
+    }
+    free(by_lba);
+    return result;
+}
+
+/* The image opened and checked: E_NONE with s_disc open and the exe to free, else what's wrong, with nothing open */
+static int open_game(const char *image, uint8_t **out, long *size) {
+    long exe_lba;
+    long long bytes;
+    uint8_t *exe;
+    int result = open_image(image);
+
+    if (result != E_NONE) {
+        native_log("can't use %s: %s", image, native_extract_error(result));
+        return result;
     }
     _fseeki64(s_disc, 0, SEEK_END);
     bytes = _ftelli64(s_disc);
     s_raw = bytes % 2352 == 0;
     s_sectors = (long)(bytes / (s_raw ? 2352 : 2048));
-    exe_lba = find("SLES_039.36", &exe_size);
-    if (exe_lba == 0 || exe_size <= 0 || exe_size > 4 << 20) {
+    exe_lba = find("SLES_039.36", size);
+    if (exe_lba == 0 || *size <= 0 || *size > 4 << 20) {
         fclose(s_disc);
         return E_GAME;
     }
-    exe = malloc((exe_size + 2047) & ~2047);
-    if (!read_sectors(exe_lba, (exe_size + 2047) / 2048, exe) || SDL_crc32(0, exe, exe_size) != EXE_CRC) {
+    exe = malloc((*size + 2047) & ~2047);
+    if (exe == NULL || !read_sectors(exe_lba, (*size + 2047) / 2048, exe) || SDL_crc32(0, exe, *size) != EXE_CRC) {
         free(exe);
         fclose(s_disc);
         return E_BAD;
     }
-    starts = (const int32_t *)(exe + 0x800 + (FILE_SECTORS - EXE_VRAM));
-    counts = (const uint16_t *)(exe + 0x800 + (FILE_SECTOR_COUNTS - EXE_VRAM));
-    snprintf(path, sizeof path, "%s/files", data);
-    SDL_CreateDirectory(path);
-    for (int fid = 0; fid < FILE_COUNT; fid++) {
-        long start = starts[fid], count = counts[fid];
-
-        if (start <= 0 || count == 0 || start + count > s_sectors) {
-            continue;
-        }
-        buf = realloc(buf, count * 2352);
-        snprintf(path, sizeof path, "%s/files/%04d.bin", data, fid);
-        if (!read_sectors(start, count, buf) || !write_file(path, buf, count * 2048)) {
-            native_log("can't write %s", path);
-            goto fail;
-        }
-        if (s_raw) {
-            /* whole sectors past the sync and header: subheader + 2328 bytes */
-            int form2 = 0;
-            for (long n = 0; n < count; n++) {
-                _fseeki64(s_disc, (long long)(start + n) * 2352 + 16, SEEK_SET);
-                fread(buf + n * 2336, 1, 2336, s_disc);
-                form2 |= buf[n * 2336 + 2] & 0x20;
-            }
-            snprintf(path, sizeof path, "%s/files/%04d.str", data, fid);
-            if (form2 && !write_file(path, buf, count * 2336)) {
-                native_log("can't write %s", path);
-                goto fail;
-            }
-            movies += form2 != 0;
-        }
-        if (progress != NULL && fid % 8 == 0) {
-            progress(fid * 100 / FILE_COUNT);
-        }
-    }
-    snprintf(path, sizeof path, "%s/SLES_039.36", data);
-    if (!write_file(path, exe, exe_size)) {
-        native_log("can't write %s", path);
-        goto fail;
-    }
-    native_log("disc extracted into %s (%ld movies%s)", data, movies, s_raw ? "" : "; a plain .iso: silent movies");
-    free(buf);
-    free(exe);
-    fclose(s_disc);
+    *out = exe;
     return E_NONE;
-fail:
-    free(buf);
-    free(exe);
-    fclose(s_disc);
-    return E_WRITE;
 }
 
-/* --- the first-run screen: 480x270 units (twice as big on screen), SDL's
-   8x8 font as in the options menu; nothing of the game, which isn't there yet --- */
+int native_disc_names(const char *image, const char *data, int (*progress)(int percent)) {
+    uint8_t *exe;
+    long exe_size = 0;
+    int result = open_game(image, &exe, &exe_size);
 
-#define SW 480
-#define SH 270
+    if (result == E_NONE) {
+        result = write_names(exe, data, progress);
+        free(exe);
+        fclose(s_disc);
+    }
+    return result;
+}
 
-/* The disc's five languages; the first is the default and the command line's */
-enum { LANGS = 5 };
-enum { L_NAME, L_PORT, L_NEED, L_ONCE, L_DROP, L_OR, L_BROWSE, L_READING, L_ISO, L_KEYS,
-       L_OPEN, L_GAME, L_BAD, L_WRITE, L_FAN, L_COUNT };
-/* each line fits 58 characters; no accented capital or i (draw_text) */
-static const char *const T[LANGS][L_COUNT] = {
-    {"English", "native PC port", "The port plays from your own copy of the game:",
-     "read once into the data folder (about 850 MB).", "Drop your .cue or .bin here", "or", "Browse...",
-     "Reading your disc...", "An .iso may cause issues: a .cue/.bin is best.", "Enter: browse     Esc: quit",
-     "Can't open the image.", "This isn't Digimon World 2003 (Europe, SLES-03936).",
-     "Not Digimon World 2003 (Europe), or the image is damaged.", "Can't write to the data folder.",
-     "Fan project, not affiliated with Bandai Namco."},
-    {"Español", "port nativo para PC", "El port se juega con tu propia copia del juego:",
-     "se lee una sola vez a la carpeta data (unos 850 MB).", "Arrastra tu .cue o .bin a esta zona", "o",
-     "Buscar...", "Leyendo tu disco...", "Una .iso puede dar problemas: mejor un .cue/.bin.",
-     "Enter: buscar     Esc: salir", "No se puede abrir la imagen.", "No es Digimon World 2003 (Europa, SLES-03936).",
-     "No es Digimon World 2003 (Europa) o la imagen está dañada.", "No se puede escribir en la carpeta data.",
-     "Proyecto de fans, sin relación con Bandai Namco."},
-    {"Français", "portage PC natif", "Le portage se joue avec votre propre copie du jeu :",
-     "lue une seule fois dans le dossier data (environ 850 Mo).", "Déposez votre .cue ou .bin ici", "ou",
-     "Parcourir...", "Lecture de votre disque...", "Un .iso peut poser problème : préférez un .cue/.bin.",
-     "Entrée : parcourir     Esc : quitter", "Impossible d'ouvrir l'image.",
-     "Ce n'est pas Digimon World 2003 (Europe, SLES-03936).", "Pas Digimon World 2003 (Europe), ou image endommagée.",
-     "Impossible d'écrire dans le dossier data.", "Projet de fans, sans lien avec Bandai Namco."},
-    {"Deutsch", "nativer PC-Port", "Der Port läuft mit deiner eigenen Kopie des Spiels:",
-     "einmalig in den Ordner data gelesen (ca. 850 MB).", "Zieh deine .cue oder .bin hierher", "oder",
-     "Durchsuchen...", "Deine Disc wird gelesen...", "Eine .iso kann Probleme machen: besser .cue/.bin.",
-     "Enter: durchsuchen     Esc: beenden", "Das Image lässt sich nicht öffnen.",
-     "Das ist nicht Digimon World 2003 (Europa, SLES-03936).", "Nicht Digimon World 2003 (Europa) oder Image beschädigt.",
-     "Kann nicht in den Ordner data schreiben.", "Fanprojekt, nicht mit Bandai Namco verbunden."},
-    {"Italiano", "port nativo per PC", "Il port usa la tua copia originale del gioco:",
-     "letta una sola volta nella cartella data (circa 850 MB).", "Trascina qui il tuo .cue o .bin", "oppure",
-     "Sfoglia...", "Lettura del disco...", "Una .iso può dare problemi: meglio un .cue/.bin.",
-     "Invio: sfoglia     Esc: esci", "Impossibile aprire l'immagine.", "Non è Digimon World 2003 (Europa, SLES-03936).",
-     "Non è Digimon World 2003 (Europa), o immagine danneggiata.", "Impossibile scrivere nella cartella data.",
-     "Progetto di fan, non affiliato a Bandai Namco."},
-};
-static const char *const CREDIT = "\xC2\xA9 2026 Feerdus  -  MIT License"; /* the font has the (c) sign */
+int native_extract(const char *image, const char *data, int (*progress)(int percent)) {
+    char path[1200], tmp[1200];
+    uint8_t *exe;
+    long exe_size = 0, movies = 0;
+    int result = open_game(image, &exe, &exe_size);
+
+    if (result != E_NONE) {
+        return result;
+    }
+    snprintf(tmp, sizeof tmp, "%s/.extract-tmp", data);
+    remove_tmp(tmp); /* what a killed run left */
+    snprintf(path, sizeof path, "%s/files", tmp);
+    if (!SDL_CreateDirectory(path)) { /* with the folders above it */
+        native_log("can't create %s: %s", path, SDL_GetError());
+        result = E_WRITE;
+    } else if (!enough_space(data)) {
+        native_log("less than %llu MB free for %s", NEED_BYTES >> 20, data);
+        result = E_SPACE;
+    } else {
+        result = copy_files(exe, exe_size, tmp, progress, &movies);
+    }
+    if (result == E_NONE) {
+        result = write_names(exe, tmp, progress);
+    }
+    if (result == E_NONE && !move_into_place(tmp, data)) {
+        result = E_WRITE;
+    }
+    remove_tmp(tmp);
+    free(exe);
+    fclose(s_disc);
+    if (result == E_NONE) {
+        native_log("disc extracted into %s (%ld movies%s)", data, movies, s_raw ? "" : "; a plain .iso: silent movies");
+    } else {
+        native_log("disc not extracted: %s", native_extract_error(result));
+    }
+    return result;
+}
 
 const char *native_extract_error(int e) {
-    return T[0][L_OPEN + e - E_OPEN];
-}
-
-static SDL_Renderer *s_r;
-static char s_picked[1100];
-static SDL_AtomicInt s_dialog; /* 1 open, 2 answered */
-static int s_error;            /* E_*, shown until the next try */
-static int s_percent = -1;     /* reading, how far; -1 asking */
-static int s_lang, s_menu;     /* the language, its list open */
-static SDL_FPoint s_mouse = {-1, -1};
-static const SDL_FRect ZONE = {64, 128, SW - 128, 86}, BUTTON = {SW / 2 - 64, 178, 128, 20},
-                       PICKER = {SW - 92, 8, 84, 14};
-
-static void color(Uint32 rgb, Uint8 a) {
-    SDL_SetRenderDrawColor(s_r, rgb >> 16, rgb >> 8 & 0xFF, rgb & 0xFF, a);
-}
-
-static void fill(float x, float y, float w, float h, Uint32 rgb, Uint8 a) {
-    SDL_FRect f = {x, y, w, h};
-    color(rgb, a);
-    SDL_RenderFillRect(s_r, &f);
-}
-
-static int over(const SDL_FRect *r) {
-    return SDL_PointInRectFloat(&s_mouse, r);
-}
-
-/* The font has ASCII and the (c) sign only: an accented letter is its base
-   letter with the accent drawn over it (rows 0-1, free above the lowercase;
-   the cedilla in row 7, free below), in pixels of the cell */
-#define ACUTE (0x30 | 0x18 << 8)
-#define GRAVE (0x06 | 0x0C << 8)
-#define CIRC (0x18 | 0x66 << 8)
-#define DIAER 0x66
-#define TILDE (0x4C | 0x32 << 8)
-#define CEDILLA (1 << 16)
-static const struct {
-    Uint32 cp;
-    char base;
-    Uint32 mark; /* bits 0-15: rows 0 and 1, a bit a pixel; CEDILLA: row 7 */
-} ACCENTS[] = {
-    {0xE1, 'a', ACUTE}, {0xE0, 'a', GRAVE}, {0xE2, 'a', CIRC}, {0xE4, 'a', DIAER}, {0xE9, 'e', ACUTE},
-    {0xE8, 'e', GRAVE}, {0xEA, 'e', CIRC},  {0xF3, 'o', ACUTE}, {0xF2, 'o', GRAVE}, {0xF4, 'o', CIRC},
-    {0xF6, 'o', DIAER}, {0xFA, 'u', ACUTE}, {0xF9, 'u', GRAVE}, {0xFB, 'u', CIRC},  {0xFC, 'u', DIAER},
-    {0xF1, 'n', TILDE}, {0xE7, 'c', CEDILLA},
-};
-
-static void draw_text(float x, float y, const char *s) {
-    Uint32 cp;
-
-    while ((cp = SDL_StepUTF8(&s, NULL)) != 0) {
-        char one[8] = "?";
-        Uint32 mark = 0;
-
-        if (cp < 0x80 || cp == 0xA9) {
-            SDL_UCS4ToUTF8(cp, one)[0] = 0;
-        } else {
-            for (size_t i = 0; i < SDL_arraysize(ACCENTS); i++) {
-                if (ACCENTS[i].cp == cp) {
-                    one[0] = ACCENTS[i].base;
-                    mark = ACCENTS[i].mark;
-                }
-            }
-        }
-        SDL_RenderDebugText(s_r, x, y, one);
-        for (int b = 0; b < 16; b++) {
-            if (mark >> b & 1) {
-                SDL_FRect px = {x + b % 8, y + b / 8, 1, 1};
-                SDL_RenderFillRect(s_r, &px);
-            }
-        }
-        if (mark & CEDILLA) {
-            SDL_FRect px = {x + 3, y + 7, 2, 1};
-            SDL_RenderFillRect(s_r, &px);
-        }
-        x += 8;
-    }
-}
-
-/* at x, aligned by `align` (0 left, 0.5 centred, 1 right), `scale` times the font, with a shadow */
-static void text(float x, float y, float align, Uint32 rgb, float scale, const char *s) {
-    float w = 8 * SDL_utf8strlen(s);
-
-    SDL_SetRenderScale(s_r, scale, scale);
-    x = x / scale - w * align;
-    y /= scale;
-    color(0x000000, 160);
-    draw_text(x + 1 / scale, y + 1 / scale, s);
-    color(rgb, 255);
-    draw_text(x, y, s);
-    SDL_SetRenderScale(s_r, 1, 1);
-}
-
-#define CENTRE(y, rgb, s) text(SW / 2, y, 0.5f, rgb, 1, s)
-
-static void dashed(const SDL_FRect *r) {
-    for (float x = r->x; x < r->x + r->w; x += 8) {
-        SDL_RenderLine(s_r, x, r->y, SDL_min(x + 4, r->x + r->w), r->y);
-        SDL_RenderLine(s_r, x, r->y + r->h, SDL_min(x + 4, r->x + r->w), r->y + r->h);
-    }
-    for (float y = r->y; y < r->y + r->h; y += 8) {
-        SDL_RenderLine(s_r, r->x, y, r->x, SDL_min(y + 4, r->y + r->h));
-        SDL_RenderLine(s_r, r->x + r->w, y, r->x + r->w, SDL_min(y + 4, r->y + r->h));
-    }
-}
-
-/* the language list, under PICKER */
-static SDL_FRect item(int i) {
-    SDL_FRect r = {PICKER.x, PICKER.y + PICKER.h + 2 + i * 14, PICKER.w, 14};
-    return r;
-}
-
-static void draw(void) {
-    const char *const *t = T[s_lang];
-    int asking = s_percent < 0;
-
-    color(0x0B1220, 255);
-    SDL_RenderClear(s_r);
-    for (int y = 0; y < SH; y += 2) { /* a soft glow from the top */
-        fill(0, y, SW, 2, 0x2A4A8A, (Uint8)(70 * (1 - (float)y / SH) * (1 - (float)y / SH)));
-    }
-    text(SW / 2, 26, 0.5f, 0xF5A623, 2, "DIGIMON WORLD 2003");
-    CENTRE(50, 0x8FA3C8, t[L_PORT]);
-    fill(SW / 2 - 120, 66, 240, 1, 0x3A4E78, 255);
-    CENTRE(80, 0xE8ECF4, t[L_NEED]);
-    CENTRE(94, 0xF5A623, "Digimon World 2003 (Europe), SLES-03936");
-    CENTRE(108, 0x8FA3C8, t[L_ONCE]);
-
-    fill(ZONE.x, ZONE.y, ZONE.w, ZONE.h, 0xFFFFFF, asking && !s_menu && over(&ZONE) ? 14 : 8);
-    color(0x4F6AA0, 255);
-    dashed(&ZONE);
-    if (!asking) {
-        char pct[16];
-        CENTRE(146, 0xE8ECF4, t[L_READING]);
-        fill(112, 166, SW - 224, 10, 0x1C2A44, 255);
-        fill(112, 166, (SW - 224) * s_percent / 100.0f, 10, 0xF5A623, 255);
-        SDL_snprintf(pct, sizeof pct, "%d%%", s_percent);
-        CENTRE(186, 0x8FA3C8, pct);
-    } else {
-        CENTRE(142, 0xE8ECF4, t[L_DROP]);
-        CENTRE(158, 0x6C7FA6, t[L_OR]);
-        fill(BUTTON.x, BUTTON.y, BUTTON.w, BUTTON.h, !s_menu && over(&ZONE) ? 0xFFB940 : 0xF5A623, 255);
-        color(0x0B1220, 255);
-        draw_text(SW / 2 - 4 * SDL_utf8strlen(t[L_BROWSE]), BUTTON.y + 6, t[L_BROWSE]);
-    }
-    if (s_error) {
-        CENTRE(226, 0xFF6B6B, t[L_OPEN + s_error - E_OPEN]);
-    } else {
-        CENTRE(226, 0x6C7FA6, t[L_ISO]);
-    }
-    CENTRE(242, 0x4A5A7A, asking ? t[L_KEYS] : "");
-    /* the credits, at the font's own size on screen */
-    text(8, SH - 9, 0, 0x4A5A7A, 0.5f, CREDIT);
-    text(SW - 8, SH - 9, 1, 0x4A5A7A, 0.5f, t[L_FAN]);
-
-    /* the language, top right; its list over everything */
-    if (asking) {
-        fill(PICKER.x, PICKER.y, PICKER.w, PICKER.h, 0x1C2A44, over(&PICKER) || s_menu ? 255 : 200);
-        color(0x4F6AA0, 255);
-        SDL_RenderRect(s_r, &PICKER);
-        color(0xE8ECF4, 255);
-        draw_text(PICKER.x + 5, PICKER.y + 3, t[L_NAME]);
-        for (int i = 0; i < 3; i++) { /* the arrow */
-            SDL_RenderLine(s_r, PICKER.x + PICKER.w - 12 + i, PICKER.y + 5 + i, PICKER.x + PICKER.w - 6 - i, PICKER.y + 5 + i);
-        }
-        for (int i = 0; s_menu && i < LANGS; i++) {
-            SDL_FRect r = item(i);
-            fill(r.x, r.y, r.w, r.h, i == s_lang ? 0x2A4A8A : over(&r) ? 0x3A4E78 : 0x1C2A44, 250);
-            color(i == s_lang ? 0xF5A623 : 0xE8ECF4, 255);
-            draw_text(r.x + 5, r.y + 3, T[i][L_NAME]);
-        }
-        if (s_menu) {
-            SDL_FRect all = {PICKER.x, PICKER.y + PICKER.h + 2, PICKER.w, LANGS * 14};
-            color(0x4F6AA0, 255);
-            SDL_RenderRect(s_r, &all);
-        }
-    }
-    SDL_RenderPresent(s_r);
-}
-
-static void progress(int percent) {
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) { /* keep the window answering; it can't be stopped halfway */
-    }
-    s_percent = percent;
-    draw();
-}
-
-static void SDLCALL picked(void *user, const char *const *files, int filter) {
-    s_picked[0] = 0;
-    if (files != NULL && files[0] != NULL) {
-        SDL_strlcpy(s_picked, files[0], sizeof s_picked);
-    }
-    SDL_SetAtomicInt(&s_dialog, 2);
-}
-
-/* the system's language, if it is one of the five */
-static int system_lang(void) {
-    static const char *const CODES[LANGS] = {"en", "es", "fr", "de", "it"};
-    int n, lang = 0;
-    SDL_Locale **l = SDL_GetPreferredLocales(&n);
-
-    for (int i = n - 1; l != NULL && i >= 0; i--) { /* the first preferred wins */
-        for (int k = 0; k < LANGS; k++) {
-            if (SDL_strcasecmp(l[i]->language, CODES[k]) == 0) {
-                lang = k;
-            }
-        }
-    }
-    SDL_free(l);
-    return lang;
-}
-
-/* No extracted game in `data`: asks for the disc image until one works or
-   the player gives up. 1 when the game is there. */
-int native_extract_disc(const char *data) {
-    static const SDL_DialogFileFilter FILTERS[] = {{"Disc images (.cue, .bin, .iso)", "cue;bin;iso"}};
-    SDL_Window *window;
-    SDL_Rect usable = {0, 0, SW * 2, SH * 2};
-    int done = 0, quit = 0, k;
-
-    /* a whole multiple of 480x270, for an even font, about 3/4 of the screen's height */
-    if (SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &usable);
-    }
-    k = SDL_max(1, SDL_min(usable.w * 3 / 4 / SW, usable.h * 3 / 4 / SH));
-    if (!SDL_CreateWindowAndRenderer("Digimon World 2003", SW * k, SH * k, SDL_WINDOW_RESIZABLE, &window, &s_r)) {
-        native_log("first-run screen: %s", SDL_GetError());
-        return 0;
-    }
-    SDL_SetRenderLogicalPresentation(s_r, SW, SH, SDL_LOGICAL_PRESENTATION_LETTERBOX);
-    SDL_SetRenderDrawBlendMode(s_r, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderVSync(s_r, 1);
-    s_lang = system_lang();
-    while (!done && !quit) {
-        SDL_Event e;
-        int browse = 0;
-
-        while (SDL_PollEvent(&e)) {
-            SDL_ConvertEventToRenderCoordinates(s_r, &e);
-            if (e.type == SDL_EVENT_QUIT) {
-                quit = 1;
-            } else if (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE) {
-                quit = !s_menu;
-                s_menu = 0;
-            } else if (e.type == SDL_EVENT_MOUSE_MOTION) {
-                s_mouse.x = e.motion.x, s_mouse.y = e.motion.y;
-            } else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP && e.button.button == SDL_BUTTON_LEFT) {
-                s_mouse.x = e.button.x, s_mouse.y = e.button.y;
-                if (s_menu) {
-                    for (int i = 0; i < LANGS; i++) {
-                        SDL_FRect r = item(i);
-                        if (over(&r)) {
-                            s_lang = i;
-                        }
-                    }
-                    s_menu = 0;
-                } else if (over(&PICKER)) {
-                    s_menu = 1;
-                } else {
-                    browse = over(&ZONE);
-                }
-            } else if (e.type == SDL_EVENT_KEY_DOWN && (e.key.key == SDLK_RETURN || e.key.key == SDLK_KP_ENTER)) {
-                browse = !s_menu;
-            } else if (e.type == SDL_EVENT_DROP_FILE && e.drop.data != NULL) {
-                SDL_strlcpy(s_picked, e.drop.data, sizeof s_picked);
-                SDL_SetAtomicInt(&s_dialog, 2);
-            }
-        }
-        if (browse && SDL_GetAtomicInt(&s_dialog) == 0) {
-            SDL_SetAtomicInt(&s_dialog, 1);
-            SDL_ShowOpenFileDialog(picked, NULL, window, FILTERS, 1, NULL, false);
-        }
-        if (SDL_GetAtomicInt(&s_dialog) == 2) {
-            SDL_SetAtomicInt(&s_dialog, 0);
-            if (s_picked[0] != 0) {
-                s_menu = 0;
-                SDL_CreateDirectory(data);
-                s_error = native_extract(s_picked, data, progress);
-                s_percent = -1;
-                done = s_error == E_NONE;
-            }
-        }
-        draw();
-    }
-    SDL_DestroyRenderer(s_r);
-    SDL_DestroyWindow(window);
-    return done;
+    static const char *const TEXT[] = {
+        "OK", "Can't open the image.", "This isn't Digimon World 2003 (Europe, SLES-03936).",
+        "Not Digimon World 2003 (Europe), or the image is damaged.", "Can't write to the data folder.",
+        "Can't read the image.", "The image is cut short: it ends before the game does.",
+        "This .cue has several files; only a single-file image works.", "Not enough free space: about 900 MB is needed.",
+        "Cancelled.",
+    };
+    return TEXT[e];
 }

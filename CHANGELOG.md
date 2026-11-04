@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Launcher** (`dw3launcher.exe`): the disc's first reading moves here from the game, with Play, Settings (every option
+  with its description, the controls' keys and gamepad buttons, the mods with their credits), a notice of new versions
+  and Tools.
+- **Tools**: the launcher downloads the model viewer and the field editor from GitHub, sets them up to read the port's
+  data and opens them; one already beside the port is used as it is.
+- Fixed: the game couldn't start from a folder with accents or other non-English letters in its path (Windows 10 1903
+  or later).
+- Reading the disc also writes `data/names.txt`, the disc's file names, which the model viewer reads.
 - **Effects by Digimon level**: a mod can have images for Rookies, Champions, Ultimates and Megas
   (`data/mods/effects/<id>/champion/` and so on), each folder with its own timing, and `stages.json` says which partner is
   what. A level with no images plays the nearest lower level's, then the base mod, then the original. The model viewer's

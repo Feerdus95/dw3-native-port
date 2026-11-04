@@ -15,6 +15,8 @@ FILES = {
     "dw2003.exe": NATIVE / "build/dw2003.exe",
     "SDL3.dll": NATIVE / "build/SDL3.dll",
     "dw2003.fill": NATIVE / "build/dw2003.fill",
+    "dw3launcher.exe": NATIVE / "build/dw3launcher.exe",
+    "licenses/PixelDigivolve-License.txt": NATIVE / "launcher/PixelDigivolve-License.txt",
     "README.md": NATIVE / "README.md",
     "CREDITS.md": NATIVE / "CREDITS.md",
     "CHANGELOG.md": NATIVE / "CHANGELOG.md",
@@ -40,8 +42,9 @@ def main():
     missing = [name for name, src in FILES.items() if not src.exists()]
     if missing:
         sys.exit(f"missing: {', '.join(missing)} (build first)")
-    if subprocess.run([sys.executable, NATIVE / "tools/asset_scan.py", FILES["dw2003.exe"]]).returncode != 0:
-        sys.exit("refused: the exe has the game's bytes")
+    for exe in "dw2003.exe", "dw3launcher.exe":
+        if subprocess.run([sys.executable, NATIVE / "tools/asset_scan.py", FILES[exe]]).returncode != 0:
+            sys.exit(f"refused: {exe} has the game's bytes")
     if OUT.exists():
         shutil.rmtree(OUT)
     for name, src in FILES.items():
