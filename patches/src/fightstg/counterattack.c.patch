@@ -1,0 +1,13 @@
+--- a/src/fightstg/counterattack.c
++++ b/src/fightstg/counterattack.c
+@@ -13,6 +13,10 @@
+ 
+     children[0].script = FIGHTSTG_createBattleScript();
+     children[0].script->enemy = task->side;
++#ifdef NATIVE
++    children[0].script->nativeCritical = FIGHTSTG_nativeCritical && task->hit != 0;
++    FIGHTSTG_nativeCritical = 0;
++#endif
+     if (task->side == 0 && tech->script == 5) {
+         children[0].script->index = 6;
+     } else {

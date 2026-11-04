@@ -173,11 +173,16 @@ extern int g_soft_shadows;
 extern int g_battle_shadows;
 
 /* Effects' own images (platform/effects.c): PNGs in data/mods/effects/<id>/
-   (a critical hit's in critical/ there) drawn in a battle's 2D effect's
-   place, as their effect.json times them, by the graphics card alone as
-   GP0 1D packets (2 words: the code with the images << 12 | the tick, the
-   effect's point). Returns its images, -1 without, and their ticks */
-int native_effect_images(int effect, int critical, int *ticks);
+   (a critical hit's in critical/ there; a stage's in rookie/, champion/,
+   ultimate/ or mega/, with a critical/ of its own) drawn in a battle's 2D
+   effect's place, as their effect.json times them, by the graphics card alone
+   as GP0 1D packets (2 words: the code with the images << 12 | the tick, the
+   effect's point). Returns its images, -1 without, and their ticks. STAGE is
+   native_fighter_stage's: without images, the nearest lower stage's play */
+int native_effect_images(int effect, int critical, int stage, int *ticks);
+/* FIGHTER's stage in data/mods/effects/stages.json: 1 rookie, 2 champion,
+   3 ultimate, 4 mega, 0 for one it doesn't list */
+int native_fighter_stage(int fighter);
 /* the layer whose ordering table is drawn (main/gfx/display.c's drawFrame),
    for widescreen battles' menus (platform/gpu_draw.c) */
 extern int g_draw_layer;

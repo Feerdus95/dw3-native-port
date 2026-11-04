@@ -1,0 +1,15 @@
+--- a/src/wfightmn/techs.c
++++ b/src/wfightmn/techs.c
+@@ -169,6 +169,12 @@
+     other = FIGHTSTG_battleFuncs.computeStats(SIDE_ENEMY - actor, 0, FIGHTSTG_battle.active[1 - side]);
+     task = FIGHTSTG_createBattleScript();
+     task->enemy = actor;
++#ifdef NATIVE
++    /* what this attack rolled, if a hit of it landed: a stale roll or a miss show no critical images */
++    task->nativeCritical = FIGHTSTG_nativeCritical &&
++                           (FIGHTSTG_action.effects[TECH_EFFECT_MULTI_HIT] != 0 ? FIGHTSTG_action.hitsLanded != 0 : FIGHTSTG_action.hits[0] != 0);
++    FIGHTSTG_nativeCritical = 0;
++#endif
+     if (actor == 0) {
+         choosePartnerScript(task, info, own, other);
+         if (task->stage <= 0) {

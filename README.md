@@ -167,13 +167,21 @@ button can be changed in the options menu's Input tab, **Controls**.
                          ;    F5 / F9 save / load a state (saves/quick.state)
     log =                ; console logs: cd, snd, pad, mc, ovl, gpu or all
 
-### Effects' own images
+### Effects' own images (mods)
 
 A battle's 2D effect can be drawn from your own PNGs: put them in `data/mods/effects/<id>/`. Each is the 320x240
 screen around the effect's point, as the model viewer's Export PNGs saves an effect, or a bigger image of the same
 shape for finer detail; their alpha blends them over the battle. A critical hit's go in `critical/` inside that folder
-(without it, criticals use the others). Effect 2 is the Fight command's hit. The ids are the model viewer's Effects
-tab's, which also imports the PNGs, plays them and writes the folder's `effect.json`:
+(without it, criticals use the others). A Digimon level's go in `rookie/`, `champion/`, `ultimate/` or `mega/` inside
+it, each with its own `effect.json` and `critical/`, and `data/mods/effects/stages.json` says which partner is what:
+
+    {"rookie": [3, 145], "champion": [5, 259], "ultimate": [12], "mega": [213]}
+
+A partner plays its level's images, else the nearest lower level's, else the base ones, else the original; one the file
+doesn't list, and every enemy, plays the base ones. In each folder a critical hit plays its `critical/`, else the plain
+images. `"active": 0` in an `effect.json` leaves that folder out. The folders are read when the game starts. Effect 2 is
+the Fight command's hit. The ids are the model viewer's Effects tab's, which also does all of this for you: it imports the
+PNGs, plays them, sets the levels and writes the folder's `effect.json`:
 
     {"frames": [["00.png", 2], ["01.png", 3]], "x": 0, "y": 0, "scale": 1, "blend": "alpha"}
 

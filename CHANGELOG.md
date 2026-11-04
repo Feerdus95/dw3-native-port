@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Effects by Digimon level**: a mod can have images for Rookies, Champions, Ultimates and Megas
+  (`data/mods/effects/<id>/champion/` and so on), each folder with its own timing, and `stages.json` says which partner is
+  what. A level with no images plays the nearest lower level's, then the base mod, then the original. The model viewer's
+  Effects tab makes them: pick the level and drop the PNGs on the window.
+- `"active": 0` in an `effect.json` leaves that folder out.
+- Fixed: critical hit images could show on an item's or a missed attack's effect, after an earlier critical hit, and a
+  double-magic technique only counted its last hit's critical.
+
 ## v0.16.0 (beta)
 
 - **Flamedramon as a DNA fusion in the Tag menu**, like Paildramon: a partner with ExVeemon tags a partner with Greymon

@@ -1,6 +1,48 @@
 --- a/src/fightstg/battle_script.c
 +++ b/src/fightstg/battle_script.c
-@@ -554,6 +554,11 @@
+@@ -40,6 +40,10 @@
+         children->script = FIGHTSTG_createBattleScript();
+         children->script->enemy = script->enemy == 0;
+         children->script->index = script->hits[3] + 1;
++#ifdef NATIVE
++        children->script->nativeCritical = script->nativeCritical;
++        children->script->nativeStage = script->nativeStage;
++#endif
+         break;
+     /* the match depends on these cases, which do nothing */
+     case 1:
+@@ -53,6 +57,10 @@
+         }
+         children->script = FIGHTSTG_createBattleScript();
+         children->script->enemy = script->enemy == 0;
++#ifdef NATIVE
++        children->script->nativeCritical = script->nativeCritical;
++        children->script->nativeStage = script->nativeStage;
++#endif
+         switch (script->scripts) {
+         case 0:
+         default:
+@@ -284,6 +292,10 @@
+         for (i = 0; i < 8; i++) {
+             if (children->spriteEffects[i] == NULL) {
+                 children->spriteEffects[i] = FIGHTSTG_startSpriteEffect(effect, &pos);
++#ifdef NATIVE
++                children->spriteEffects[i]->nativeCritical = script->nativeCritical;
++                children->spriteEffects[i]->nativeStage = script->nativeStage;
++#endif
+                 break;
+             }
+         }
+@@ -550,10 +562,20 @@
+             script->model = script->enemy != 0 ? 0x10 : 0;
+             script->models = TASK_REGISTRY.funcs.find(BATTLE_TASK_MODELS, -1, -1);
+             script->fighter = script->models->get(script->models, script->model)->fighter;
++#ifdef NATIVE
++            if (script->nativeStage < 0) { /* partners only: an enemy's is the base images */
++                script->nativeStage = script->enemy != 0 ? 0 : native_fighter_stage(script->fighter);
++            }
++#endif
+             FIGHTSTG_fighterCache.funcs.getInfo(script->fighter);
              script->archive = FIGHTSTG_fighterCache.partnerInfo->effects;
              /* getArchiveEntry gives the entry as a u8 * */
              script->pc = FILE_CACHE.getArchiveEntry(script->index, FILE_CACHE.getEntry(script->archive));
@@ -12,3 +54,19 @@
              if (script->index != 12) {
                  script->nextState(script);
                  break;
+@@ -644,7 +666,15 @@
+ 
+ /* Creates a battle script, which plays a technique (FIGHTSTG_updateBattleScript) */
+ BattleScript *FIGHTSTG_createBattleScript(void) {
++#ifdef NATIVE
++    BattleScript *script = createTask(FIGHTSTG_updateBattleScript, sizeof(BattleScript), 16 * sizeof(Task *));
++
++    script->nativeCritical = 0;
++    script->nativeStage = -1;
++    return script;
++#else
+     return createTask(FIGHTSTG_updateBattleScript, sizeof(BattleScript), 16 * sizeof(Task *));
++#endif
+ }
+ 
+ #if VERSION_EU
