@@ -227,6 +227,16 @@ void screens_mouse(int x, int y, bool clicked)
         }
         return;
     }
+    if (g_app.screen == SC_HOME) {
+        const int i = home_hit(x, y);
+        if (i >= 0) {
+            select_row(i);
+            if (clicked) {
+                screens_action(A_OK);
+            }
+        }
+        return;
+    }
     if (g_app.screen == SC_SETTINGS && clicked) {
         for (int i = 0; i < 4; i++) {
             const SDL_Rect t = tab_rect(i);

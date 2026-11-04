@@ -81,6 +81,9 @@ static void check_lang(const Lang *l)
     check_width(l, "hint", l->s[S_HINT_MENU], DESC_W + 16 - 6 - text_width(CREDIT, 1));
     check_width(l, "hint", l->s[S_HINT_SETTINGS], DESC_W + 16 - 6 - text_width(CREDIT, 1));
     check_width(l, "fan line", l->s[S_FAN], DESC_W + 16);
+    if (!home_fits(l)) {
+        fail(l, "home screen", l->s[S_READY]);
+    }
     int tabs = 0;
     for (int i = S_DISPLAY; i <= S_MODS; i++) {
         tabs += text_width(l->s[i], 1) + 18;

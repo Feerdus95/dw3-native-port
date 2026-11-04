@@ -1,10 +1,6 @@
 /* The menus: one list of rows per screen, a description box under it. */
 #include "launcher.h"
 
-#ifndef LAUNCHER_VERSION
-#define LAUNCHER_VERSION "dev"
-#endif
-
 enum { DESC_Y = 176, DESC_H = 58, HINT_Y = 240, BOTTOM_Y = 256, ROW_H = ROW_H_PIXELS, PAD = 16, SETTINGS_H = 124, ROWS_IN_SIGHT = (SETTINGS_H - 4) / ROW_H };
 
 /* the language row is last, and drawn as the list top right: up from the first row reaches it */
@@ -207,22 +203,6 @@ static void draw_tabs(void)
     }
 }
 
-static void draw_status(void)
-{
-    const int x = 204, y = 54, w = SCREEN_W - PAD - x;
-    panel(x, y, w, 114);
-    art_disc(x + w - 30, y + 8);
-    text(x + 8, y + 6, 1, C_GOLD, L->s[S_READY]);
-    text(x + 8, y + 20, 1, C_SOFT, L->s[S_DISC_OK]);
-    text(x + 8, y + 32, 1, C_TEXT, "SLES-03936");
-    text(x + 8, y + 50, 1, C_SOFT, L->s[S_VERSION]);
-    text(x + 8, y + 62, 1, C_TEXT, LAUNCHER_VERSION);
-    if (release_tag()) {
-        text(x + 8, y + 80, 1, C_GOLD, L->s[S_RELEASE]);
-        text(x + 8, y + 92, 1, C_TEXT, release_tag());
-    }
-}
-
 /* the old screen's heading: the title, what this is, a thin line */
 static void draw_title(void)
 {
@@ -233,7 +213,10 @@ static void draw_title(void)
 
 void screens_draw(void)
 {
-    if (s_screen == SC_SETTINGS) {
+    const bool home = s_screen == SC_HOME && !first_run_screen();
+    if (home) {
+        home_draw();
+    } else if (s_screen == SC_SETTINGS) {
         text(PAD, 4, 2, C_GOLD, L->s[S_SETTINGS]);
         draw_tabs();
     } else if (s_screen == SC_TOOLS) {
@@ -245,10 +228,9 @@ void screens_draw(void)
         first_run_draw();
         text(PAD, HINT_Y, 1, C_FAINT, L->s[S_KEYS]);
     } else {
-        if (s_screen == SC_HOME) {
-            draw_status();
+        if (!home) {
+            draw_list();
         }
-        draw_list();
         draw_description();
         text(PAD, HINT_Y, 1, C_DIM, L->s[s_screen == SC_SETTINGS ? S_HINT_SETTINGS : S_HINT_MENU]);
     }

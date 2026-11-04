@@ -11,6 +11,8 @@ enum {
     C_BG = 0x0B1220, C_GLOW = 0x2A4A8A, C_PANEL = 0x1C2A44, C_EDGE = 0x4F6AA0, C_RULE = 0x3A4E78, C_SELECT = 0x2A4A8A,
     C_TEXT = 0xE8ECF4, C_SOFT = 0x8FA3C8, C_DIM = 0x6C7FA6, C_FAINT = 0x4A5A7A, C_GOLD = 0xF5A623, C_GOLD_HI = 0xFFB940,
     C_RED = 0xFF6B6B,
+    /* the home scene */
+    C_MOON = 0xE8D9A8, C_MOON_DARK = 0xCDBF8F, C_HILL_FAR = 0x22386A, C_HILL_NEAR = 0x142348,
 };
 
 #define CREDIT "\xC2\xA9 2026 Feerdus  -  MIT License"
@@ -169,6 +171,11 @@ bool picker_is_open(void);
 void picker_set_open(bool open);
 int picker_hit(int x, int y);
 void picker_hover(int row);
+
+/* home.c: the home screen once the disc is read */
+void home_draw(void);
+int home_hit(int x, int y); /* the row under the mouse, or -1 */
+bool home_fits(const Lang *l);
 
 /* first_run.c: the screen that asks for the disc, and the reading */
 void first_run_draw(void);
