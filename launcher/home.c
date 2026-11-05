@@ -8,7 +8,7 @@
 #define GAME_NAME "Digimon World 2003 (Europe)"
 
 enum {
-    BAR_H = 24, MARGIN = 24, NAV_X = 160, NAV_PAD = 5, NAV_END_MAX = 380, TITLE_Y = 42, SUB_Y = 72,
+    BAR_H = 24, MARGIN = 24, NAV_X = 160, NAV_PAD = 4, NAV_END_MAX = 470, TITLE_Y = 42, SUB_Y = 72,
     CHIPS_Y = 96, CHIP_H = 14, CHIP_GAP = 6, BTN_Y = 122, BTN_H = 34, BTN_GAP = 10, SCENE_BASE = 212,
     TEAM_Y = 164, CARD_Y = 178, CARD_W = 132, CARD_H = 30, CARD_GAP = 8
 };
@@ -17,15 +17,14 @@ static bool inside(SDL_Rect r, int x, int y) { return x >= r.x && x < r.x + r.w 
 
 /* ---- where things are, for the language given: drawing, the mouse and --check use the same numbers ---- */
 
-/* the pages: Play (this one), Settings and Tools */
+/* the pages, left to right */
+static const short PAGES[4] = {S_PLAY, S_SETTINGS, S_SAVES, S_TOOLS};
+
 static SDL_Rect nav_rect(const Lang *l, int id)
 {
     int x = NAV_X;
-    if (id != S_PLAY) {
-        x += text_width(l->s[S_PLAY], 1) + 2 * NAV_PAD + 2;
-    }
-    if (id == S_TOOLS) {
-        x += text_width(l->s[S_SETTINGS], 1) + 2 * NAV_PAD + 2;
+    for (int i = 0; PAGES[i] != id; i++) {
+        x += text_width(l->s[PAGES[i]], 1) + 2 * NAV_PAD + 1;
     }
     return (SDL_Rect){x, 3, text_width(l->s[id], 1) + 2 * NAV_PAD, BAR_H - 6};
 }
@@ -67,6 +66,7 @@ static SDL_Rect rect_of(const Lang *l, int id, const char *tag)
     case S_PLAY: return play_rect(l);
     case S_QUIT: return quit_rect(l);
     case S_SETTINGS:
+    case S_SAVES:
     case S_TOOLS: return nav_rect(l, id);
     case S_RELEASE: return chip_rect(l, 2, tag);
     default: return (SDL_Rect){0, 0, 0, 0};
@@ -80,8 +80,7 @@ static void team_info(const Lang *l, const Team *t, char *out, int size)
 
 int bar_hit(int x, int y)
 {
-    static const short PAGES[3] = {S_PLAY, S_SETTINGS, S_TOOLS};
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         if (inside(nav_rect(L, PAGES[i]), x, y)) {
             return PAGES[i];
         }
@@ -162,8 +161,7 @@ void bar_draw(int page, int cur)
     art_disc(6, 1);
     text(32, 3, 1, C_GOLD, "DIGIMON WORLD 2003");
     text(32, 13, 1, C_SOFT, l->s[S_TAGLINE]);
-    static const short PAGES[3] = {S_PLAY, S_SETTINGS, S_TOOLS};
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         const SDL_Rect t = nav_rect(l, PAGES[i]);
         const bool sel = PAGES[i] == cur, here = PAGES[i] == page;
         if (sel) {

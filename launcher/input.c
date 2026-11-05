@@ -83,6 +83,14 @@ static void activate(int id)
         }
         break;
     case S_TOOLS: go(SC_TOOLS); break;
+    case S_SAVES:
+        saves_open();
+        go(SC_SAVES);
+        break;
+    case S_EXPORT:
+    case S_IMPORT:
+    case S_UNDO:
+    case S_SV_FOLDER: saves_activate(id); break;
     case S_BACK: go_home(); break;
     case S_QUIT: g_app.quit = true; break;
     case S_RESET: options_reset(); break;
@@ -228,8 +236,9 @@ void screens_mouse(int x, int y, bool clicked)
         return;
     }
     const int page = g_app.screen == SC_HOME ? -1 : bar_hit(x, y);
-    if (page >= 0) { /* the bar's pages from Settings or Tools */
-        if (clicked && page != (g_app.screen == SC_SETTINGS ? S_SETTINGS : S_TOOLS) && bind_capturing() < 0) {
+    if (page >= 0) { /* the bar's pages from Settings, Saves or Tools */
+        const int here = g_app.screen == SC_SETTINGS ? S_SETTINGS : g_app.screen == SC_SAVES ? S_SAVES : S_TOOLS;
+        if (clicked && page != here && bind_capturing() < 0) {
             go_home();
             if (page != S_PLAY) {
                 activate(page);
@@ -286,6 +295,7 @@ bool screens_tick(void)
     int code = 0;
     first_run_poll();
     tools_poll();
+    saves_poll();
     if (game_ended(&code) && code != 0) {
         SDL_snprintf(failed, sizeof failed, L->s[S_GAME_FAILED], code);
         g_app.note = failed;
@@ -294,7 +304,7 @@ bool screens_tick(void)
     if (message >= 0) {
         g_app.note = L->s[message];
     }
-    return first_run_reading() || game_running() || release_busy() || tools_busy() || bind_capturing() >= 0;
+    return first_run_reading() || game_running() || release_busy() || tools_busy() || saves_busy() || bind_capturing() >= 0;
 }
 
 /* the settings kept, the disc's reading stopped cleanly; the game, if running, goes on */

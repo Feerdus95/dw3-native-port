@@ -57,6 +57,9 @@ enum {
     S_B_UP, S_B_RIGHT, S_B_DOWN, S_B_LEFT, S_B_TRIANGLE, S_B_CIRCLE, S_B_CROSS, S_B_SQUARE,
     S_T_GET, S_T_OPEN, S_T_SETUP, S_T_DOWNLOADING, S_T_UNPACKING, S_T_PREPARING, S_T_READY, S_T_FAILED, S_T_CANCELLED, S_T_NO_START, S_T_BUSY, S_T_NEED_DISC,
     S_TEAM, S_LAST_SAVE, S_LEVEL, S_NO_TEAM,
+    S_SAVES, S_SAVES_D, S_EXPORT, S_EXPORT_D, S_IMPORT, S_IMPORT_D, S_UNDO, S_UNDO_D, S_SV_FOLDER, S_SV_FOLDER_D,
+    S_SV_SLOT, S_SV_EMPTY, S_SV_DAMAGED, S_SV_NONE, S_SV_OK, S_SV_STALE, S_SV_NEWER, S_SV_BAD, S_SV_NOCARD,
+    S_SV_EXPORTED, S_SV_IMPORTED, S_SV_WARN, S_SV_REJECT, S_SV_RESTORED, S_SV_NO_BACKUP, S_SV_FAILED,
     S_COUNT
 };
 typedef struct { const char *name, *desc; } Text;
@@ -134,7 +137,7 @@ int release_selftest(void);
 
 /* screens.c: what's on screen */
 enum { R_ACTION, R_OPTION, R_LANGUAGE, R_HEADING, R_BIND, R_END };
-enum { SC_HOME, SC_SETTINGS, SC_TOOLS, SC_COUNT };
+enum { SC_HOME, SC_SETTINGS, SC_TOOLS, SC_SAVES, SC_COUNT };
 enum { ST_READY, ST_NO_GAME, ST_ERROR };
 typedef struct { Uint8 kind; short id; } Row; /* action: its name's string; the description is the next one */
 typedef struct {
@@ -179,9 +182,28 @@ const Team *team_get(void); /* NULL without a save that has a team; read again w
 const char *team_name(int partner);
 Uint32 team_colour(int partner);
 
+/* card.c: a memory card image, read only: this game's file, its slots, and whether each one's extra Digimon belong to its save */
+enum { SAVE_SLOTS = 3, CARD_SIZE = 131072 };
+enum { SL_EMPTY, SL_OK, SL_DAMAGED };
+enum { F_NONE, F_OK, F_STALE, F_NEWER, F_BAD };
+typedef struct { int state, forms, count, hours, minutes; } SlotInfo;
+typedef struct { SlotInfo slot[SAVE_SLOTS]; } Card;
+bool card_parse(const Uint8 *d, size_t size, Card *c); /* false when it isn't a card with this game's save in it */
+void card_make(Uint8 *d);                              /* for the checks: a card with a save in its second slot */
+int card_selftest(void);
+
+/* saves.c: the memory card as a page: what its slots hold, export, import and the copies kept */
+void saves_open(void);       /* the page is entered: the card is read again */
+void saves_draw(void);
+void saves_activate(int id); /* S_EXPORT, S_IMPORT, S_UNDO or S_SV_FOLDER */
+void saves_poll(void);       /* the main thread hears a dialog's answer */
+bool saves_busy(void);
+bool saves_fits(const Lang *l, int width); /* --check: the longest slot line is within WIDTH */
+int saves_selftest(void);
+
 /* home.c: the home screen once the disc is read, and the bar on top of the others */
 void home_draw(void);
-void bar_draw(int page, int selected); /* page and selected: S_PLAY, S_SETTINGS or S_TOOLS */
+void bar_draw(int page, int selected); /* page and selected: S_PLAY, S_SETTINGS, S_SAVES or S_TOOLS */
 int bar_hit(int x, int y);             /* the page under the mouse, or -1 */
 int home_hit(int x, int y); /* the row under the mouse, or -1 */
 bool home_fits(const Lang *l);

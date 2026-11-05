@@ -7,8 +7,9 @@ enum { DESC_Y = 176, DESC_H = 58, HINT_Y = 240, BOTTOM_Y = 256, ROW_H = ROW_H_PI
 #define ACT(s) {R_ACTION, s}
 #define OPT(o) {R_OPTION, o}
 #define BIND(b) {R_BIND, b}
-static const Row HOME[] = {ACT(S_PLAY), ACT(S_SETTINGS), ACT(S_TOOLS), ACT(S_QUIT), {R_LANGUAGE}, {R_END}};
-static const Row HOME_NEWS[] = {ACT(S_PLAY), ACT(S_SETTINGS), ACT(S_TOOLS), ACT(S_RELEASE), ACT(S_QUIT), {R_LANGUAGE}, {R_END}};
+static const Row HOME[] = {ACT(S_PLAY), ACT(S_SETTINGS), ACT(S_SAVES), ACT(S_TOOLS), ACT(S_QUIT), {R_LANGUAGE}, {R_END}};
+static const Row HOME_NEWS[] = {ACT(S_PLAY), ACT(S_SETTINGS), ACT(S_SAVES), ACT(S_TOOLS), ACT(S_RELEASE), ACT(S_QUIT), {R_LANGUAGE}, {R_END}};
+static const Row SAVES[] = {ACT(S_EXPORT), ACT(S_IMPORT), ACT(S_UNDO), ACT(S_SV_FOLDER), ACT(S_BACK), {R_END}};
 static const Row FIRST_RUN[] = {ACT(S_BROWSE), {R_LANGUAGE}, {R_END}};
 static const Row TOOLS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_LOG), ACT(S_CHECK), ACT(S_CREDITS), ACT(S_BACK), {R_END}};
 /* the Input tab's buttons in the order of the game's Controls page */
@@ -43,6 +44,9 @@ const Row *rows(void)
     if (s_screen == SC_TOOLS) {
         return TOOLS;
     }
+    if (s_screen == SC_SAVES) {
+        return SAVES;
+    }
     return s_state != ST_READY ? FIRST_RUN : release_tag() ? HOME_NEWS : HOME;
 }
 
@@ -66,7 +70,7 @@ SDL_Rect list_rect(void)
     if (s_screen == SC_SETTINGS) {
         return (SDL_Rect){PAD, 48, SCREEN_W - 2 * PAD, SETTINGS_H};
     }
-    return (SDL_Rect){PAD, 54, s_screen == SC_TOOLS ? SCREEN_W - 2 * PAD : 178, list_rows(rows()) * ROW_H + 8};
+    return (SDL_Rect){PAD, s_screen == SC_SAVES ? 86 : 54, s_screen == SC_HOME ? 178 : SCREEN_W - 2 * PAD, list_rows(rows()) * ROW_H + 8};
 }
 
 int list_first(void)
@@ -223,6 +227,9 @@ void screens_draw(void)
         draw_tabs();
     } else if (s_screen == SC_TOOLS) {
         bar_draw(S_TOOLS, -1);
+    } else if (s_screen == SC_SAVES) {
+        bar_draw(S_SAVES, -1);
+        saves_draw();
     } else {
         draw_title();
     }

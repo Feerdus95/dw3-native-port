@@ -6,10 +6,12 @@ enum { DESC_W = SCREEN_W - 48, DESC_LINES = 4, ZONE_W = 340, BUTTON_W = 120, PIC
 static const short DESCRIPTIONS[] = {S_PLAY_D, S_SETTINGS_D, S_TOOLS_D, S_LANGUAGE_D, S_QUIT_D, S_RELEASE_D,
                                      S_RESET_D, S_BACK_D, S_CREDITS_D, S_FOLDER_D, S_LOG_D, S_VIEWER_D, S_EDITOR_D, S_CHECK_D,
                                      S_CHECKING, S_UP_TO_DATE, S_CHECK_FAILED, S_GAME_RUNNING, S_GAME_FAILED, S_NO_EXE, S_SAVE_FAILED, S_NO_LOG,
-                                     S_BIND_D, S_PRESS_KEY, S_PRESS_PAD, S_T_READY, S_T_FAILED, S_T_CANCELLED, S_T_NO_START, S_T_BUSY, S_T_NEED_DISC};
+                                     S_BIND_D, S_PRESS_KEY, S_PRESS_PAD, S_T_READY, S_T_FAILED, S_T_CANCELLED, S_T_NO_START, S_T_BUSY, S_T_NEED_DISC,
+                                     S_SAVES_D, S_EXPORT_D, S_IMPORT_D, S_UNDO_D, S_SV_FOLDER_D, S_SV_EXPORTED, S_SV_IMPORTED, S_SV_WARN, S_SV_REJECT,
+                                     S_SV_RESTORED, S_SV_NO_BACKUP, S_SV_FAILED};
 static const short TOOL_VALUES[] = {S_T_GET, S_T_OPEN, S_T_SETUP, S_T_DOWNLOADING, S_T_UNPACKING, S_T_PREPARING};
 static const short BUTTON_NAMES[] = {S_B_UP, S_B_RIGHT, S_B_DOWN, S_B_LEFT, S_B_TRIANGLE, S_B_CIRCLE, S_B_CROSS, S_B_SQUARE};
-static const short MENU[] = {S_PLAY, S_SETTINGS, S_TOOLS, S_RELEASE, S_QUIT, S_VIEWER, S_EDITOR, S_FOLDER, S_LOG, S_BACK, S_CHECK, S_CREDITS};
+static const short MENU[] = {S_PLAY, S_SETTINGS, S_TOOLS, S_RELEASE, S_QUIT, S_VIEWER, S_EDITOR, S_FOLDER, S_LOG, S_BACK, S_CHECK, S_CREDITS, S_SAVES, S_EXPORT, S_IMPORT, S_UNDO, S_SV_FOLDER};
 static const short STATUS[] = {S_READY, S_DISC_OK, S_VERSION, S_RELEASE, S_TAGLINE};
 static const short CENTRED[] = {S_NEED, S_ONCE, S_ISO, S_E_OPEN, S_E_GAME, S_E_BAD, S_E_WRITE, S_E_READ, S_E_TRUNCATED, S_E_CUE, S_E_SPACE, S_SEE_LOG, S_READING, S_NO_EXE, S_SAVE_FAILED, S_GAME_RUNNING};
 
@@ -81,9 +83,12 @@ static void check_lang(const Lang *l)
     check_width(l, "hint", l->s[S_HINT_MENU], DESC_W + 16 - 6 - text_width(CREDIT, 1));
     check_width(l, "hint", l->s[S_HINT_SETTINGS], DESC_W + 16 - 6 - text_width(CREDIT, 1));
     check_width(l, "fan line", l->s[S_FAN], DESC_W + 16);
-    for (int i = 0; i < 6; i++) { /* what the home screen's two lines hold */
-        static const short HOME_TEXTS[6] = {S_PLAY_D, S_SETTINGS_D, S_TOOLS_D, S_LANGUAGE_D, S_QUIT_D, S_RELEASE_D};
+    for (int i = 0; i < 7; i++) { /* what the home screen's two lines hold */
+        static const short HOME_TEXTS[7] = {S_PLAY_D, S_SETTINGS_D, S_SAVES_D, S_TOOLS_D, S_LANGUAGE_D, S_QUIT_D, S_RELEASE_D};
         check_lines(l, "home description", l->s[HOME_TEXTS[i]], DESC_W, 2);
+    }
+    if (!saves_fits(l, SCREEN_W - 2 * 16 - 16)) {
+        fail(l, "saves page", l->s[S_SV_NOCARD]);
     }
     if (!home_fits(l)) {
         fail(l, "home screen", l->s[S_READY]);
@@ -112,7 +117,7 @@ static int ini_selftest(void)
 
 int strings_check(void)
 {
-    s_bad += ini_selftest() + release_selftest() + binds_selftest() + tools_selftest();
+    s_bad += ini_selftest() + release_selftest() + binds_selftest() + tools_selftest() + saves_selftest();
     for (int i = 0; i < LANGS; i++) {
         check_lang(LANG_TABLE[i]);
     }

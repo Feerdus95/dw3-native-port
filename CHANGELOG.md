@@ -5,6 +5,9 @@
 - **Launcher** (`dw3launcher.exe`): the disc's first reading moves here from the game, with Play, Settings (every option
   with its description, the controls' keys and gamepad buttons, the mods with their credits), a notice of new versions
   and Tools.
+- **Saves page** in the launcher: what each slot of the memory card holds and whether its extra Digimon still belong to the
+  save, **Export card** (a backup, or to play on another computer), **Import card** (a PlayStation or emulator `.mcd` works)
+  and **Restore last copy**. Every import or restore keeps the card you had in `saves/backups` first.
 - **Tools**: the launcher downloads the model viewer and the field editor from GitHub, sets them up to read the port's
   data and opens them; one already beside the port is used as it is.
 - Fixed: the game couldn't start from a folder with accents or other non-English letters in its path (Windows 10 1903
