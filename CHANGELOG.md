@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.17.0 (beta)
 
 - **Extra Digimon belong to the save they were made with.** If a save slot is written by the original game, an emulator or a
   card from elsewhere after the port's, the port no longer attaches the old forms to the new save: it leaves them out and keeps
@@ -12,6 +12,8 @@
 - **Saves page** in the launcher: what each slot of the memory card holds and whether its extra Digimon still belong to the
   save, **Export card** (a backup, or to play on another computer), **Import card** (a PlayStation or emulator `.mcd` works)
   and **Restore last copy**. Every import or restore keeps the card you had in `saves/backups` first.
+- The launcher has a language picker with flags at the end of its top bar, and a DW3 icon (also the icon of `dw3launcher.exe`
+  and `dw2003.exe`).
 - **Tools**: the launcher downloads the model viewer and the field editor from GitHub, sets them up to read the port's
   data and opens them; one already beside the port is used as it is.
 - Fixed: the game couldn't start from a folder with accents or other non-English letters in its path (Windows 10 1903
