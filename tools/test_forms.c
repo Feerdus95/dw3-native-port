@@ -19,12 +19,14 @@ int main(void) {
     NativeForm f, g;
     unsigned short ids[8];
     int i;
+    unsigned char save[NATIVE_SAVE_BYTES] = {1, 2, 3};
+    uint32_t crc = native_slot_crc(save); /* the slots' save, the same for every slot here */
 
     /* a card from before the areas: its tail is 0xFF, or 0 in a card the port made */
     memset(tail, 0xFF, TAIL);
-    for (i = 0; i < 3; i++) assert(native_forms_area_state(tail, i) == NATIVE_AREA_BLANK);
+    for (i = 0; i < 3; i++) assert(native_forms_area_state(tail, i, crc) == NATIVE_AREA_BLANK);
     memset(tail, 0, TAIL);
-    for (i = 0; i < 3; i++) assert(native_forms_area_state(tail, i) == NATIVE_AREA_BLANK);
+    for (i = 0; i < 3; i++) assert(native_forms_area_state(tail, i, crc) == NATIVE_AREA_BLANK);
     memset(tail, 0xFF, TAIL);
 
     /* the store */
@@ -45,57 +47,99 @@ int main(void) {
     assert(native_form_get(2, 471, &g) && g.level == 34);
 
     /* writing slot 1's area leaves the others alone, and reads back */
-    assert(native_forms_write(tail, 1) == 0);
+    assert(native_forms_write(tail, 1, crc) == 0);
     for (i = 0; i < AREA; i++) assert(tail[i] == 0xFF && tail[2 * AREA + i] == 0xFF);
-    assert(native_forms_area_state(tail, 1) == NATIVE_AREA_OK);
+    assert(native_forms_area_state(tail, 1, crc) == NATIVE_AREA_OK);
     native_forms_reset();
-    assert(native_forms_stage(tail, 1) == NATIVE_AREA_OK);
+    assert(native_forms_stage(tail, 1, crc) == NATIVE_AREA_OK);
     assert(!native_form_get(2, 471, &g)); /* staged, not the game's yet */
     native_forms_commit();
     assert(native_form_get(2, 471, &g) && g.level == 34 && g.exp == 5 && g.skills == 6);
     assert(native_form_get(5, 471, &g) && g.level == 7 && g.exp == 70);
     assert(native_form_list(2, ids, 8) == 2);
 
+    /* a save written to the slot since (by the original game, an emulator, an imported card) leaves its area stale: none of
+       its forms are loaded, and the next write replaces it */
+    {
+        unsigned char other[NATIVE_SAVE_BYTES] = {9}, v1[AREA];
+        uint32_t ocrc = native_slot_crc(other);
+
+        assert(ocrc != crc);
+        assert(native_forms_area_state(tail, 1, ocrc) == NATIVE_AREA_STALE);
+        native_forms_reset();
+        assert(native_forms_stage(tail, 1, ocrc) == NATIVE_AREA_STALE);
+        native_forms_commit();
+        assert(!native_form_get(2, 471, &g) && !native_form_get(5, 471, &g));
+        f = form(2, 471, 9, 8, 7);
+        assert(native_form_set(&f));
+        assert(native_forms_write(tail, 1, ocrc) == 0 && native_forms_area_state(tail, 1, ocrc) == NATIVE_AREA_OK);
+        assert(native_forms_area_state(tail, 1, crc) == NATIVE_AREA_STALE);
+
+        /* an area of version 1 (no save to compare) is taken as it is, and written as version 2 */
+        memcpy(v1, tail + AREA, AREA);
+        memmove(v1 + 12, v1 + 16, 10);
+        memset(v1 + 22, 0xFF, AREA - 22);
+        v1[4] = 1;
+        memcpy(tail, v1, AREA);
+        assert(native_forms_area_state(tail, 0, crc) == NATIVE_AREA_OK && native_forms_area_state(tail, 0, ocrc) == NATIVE_AREA_OK);
+        native_forms_reset();
+        assert(native_forms_stage(tail, 0, crc) == NATIVE_AREA_OK);
+        native_forms_commit();
+        assert(native_form_get(2, 471, &g) && g.level == 9 && g.exp == 8 && g.skills == 7);
+        assert(native_forms_write(tail, 0, crc) == 0 && tail[4] == 2);
+        assert(native_forms_area_state(tail, 0, ocrc) == NATIVE_AREA_STALE);
+        /* the state of the rest of the test: slot 1 as it was */
+        native_forms_reset();
+        f = form(2, 471, 34, 5, 6);
+        assert(native_form_set(&f));
+        f = form(2, 472, 1, 0, 0);
+        assert(native_form_set(&f));
+        f = form(5, 471, 7, 70, 3);
+        assert(native_form_set(&f));
+        assert(native_forms_write(tail, 1, crc) == 0);
+        memset(tail, 0xFF, AREA); /* slot 0's blank again */
+    }
+
     /* writing it again changes nothing */
     memcpy(copy, tail, TAIL);
-    assert(native_forms_write(tail, 1) == 0);
+    assert(native_forms_write(tail, 1, crc) == 0);
     assert(memcmp(copy, tail, TAIL) == 0);
 
     /* a slot with no area stages none, and a commit then clears the store (the loaded slot has no forms) */
-    assert(native_forms_stage(tail, 0) == NATIVE_AREA_BLANK);
+    assert(native_forms_stage(tail, 0, crc) == NATIVE_AREA_BLANK);
     native_forms_commit();
     assert(!native_form_get(2, 471, &g));
 
     /* a damaged area: its records are ignored, the card's bytes aren't touched until a save rewrites it */
     memcpy(copy, tail, TAIL);
     tail[AREA + 20] ^= 0x55;
-    assert(native_forms_area_state(tail, 1) == NATIVE_AREA_BAD);
-    assert(native_forms_stage(tail, 1) == NATIVE_AREA_BAD);
+    assert(native_forms_area_state(tail, 1, crc) == NATIVE_AREA_BAD);
+    assert(native_forms_stage(tail, 1, crc) == NATIVE_AREA_BAD);
     native_forms_commit();
     assert(!native_form_get(2, 471, &g));
-    assert(native_forms_write(tail, 1) == 0); /* the corrupt one is ours: rewritten */
-    assert(native_forms_area_state(tail, 1) == NATIVE_AREA_OK);
+    assert(native_forms_write(tail, 1, crc) == 0); /* the corrupt one is ours: rewritten */
+    assert(native_forms_area_state(tail, 1, crc) == NATIVE_AREA_OK);
     memcpy(tail, copy, TAIL);
     tail[AREA + 6] = 0xFF, tail[AREA + 7] = 0xFF; /* a count past the area */
-    assert(native_forms_area_state(tail, 1) == NATIVE_AREA_BAD);
+    assert(native_forms_area_state(tail, 1, crc) == NATIVE_AREA_BAD);
     memcpy(tail, copy, TAIL);
 
     /* a newer version's area is not read or written */
-    tail[AREA + 4] = 2;
+    tail[AREA + 4] = 3; /* one past the port's */
     memcpy(copy, tail, TAIL);
-    assert(native_forms_area_state(tail, 1) == NATIVE_AREA_NEWER);
-    assert(native_forms_stage(tail, 1) == NATIVE_AREA_NEWER);
+    assert(native_forms_area_state(tail, 1, crc) == NATIVE_AREA_NEWER);
+    assert(native_forms_stage(tail, 1, crc) == NATIVE_AREA_NEWER);
     native_forms_commit();
-    assert(native_forms_write(tail, 1) == -1);
+    assert(native_forms_write(tail, 1, crc) == -1);
     assert(memcmp(copy, tail, TAIL) == 0);
 
     /* other data in the tail isn't ours to overwrite */
     memset(tail, 0xFF, TAIL);
     tail[10] = 0x42;
-    assert(native_forms_area_state(tail, 0) == NATIVE_AREA_FOREIGN);
+    assert(native_forms_area_state(tail, 0, crc) == NATIVE_AREA_FOREIGN);
     memcpy(copy, tail, TAIL);
-    assert(native_forms_write(tail, 0) == -1 && memcmp(copy, tail, TAIL) == 0);
-    assert(native_forms_write(tail, 1) == 0); /* the other slots are free */
+    assert(native_forms_write(tail, 0, crc) == -1 && memcmp(copy, tail, TAIL) == 0);
+    assert(native_forms_write(tail, 1, crc) == 0); /* the other slots are free */
 
     /* the store holds its limit, and a full area round trips */
     native_forms_reset();
@@ -106,9 +150,9 @@ int main(void) {
     f = form(0, 999, 1, 0, 0);
     assert(!native_form_set(&f));
     memset(tail, 0xFF, TAIL);
-    assert(native_forms_write(tail, 2) == 0);
+    assert(native_forms_write(tail, 2, crc) == 0);
     native_forms_reset();
-    assert(native_forms_stage(tail, 2) == NATIVE_AREA_OK);
+    assert(native_forms_stage(tail, 2, crc) == NATIVE_AREA_OK);
     native_forms_commit();
     for (i = 0; i < NATIVE_FORM_MAX; i++) {
         assert(native_form_get(i % 8, 400 + i / 8, &g) && g.level == i + 1 && g.exp == (unsigned)i * 1000 && g.skills == (unsigned)i);

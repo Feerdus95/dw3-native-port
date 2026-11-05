@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Extra Digimon belong to the save they were made with.** If a save slot is written by the original game, an emulator or a
+  card from elsewhere after the port's, the port no longer attaches the old forms to the new save: it leaves them out and keeps
+  a copy of the card as `saves/card1.pre-stale.mcd` before its next save. A save that has extra Digimon still loads in the
+  original game, but without them.
 - **Effects by Digimon level**: a mod can have images for Rookies, Champions, Ultimates and Megas
   (`data/mods/effects/<id>/champion/` and so on), each folder with its own timing, and `stages.json` says which partner is
   what. A level with no images plays the nearest lower level's, then the base mod, then the original. The model viewer's

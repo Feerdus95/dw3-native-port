@@ -4,6 +4,7 @@
 #ifndef NATIVE_FORMS_H
 #define NATIVE_FORMS_H
 
+#define NATIVE_SAVE_BYTES 0x26C4 /* a slot's save, the EU's GAME_SAVE_SIZE: platform/memcard.c has no game headers */
 #define NATIVE_FORM_MAX 66 /* records an area holds: 8 partners' 8 forms and a few over */
 
 typedef struct NativeForm {
@@ -32,9 +33,12 @@ void native_forms_commit(void);
 void native_extra_loaded(void);
 
 /* the card's side (platform/memcard.c): TAIL is the file's last 0x800 bytes */
-int native_forms_stage(const unsigned char *tail, int slot);
-int native_forms_write(unsigned char *tail, int slot);
-int native_forms_area_state(const unsigned char *tail, int slot);
-enum { NATIVE_AREA_BLANK, NATIVE_AREA_OK, NATIVE_AREA_BAD, NATIVE_AREA_NEWER, NATIVE_AREA_FOREIGN };
+/* SLOT_CRC is native_slot_crc of the slot's save as it is on the card now; an area written with a different one is STALE: a
+   save was written to the slot since by something that doesn't know the areas, so its forms belong to another game */
+unsigned native_slot_crc(const unsigned char *save);
+int native_forms_stage(const unsigned char *tail, int slot, unsigned slot_crc);
+int native_forms_write(unsigned char *tail, int slot, unsigned slot_crc);
+int native_forms_area_state(const unsigned char *tail, int slot, unsigned slot_crc);
+enum { NATIVE_AREA_BLANK, NATIVE_AREA_OK, NATIVE_AREA_BAD, NATIVE_AREA_NEWER, NATIVE_AREA_FOREIGN, NATIVE_AREA_STALE };
 
 #endif

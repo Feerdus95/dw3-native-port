@@ -134,12 +134,12 @@ static int tail_io(const char *file, uint8_t *tail, int write) {
     return file_copy(file, tail, TAIL_OFS, TAIL_SIZE, write) == ERR_NONE;
 }
 
-/* a copy of the card as it was before the first thing this port's areas did to it, kept once */
-static void backup_once(void) {
+/* a copy of the card as it was before the first thing this port's areas did to it, kept once: card1.pre-<what>.mcd */
+static void backup_once(const char *what) {
     char bk[1110];
     FILE *f;
 
-    snprintf(bk, sizeof bk, "%s/../saves/card1.pre-dw3x.mcd", data_dir());
+    snprintf(bk, sizeof bk, "%s/../saves/card1.pre-%s.mcd", data_dir(), what);
     if (SDL_GetPathInfo(bk, NULL)) {
         return;
     }
@@ -157,24 +157,42 @@ static int slot_at(long ofs) {
     return ofs >= SLOT_OFS && (ofs - SLOT_OFS) % SLOT_SIZE == 0 && (ofs - SLOT_OFS) / SLOT_SIZE < SLOTS ? (int)((ofs - SLOT_OFS) / SLOT_SIZE) : -1;
 }
 
+/* the identity of slot SLOT's save as it is on the card (the areas of version 2 hold it) */
+static uint32_t slot_crc(const char *file, int slot) {
+    uint8_t save[NATIVE_SAVE_BYTES];
+
+    return file_copy(file, save, SLOT_OFS + slot * SLOT_SIZE, NATIVE_SAVE_BYTES, 0) == ERR_NONE ? native_slot_crc(save) : 0;
+}
+
+/* a backup before an area is first made, or replaced because its save is no longer the slot's */
+static void backup_for(int state) {
+    backup_once(state == NATIVE_AREA_STALE ? "stale" : "dw3x");
+}
+
 /* a read of a slot's data section begins: its area is staged for the load (the game's once the slot is in GAME) */
 static void forms_reading(const char *file, int slot) {
     uint8_t tail[TAIL_SIZE];
+    int state;
 
     if (!tail_io(file, tail, 0)) {
         return;
     }
-    if (native_forms_stage(tail, slot) != NATIVE_AREA_OK) {
-        backup_once(); /* a save from before the areas, or one whose area isn't ours: the card as the player had it */
+    state = native_forms_stage(tail, slot, slot_crc(file, slot));
+    if (state == NATIVE_AREA_STALE) {
+        LOG("memcard: slot %d was saved since its forms were, by something else: they aren't loaded", slot + 1);
+    }
+    if (state != NATIVE_AREA_OK) {
+        backup_for(state); /* a save from before the areas, or one whose area isn't ours: the card as the player had it */
     }
 }
 
 /* a write of a slot's data section begins */
 static void forms_writing(const char *file, int slot) {
     uint8_t tail[TAIL_SIZE];
+    int state;
 
-    if (tail_io(file, tail, 0) && native_forms_area_state(tail, slot) != NATIVE_AREA_OK) {
-        backup_once();
+    if (tail_io(file, tail, 0) && (state = native_forms_area_state(tail, slot, slot_crc(file, slot))) != NATIVE_AREA_OK) {
+        backup_for(state);
     }
 }
 
@@ -185,7 +203,7 @@ static void forms_written(const char *file, int slot) {
     if (!tail_io(file, tail, 0)) {
         return;
     }
-    if (native_forms_write(tail, slot) != 0) {
+    if (native_forms_write(tail, slot, slot_crc(file, slot)) != 0) {
         LOG("memcard: slot %d's area holds data this port doesn't own, left as it is", slot + 1);
         return;
     }

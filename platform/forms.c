@@ -5,8 +5,10 @@
    card is still a standard one and its checksums hold; a PSX or a port without
    this just doesn't see the forms.
 
-   An area is   "DW3X"  u8 version  u8 flags  u16 count  u32 crc32(records)
+   An area is   "DW3X"  u8 version  u8 flags  u16 count  u32 crc32(records)  [version 2: u32 crc32(the slot's save)]
                 count x { u8 partner, u16 form, u8 level, u24 exp, u24 skills }
+   Version 2 ties the area to the save it was written with: a save written since by something that doesn't know
+   the areas (the original game, an emulator, an imported card) leaves the area STALE, and its forms aren't loaded.
 
    The game's state in this file is the store (the forms of the game being played,
    SAVED: a savestate has them); the card is where it is kept. A load stages its
@@ -23,8 +25,9 @@
 #include "platform.h"
 #include "../include/native_forms.h"
 
-#define AREA_VERSION 1
-#define AREA_HEADER 12
+#define AREA_VERSION 2
+#define AREA_HEADER_V1 12
+#define AREA_HEADER 16
 #define RECORD_SIZE 10
 #define SLOT_COUNT 3
 #define AREA_SIZE 680 /* 3 areas in the 0x800 of the tail */
@@ -39,6 +42,7 @@ typedef struct Forms {
 #define AREA_BAD NATIVE_AREA_BAD
 #define AREA_NEWER NATIVE_AREA_NEWER
 #define AREA_FOREIGN NATIVE_AREA_FOREIGN
+#define AREA_STALE NATIVE_AREA_STALE
 
 SAVED static Forms s_store;
 static Forms s_stage;
@@ -68,9 +72,23 @@ static int all_same(const uint8_t *p, int n) {
     return p[0] == 0x00 || p[0] == 0xFF;
 }
 
-/* AREA's records into OUT (which it may leave half filled when it isn't OK) */
-static int area_decode(const uint8_t *a, Forms *out) {
-    int n, i;
+static uint32_t get32(const uint8_t *p) {
+    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+}
+
+static void put32(uint8_t *p, uint32_t v) {
+    p[0] = (uint8_t)v, p[1] = (uint8_t)(v >> 8), p[2] = (uint8_t)(v >> 16), p[3] = (uint8_t)(v >> 24);
+}
+
+/* what identifies a slot's save, for the areas of version 2 */
+uint32_t native_slot_crc(const unsigned char *save) {
+    return crc32(save, NATIVE_SAVE_BYTES);
+}
+
+/* AREA's records into OUT (which it may leave half filled when it isn't OK). SLOT_CRC is the slot's save now; a version 1
+   area has nothing to compare it with and is taken as it is (the next write makes it version 2) */
+static int area_decode(const uint8_t *a, uint32_t slot_crc, Forms *out) {
+    int n, i, header;
     uint32_t crc;
 
     out->n = 0;
@@ -81,12 +99,13 @@ static int area_decode(const uint8_t *a, Forms *out) {
         return AREA_NEWER;
     }
     n = a[6] | a[7] << 8;
-    crc = (uint32_t)a[8] | (uint32_t)a[9] << 8 | (uint32_t)a[10] << 16 | (uint32_t)a[11] << 24;
-    if (a[4] == 0 || n > NATIVE_FORM_MAX || crc32(a + AREA_HEADER, n * RECORD_SIZE) != crc) {
+    crc = get32(a + 8);
+    header = a[4] == 1 ? AREA_HEADER_V1 : AREA_HEADER;
+    if (a[4] == 0 || n > NATIVE_FORM_MAX || crc32(a + header, n * RECORD_SIZE) != crc) {
         return AREA_BAD;
     }
     for (i = 0; i < n; i++) {
-        const uint8_t *r = a + AREA_HEADER + i * RECORD_SIZE;
+        const uint8_t *r = a + header + i * RECORD_SIZE;
         NativeForm *f = &out->f[i];
 
         f->partner = r[0];
@@ -96,10 +115,10 @@ static int area_decode(const uint8_t *a, Forms *out) {
         f->skills = (uint32_t)r[7] | (uint32_t)r[8] << 8 | (uint32_t)r[9] << 16;
     }
     out->n = n;
-    return AREA_OK;
+    return a[4] >= 2 && get32(a + 12) != slot_crc ? AREA_STALE : AREA_OK;
 }
 
-static void area_encode(uint8_t *a, const Forms *in) {
+static void area_encode(uint8_t *a, const Forms *in, uint32_t slot_crc) {
     int i;
     uint32_t crc;
 
@@ -120,7 +139,8 @@ static void area_encode(uint8_t *a, const Forms *in) {
         r[7] = (uint8_t)f->skills, r[8] = (uint8_t)(f->skills >> 8), r[9] = (uint8_t)(f->skills >> 16);
     }
     crc = crc32(a + AREA_HEADER, in->n * RECORD_SIZE);
-    a[8] = (uint8_t)crc, a[9] = (uint8_t)(crc >> 8), a[10] = (uint8_t)(crc >> 16), a[11] = (uint8_t)(crc >> 24);
+    put32(a + 8, crc);
+    put32(a + 12, slot_crc);
 }
 
 /* --- the store --- */
@@ -191,8 +211,8 @@ void native_forms_reset(void) {
 /* --- the card: TAIL is the file's last 0x800 bytes --- */
 
 /* What slot SLOT's area is, staging its records for the load that's reading the slot */
-int native_forms_stage(const unsigned char *tail, int slot) {
-    int state = area_decode(tail + slot * AREA_SIZE, &s_stage);
+int native_forms_stage(const unsigned char *tail, int slot, uint32_t slot_crc) {
+    int state = area_decode(tail + slot * AREA_SIZE, slot_crc, &s_stage);
 
     s_staged = 1;
     if (state != AREA_OK) {
@@ -211,20 +231,20 @@ void native_forms_commit(void) {
 
 /* the area to write for slot SLOT into TAIL: 0 written; -1 when what's there isn't ours (a newer version, or other data)
    and is left as it is */
-int native_forms_write(unsigned char *tail, int slot) {
+int native_forms_write(unsigned char *tail, int slot, uint32_t slot_crc) {
     Forms old;
-    int state = area_decode(tail + slot * AREA_SIZE, &old);
+    int state = area_decode(tail + slot * AREA_SIZE, slot_crc, &old);
 
     if (state == AREA_NEWER || state == AREA_FOREIGN) {
         return -1;
     }
-    area_encode(tail + slot * AREA_SIZE, &s_store);
+    area_encode(tail + slot * AREA_SIZE, &s_store, slot_crc);
     return 0;
 }
 
 /* whether slot SLOT's area is one a write would change its state of (for the card's backup before the first one) */
-int native_forms_area_state(const unsigned char *tail, int slot) {
+int native_forms_area_state(const unsigned char *tail, int slot, uint32_t slot_crc) {
     Forms tmp;
 
-    return area_decode(tail + slot * AREA_SIZE, &tmp);
+    return area_decode(tail + slot * AREA_SIZE, slot_crc, &tmp);
 }

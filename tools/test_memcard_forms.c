@@ -136,6 +136,40 @@ int main(void) {
     native_forms_commit();
     assert(native_form_get(2, 471, &g) && g.exp == 5000);
 
+    /* slot 1 saved since by something that doesn't know the areas (the original game, an emulator, an imported card): its forms
+       belong to another save and aren't loaded, and the card is kept as it was before they are replaced */
+    {
+        static uint8_t kept[0x20000], changed[0x20000];
+        char p[700];
+        FILE *fp;
+
+        card_bytes(kept);
+        memcpy(changed, kept, sizeof changed);
+        changed[file_ofs(changed, SLOT(1) + 10)] ^= 0x5A;
+        snprintf(p, sizeof p, "%s/../saves/card1.mcd", s_dir);
+        fp = fopen(p, "wb");
+        assert(fp && fwrite(changed, sizeof changed, 1, fp) == 1);
+        fclose(fp);
+        MemCardInit(0);
+        native_forms_reset();
+        assert(!exists("card1.pre-stale.mcd"));
+        io(0, 1, got);
+        assert(exists("card1.pre-stale.mcd"));
+        native_forms_commit();
+        assert(native_form_list(2, ids, 8) == 0 && native_form_list(5, ids, 8) == 0);
+        snprintf(p, sizeof p, "%s/../saves/card1.pre-stale.mcd", s_dir);
+        SDL_RemovePath(p);
+        snprintf(p, sizeof p, "%s/../saves/card1.mcd", s_dir);
+        fp = fopen(p, "wb");
+        assert(fp && fwrite(kept, sizeof kept, 1, fp) == 1);
+        fclose(fp);
+        MemCardInit(0); /* the card as it was */
+        native_forms_reset();
+        io(0, 1, got);
+        native_forms_commit();
+        assert(native_form_get(2, 471, &g) && g.exp == 5000);
+    }
+
     /* a card from before the areas (tail 0xFF, as a PSX's), read: the card is kept as it was; saved: the game's bytes as written */
     {
         long ofs;
