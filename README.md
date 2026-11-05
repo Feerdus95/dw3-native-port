@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/logo.png" alt="Digimon World 2003: native PC port" width="360">
+</p>
+
 # Digimon World 2003: native PC port
 
 The PlayStation game (Europe, SLES-03936) running natively on Windows, built from the
