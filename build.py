@@ -338,8 +338,14 @@ def main():
     if r.returncode != 0:
         sys.exit(r.stderr)
 
+    # platform/utf8.manifest: paths in UTF-8 whatever the system's code page
+    manifest_obj = OUT / "utf8_res.o"
+    r = run([TC / "i686-w64-mingw32-windres.exe", "-O", "coff", "-i", NATIVE / "platform/utf8.rc", "-o", manifest_obj])
+    if r.returncode != 0:
+        sys.exit(r.stderr)
+
     rsp = OUT / "objs.rsp"
-    rsp.write_text("\n".join('"%s"' % str(o).replace("\\", "/") for o in game_objs + platform + [stub_obj]))
+    rsp.write_text("\n".join('"%s"' % str(o).replace("\\", "/") for o in game_objs + platform + [stub_obj, manifest_obj]))
     exe = OUT / (sys.argv[sys.argv.index("--exe") + 1] if "--exe" in sys.argv else "dw2003.exe")
     r = run([CC, f"@{rsp}", "-o", exe, *LDFLAGS])
     if r.returncode != 0:

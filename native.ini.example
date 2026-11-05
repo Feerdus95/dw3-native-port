@@ -101,7 +101,7 @@ bladegarurumon = 1
 
 # 1: partners can learn Flamedramon (Digimon World 2's Armour Digimon: ExVeemon and
 # Greymon at level 30), with its signature Flaming Rocket. Needs its model in
-# data/mods/7100.bin (made from a DW2 disc by dw2-extractor); without it, off
+# data/mods/7120.bin; without it, off
 flamedramon = 1
 
 # 1: debug keys. F1 the developers' stage select (stages, sound test, test
