@@ -183,8 +183,8 @@ static void draw_description(void)
                   : r->kind == R_LANGUAGE ? L->s[S_LANGUAGE_D]
                   : r->kind == R_BIND ? L->s[S_BIND_D]
                   : L->s[r->id + 1];
-    const bool home = s_screen == SC_HOME; /* two lines under the team */
-    const int y = home ? 212 : DESC_Y, h = home ? 28 : DESC_H;
+    const bool home = s_screen == SC_HOME; /* two lines under the team, with room around it */
+    const int y = home ? 204 : DESC_Y, h = home ? 28 : DESC_H;
     panel(PAD, y, SCREEN_W - 2 * PAD, h);
     wrap(PAD + 8, y + (home ? 2 : 3), SCREEN_W - 2 * PAD - 16, C_TEXT, s);
 }

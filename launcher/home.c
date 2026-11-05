@@ -8,9 +8,9 @@
 #define GAME_NAME "Digimon World 2003 (Europe)"
 
 enum {
-    BAR_H = 24, MARGIN = 24, NAV_X = 160, NAV_PAD = 4, NAV_END_MAX = 470, TITLE_Y = 42, SUB_Y = 72,
-    CHIPS_Y = 96, CHIP_H = 14, CHIP_GAP = 6, BTN_Y = 122, BTN_H = 34, BTN_GAP = 10, SCENE_BASE = 212,
-    TEAM_Y = 164, CARD_Y = 178, CARD_W = 132, CARD_H = 30, CARD_GAP = 8
+    BAR_H = 24, MARGIN = 16, NAV_X = 160, NAV_PAD = 4, NAV_END_MAX = 470, TITLE_Y = 38, SUB_Y = 66,
+    CHIPS_Y = 86, CHIP_H = 14, CHIP_GAP = 6, BTN_Y = 108, BTN_H = 34, BTN_GAP = 10, SCENE_BASE = 200,
+    TEAM_Y = 152, CARD_Y = 166, CARD_W = 144, CARD_H = 30, CARD_GAP = 8
 };
 
 static bool inside(SDL_Rect r, int x, int y) { return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h; }

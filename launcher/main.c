@@ -232,6 +232,7 @@ int main(int argc, char **argv)
     SDL_SetRenderLogicalPresentation(r, SCREEN_W, SCREEN_H, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
     SDL_SetRenderVSync(r, 1);
     g_app.window = window;
+    SDL_SetWindowAspectRatio(window, (float)SCREEN_W / SCREEN_H, (float)SCREEN_W / SCREEN_H); /* a resized window has no bars above and below */
     draw_init(r);
     if (keys) {
         press_all(keys);
