@@ -8,7 +8,7 @@
 #define GAME_NAME "Digimon World 2003 (Europe)"
 
 enum {
-    BAR_H = 24, MARGIN = 16, NAV_X = 160, NAV_PAD = 4, NAV_END_MAX = 470, TITLE_Y = 38, SUB_Y = 66,
+    BAR_H = 28, MARGIN = 16, NAV_X = 160, NAV_PAD = 3, NAV_END_MAX = 444, TITLE_X = 38, TITLE_Y = 38, SUB_Y = 66,
     CHIPS_Y = 86, CHIP_H = 14, CHIP_GAP = 6, BTN_Y = 108, BTN_H = 34, BTN_GAP = 10, SCENE_BASE = 200,
     TEAM_Y = 152, CARD_Y = 166, CARD_W = 144, CARD_H = 30, CARD_GAP = 8
 };
@@ -26,7 +26,7 @@ static SDL_Rect nav_rect(const Lang *l, int id)
     for (int i = 0; PAGES[i] != id; i++) {
         x += text_width(l->s[PAGES[i]], 1) + 2 * NAV_PAD + 1;
     }
-    return (SDL_Rect){x, 3, text_width(l->s[id], 1) + 2 * NAV_PAD, BAR_H - 6};
+    return (SDL_Rect){x, 4, text_width(l->s[id], 1) + 2 * NAV_PAD, BAR_H - 8};
 }
 
 static void chip_text(const Lang *l, int i, const char *tag, char *out, int size)
@@ -94,7 +94,7 @@ bool home_fits(const Lang *l)
     char info[96];
     team_info(l, &worst, info, sizeof info);
     const SDL_Rect tools = nav_rect(l, S_TOOLS), chip = chip_rect(l, 2, "v99.99.99"), quit = quit_rect(l);
-    return tools.x + tools.w <= NAV_END_MAX && text_width(l->s[S_READY], 2) <= 340 && text_width(l->s[S_TAGLINE], 1) <= NAV_X - 40 &&
+    return tools.x + tools.w <= NAV_END_MAX && text_width(l->s[S_READY], 2) <= 340 && text_width(l->s[S_TAGLINE], 1) <= NAV_X - TITLE_X - 2 &&
            chip.x + chip.w <= SCREEN_W - MARGIN && quit.x + quit.w <= SCREEN_W - MARGIN &&
            text_width(l->s[S_TEAM], 1) + text_width(info, 1) + 24 <= SCREEN_W - 2 * MARGIN && text_width(l->s[S_NO_TEAM], 1) <= SCREEN_W - 2 * MARGIN;
 }
@@ -158,18 +158,18 @@ void bar_draw(int page, int cur)
     const Lang *l = L;
     fill_alpha(0, 0, SCREEN_W, BAR_H, C_BG, 235);
     fill(0, BAR_H - 1, SCREEN_W, 1, C_RULE);
-    art_disc(6, 1);
-    text(32, 3, 1, C_GOLD, "DIGIMON WORLD 2003");
-    text(32, 13, 1, C_SOFT, l->s[S_TAGLINE]);
+    art_icon(4, 3);
+    text(TITLE_X, 3, 1, C_GOLD, "DIGIMON WORLD 2003");
+    text(TITLE_X, 14, 1, C_SOFT, l->s[S_TAGLINE]);
     for (int i = 0; i < 4; i++) {
         const SDL_Rect t = nav_rect(l, PAGES[i]);
         const bool sel = PAGES[i] == cur, here = PAGES[i] == page;
         if (sel) {
             fill(t.x, t.y, t.w, t.h, C_SELECT);
         }
-        text(t.x + NAV_PAD, t.y + 3, 1, sel ? C_GOLD : here ? C_TEXT : C_SOFT, l->s[PAGES[i]]);
+        text(t.x + NAV_PAD, t.y + 5, 1, sel ? C_GOLD : here ? C_TEXT : C_SOFT, l->s[PAGES[i]]);
         if (here) {
-            fill(t.x + 4, BAR_H - 4, t.w - 8, 2, C_GOLD);
+            fill(t.x + 3, BAR_H - 5, t.w - 6, 2, C_GOLD);
         }
     }
 }

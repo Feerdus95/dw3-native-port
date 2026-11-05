@@ -144,17 +144,3 @@ void triangle(int x, int y, int half, int dir, Uint32 colour)
         fill(column, y - (half - i), 1, (half - i) * 2 + 1, colour);
     }
 }
-
-void art_disc(int x, int y)
-{
-    for (int dy = -10; dy <= 10; dy++) {
-        for (int dx = -10; dx <= 10; dx++) {
-            const int d = dx * dx + dy * dy;
-            if (d <= 104) {
-                const bool shine = dx * dy > 0 && (dx > 0 ? dx - dy : dy - dx) * (dx > 0 ? dx - dy : dy - dx) <= 9;
-                const Uint32 c = d <= 2 ? C_PANEL : d <= 10 ? C_TEXT : shine ? C_TEXT : C_SOFT;
-                fill(x + 10 + dx, y + 10 + dy, 1, 1, c);
-            }
-        }
-    }
-}
