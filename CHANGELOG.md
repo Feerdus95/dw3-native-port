@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.17.1 (beta)
+
+- Fixed three crashes, reported by players and fixed by j0an2:
+  - walking to an exit before the partners are called (a balloon drawn without its actor);
+  - opening the Weapons list of the item menu (the category of no item);
+  - calling Digmon or Submarimon (the field's saved position read from the player's missing actor).
+
 ## v0.17.0 (beta)
 
 - **Extra Digimon belong to the save they were made with.** If a save slot is written by the original game, an emulator or a
