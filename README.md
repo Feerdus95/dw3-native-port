@@ -75,8 +75,9 @@ different games for the port and are refused.
 3. From then on, the launcher's **Play** starts the game, and `dw2003.exe` starts it straight away. The image isn't
    needed any more.
 
-The launcher also has **Settings** (the options below, before you start, with the controls' keys and buttons and a
-description of each mod), a notice when a newer port is out, and **Tools**: the
+The launcher's top bar has **Play** (with your team and the last save, read from the memory card), **Settings** (the
+options below, before you start, with the controls' keys and buttons and a description of each mod), **Saves** (see
+below), a notice when a newer port is out, and **Tools**: the
 [model viewer](https://github.com/Feerdus95/dw3-model-viewer) and the
 [field editor](https://github.com/Feerdus95/dw3-field-editor), downloaded from GitHub on request into a folder of their
 own next to the port, set up to read `data/`, and opened from there. A viewer or editor already beside the port is used
@@ -92,10 +93,20 @@ The port's folder then holds:
 | `dw2003.fill` | where the game's own tables are in `data/`: the exe reads them from there at startup. Keep it next to the exe |
 | `data/` | the game read from your disc. Yours: don't share it |
 | `saves/card1.mcd` | your memory card |
+| `saves/backups/` | the cards the launcher kept before an import or a restore |
 | `native.ini` | your options, written by the options menu |
 
-Saves go to `saves/card1.mcd`, a standard memory card image, created formatted on the first run. A card from an emulator (DuckStation, ePSXe...) works if
-you copy it there.
+Saves go to `saves/card1.mcd`, a standard memory card image, created formatted on the first run. The launcher's **Saves**
+page shows what each of the card's slots holds, and can **Export** the card (a backup, or to play on another computer),
+**Import** one (a PlayStation or emulator `.mcd`: DuckStation, ePSXe...) and **Restore last copy**; every import or
+restore first keeps the card you had in `saves/backups/`.
+
+**Extra Digimon and your saves.** The game's slots stay as the original game writes them, so a card from the port loads
+in the original game or an emulator. The Digimon the port adds beyond the game's 44 (BladeGarurumon, Flamedramon...) are
+kept in a separate area of the card file, tied to the save they were made with, so the original game doesn't see them.
+If a slot is saved again by the original game, an emulator or another card, those Digimon are left out of it (the
+launcher marks it) and the port keeps a copy as `saves/card1.pre-stale.mcd` before its next save. Older versions of the port
+don't see them either: copy your `saves/` folder before updating.
 
 ## Controls
 
@@ -150,7 +161,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Digilog | a last row of the field menu, DIGILOG: a journal in the item list's own panels, two tabs turned with left / right. Active: the story's current step and the side quests found (8 DDNA bosses, the old weapons, the dungeons' knights and masters, the Black Kings, the Undersea Base's two (while the story is there) and a few errands, each titled with its reward's name); Done: what is behind. Each with the place it happens at and what to do; L1 / R1 turn the pages, X shows the place on the map. Off by default |
 | Fast forward | x2, x3 or x5 (Tab or R3 while playing); the music keeps its speed. Not saved |
 | Extra starter packs | three more packs to pick in a new game: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon), Mystic (Kumamon, Renamon, Veemon) |
-| BladeGarurumon | a 45th Digimon every partner can learn, with Growlmon and Grizzmon at level 40: its own model (made at start from your disc's), techniques and signature, Solar Laser. Saves stay standard memory cards: its progress sits in the card file's spare space, and an older save is carried over |
+| BladeGarurumon | a 45th Digimon every partner can learn, with Growlmon and Grizzmon at level 40: its own model (made at start from your disc's), techniques and signature, Solar Laser. Saves stay standard memory cards: its progress sits in the card file's spare space (see *Extra Digimon and your saves*), and an older save is carried over |
 
 `native.ini` can also be written by hand (see `native.ini.example`); every line is optional:
 
@@ -294,14 +305,17 @@ probó y sus sumas (CRC32, MD5, SHA-1) están en la tabla de arriba. El port com
 (`SLES_039.36`), no la imagen: otra copia buena del mismo disco sirve. Las versiones americana y japonesa no.
 
 1. Descomprime el port en una carpeta tuya donde se pueda escribir (no en `Program Files`).
-2. Ejecuta `dw2003.exe`. La primera vez, una ventana te pide la imagen: arrastra el `.cue` (o el `.bin`) o pulsa
-   **Buscar...**. Comprueba la versión y lee el disco a `data/`, en pocos segundos. La ventana está en español, inglés,
-   francés, alemán e italiano (arriba a la derecha).
-3. Desde entonces, `dw2003.exe` arranca el juego directamente. Deja `dw2003.fill` junto al `.exe`: el port lee de
-   `data/` las tablas del juego al arrancar.
+2. Ejecuta `dw3launcher.exe` (o `dw2003.exe`, que lo abre mientras no haya datos). La primera vez te pide la imagen:
+   arrastra el `.cue` (o el `.bin`) o pulsa **Buscar...**. Comprueba la versión y lee el disco a `data/`, en pocos
+   segundos. Está en español, inglés, francés, alemán e italiano (selector con banderas arriba a la derecha).
+3. Desde entonces, **Jugar** en el launcher arranca el juego, y `dw2003.exe` lo arranca directamente. Deja `dw2003.fill`
+   junto al `.exe`: el port lee de `data/` las tablas del juego al arrancar. El launcher también tiene Ajustes, Partidas
+   y Herramientas (el visor de modelos y el editor de campo).
 
 Las partidas se guardan en `saves/card1.mcd`, una imagen de memory card estándar (se crea formateada la primera vez):
-sirven las de emuladores.
+sirven las de emuladores. La página **Partidas** del launcher exporta e importa la tarjeta y restaura la última copia,
+guardando antes la que tenías en `saves/backups/`. Los Digimon extra que añade el port se guardan aparte, ligados a su
+partida: el juego original no los ve, y las versiones antiguas del port tampoco (copia `saves/` antes de actualizar).
 **Esc** abre el menú de opciones (se guarda en `native.ini`); F11 o Alt+Enter, pantalla completa. Controles y
 opciones: arriba.
 
