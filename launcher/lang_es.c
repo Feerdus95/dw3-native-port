@@ -98,6 +98,10 @@ const Lang LANG_ES = {
         [S_T_NEED_DISC] = "El visor necesita los nombres de archivo de tu disco: elige su imagen.",
         [S_CREDITS] = "Créditos",
         [S_CREDITS_D] = "Basado en dw3_decomp (ReGame-Labs) y ddw3 (markisha64, Zenithsiz), con ideas de markisha64 y Flawe; también dw2_decomp (Wyrelade), dcb_decomp, SDL, los iconos de Xelu y la fuente Pixel Digivolve. Abre CREDITS.md.",
+        [S_TEAM] = "Tu equipo",
+        [S_LAST_SAVE] = "Último save:",
+        [S_LEVEL] = "Nv.",
+        [S_NO_TEAM] = "Aún no hay un save con equipo. Guarda en el juego y aparecerá aquí.",
     },
     .option = {
         [O_FPS] = {"Fotogramas por segundo", "50 es el original europeo, 60 el modo de 60 Hz del propio juego. La velocidad al caminar se ajusta en la siguiente zona."},

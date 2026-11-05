@@ -98,6 +98,10 @@ const Lang LANG_EN = {
         [S_T_NEED_DISC] = "The viewer needs the file names on your disc: choose its image.",
         [S_CREDITS] = "Credits",
         [S_CREDITS_D] = "Built on dw3_decomp (ReGame-Labs) and ddw3 (markisha64, Zenithsiz), with ideas from markisha64 and Flawe; also dw2_decomp (Wyrelade), dcb_decomp, SDL, Xelu's icons and the Pixel Digivolve font. Opens CREDITS.md.",
+        [S_TEAM] = "Your team",
+        [S_LAST_SAVE] = "Last save:",
+        [S_LEVEL] = "Lv.",
+        [S_NO_TEAM] = "No save with a team yet. Save in the game and it shows up here.",
     },
     .option = {
         [O_FPS] = {"Frame rate", "50 is the European original, 60 the game's own 60 Hz mode. Walking speed follows at the next area."},

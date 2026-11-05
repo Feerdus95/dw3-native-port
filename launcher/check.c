@@ -81,6 +81,10 @@ static void check_lang(const Lang *l)
     check_width(l, "hint", l->s[S_HINT_MENU], DESC_W + 16 - 6 - text_width(CREDIT, 1));
     check_width(l, "hint", l->s[S_HINT_SETTINGS], DESC_W + 16 - 6 - text_width(CREDIT, 1));
     check_width(l, "fan line", l->s[S_FAN], DESC_W + 16);
+    for (int i = 0; i < 6; i++) { /* what the home screen's two lines hold */
+        static const short HOME_TEXTS[6] = {S_PLAY_D, S_SETTINGS_D, S_TOOLS_D, S_LANGUAGE_D, S_QUIT_D, S_RELEASE_D};
+        check_lines(l, "home description", l->s[HOME_TEXTS[i]], DESC_W, 2);
+    }
     if (!home_fits(l)) {
         fail(l, "home screen", l->s[S_READY]);
     }

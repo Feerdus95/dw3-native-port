@@ -98,6 +98,10 @@ const Lang LANG_DE = {
         [S_T_NEED_DISC] = "Der Viewer braucht die Dateinamen deiner Disc: wähle ihr Abbild.",
         [S_CREDITS] = "Mitwirkende",
         [S_CREDITS_D] = "Basiert auf dw3_decomp (ReGame-Labs) und ddw3 (markisha64, Zenithsiz), mit Ideen von markisha64 und Flawe; dazu dw2_decomp (Wyrelade), dcb_decomp, SDL, Xelus Symbole und die Schrift Pixel Digivolve. Öffnet CREDITS.md.",
+        [S_TEAM] = "Dein Team",
+        [S_LAST_SAVE] = "Letzter Spielstand:",
+        [S_LEVEL] = "St.",
+        [S_NO_TEAM] = "Noch kein Spielstand mit Team. Speichere im Spiel, dann erscheint er hier.",
     },
     .option = {
         [O_FPS] = {"Bildrate", "50 ist das europäische Original, 60 der eigene 60-Hz-Modus des Spiels. Das Lauftempo passt sich im nächsten Gebiet an."},

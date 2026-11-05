@@ -179,8 +179,10 @@ static void draw_description(void)
                   : r->kind == R_LANGUAGE ? L->s[S_LANGUAGE_D]
                   : r->kind == R_BIND ? L->s[S_BIND_D]
                   : L->s[r->id + 1];
-    panel(PAD, DESC_Y, SCREEN_W - 2 * PAD, DESC_H);
-    wrap(PAD + 8, DESC_Y + 3, SCREEN_W - 2 * PAD - 16, C_TEXT, s);
+    const bool home = s_screen == SC_HOME; /* two lines under the team */
+    const int y = home ? 212 : DESC_Y, h = home ? 28 : DESC_H;
+    panel(PAD, y, SCREEN_W - 2 * PAD, h);
+    wrap(PAD + 8, y + (home ? 2 : 3), SCREEN_W - 2 * PAD - 16, C_TEXT, s);
 }
 
 SDL_Rect tab_rect(int tab)
@@ -217,10 +219,10 @@ void screens_draw(void)
     if (home) {
         home_draw();
     } else if (s_screen == SC_SETTINGS) {
-        text(PAD, 4, 2, C_GOLD, L->s[S_SETTINGS]);
+        bar_draw(S_SETTINGS, -1);
         draw_tabs();
     } else if (s_screen == SC_TOOLS) {
-        text(PAD, 4, 2, C_GOLD, L->s[S_TOOLS]);
+        bar_draw(S_TOOLS, -1);
     } else {
         draw_title();
     }

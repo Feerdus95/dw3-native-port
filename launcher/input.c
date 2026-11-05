@@ -227,6 +227,16 @@ void screens_mouse(int x, int y, bool clicked)
         }
         return;
     }
+    const int page = g_app.screen == SC_HOME ? -1 : bar_hit(x, y);
+    if (page >= 0) { /* the bar's pages from Settings or Tools */
+        if (clicked && page != (g_app.screen == SC_SETTINGS ? S_SETTINGS : S_TOOLS) && bind_capturing() < 0) {
+            go_home();
+            if (page != S_PLAY) {
+                activate(page);
+            }
+        }
+        return;
+    }
     if (g_app.screen == SC_HOME) {
         const int i = home_hit(x, y);
         if (i >= 0) {

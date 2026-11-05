@@ -9,7 +9,8 @@
 
 enum {
     BAR_H = 24, MARGIN = 24, NAV_X = 160, NAV_PAD = 5, NAV_END_MAX = 380, TITLE_Y = 42, SUB_Y = 72,
-    CHIPS_Y = 96, CHIP_H = 14, CHIP_GAP = 6, BTN_Y = 122, BTN_H = 34, BTN_GAP = 10, SCENE_BASE = 176
+    CHIPS_Y = 96, CHIP_H = 14, CHIP_GAP = 6, BTN_Y = 122, BTN_H = 34, BTN_GAP = 10, SCENE_BASE = 212,
+    TEAM_Y = 164, CARD_Y = 178, CARD_W = 132, CARD_H = 30, CARD_GAP = 8
 };
 
 static bool inside(SDL_Rect r, int x, int y) { return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h; }
@@ -72,11 +73,31 @@ static SDL_Rect rect_of(const Lang *l, int id, const char *tag)
     }
 }
 
+static void team_info(const Lang *l, const Team *t, char *out, int size)
+{
+    SDL_snprintf(out, size, "%s %s  -  %d:%02d", l->s[S_LAST_SAVE], t->when, t->hours, t->minutes);
+}
+
+int bar_hit(int x, int y)
+{
+    static const short PAGES[3] = {S_PLAY, S_SETTINGS, S_TOOLS};
+    for (int i = 0; i < 3; i++) {
+        if (inside(nav_rect(L, PAGES[i]), x, y)) {
+            return PAGES[i];
+        }
+    }
+    return -1;
+}
+
 bool home_fits(const Lang *l)
 {
+    const Team worst = {.when = "2026-10-28 13:23", .hours = 999, .minutes = 59};
+    char info[96];
+    team_info(l, &worst, info, sizeof info);
     const SDL_Rect tools = nav_rect(l, S_TOOLS), chip = chip_rect(l, 2, "v99.99.99"), quit = quit_rect(l);
     return tools.x + tools.w <= NAV_END_MAX && text_width(l->s[S_READY], 2) <= 340 && text_width(l->s[S_TAGLINE], 1) <= NAV_X - 40 &&
-           chip.x + chip.w <= SCREEN_W - MARGIN && quit.x + quit.w <= SCREEN_W - MARGIN;
+           chip.x + chip.w <= SCREEN_W - MARGIN && quit.x + quit.w <= SCREEN_W - MARGIN &&
+           text_width(l->s[S_TEAM], 1) + text_width(info, 1) + 24 <= SCREEN_W - 2 * MARGIN && text_width(l->s[S_NO_TEAM], 1) <= SCREEN_W - 2 * MARGIN;
 }
 
 int home_hit(int x, int y)
@@ -133,8 +154,9 @@ static void scene(void)
 
 /* ---- the screen ---- */
 
-static void draw_bar(const Lang *l, int cur)
+void bar_draw(int page, int cur)
 {
+    const Lang *l = L;
     fill_alpha(0, 0, SCREEN_W, BAR_H, C_BG, 235);
     fill(0, BAR_H - 1, SCREEN_W, 1, C_RULE);
     art_disc(6, 1);
@@ -143,12 +165,12 @@ static void draw_bar(const Lang *l, int cur)
     static const short PAGES[3] = {S_PLAY, S_SETTINGS, S_TOOLS};
     for (int i = 0; i < 3; i++) {
         const SDL_Rect t = nav_rect(l, PAGES[i]);
-        const bool sel = PAGES[i] == cur;
+        const bool sel = PAGES[i] == cur, here = PAGES[i] == page;
         if (sel) {
             fill(t.x, t.y, t.w, t.h, C_SELECT);
         }
-        text(t.x + NAV_PAD, t.y + 3, 1, sel ? C_GOLD : i == 0 ? C_TEXT : C_SOFT, l->s[PAGES[i]]);
-        if (i == 0) {
+        text(t.x + NAV_PAD, t.y + 3, 1, sel ? C_GOLD : here ? C_TEXT : C_SOFT, l->s[PAGES[i]]);
+        if (here) {
             fill(t.x + 4, BAR_H - 4, t.w - 8, 2, C_GOLD);
         }
     }
@@ -185,15 +207,44 @@ static void draw_buttons(const Lang *l, int cur)
     text(q.x + 14, q.y + (BTN_H - LINE_H) / 2, 1, quit ? C_GOLD : C_TEXT, l->s[S_QUIT]);
 }
 
+/* the party, as cards: a coloured square with the partner's initial, the name and the level */
+static void draw_team(const Lang *l)
+{
+    const Team *t = team_get();
+    const int head = text_width(l->s[S_TEAM], 1);
+    char info[96];
+    text(MARGIN, TEAM_Y, 1, C_GOLD, l->s[S_TEAM]);
+    if (!t) {
+        fill(MARGIN + head + 8, TEAM_Y + 8, SCREEN_W - 2 * MARGIN - head - 8, 1, C_RULE);
+        text(MARGIN, CARD_Y + 9, 1, C_SOFT, l->s[S_NO_TEAM]);
+        return;
+    }
+    team_info(l, t, info, sizeof info);
+    text_right(SCREEN_W - MARGIN, TEAM_Y, C_SOFT, info);
+    fill(MARGIN + head + 8, TEAM_Y + 8, SCREEN_W - MARGIN - text_width(info, 1) - 8 - (MARGIN + head + 8) - 8, 1, C_RULE);
+    for (int i = 0; i < t->count; i++) {
+        const int x = MARGIN + i * (CARD_W + CARD_GAP);
+        char level[32], initial[2] = {team_name(t->partner[i])[0], 0};
+        fill_alpha(x, CARD_Y, CARD_W, CARD_H, C_PANEL, 225);
+        outline(x, CARD_Y, CARD_W, CARD_H, C_EDGE);
+        fill(x + 4, CARD_Y + 4, 22, 22, team_colour(t->partner[i]));
+        text(x + 4 + (22 - text_width(initial, 1)) / 2, CARD_Y + 9, 1, C_BG, initial);
+        SDL_snprintf(level, sizeof level, "%s %d", l->s[S_LEVEL], t->level[i]);
+        text(x + 32, CARD_Y + 3, 1, C_TEXT, team_name(t->partner[i]));
+        text(x + 32, CARD_Y + 15, 1, C_SOFT, level);
+    }
+}
+
 void home_draw(void)
 {
     const Lang *l = L;
     const Row *r = &rows()[g_app.sel[SC_HOME]];
     const int cur = r->kind == R_ACTION ? r->id : -1;
     scene();
-    draw_bar(l, cur);
+    bar_draw(S_PLAY, cur);
     text(MARGIN, TITLE_Y, 2, C_TEXT, l->s[S_READY]);
     text(MARGIN, SUB_Y, 1, C_SOFT, GAME_NAME);
     draw_chips(l, cur);
     draw_buttons(l, cur);
+    draw_team(l);
 }

@@ -56,6 +56,7 @@ enum {
     S_CREDITS, S_CREDITS_D, S_BUTTONS, S_GAMEPAD, S_BIND_D, S_PRESS_KEY, S_PRESS_PAD,
     S_B_UP, S_B_RIGHT, S_B_DOWN, S_B_LEFT, S_B_TRIANGLE, S_B_CIRCLE, S_B_CROSS, S_B_SQUARE,
     S_T_GET, S_T_OPEN, S_T_SETUP, S_T_DOWNLOADING, S_T_UNPACKING, S_T_PREPARING, S_T_READY, S_T_FAILED, S_T_CANCELLED, S_T_NO_START, S_T_BUSY, S_T_NEED_DISC,
+    S_TEAM, S_LAST_SAVE, S_LEVEL, S_NO_TEAM,
     S_COUNT
 };
 typedef struct { const char *name, *desc; } Text;
@@ -172,8 +173,16 @@ void picker_set_open(bool open);
 int picker_hit(int x, int y);
 void picker_hover(int row);
 
-/* home.c: the home screen once the disc is read */
+/* team.c: the party in the save on the memory card, read only */
+typedef struct { int partner[3], level[3], count, hours, minutes; char when[20]; } Team;
+const Team *team_get(void); /* NULL without a save that has a team; read again when the card changes */
+const char *team_name(int partner);
+Uint32 team_colour(int partner);
+
+/* home.c: the home screen once the disc is read, and the bar on top of the others */
 void home_draw(void);
+void bar_draw(int page, int selected); /* page and selected: S_PLAY, S_SETTINGS or S_TOOLS */
+int bar_hit(int x, int y);             /* the page under the mouse, or -1 */
 int home_hit(int x, int y); /* the row under the mouse, or -1 */
 bool home_fits(const Lang *l);
 
