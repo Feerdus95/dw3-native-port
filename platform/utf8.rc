@@ -1,2 +1,5 @@
 // See utf8.manifest
 1 24 "utf8.manifest"
+
+// The icon: the lowest id is the one Explorer shows
+1 ICON "dw3.ico"

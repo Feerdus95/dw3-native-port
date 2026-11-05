@@ -158,7 +158,7 @@ void bar_draw(int page, int cur)
     const Lang *l = L;
     fill_alpha(0, 0, SCREEN_W, BAR_H, C_BG, 235);
     fill(0, BAR_H - 1, SCREEN_W, 1, C_RULE);
-    art_icon(4, 3);
+    art_icon(3, 3);
     text(TITLE_X, 3, 1, C_GOLD, "DIGIMON WORLD 2003");
     text(TITLE_X, 14, 1, C_SOFT, l->s[S_TAGLINE]);
     for (int i = 0; i < 4; i++) {

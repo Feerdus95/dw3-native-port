@@ -1,8 +1,8 @@
-/* The bar's badge and the language flags, drawn from numbers: no image files. The badge is "DW3" slanted, white to pale blue with a
+/* The bar's badge and the language flags, drawn from numbers: no image files. The badge is "DW3" slanted, yellow to orange with a
    navy edge, on the blue of the Digimon logo with its gold line under it. */
 #include "launcher.h"
 
-enum { ICON_W = 30, ICON_H = 22 };
+enum { ICON_W = 32, ICON_H = 22 };
 
 static const char *const GLYPH[3][7] = {
     {"11110", "10001", "10001", "10001", "10001", "10001", "11110"}, /* D */
@@ -10,57 +10,53 @@ static const char *const GLYPH[3][7] = {
     {"01110", "10001", "00001", "00110", "00001", "10001", "01110"}, /* 3 */
 };
 
-/* the letters' pixels in the badge: 5x7 cells drawn 2 wide (bold) and 2 tall, slanted to the right going up */
-static void letters(bool m[ICON_H][ICON_W])
+/* the badge: w x h pixels, letters 5x7 cells drawn 2 wide (bold) and ry tall, pitch apart, slanted to the right going up */
+static void badge(int x, int y, int w, int h, int ry, int pitch)
 {
+    static const Uint32 NAVY = 0x0A2A6A, BLUE = 0x1F5BC4, BLUE_HI = 0x3B7FE0, WHITE = 0xFFFFFF;
+    bool m[ICON_H][ICON_W] = {{false}};
+    const int top = (h - 7 * ry) / 2 - 1, rows = 7 * ry;
     for (int g = 0; g < 3; g++) {
         for (int r = 0; r < 7; r++) {
             for (int c = 0; c < 5; c++) {
-                if (GLYPH[g][r][c] != '1') {
-                    continue;
-                }
-                for (int sy = 0; sy < 2; sy++) {
-                    const int y = 3 + r * 2 + sy, x = 3 + g * 7 + c + (13 - (r * 2 + sy)) / 5;
-                    if (y < ICON_H && x + 1 < ICON_W) {
-                        m[y][x] = m[y][x + 1] = true;
+                for (int sy = 0; GLYPH[g][r][c] == '1' && sy < ry; sy++) {
+                    const int yy = r * ry + sy, py = top + yy, px = 3 + g * pitch + c + (rows - 1 - yy) / (5 * ry / 2);
+                    if (py < h && px + 1 < w) {
+                        m[py][px] = m[py][px + 1] = true;
                     }
                 }
             }
         }
     }
-}
-
-void art_icon(int x, int y)
-{
-    static const Uint32 NAVY = 0x0A2A6A, BLUE = 0x1F5BC4, BLUE_HI = 0x3B7FE0, WHITE = 0xFFFFFF, PALE = 0xBFDDFF;
-    bool m[ICON_H][ICON_W] = {{false}};
-    letters(m);
-    fill(x, y, ICON_W, ICON_H, NAVY);
-    fill(x + 1, y + 1, ICON_W - 2, ICON_H - 2, BLUE);
-    fill(x + 1, y + 1, ICON_W - 2, 3, BLUE_HI);
-    fill(x, y, 1, 1, C_BG), fill(x + ICON_W - 1, y, 1, 1, C_BG);                      /* rounded corners */
-    fill(x, y + ICON_H - 1, 1, 1, C_BG), fill(x + ICON_W - 1, y + ICON_H - 1, 1, 1, C_BG);
-    fill(x + 24, y + 3, 1, 1, WHITE), fill(x + 27, y + 7, 1, 1, WHITE), fill(x + 2, y + 18, 1, 1, WHITE); /* the logo's sparkles */
-    for (int j = 0; j < ICON_H; j++) {
-        for (int i = 0; i < ICON_W; i++) { /* the edge: any neighbour of a letter pixel */
+    fill(x, y, w, h, NAVY);
+    fill(x + 1, y + 1, w - 2, h - 2, BLUE);
+    fill(x + 1, y + 1, w - 2, 3, BLUE_HI);
+    fill(x, y, 1, 1, C_BG), fill(x + w - 1, y, 1, 1, C_BG);                      /* rounded corners */
+    fill(x, y + h - 1, 1, 1, C_BG), fill(x + w - 1, y + h - 1, 1, 1, C_BG);
+    fill(x + w - 4, y + 3, 1, 1, WHITE), fill(x + w - 3, y + h / 3, 1, 1, WHITE), fill(x + 2, y + h - 4, 1, 1, WHITE); /* the logo's sparkles */
+    for (int j = 0; j < h; j++) {
+        for (int i = 0; i < w; i++) { /* the edge: any neighbour of a letter pixel */
             for (int d = 0; d < 9 && !m[j][i]; d++) {
                 const int a = i + d % 3 - 1, b = j + d / 3 - 1;
-                if (a >= 0 && a < ICON_W && b >= 0 && b < ICON_H && m[b][a]) {
+                if (a >= 0 && a < w && b >= 0 && b < h && m[b][a]) {
                     fill(x + i, y + j, 1, 1, NAVY);
                     break;
                 }
             }
         }
     }
-    for (int j = 0; j < ICON_H; j++) {
-        for (int i = 0; i < ICON_W; i++) {
-            if (m[j][i]) {
-                fill(x + i, y + j, 1, 1, j < 9 ? WHITE : PALE);
+    for (int j = 0; j < h; j++) {
+        for (int i = 0; i < w; i++) {
+            if (m[j][i]) { /* yellow to orange, top to bottom */
+                const int t = (j - top) * 256 / rows;
+                fill(x + i, y + j, 1, 1, 0xFF0000 | ((0xE6 - t * (0xE6 - 0x84) / 256) << 8) | (0x40 - t * 0x30 / 256));
             }
         }
     }
-    fill(x + 4, y + 19, ICON_W - 8, 1, C_GOLD);
+    fill(x + 4, y + h - 3, w - 8, 1, C_GOLD);
 }
+
+void art_icon(int x, int y) { badge(x, y, ICON_W, ICON_H, 2, 8); }
 
 enum { FLAG_W = 16, FLAG_H = 10 };
 
