@@ -221,7 +221,9 @@ static const short *finale(const NativeMod *m, int k, int *n) {
    (the commands from its motion 56 to the stage's return) is one of the mod's three, at the random number RND */
 short *native_dna_script(const short *pc, int other, unsigned rnd) {
     static short v[1024], w[2048];
-    static const short bridge[] = {7, 0, 15, 11, 15, 5, 0, 0, 5, 2, 1, 4, 2, 2, 3, 7, 1, 30, 11, 30};
+    /* the fusion's attack scripts start the looping sound 89 (10, 89, 0) and the model's own scripts stop it at their end (10, 91, 0), which the finale
+       leaves out: stopped here, first thing, or it plays on until the next map or fight */
+    static const short bridge[] = {10, 91, 0, 7, 0, 15, 11, 15, 5, 0, 0, 5, 2, 1, 4, 2, 2, 3, 7, 1, 30, 11, 30};
     const NativeMod *mod = s_fusing;
     const short *fin;
     int i, k = -1, tail = -1, end = -1, n = 0, m = 0, pick = (int)(rnd % 3);
