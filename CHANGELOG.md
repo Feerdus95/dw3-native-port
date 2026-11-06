@@ -1,12 +1,13 @@
 # Changelog
 
-## Unreleased
+## v0.17.7 (beta)
 
 - **Digimon mods are folders now.** `data/mods/digimon/<name>/digimon.json` adds a Digimon partners can learn (stats, techniques with
   their texts, what it is learnt with, an optional fusion), with no change to the port; the README lists the fields. Flamedramon is the first:
   `dw2-extractor/flame_dcb.py` writes its manifest beside its model. BladeGarurumon stays built in, made from the game's own files.
 - Changed: to turn a Digimon mod off, set `"enabled": 0` in its manifest (or move its folder); `flamedramon = 0` in `native.ini` no longer
   does anything. Flamedramon has no switch in the options menu or the launcher.
+- Fixed: the DNA fusion into Flamedramon left the end of its attack's sound looping until the next map or fight; it now stops with the attack.
 
 ## v0.17.6 (beta)
 
