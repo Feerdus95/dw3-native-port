@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.17.3 (beta)
+
+- **Launcher: tool updates.** It now also checks for new versions of the model viewer and the field editor, at start and with
+  Check for updates. If one is out, Tools shows an **Update tool** row; your settings and the tool's data stay. Close the tool
+  first. Tools the launcher downloaded before this version are offered the latest release once, as it can't tell their version.
+
 ## v0.17.2 (beta)
 
 - Fixed: 3D lines, like the wireframes of a digivolution, were wide and blocky at higher render scales. They are now thin and
