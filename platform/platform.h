@@ -67,6 +67,7 @@ struct SDL_Surface;
 extern uint16_t g_vram_dirty[8]; /* 64x64 blocks the CPU wrote, a bit each */
 int gl_init(struct SDL_Window *window);
 void gl_sync(int force);         /* follows render_scale; force: VRAM was replaced */
+int gl_scale(void);              /* the render scale in use, at least 1 */
 void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi);
 void gl_vram_dirty(int x, int y, int w, int h);
 /* The primitives' drawing into the 1x VRAM, queued until read (gpu_draw.c) */

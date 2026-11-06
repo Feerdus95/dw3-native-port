@@ -482,6 +482,10 @@ static int s_mask_box[4] = {VRAM_W, VRAM_H, -1, -1}; /* what the mask holds, in 
 static GLuint s_movie_tex, s_menu_tex;
 int g_res_scale = 1; /* native.ini, the menu */
 static int s_scale, s_max_scale = 8;
+
+int gl_scale(void) {
+    return SDL_max(s_scale, 1);
+}
 uint16_t g_vram_dirty[8]; /* 64x64 blocks of VRAM written since they were uploaded */
 
 #define BATCH 6144

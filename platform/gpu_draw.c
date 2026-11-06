@@ -349,10 +349,12 @@ static void gl_rect(int x, int y, int w, int h, int r, int gg, int b, int flags,
    (gte_precise_far) */
 static int s_far;
 
-static void precise(const uint32_t *w, float *x, float *y, float *z) {
+static int precise(const uint32_t *w, float *x, float *y, float *z) {
     /* a battle's menus are 2D: a point there that matched a 3D one by its
        value took that one's fraction, and the enemy's HP bar wobbled */
-    if ((gte_in_battle() && g_draw_layer == WIDE_MENUS_LAYER) || !gte_precise(w, x, y, z)) {
+    int known = !(gte_in_battle() && g_draw_layer == WIDE_MENUS_LAYER) && gte_precise(w, x, y, z);
+
+    if (!known) {
         *z = 0;
         *x = (float)sx(*w);
         *y = (float)sy(*w);
@@ -363,6 +365,7 @@ static void precise(const uint32_t *w, float *x, float *y, float *z) {
     }
     *x += (float)g.ox;
     *y += (float)g.oy;
+    return known;
 }
 
 /* --- rectangles and lines --- */
@@ -798,10 +801,43 @@ static void rect(int x, int y, int w, int h, int col, int textured, int raw, int
     soft_queue(&e, x, y, x + w - 1, y + h - 1, textured, clut, !textured && !semi);
 }
 
+/* A 3D line for the card: one thin quad along it, square ends so a polyline's
+   corners close. Its width in VRAM pixels (at least one of the card's), so
+   that it looks the same at every render scale */
+#define LINE_3D_WIDTH 0.4f
+
+static void line_3d(float x0, float y0, int c0, float x1, float y1, int c1, int semi) {
+    float dx = x1 - x0, dy = y1 - y0, len = sqrtf(dx * dx + dy * dy), half = SDL_max(LINE_3D_WIDTH, 1.0f / gl_scale()) / 2;
+    float px[4], py[4];
+    GVtx q[6];
+    int i;
+
+    if (fabsf(dx) >= 1024 || fabsf(dy) >= 1024) {
+        return;
+    }
+    if (len < 0.001f) {
+        dx = len = 1;
+        dy = 0;
+    }
+    dx *= half / len;
+    dy *= half / len;
+    px[0] = x0 - dx - dy, py[0] = y0 - dy + dx;
+    px[1] = x0 - dx + dy, py[1] = y0 - dy - dx;
+    px[2] = x1 + dx - dy, py[2] = y1 + dy + dx;
+    px[3] = x1 + dx + dy, py[3] = y1 + dy - dx;
+    for (i = 0; i < 6; i++) {
+        static const int CORNER[6] = {0, 1, 2, 1, 3, 2};
+        int k = CORNER[i], c = k < 2 ? c0 : c1;
+
+        q[i] = gvtx(px[k], py[k], c & 255, c >> 8 & 255, c >> 16 & 255, 0, 0, 0, semi ? 8 : 0, 0);
+    }
+    gl_triangles(q, 6, CLIP, g.semi);
+}
+
+/* The line for the 1x VRAM; the card's is the caller's */
 static void line(int x0, int y0, int c0, int x1, int y1, int c1, int gouraud, int semi) {
     Soft e;
 
-    line_walk(x0, y0, c0, x1, y1, c1, gouraud, semi, 0);
     e.kind = SOFT_LINE;
     e.u.line.x0 = x0, e.u.line.y0 = y0, e.u.line.c0 = c0, e.u.line.x1 = x1, e.u.line.y1 = y1, e.u.line.c1 = c1;
     e.u.line.gouraud = gouraud, e.u.line.semi = semi;
@@ -942,8 +978,10 @@ void gpu_gp0(const uint32_t *p, int n) {
         rect(x, y, w, h, p[0] & 0xFFFFFF, tex, raw, semi, u, vv, clut, soft);
     } else if (cmd >= 0x40 && cmd < 0x60) {
         int gouraud = cmd & 0x10, poly = cmd & 8, semi = cmd & 2, k = 0;
-        int c0 = p[k++] & 0xFFFFFF, x0 = sx(p[k]) + g.ox, y0 = sy(p[k]) + g.oy, c1, x1, y1;
+        int c0 = p[k++] & 0xFFFFFF, x0 = sx(p[k]) + g.ox, y0 = sy(p[k]) + g.oy, c1, x1, y1, known0, known1;
+        float fx0, fy0, fx1, fy1, fz;
 
+        known0 = precise(&p[k], &fx0, &fy0, &fz);
         k++;
         for (;;) {
             if (k >= n || (poly && (p[k] & 0xF000F000) == 0x50005000)) {
@@ -955,9 +993,16 @@ void gpu_gp0(const uint32_t *p, int n) {
             }
             x1 = sx(p[k]) + g.ox;
             y1 = sy(p[k]) + g.oy;
+            known1 = precise(&p[k], &fx1, &fy1, &fz);
             k++;
+            if (known0 && known1) { /* projected by the GTE: 3D, thin at the render scale */
+                line_3d(fx0, fy0, c0, fx1, fy1, c1, semi);
+            } else { /* 2D (a menu's): its VRAM pixels, as drawn */
+                line_walk(x0, y0, c0, x1, y1, c1, gouraud, semi, 0);
+            }
             line(x0, y0, c0, x1, y1, c1, gouraud, semi);
             x0 = x1; y0 = y1; c0 = c1;
+            fx0 = fx1; fy0 = fy1; known0 = known1;
             if (!poly) {
                 break;
             }
