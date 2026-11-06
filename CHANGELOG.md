@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.17.2 (beta)
+
+- Fixed: 3D lines, like the wireframes of a digivolution, were wide and blocky at higher render scales. They are now thin and
+  follow the model smoothly; 2D lines in menus stay as they were.
+
 ## v0.17.1 (beta)
 
 - Fixed three crashes, reported by players and fixed by j0an2:
