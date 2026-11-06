@@ -70,7 +70,7 @@ static void forms_of(const Uint8 *a, const Uint8 *g, SlotInfo *s)
         header = a[4] == 1 ? 12 : 16;
         s->count = n;
         s->forms = a[4] == 0 || n > (AREA - header) / 10 || crc32(a + header, n * 10) != u32(a + 8) ? F_BAD
-                 : a[4] >= 2 && u32(a + 12) != crc32(g, SAVE_BYTES) ? F_STALE : F_OK;
+                 : a[4] >= 2 && u32(a + 12) != crc32(g, SAVE_BYTES) ? F_STALE : F_READY;
     }
 }
 
@@ -139,7 +139,7 @@ int card_selftest(void)
     int bad = 0;
     card_make(d);
     Uint8 *g = d + BLOCK + SLOT_START + SLOT_SIZE, *a = d + BLOCK + TAIL + AREA;
-    bad += !card_parse(d, sizeof d, &c) || c.slot[0].state != SL_EMPTY || c.slot[1].state != SL_OK || c.slot[1].forms != F_OK || c.slot[1].count != 1;
+    bad += !card_parse(d, sizeof d, &c) || c.slot[0].state != SL_EMPTY || c.slot[1].state != SL_OK || c.slot[1].forms != F_READY || c.slot[1].count != 1;
     d[FRAME] = 0; /* no file of the game's */
     bad += card_parse(d, sizeof d, &c);
     d[FRAME] = 0x51;
@@ -148,7 +148,7 @@ int card_selftest(void)
     a[4] = 1; /* version 1 has nothing to compare */
     SDL_memmove(a + 12, a + 16, 10);
     SDL_memset(a + 22, 0xFF, AREA - 22);
-    bad += !card_parse(d, sizeof d, &c) || c.slot[1].forms != F_OK;
+    bad += !card_parse(d, sizeof d, &c) || c.slot[1].forms != F_READY;
     a[4] = 3;
     bad += !card_parse(d, sizeof d, &c) || c.slot[1].forms != F_NEWER;
     return bad;

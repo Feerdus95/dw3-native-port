@@ -224,19 +224,19 @@ static void slot_line(const Lang *l, int k, const SlotInfo *s, char *out, int si
         *colour = s->state == SL_EMPTY ? C_SOFT : C_RED;
         return;
     }
-    if (s->forms == F_OK) {
+    if (s->forms == F_READY) {
         SDL_snprintf(forms, sizeof forms, l->s[S_SV_OK], s->count);
     } else {
         text = s->forms == F_STALE ? S_SV_STALE : s->forms == F_NEWER ? S_SV_NEWER : s->forms == F_BAD ? S_SV_BAD : S_SV_NONE;
         SDL_snprintf(forms, sizeof forms, "%s", l->s[text]);
     }
-    *colour = s->forms == F_STALE || s->forms == F_BAD ? C_GOLD : s->forms == F_OK ? C_TEXT : C_SOFT;
+    *colour = s->forms == F_STALE || s->forms == F_BAD ? C_GOLD : s->forms == F_READY ? C_TEXT : C_SOFT;
     SDL_snprintf(out, size, "%s %d   %d:%02d   %s", l->s[S_SV_SLOT], k + 1, s->hours, s->minutes, forms);
 }
 
 bool saves_fits(const Lang *l, int width)
 {
-    static const int FORMS[] = {F_NONE, F_OK, F_STALE, F_NEWER, F_BAD};
+    static const int FORMS[] = {F_NONE, F_READY, F_STALE, F_NEWER, F_BAD};
     char line[200];
     Uint32 colour;
     for (int i = 0; i < 5; i++) {

@@ -196,7 +196,7 @@ Uint32 team_colour(int partner);
 /* card.c: a memory card image, read only: this game's file, its slots, and whether each one's extra Digimon belong to its save */
 enum { SAVE_SLOTS = 3, CARD_SIZE = 131072 };
 enum { SL_EMPTY, SL_OK, SL_DAMAGED };
-enum { F_NONE, F_OK, F_STALE, F_NEWER, F_BAD };
+enum { F_NONE, F_READY, F_STALE, F_NEWER, F_BAD };
 typedef struct { int state, forms, count, hours, minutes; } SlotInfo;
 typedef struct { SlotInfo slot[SAVE_SLOTS]; } Card;
 bool card_parse(const Uint8 *d, size_t size, Card *c); /* false when it isn't a card with this game's save in it */
