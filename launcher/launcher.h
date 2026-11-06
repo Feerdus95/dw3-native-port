@@ -120,6 +120,7 @@ int process_wait(const char *const *args, const char *cwd);  /* hidden, to its e
 typedef bool (*NetSink)(const void *data, int size, void *ctx); /* false stops */
 bool net_get(const char *url, NetSink sink, void *ctx, SDL_AtomicInt *percent);
 char *net_text(const char *url); /* SDL_free it; NULL if it failed */
+bool net_redirect(const char *url, char *out, int size); /* where a redirect points, without following it */
 
 /* tools.c: the model viewer (0) and the field editor (1) */
 void tool_activate(int tool);
@@ -139,6 +140,7 @@ int tools_selftest(void);
 void release_start(bool manual);
 void release_fake(const char *tag);
 void release_pick(const char *json, const char *own, char *out, int size); /* the highest non-draft version in an API answer above `own`, or "" */
+bool release_newer(const char *tag, const char *own); /* both exactly v1.2.3, and tag above own */
 const char *release_tag(void); /* the newer version, or NULL */
 bool release_busy(void);
 void release_url(char *out, int size);

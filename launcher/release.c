@@ -29,6 +29,12 @@ static bool newer(const int a[3], const int b[3])
     return false;
 }
 
+bool release_newer(const char *tag, const char *own)
+{
+    int a[3], b[3];
+    return version_parse(tag, a) && version_parse(own, b) && newer(a, b);
+}
+
 /* the highest non-draft version in the API's list above `own`, into out, or "" */
 void release_pick(const char *json, const char *own, char *out, int size)
 {
@@ -117,6 +123,7 @@ int release_selftest(void)
     PICK(LIST, "v1.0.0", "");        /* a local version above every release */
     PICK(LIST, "dev", "");           /* a development build */
     PICK("not json", "v0.1.0", "");
+    bad += !release_newer("v0.2.10", "v0.2.9") + release_newer("v0.2.9", "v0.2.9") + release_newer("nightly", "v0.0.0") + release_newer("v1.0.0", "garbage");
     return bad;
 #undef PICK
 }

@@ -5,21 +5,31 @@
 
 static bool exists(const char *path) { return SDL_GetPathInfo(path, NULL); }
 
-/* the first .zip for Windows in a release of `repo`, and only one of its own */
-static bool pick_zip(const char *json, const char *repo, char *out, int size)
+/* the version in where /releases/latest of `repo` points, ".../releases/tag/v1.2.3"; a repo without releases points elsewhere */
+static bool tag_from_location(const char *location, const char *repo, char *out, int size)
 {
-    static const char KEY[] = "\"browser_download_url\":\"";
     char prefix[128];
-    SDL_snprintf(prefix, sizeof prefix, "https://github.com/%s/releases/download/", repo);
-    for (const char *p = SDL_strstr(json, KEY); p; p = SDL_strstr(p, KEY)) {
-        p += sizeof KEY - 1;
-        const char *end = SDL_strchr(p, '"');
-        if (end && end - p < size && end - p > 10 && !SDL_strncmp(p, prefix, SDL_strlen(prefix)) && !SDL_strncmp(end - 10, "-win64.zip", 10)) {
-            SDL_strlcpy(out, p, (size_t)(end - p) + 1);
-            return true;
-        }
+    const int n = SDL_snprintf(prefix, sizeof prefix, "https://github.com/%s/releases/tag/", repo);
+    if (SDL_strncasecmp(location, prefix, n) || !release_newer(location + n, "v0.0.0")) {
+        return false;
     }
-    return false;
+    SDL_strlcpy(out, location + n, size);
+    return true;
+}
+
+/* the web's redirect, not the API: that allows 60 requests an hour to everyone behind an address */
+static bool latest_tag(int i, char *out, int size)
+{
+    char url[160], location[512];
+    SDL_snprintf(url, sizeof url, "https://github.com/%s/releases/latest", TOOLS[i].repo);
+    if (!net_redirect(url, location, sizeof location)) {
+        return false;
+    }
+    if (!tag_from_location(location, TOOLS[i].repo, out, size)) {
+        native_log("%s points at %s", url, location);
+        return false;
+    }
+    return true;
 }
 
 static bool to_file(const void *data, int size, void *ctx)
@@ -40,7 +50,7 @@ static void stamp_path(int i, char *out, int size)
 void tools_check(void)
 {
     for (int i = 0; i < TOOLS_COUNT; i++) {
-        char path[1300], folder[1200], api[160], url[512], own[32] = "v0.0.0", out[32] = "";
+        char path[1300], folder[1200], own[32] = "v0.0.0", tag[32];
         path_in_root(folder, sizeof folder, TOOLS[i].folder);
         SDL_snprintf(path, sizeof path, "%s/%s", folder, TOOLS[i].exe);
         if (!exists(path)) {
@@ -53,14 +63,8 @@ void tools_check(void)
             SDL_strlcpy(own, saved, sizeof own);
             SDL_free(saved);
         }
-        SDL_snprintf(api, sizeof api, "https://api.github.com/repos/%s/releases/latest", TOOLS[i].repo);
-        char *json = net_text(api);
-        if (json) { /* without an answer, what was known stays */
-            if (pick_zip(json, TOOLS[i].repo, url, sizeof url)) {
-                release_pick(json, own, out, sizeof out);
-            }
-            SDL_strlcpy(s_update[i], out, sizeof s_update[i]);
-            SDL_free(json);
+        if (latest_tag(i, tag, sizeof tag)) { /* without an answer, what was known stays */
+            SDL_strlcpy(s_update[i], release_newer(tag, own) ? tag : "", sizeof s_update[i]);
         }
     }
 }
@@ -68,18 +72,15 @@ void tools_check(void)
 /* ponytail: a failed unpacking stays in .tools-tmp, which the next try overwrites; deleted by hand if it never comes */
 int tool_install(int i)
 {
-    char tmp[1200], zip[1300], api[160], url[512], from[1300], to[1300], tar[MAX_PATH + 16];
+    char tmp[1200], zip[1300], tag[32], url[512], from[1300], to[1300], tar[MAX_PATH + 16];
     path_in_root(tmp, sizeof tmp, ".tools-tmp");
     SDL_snprintf(zip, sizeof zip, "%s/tool.zip", tmp);
-    SDL_snprintf(api, sizeof api, "https://api.github.com/repos/%s/releases/latest", TOOLS[i].repo);
-    char *json = net_text(api), tag[32] = "";
-    const bool found = json && pick_zip(json, TOOLS[i].repo, url, sizeof url);
-    if (found) {
-        release_pick(json, "v0.0.0", tag, sizeof tag);
+    if (!latest_tag(i, tag, sizeof tag)) {
+        return S_T_FAILED; /* the log says why */
     }
-    SDL_free(json);
-    if (!found || !SDL_CreateDirectory(tmp)) {
-        native_log("no release of %s to download into %s", TOOLS[i].repo, tmp);
+    SDL_snprintf(url, sizeof url, "https://github.com/%s/releases/download/%s/%s-%s-win64.zip", TOOLS[i].repo, tag, TOOLS[i].folder, tag);
+    if (!SDL_CreateDirectory(tmp)) {
+        native_log("can't make %s: %s", tmp, SDL_GetError());
         return S_T_FAILED;
     }
     SDL_IOStream *file = SDL_IOFromFile(zip, "wb");
@@ -137,14 +138,11 @@ int tool_install(int i)
 
 int tools_selftest(void)
 {
-    char out[256] = "";
+    char out[32] = "";
     int bad = 0;
-    static const char JSON[] =
-        "{\"assets\":[{\"browser_download_url\":\"https://example.com/x/releases/download/v1/a-win64.zip\"},"
-        "{\"browser_download_url\":\"https://github.com/o/r/releases/download/v1/a-src.zip\"},"
-        "{\"browser_download_url\":\"https://github.com/o/r/releases/download/v1/a-win64.zip\"}]}";
-    bad += !pick_zip(JSON, "o/r", out, sizeof out) || SDL_strcmp(out, "https://github.com/o/r/releases/download/v1/a-win64.zip");
-    bad += pick_zip(JSON, "o/other", out, sizeof out); /* only the tool's own repo */
-    bad += pick_zip("not json", "o/r", out, sizeof out);
+    bad += !tag_from_location("https://github.com/o/r/releases/tag/v1.2.3", "o/r", out, sizeof out) || SDL_strcmp(out, "v1.2.3");
+    bad += tag_from_location("https://github.com/o/r/releases", "o/r", out, sizeof out); /* no release yet */
+    bad += tag_from_location("https://github.com/o/other/releases/tag/v1.2.3", "o/r", out, sizeof out);
+    bad += tag_from_location("https://github.com/o/r/releases/tag/nightly", "o/r", out, sizeof out);
     return bad;
 }
