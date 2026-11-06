@@ -139,7 +139,6 @@ int tools_selftest(void);
 /* release.c: is there a newer port on GitHub? */
 void release_start(bool manual);
 void release_fake(const char *tag);
-void release_pick(const char *json, const char *own, char *out, int size); /* the highest non-draft version in an API answer above `own`, or "" */
 bool release_newer(const char *tag, const char *own); /* both exactly v1.2.3, and tag above own */
 const char *release_tag(void); /* the newer version, or NULL */
 bool release_busy(void);
