@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.17.4 (beta)
+
+- Fixed: downloading or updating the model viewer or the field editor could fail at once at 0%, depending on the connection.
+  The launcher no longer needs GitHub's API for them, which limits how often an address can ask.
+- If a request still fails, `launcher.log` now says why (its HTTP status or WinHTTP error).
+
 ## v0.17.3 (beta)
 
 - **Launcher: tool updates.** It now also checks for new versions of the model viewer and the field editor, at start and with
