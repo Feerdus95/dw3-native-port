@@ -42,7 +42,7 @@
      task->model = model;
      task->texPos = model->texPos;
 +#ifdef NATIVE
-+    task->nativeTired = fighter == NATIVE_FLAMEDRAMON;
++    task->nativeTired = native_mod_by_id(fighter) != NULL && native_mod_by_id(fighter)->tired;
 +#endif
      rects = FIGHTSTG_fighterCache.getFace(fighter);
      for (i = 15; i >= 0; i--) {

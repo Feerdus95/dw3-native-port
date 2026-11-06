@@ -157,6 +157,5 @@ const Lang LANG_DE = {
         [O_JOURNAL] = {"Digilog (Feldmenü)", "Fügt dem Feldmenü DIGILOG hinzu: ein Tagebuch des aktuellen Story-Schritts und der gefundenen Nebenaufgaben (DDNA-Bosse, alte Waffen, Ritter...), Erledigtes getrennt."},
         [O_PACKS] = {"Extra-Starterpacks", "Drei weitere Pakete für ein neues Spiel: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon) und Mystic (Kumamon, Renamon, Veemon)."},
         [O_BLADEGARURUMON] = {"BladeGarurumon", "Ein 45. Digimon, das jeder Partner lernen kann, ab Growlmon und Grizzmon auf Level 40, mit eigenem Modell (aus deiner Disc), Techniken und Signatur, Solar Laser. Spielstände bleiben normale Memory Cards."},
-        [O_FLAMEDRAMON] = {"Flamedramon", "Das Rüstungs-Digimon aus Digimon World 2, ab ExVeemon und Greymon auf Level 30. Modell gelesen mit dw2_decomp (Wyrelade), Angriffe aus Digital Card Battle mit dcb_decomp (ReGame-Labs). Braucht seine Dateien in data/mods; sonst aus."},
     },
 };

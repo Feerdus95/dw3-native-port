@@ -1,6 +1,18 @@
 --- a/src/main/game/digimon.c
 +++ b/src/main/game/digimon.c
-@@ -127,9 +127,120 @@
+@@ -4,7 +4,11 @@
+ #include <libsnd.h>
+ 
+ /* 55 entries: the 52 Digimon, then three placeholders (0x1D4-0x1D6) */
++#ifdef NATIVE
++DigimonData DIGIMON_DATA[NATIVE_DATA_COUNT] = { /* and the Digimon mods' (native.h) */
++#else
+ DigimonData DIGIMON_DATA[55] = {
++#endif
+     {0x17F, {0x30, 0x2C, 0x29, 0x22, 0x21, 1}, {0x55, 0x7D, 0x50, 0x50, 0x73, 0x64, 0x5F}, {1, 0, 0, 0, 0, 0, 0x35}, 0,
+      {0x32, 0xA, 0x14, 0x28, 0x1E}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, 0x64, 0, 8, 0x96, 0x64, 0x55, 0x37, {4, 3, 3, 3, 2, 3}, {2, 5, 2, 2, 4, 3, 3}, {9, 0x14, 0x21, 0x2F, 0x2D}, 1, 1},
+     {0x181, {0x38, 0x3A, 0x13, 0x11, 0x31, 1}, {0x50, 0x73, 0x69, 0x78, 0x55, 0x73, 0x3C}, {3, 0, 0, 0, 0, 0, 0x37}, 0,
+@@ -127,9 +131,119 @@
              return i;
          }
      }
@@ -9,8 +21,8 @@
 +    if (id == NATIVE_BLADEGARURUMON) {
 +        return NATIVE_BLADEGARURUMON_DATA;
 +    }
-+    if (id == NATIVE_FLAMEDRAMON) {
-+        return NATIVE_FLAMEDRAMON_DATA;
++    if (native_form_slot(id) >= 0) { /* and the Digimon mods' */
++        return native_form_slot(id);
 +    }
 +#endif
      return -1;
@@ -59,62 +71,61 @@
 +    TECHS[NATIVE_SOLAR_LASER - 1].element = 7;
 +}
 +
-+/* Flamedramon as a partner's Digimon (native.h): DIGIMON_DATA[52], a stub in the
-+   game, made a quick fire attacker of its own: strength and speed high, defense and
-+   wisdom low, fire-immune but weak to water. Its six techniques (445-450, past
-+   BladeGarurumon's) take their sprites and sounds from an existing technique of the
-+   kit it uses, with cost, power and element of its own: the cost per point of power on
-+   the game's own 5 to 6 line. The last three are the Digital Card Battle attacks
-+   (dw2-extractor/flame_dcb.py) with a script each: Fire Rocket (11) a Champions'
-+   signature's size (60 MP for 300, as Greymon's), Knuckle Fire (18) an Ultimate's
-+   (84 for 480) and Express Claw (19) the signature: four physical hits of 150, like
-+   the game's four-hit technique 61 grown to a Mega's 110 MP. Once the game's tables
-+   are read (platform/main.c) */
-+void native_flamedramon_setup(void) {
-+    static const u16 STATS[5] = {52, 18, 20, 12, 58}; /* strength, defense, spirit, wisdom, speed */
-+    static const u16 RESISTS[7] = {80, 0, 55, 35, 35, 35, 35}; /* fire, water, ice, wind, thunder, machine, dark */
-+    static const u8 STATUS[5] = {20, 35, 10, 20, 30};
-+    static const u8 LEARN[6] = {10, 25, 40, 50, 70, 85};
-+    static const u8 KNOWN[5] = {30, 45, 60, 80, 99};
-+    /* the technique it is made from, its cost, power and element power (1: none), its script (0: the model's own) */
-+    static const u16 TECH[6][5] = {{137, 12, 65, 16, 0}, {138, 26, 150, 24, 0}, {139, 38, 220, 32, 0},
-+                                   {65, 60, 300, 48, 11}, {65, 84, 480, 56, 18}, {61, 110, 150, 1, 19}};
-+    DigimonData *d = &DIGIMON_DATA[NATIVE_FLAMEDRAMON_DATA];
-+    u8 nameId = d->nameId;
++/* The Digimon mods as partners' Digimon (native.h, platform/digimon_mods.c): each one's DIGIMON_DATA entry made from its template's
++   (the growth tables of that Digimon) with the stats, resistances, status resistances and techniques of its manifest; its techniques
++   (tech .. tech + 5) take their sprites and sounds from an existing technique, with cost, power and element of their own, and a
++   script each when the model has one; the pair's fusion (tech + 6) costs as Paildramon's. Once the game's tables are read
++   (platform/main.c) */
++void native_mods_setup(void) {
++    s32 k;
 +    s32 i;
 +
-+    *d = DIGIMON_DATA[40]; /* MetalGarurumon: the growth tables of a wolf of the same rate */
-+    d->id = NATIVE_FLAMEDRAMON;
-+    d->nameId = NATIVE_FLAMEDRAMON_NAME;
-+    d->hp -= d->hp / 8;
-+    d->mp -= d->mp / 8;
-+    for (i = 0; i < 5; i++) {
-+        d->battleStats[i] = STATS[i];
-+        d->statusResists[i] = STATUS[i];
-+        d->knownLevels[i] = KNOWN[i];
-+    }
-+    for (i = 0; i < 7; i++) {
-+        d->resistances[i] = RESISTS[i];
-+    }
-+    d->skills[0] = 13; /* the plain attack */
-+    for (i = 0; i < 6; i++) {
-+        d->skills[i + 1] = NATIVE_FLAMEDRAMON_TECH + i;
-+        d->skillLevels[i] = LEARN[i];
-+        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1] = TECHS[TECH[i][0] - 1];
-+        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].mp = TECH[i][1];
-+        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].power = TECH[i][2];
-+        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].elementPower = TECH[i][3];
-+        TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].element = TECH[i][3] > 1 ? 2 : 1;
-+        if (TECH[i][4] != 0) {
-+            TECHS[NATIVE_FLAMEDRAMON_TECH + i - 1].script = TECH[i][4];
++    for (k = 0; k < NATIVE_MAX_MODS; k++) {
++        const NativeMod *m = native_mod_at(k);
++        DigimonData *d;
++
++        if (m == NULL) {
++            continue;
++        }
++        d = &DIGIMON_DATA[m->slot];
++        *d = DIGIMON_DATA[m->template];
++        d->id = m->id;
++        d->nameId = m->name_id;
++        d->hp = d->hp * m->hp_permille / 1000;
++        d->mp = d->mp * m->mp_permille / 1000;
++        for (i = 0; i < 5; i++) {
++            d->battleStats[i] = m->stats[i];
++            d->statusResists[i] = m->status[i];
++            d->knownLevels[i] = m->known[i];
++        }
++        for (i = 0; i < 7; i++) {
++            d->resistances[i] = m->resists[i];
++        }
++        d->skills[0] = 13; /* the plain attack */
++        for (i = 0; i < 6; i++) {
++            TechData *t = &TECHS[m->tech + i - 1];
++
++            d->skills[i + 1] = m->tech + i;
++            d->skillLevels[i] = m->learn[i];
++            *t = TECHS[m->techs[i].from - 1];
++            t->mp = m->techs[i].mp;
++            t->power = m->techs[i].power;
++            t->elementPower = m->techs[i].element_power;
++            t->element = m->techs[i].element;
++            if (m->techs[i].script != 0) {
++                t->script = m->techs[i].script;
++            }
++        }
++        d->pairTech = 0;
++        d->pairPartner = 0;
++        if (m->pair[0] != 0) {
++            TechData *t = &TECHS[m->tech + 6 - 1];
++
++            *t = TECHS[373]; /* Paildramon's pair: the cost of the fusion, 100 MP each */
++            t->element = m->pair_element;
++            t->elementPower = m->pair_element_power;
 +        }
 +    }
-+    d->pairTech = 0;
-+    d->pairPartner = 0;
-+    TECHS[NATIVE_FLAME_PAIR_TECH - 1] = TECHS[373]; /* Paildramon's pair: the cost of the fusion, 100 MP each */
-+    TECHS[NATIVE_FLAME_PAIR_TECH - 1].element = 2;
-+    TECHS[NATIVE_FLAME_PAIR_TECH - 1].elementPower = 48; /* fire, as Flamedramon's */
-+    (void)nameId;
 +}
 +#endif
 +

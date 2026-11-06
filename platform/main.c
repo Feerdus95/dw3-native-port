@@ -76,7 +76,7 @@ static int load_boot_image(void) {
    scale = <window size in 320x240 steps>, dither = 0/1, smooth_movies = 0/1,
    debug = 0/1, perf = 0/1 (the battle's performance meter; F10), log = <subsystems>, deadzone = <0..32767>, rumble = 0/1, fps = 50/60,
    render_scale = 1-8, fast_text = 0/1, fast_travel = 0/1, map_objective = 0/1, journal = 0/1, extra_packs = 0/1,
-   bladegarurumon = 0/1, flamedramon = 0/1, soft_shadows = 0/1, true_color = 0/1, perspective = 0/1,
+   bladegarurumon = 0/1, soft_shadows = 0/1, true_color = 0/1, perspective = 0/1,
    smooth_3d = 0/1, battle_shadows = 0/1, battle_sky = 0/1, widescreen = 0/1,
    vsync = 0/1;
    the options menu (menu.c) writes them back */
@@ -169,8 +169,6 @@ static void read_ini(int data_only) {
             g_journal = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "bladegarurumon") == 0) {
             g_bladegarurumon = atoi(value) != 0;
-        } else if (SDL_strcasecmp(key, "flamedramon") == 0) {
-            g_flamedramon = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "fps") == 0) {
             s_fps60 = atoi(value) == 60;
         } else if (SDL_strcasecmp(key, "icons") == 0) {
@@ -246,7 +244,8 @@ int main(int argc, char **argv) {
         return 1;
     }
     native_bladegarurumon_setup(); /* the game's tables as read, then its own */
-    native_flamedramon_setup();
+    native_mods_load(); /* data/mods/digimon/<name>/digimon.json, before the tables take them */
+    native_mods_setup();
     native_snapshot_overlays();
     native_fast_travel_setup(); /* the stages' doors, their variables put back */
     read_ini(0);

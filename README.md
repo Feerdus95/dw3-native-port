@@ -103,7 +103,7 @@ page shows what each of the card's slots holds, and can **Export** the card (a b
 restore first keeps the card you had in `saves/backups/`.
 
 **Extra Digimon and your saves.** The game's slots stay as the original game writes them, so a card from the port loads
-in the original game or an emulator. The Digimon the port adds beyond the game's 44 (BladeGarurumon, Flamedramon...) are
+in the original game or an emulator. The Digimon the port adds beyond the game's 44 (BladeGarurumon and the Digimon mods) are
 kept in a separate area of the card file, tied to the save they were made with, so the original game doesn't see them.
 If a slot is saved again by the original game, an emulator or another card, those Digimon are left out of it (the
 launcher marks it) and the port keeps a copy as `saves/card1.pre-stale.mcd` before its next save. Older versions of the port
@@ -195,6 +195,21 @@ button can be changed in the options menu's Input tab, **Controls**.
     log =                ; console logs: cd, snd, pad, mc, ovl, gpu or all
 
 ### Effects' own images (mods)
+
+**Digimon mods.** Any folder `data/mods/digimon/<name>/` with a `digimon.json` adds one more Digimon partners can digivolve into, with no
+change to the port (up to 4 at once). The mod is on while its model, the file `data/mods/<fid>.bin`, is there and `"enabled"` isn't 0;
+the launcher and `native.ini` have no switch for it. The model and the manifest come from a converter (the model viewer's DW2 tab, or
+`dw2-extractor/flame_dcb.py`, which makes Flamedramon's from your own Digimon World 2 and Digital Card Battle discs), or you write them.
+The manifest holds numbers, strings and arrays (no `true`/`false`):
+
+- `id` (472, 473, ...: one a mod, it is how a save knows the form), `name` (ASCII), `fid`, `subs` [skeleton, motions, effects], `like` (a
+  model whose record gives it cameras and face: 259, ExVeemon), `template` (a Digimon of the game it starts from, 40: MetalGarurumon).
+- `hp_permille`, `mp_permille`, `stats` [strength, defense, spirit, wisdom, speed], `resists` [fire, water, ice, wind, thunder, machine, dark],
+  `status`, `learn` (the six levels it learns techniques), `known`, `needs` [Digimon, level, Digimon, level]: what a partner needs to learn it.
+- `techs`: six of `{name, help {en, fr, it, de, es}, from, mp, power, element_power, element, script}`; `from` is a technique of the
+  game whose sprites and sounds it takes. `signatures`: how many of the last skills are signatures.
+- Optional: `pair` (`{ids [a, b], element, element_power, shift, scripts [3], motions [3]}`: a pair that fuses into it in the Tag menu),
+  `effects` (`[[effect id, fid], ...]` models of its techniques), `tired`, `portrait_dz`, `face`.
 
 A battle's 2D effect can be drawn from your own PNGs: put them in `data/mods/effects/<id>/`. Each is the 320x240
 screen around the effect's point, as the model viewer's Export PNGs saves an effect, or a bigger image of the same

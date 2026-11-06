@@ -1,6 +1,6 @@
 --- a/src/stfgtrep/growth.c
 +++ b/src/stfgtrep/growth.c
-@@ -137,9 +137,40 @@
+@@ -137,9 +137,44 @@
      s32 id;
      s32 i;
      s32 j;
@@ -11,10 +11,10 @@
      list = STFGTREP_evolutions[partner];
 +#ifdef NATIVE
 +    /* and the port's extra forms past the 44 (native.h): BladeGarurumon, Growlmon's and
-+       Grizzmon's DNA partner, learnt with both at level 40; Flamedramon, learnt with
-+       ExVeemon and Greymon at level 40 */
++       Grizzmon's DNA partner, learnt with both at level 40; then the Digimon mods
++       (platform/digimon_mods.c), each learnt with the two Digimon its manifest names */
 +    {
-+        static Evolution all[46];
++        static Evolution all[45 + NATIVE_MAX_MODS];
 +
 +        total = 44;
 +        memcpy(all, list, 44 * sizeof(Evolution));
@@ -25,12 +25,16 @@
 +            all[total].stat = 0, all[total].value = 1;
 +            total++;
 +        }
-+        if (g_flamedramon && native_file_exists(NATIVE_FLAMEDRAMON_FID)) {
-+            all[total].digimon = NATIVE_FLAMEDRAMON_DATA + 1;
-+            all[total].needs[0].digimon = 13, all[total].needs[0].level = 40; /* ExVeemon */
-+            all[total].needs[1].digimon = 12, all[total].needs[1].level = 40; /* Greymon */
-+            all[total].stat = 0, all[total].value = 1;
-+            total++;
++        for (n = 0; n < NATIVE_MAX_MODS; n++) { /* the Digimon mods': each learnt with the two Digimon its manifest names */
++            const NativeMod *m = native_mod_at(n);
++
++            if (m != NULL && m->needs[0] > 0 && m->needs[2] > 0) {
++                all[total].digimon = m->slot + 1;
++                all[total].needs[0].digimon = m->needs[0], all[total].needs[0].level = m->needs[1];
++                all[total].needs[1].digimon = m->needs[2], all[total].needs[1].level = m->needs[3];
++                all[total].stat = 0, all[total].value = 1;
++                total++;
++            }
 +        }
 +        list = all;
 +    }

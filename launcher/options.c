@@ -27,16 +27,12 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_JOURNAL] = {"journal", K_BOOL, 0},
     [O_PACKS] = {"extra_packs", K_BOOL, 1},
     [O_BLADEGARURUMON] = {"bladegarurumon", K_BOOL, 1},
-    [O_FLAMEDRAMON] = {"flamedramon", K_BOOL, 1},
 };
 static const char *const ICON_KEYS[] = {"auto", "ps1", "ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch", "keyboard"};
 static const char *const ICON_NAMES[] = {NULL, "PS1", "PS3", "PS4", "PS5", "Xbox 360", "Xbox One", "Xbox Series", "Switch", NULL};
 
 static short s_value[O_COUNT];
 static bool s_dirty[O_COUNT];
-
-/* Flamedramon's model comes from the player's own files: without it the option is off and its line stays untouched */
-static bool locked(int o) { return o == O_FLAMEDRAMON && !data_has_file("mods/7120.bin"); }
 
 void options_load(void)
 {
@@ -68,10 +64,8 @@ void options_reset(void)
 {
     binds_reset();
     for (int o = 0; o < O_COUNT; o++) {
-        if (!locked(o)) {
-            s_dirty[o] |= s_value[o] != DEF[o].def;
-            s_value[o] = DEF[o].def;
-        }
+        s_dirty[o] |= s_value[o] != DEF[o].def;
+        s_value[o] = DEF[o].def;
     }
 }
 
@@ -109,9 +103,6 @@ bool options_save(void)
 
 void option_step(int o, int dir)
 {
-    if (locked(o)) {
-        return;
-    }
     s_dirty[o] = true;
     if (DEF[o].kind == K_BOOL) {
         s_value[o] = !s_value[o];
@@ -124,10 +115,6 @@ void option_step(int o, int dir)
 void option_value(int o, const Lang *l, char *out, int size)
 {
     const int v = s_value[o];
-    if (locked(o)) {
-        SDL_snprintf(out, size, "%s", l->s[S_OFF]);
-        return;
-    }
     switch (DEF[o].kind) {
     case K_BOOL: SDL_snprintf(out, size, "%s", l->s[v ? S_ON : S_OFF]); break;
     case K_FPS: SDL_snprintf(out, size, "%d", v); break;
@@ -143,4 +130,4 @@ void option_value(int o, const Lang *l, char *out, int size)
     }
 }
 
-bool option_is_off(int o) { return locked(o) || (DEF[o].kind == K_BOOL && !s_value[o]); }
+bool option_is_off(int o) { return (DEF[o].kind == K_BOOL && !s_value[o]); }

@@ -134,7 +134,6 @@ static void finish(void)
     if (result == E_NONE) {
         g_app.state = ST_READY;
         g_app.sel[SC_HOME] = 0;
-        options_load(); /* Flamedramon's model may be there now */
     } else if (result == E_CANCELLED) {
         g_app.state = ST_NO_GAME;
     } else {

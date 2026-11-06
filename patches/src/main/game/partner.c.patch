@@ -4,7 +4,7 @@
  #include "game.h"
  
 +#ifdef NATIVE
-+/* The port's extra forms (native.h: BladeGarurumon, Flamedramon): every partner can have them past its 44 Digimon, as entries
++/* The port's extra forms (native.h: BladeGarurumon and the Digimon mods): every partner can have them past its 44 Digimon, as entries
 +   PARTNER_ENTRY_COUNT and up, kept in the port's store of extra forms (platform/forms.c), which
 +   a card's file carries in its unused tail (an area a slot): its level (0 while the
 +   partner hasn't it), exp, and which of its six skills it has, known and marked, 3 bits
@@ -38,7 +38,7 @@
 +    for (i = 0; i < 6; i++, bits >>= 3) {
 +        out->skills[i] = !(bits & 1) ? 0
 +                                     : d->skills[i + 1] | (bits & 2 ? SKILL_KNOWN : 0) | (bits & 4 ? SKILL_MARKED : 0) |
-+                                           (i == 5 || (id == NATIVE_FLAMEDRAMON && i >= 3) ? SKILL_LAST : 0);
++                                           (i >= 6 - native_form_signatures(id) ? SKILL_LAST : 0);
 +    }
 +}
 +
@@ -105,7 +105,7 @@
 +
 +/* an entry's id, an extra form's past the 44 */
 +static s32 entryId(s32 partner, s32 index) {
-+    return index >= BG_ENTRY ? NATIVE_FORM_IDS[index - BG_ENTRY] : GAME.partners[partner].info.entries[index].id;
++    return index >= BG_ENTRY ? native_form_id(index - BG_ENTRY) : GAME.partners[partner].info.entries[index].id;
 +}
 +#endif
 +
@@ -118,7 +118,7 @@
      }
 +#ifdef NATIVE
 +    for (i = 0; i < NATIVE_EXTRA_FORMS; i++) {
-+        if (id == NATIVE_FORM_IDS[i] && hasForm(partner, id)) {
++        if (id != 0 && id == native_form_id(i) && hasForm(partner, id)) {
 +            return BG_ENTRY + i;
 +        }
 +    }
@@ -173,8 +173,8 @@
 +        }
 +    }
 +    for (i = 0; i < NATIVE_EXTRA_FORMS; i++) {
-+        if (hasForm(partner, NATIVE_FORM_IDS[i]) && n < max) {
-+            out[n++] = NATIVE_FORM_IDS[i];
++        if (native_form_id(i) != 0 && hasForm(partner, native_form_id(i)) && n < max) {
++            out[n++] = native_form_id(i);
 +        }
 +    }
 +    for (i = n; i < max; i++) {

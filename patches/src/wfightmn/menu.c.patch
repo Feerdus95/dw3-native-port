@@ -1,14 +1,12 @@
 --- a/src/wfightmn/menu.c
 +++ b/src/wfightmn/menu.c
-@@ -431,11 +431,20 @@
+@@ -431,11 +431,18 @@
      switch (task->step) {
      case 0:
      default:
 +#ifdef NATIVE
-+        /* the fusion into Flamedramon is the pair's script 12 with the other partner and the DNA form changed (native.h) */
-+        g_dna_other = children->commands->pairTech == NATIVE_FLAME_PAIR_TECH
-+                          ? (FIGHTSTG_battle.fighters[0][FIGHTSTG_battle.active[0]].id == NATIVE_PAIR_A ? NATIVE_PAIR_B : NATIVE_PAIR_A)
-+                          : 0;
++        /* the fusion into a Digimon mod is the pair's script 12 with the other partner and the DNA form changed (native.h) */
++        g_dna_other = native_dna_begin(children->commands->pairTech, FIGHTSTG_battle.fighters[0][FIGHTSTG_battle.active[0]].id);
 +#endif
          children->task.tech = FIGHTSTG_startTechAction(0, children->commands->pairTech);
          task->step++;
