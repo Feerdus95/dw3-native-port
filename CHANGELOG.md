@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.17.6 (beta)
+
+- Changed: the Mods tab no longer shows the Flamedramon row. Its model can't be shipped, so players found a switch they couldn't turn on.
+  If you make `data/mods/7120.bin` yourself the game still offers it; `flamedramon = 0` in `native.ini` turns it off.
+
 ## v0.17.5 (beta)
 
 - Fixed: Check for updates could say it couldn't reach GitHub when GitHub's API was refusing the request. The launcher now reads
