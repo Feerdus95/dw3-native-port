@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.17.5 (beta)
+
+- Fixed: Check for updates could say it couldn't reach GitHub when GitHub's API was refusing the request. The launcher now reads
+  the public releases feed instead, so it no longer uses the API at all.
+
 ## v0.17.4 (beta)
 
 - Fixed: downloading or updating the model viewer or the field editor could fail at once at 0%, depending on the connection.
