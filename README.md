@@ -80,7 +80,8 @@ options below, before you start, with the controls' keys and buttons and a descr
 below), a notice when a newer port is out, and **Tools**: the
 [model viewer](https://github.com/Feerdus95/dw3-model-viewer) and the
 [field editor](https://github.com/Feerdus95/dw3-field-editor), downloaded from GitHub on request into a folder of their
-own next to the port, set up to read `data/`, and opened from there. A viewer or editor already beside the port is used
+own next to the port, set up to read `data/`, and opened from there. When a newer release of one is out, an **Update tool**
+row there replaces its program files and leaves its settings and data alone. A viewer or editor already beside the port is used
 instead of downloading. If `data/` was read by an older version, the viewer asks for the disc image once, for the
 file names (`data/names.txt`).
 

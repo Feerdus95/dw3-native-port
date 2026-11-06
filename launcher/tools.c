@@ -1,21 +1,22 @@
 /* The model viewer and the field editor: found if they're there, else downloaded next to the launcher, set up to
    read the port's data, and started. Their releases unpack to a folder of their own, whose ../data is the port's.
    Nothing here deletes or stops anything but its own download. */
-#include <windows.h> /* before launcher.h, whose L and enums its headers would trip on */
 #include "launcher.h"
 #include "extract.h"
+#include "tools.h"
 
-enum { VIEWER, EDITOR, TOOLS_COUNT };
-enum { P_DOWNLOAD, P_UNPACK, P_SETUP };
-static const struct { const char *repo, *folder, *exe, *dev; } TOOLS[TOOLS_COUNT] = {
+const ToolInfo TOOLS[TOOLS_COUNT] = {
     {"Feerdus95/dw3-model-viewer", "dw3-model-viewer", "dw3mv.exe", "../../viewer/build/"},
     {"Feerdus95/dw3-field-editor", "dw3-field-editor", "dw3fe.exe", "../../field-editor/build/"},
 };
 
 static SDL_Thread *s_thread;
-static SDL_AtomicInt s_done, s_stop, s_percent, s_phase;
+static SDL_AtomicInt s_done;
+SDL_AtomicInt s_stop, s_percent, s_phase;
 static int s_tool;
 static char s_image[1200];
+char s_update[TOOLS_COUNT][32];
+static bool s_updating;
 
 static bool exists(const char *path) { return SDL_GetPathInfo(path, NULL); }
 
@@ -70,76 +71,6 @@ static bool tool_ready(int i, const char *exe)
     return i == VIEWER ? viewer_has_data(exe) : data_has_file("stages/characters.json");
 }
 
-/* the first .zip for Windows in a release of `repo`, and only one of its own */
-static bool pick_zip(const char *json, const char *repo, char *out, int size)
-{
-    static const char KEY[] = "\"browser_download_url\":\"";
-    char prefix[128];
-    SDL_snprintf(prefix, sizeof prefix, "https://github.com/%s/releases/download/", repo);
-    for (const char *p = SDL_strstr(json, KEY); p; p = SDL_strstr(p, KEY)) {
-        p += sizeof KEY - 1;
-        const char *end = SDL_strchr(p, '"');
-        if (end && end - p < size && end - p > 10 && !SDL_strncmp(p, prefix, SDL_strlen(prefix)) && !SDL_strncmp(end - 10, "-win64.zip", 10)) {
-            SDL_strlcpy(out, p, (size_t)(end - p) + 1);
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool to_file(const void *data, int size, void *ctx)
-{
-    return !SDL_GetAtomicInt(&s_stop) && SDL_WriteIO(ctx, data, size) == (size_t)size;
-}
-
-/* ponytail: a failed unpacking stays in .tools-tmp, which the next try overwrites; deleted by hand if it never comes */
-static int install(int i)
-{
-    char tmp[1200], zip[1300], api[160], url[512], from[1300], to[1300], tar[MAX_PATH + 16];
-    path_in_root(tmp, sizeof tmp, ".tools-tmp");
-    SDL_snprintf(zip, sizeof zip, "%s/tool.zip", tmp);
-    SDL_snprintf(api, sizeof api, "https://api.github.com/repos/%s/releases/latest", TOOLS[i].repo);
-    char *json = net_text(api);
-    const bool found = json && pick_zip(json, TOOLS[i].repo, url, sizeof url);
-    SDL_free(json);
-    if (!found || !SDL_CreateDirectory(tmp)) {
-        native_log("no release of %s to download into %s", TOOLS[i].repo, tmp);
-        return S_T_FAILED;
-    }
-    SDL_IOStream *file = SDL_IOFromFile(zip, "wb");
-    bool ok = file && net_get(url, to_file, file, &s_percent);
-    ok = file && SDL_CloseIO(file) && ok;
-    if (!ok) {
-        const bool stopped = SDL_GetAtomicInt(&s_stop);
-        native_log(stopped ? "%s: cancelled" : "%s: can't download it", url);
-        SDL_RemovePath(zip);
-        SDL_RemovePath(tmp);
-        return stopped ? S_T_CANCELLED : S_T_FAILED;
-    }
-    /* Windows' own tar, by its full path: the zip's in a folder of plain names, whatever the path above it */
-    SDL_SetAtomicInt(&s_phase, P_UNPACK);
-    GetSystemDirectoryA(tar, MAX_PATH);
-    SDL_strlcat(tar, "\\tar.exe", sizeof tar);
-    const char *args[] = {tar, "-xf", "tool.zip", NULL};
-    const int code = process_wait(args, tmp);
-    SDL_snprintf(from, sizeof from, "%s/%s/%s", tmp, TOOLS[i].folder, TOOLS[i].exe);
-    if (code != 0 || !exists(from)) {
-        native_log("%s: tar ended with %d, and no %s", zip, code, from);
-        SDL_RemovePath(zip);
-        return S_T_FAILED;
-    }
-    SDL_snprintf(from, sizeof from, "%s/%s", tmp, TOOLS[i].folder);
-    path_in_root(to, sizeof to, TOOLS[i].folder);
-    if (!SDL_RenamePath(from, to)) {
-        native_log("can't move %s to %s: %s", from, to, SDL_GetError());
-        SDL_RemovePath(zip);
-        return S_T_FAILED;
-    }
-    SDL_RemovePath(zip);
-    SDL_RemovePath(tmp);
-    return S_T_READY;
-}
-
 static int names_progress(int percent)
 {
     (void)percent;
@@ -186,10 +117,12 @@ static int SDLCALL tool_thread(void *unused)
     (void)unused;
     char exe[1200];
     int result = S_T_READY;
-    if (!tool_find(s_tool, exe, sizeof exe)) {
-        result = install(s_tool);
+    if (s_updating || !tool_find(s_tool, exe, sizeof exe)) {
+        result = tool_install(s_tool);
     }
-    if (result == S_T_READY && !SDL_GetAtomicInt(&s_stop) && tool_find(s_tool, exe, sizeof exe)) {
+    if (s_updating) {
+        result = result == S_T_READY ? S_T_UPDATED : result; /* set up already */
+    } else if (result == S_T_READY && !SDL_GetAtomicInt(&s_stop) && tool_find(s_tool, exe, sizeof exe)) {
         SDL_SetAtomicInt(&s_phase, P_SETUP);
         result = setup(s_tool, exe);
     }
@@ -266,6 +199,61 @@ void tool_value(int i, char *out, int size)
     SDL_strlcpy(out, L->s[!found ? S_T_GET : tool_ready(i, exe) ? S_T_OPEN : S_T_SETUP], size);
 }
 
+int tool_update_index(void)
+{
+    if (s_thread && s_updating) {
+        return s_tool;
+    }
+    if (release_busy()) {
+        return -1; /* the check is writing them */
+    }
+    for (int i = 0; i < TOOLS_COUNT; i++) {
+        if (s_update[i][0]) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void tool_update_activate(void)
+{
+    const int i = tool_update_index();
+    if (s_thread) {
+        if (s_updating) {
+            SDL_SetAtomicInt(&s_stop, 1);
+        } else {
+            g_app.note = L->s[S_T_BUSY];
+        }
+    } else if (i >= 0) {
+        s_updating = true;
+        start(i, "");
+    }
+}
+
+void tool_update_value(char *out, int size)
+{
+    const int i = tool_update_index();
+    if (i < 0) {
+        out[0] = 0;
+    } else if (s_thread) {
+        tool_value(i, out, size);
+    } else {
+        SDL_snprintf(out, size, "%s %s", L->s[i == VIEWER ? S_VIEWER : S_EDITOR], s_update[i]);
+    }
+}
+
+void tool_update_fake(const char *tag) { SDL_strlcpy(s_update[VIEWER], tag, sizeof s_update[VIEWER]); }
+
+bool tool_update_now(int i)
+{
+    tools_check();
+    if (!s_update[i][0]) {
+        return false;
+    }
+    native_log("updating %s to %s", TOOLS[i].folder, s_update[i]);
+    return tool_install(i) == S_T_READY;
+}
+
 bool tools_busy(void) { return s_thread != NULL; }
 
 static void finish(void)
@@ -273,6 +261,10 @@ static void finish(void)
     int result = S_T_FAILED;
     SDL_WaitThread(s_thread, &result);
     s_thread = NULL;
+    if (result == S_T_UPDATED) {
+        s_update[s_tool][0] = 0;
+    }
+    s_updating = false;
     g_app.note = L->s[result];
 }
 
@@ -290,18 +282,4 @@ void tools_shutdown(void)
         SDL_SetAtomicInt(&s_stop, 1);
         finish();
     }
-}
-
-int tools_selftest(void)
-{
-    char out[256] = "";
-    int bad = 0;
-    static const char JSON[] =
-        "{\"assets\":[{\"browser_download_url\":\"https://example.com/x/releases/download/v1/a-win64.zip\"},"
-        "{\"browser_download_url\":\"https://github.com/o/r/releases/download/v1/a-src.zip\"},"
-        "{\"browser_download_url\":\"https://github.com/o/r/releases/download/v1/a-win64.zip\"}]}";
-    bad += !pick_zip(JSON, "o/r", out, sizeof out) || SDL_strcmp(out, "https://github.com/o/r/releases/download/v1/a-win64.zip");
-    bad += pick_zip(JSON, "o/other", out, sizeof out); /* only the tool's own repo */
-    bad += pick_zip("not json", "o/r", out, sizeof out);
-    return bad;
 }

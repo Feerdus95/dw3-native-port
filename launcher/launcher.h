@@ -57,6 +57,7 @@ enum {
     S_CREDITS, S_CREDITS_D, S_BUTTONS, S_GAMEPAD, S_BIND_D, S_PRESS_KEY, S_PRESS_PAD,
     S_B_UP, S_B_RIGHT, S_B_DOWN, S_B_LEFT, S_B_TRIANGLE, S_B_CIRCLE, S_B_CROSS, S_B_SQUARE,
     S_T_GET, S_T_OPEN, S_T_SETUP, S_T_DOWNLOADING, S_T_UNPACKING, S_T_PREPARING, S_T_READY, S_T_FAILED, S_T_CANCELLED, S_T_NO_START, S_T_BUSY, S_T_NEED_DISC,
+    S_T_UPDATE, S_T_UPDATE_D, S_T_UPDATED, S_T_CLOSE_IT,
     S_TEAM, S_LAST_SAVE, S_LEVEL, S_NO_TEAM,
     S_SAVES, S_SAVES_D, S_EXPORT, S_EXPORT_D, S_IMPORT, S_IMPORT_D, S_UNDO, S_UNDO_D, S_SV_FOLDER, S_SV_FOLDER_D,
     S_SV_SLOT, S_SV_EMPTY, S_SV_DAMAGED, S_SV_NONE, S_SV_OK, S_SV_STALE, S_SV_NEWER, S_SV_BAD, S_SV_NOCARD,
@@ -83,6 +84,7 @@ void native_log(const char *fmt, ...);
 bool ini_get(const char *file, const char *key, char *value, int size);
 bool ini_write(const char *file, IniEdit *edits, int count);
 char *ini_apply(const char *in, IniEdit *edits, int count); /* SDL_free it */
+bool path_move_tree(const char *from, const char *to); /* FROM's files over TO's; what only TO has stays */
 
 /* options.c */
 void options_load(void);
@@ -122,6 +124,12 @@ char *net_text(const char *url); /* SDL_free it; NULL if it failed */
 /* tools.c: the model viewer (0) and the field editor (1) */
 void tool_activate(int tool);
 void tool_value(int tool, char *out, int size);
+void tools_check(void);        /* blocking: which of those the launcher installed have a newer release */
+int tool_update_index(void);   /* the tool with an update on offer, or being updated, or -1 */
+void tool_update_activate(void);
+void tool_update_value(char *out, int size);
+void tool_update_fake(const char *tag);
+bool tool_update_now(int tool); /* --tool-update: blocking, for the tests */
 bool tools_busy(void);
 void tools_poll(void);
 void tools_shutdown(void);
@@ -130,6 +138,7 @@ int tools_selftest(void);
 /* release.c: is there a newer port on GitHub? */
 void release_start(bool manual);
 void release_fake(const char *tag);
+void release_pick(const char *json, const char *own, char *out, int size); /* the highest non-draft version in an API answer above `own`, or "" */
 const char *release_tag(void); /* the newer version, or NULL */
 bool release_busy(void);
 void release_url(char *out, int size);

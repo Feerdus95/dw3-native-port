@@ -12,6 +12,7 @@ static const Row HOME_NEWS[] = {ACT(S_PLAY), ACT(S_SETTINGS), ACT(S_SAVES), ACT(
 static const Row SAVES[] = {ACT(S_EXPORT), ACT(S_IMPORT), ACT(S_UNDO), ACT(S_SV_FOLDER), ACT(S_BACK), {R_END}};
 static const Row FIRST_RUN[] = {ACT(S_BROWSE), {R_LANGUAGE}, {R_END}};
 static const Row TOOLS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_LOG), ACT(S_CHECK), ACT(S_CREDITS), ACT(S_BACK), {R_END}};
+static const Row TOOLS_NEWS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_LOG), ACT(S_CHECK), ACT(S_CREDITS), ACT(S_T_UPDATE), ACT(S_BACK), {R_END}};
 /* the Input tab's buttons in the order of the game's Controls page */
 static const Row TABS[4][24] = {
     {OPT(O_FPS), OPT(O_FULLSCREEN), OPT(O_WINDOW), OPT(O_WIDESCREEN), OPT(O_VSYNC), OPT(O_MOVIES), ACT(S_RESET), ACT(S_BACK), {R_END}},
@@ -42,7 +43,9 @@ const Row *rows(void)
         return TABS[s_tab];
     }
     if (s_screen == SC_TOOLS) {
-        return TOOLS;
+        const Row *r = tool_update_index() >= 0 ? TOOLS_NEWS : TOOLS;
+        s_sel[SC_TOOLS] = SDL_min(s_sel[SC_TOOLS], row_count(r) - 1); /* the update's row goes when it's done */
+        return r;
     }
     if (s_screen == SC_SAVES) {
         return SAVES;
@@ -157,6 +160,11 @@ static void draw_list(void)
             char value[64];
             tool_value(r[i].id == S_EDITOR, value, sizeof value);
             text_right(a.x + a.w - 8, y, sel ? C_GOLD : C_SOFT, value);
+        }
+        if (r[i].id == S_T_UPDATE) {
+            char value[96];
+            tool_update_value(value, sizeof value);
+            text_right(a.x + a.w - 8, y, C_GOLD, value);
         }
         text(a.x + 13, y, 1, sel ? C_GOLD : C_TEXT, r[i].kind == R_OPTION ? L->option[r[i].id].name : L->s[r[i].id]);
         if (r[i].kind == R_OPTION) {

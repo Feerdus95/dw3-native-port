@@ -104,7 +104,12 @@ static void activate(int id)
     case S_FOLDER: SDL_OpenURL(SDL_GetBasePath()); break;
     case S_LOG: open_log(); break;
     case S_CREDITS: open_credits(); break;
+    case S_T_UPDATE: tool_update_activate(); break;
     case S_CHECK:
+        if (tools_busy()) { /* the check would write what the download reads */
+            g_app.note = L->s[S_T_BUSY];
+            break;
+        }
         release_start(true);
         g_app.note = L->s[S_CHECKING];
         break;

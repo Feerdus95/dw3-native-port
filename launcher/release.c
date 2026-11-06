@@ -30,7 +30,7 @@ static bool newer(const int a[3], const int b[3])
 }
 
 /* the highest non-draft version in the API's list above `own`, into out, or "" */
-static void pick(const char *json, const char *own, char *out, int size)
+void release_pick(const char *json, const char *own, char *out, int size)
 {
     static const char TAG[] = "\"tag_name\":\"", DRAFT[] = "\"draft\":true";
     int best[3], v[3];
@@ -59,9 +59,10 @@ static int SDLCALL check_thread(void *unused)
     /* ponytail: one page of 30, as the newest come first; pages if the port ever has 30 newer drafts */
     char *json = net_text("https://api.github.com/repos/" REPO "/releases?per_page=30");
     if (json) {
-        pick(json, LAUNCHER_VERSION, s_tag, sizeof s_tag);
+        release_pick(json, LAUNCHER_VERSION, s_tag, sizeof s_tag);
         SDL_free(json);
     }
+    tools_check();
     SDL_SetAtomicInt(&s_state, json ? FOUND_OR_NOT : FAILED);
     SDL_Event e = {.type = SDL_EVENT_USER};
     SDL_PushEvent(&e);
@@ -97,14 +98,14 @@ int release_finished_manual(void)
         return -1;
     }
     s_manual = false;
-    return state == FAILED ? S_CHECK_FAILED : s_tag[0] ? S_RELEASE_D : S_UP_TO_DATE;
+    return state == FAILED ? S_CHECK_FAILED : s_tag[0] ? S_RELEASE_D : tool_update_index() >= 0 ? S_T_UPDATE_D : S_UP_TO_DATE;
 }
 
 int release_selftest(void)
 {
     int bad = 0;
     char out[32];
-#define PICK(json, own, want) (pick(json, own, out, sizeof out), bad += SDL_strcmp(out, want) != 0)
+#define PICK(json, own, want) (release_pick(json, own, out, sizeof out), bad += SDL_strcmp(out, want) != 0)
     static const char LIST[] =
         "[{\"tag_name\":\"v0.9.0\",\"name\":\"x\",\"draft\":true,\"prerelease\":false},"
         "{\"tag_name\":\"v0.2.10\",\"draft\":false,\"prerelease\":true},"

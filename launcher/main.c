@@ -182,7 +182,7 @@ static int system_lang(void)
 
 int main(int argc, char **argv)
 {
-    int lang = -1, state = -1, w = 0, h = 0;
+    int lang = -1, state = -1, w = 0, h = 0, update = -1;
     bool settings = false, check = false;
     const char *shot = NULL;
     char *keys = NULL;
@@ -195,6 +195,8 @@ int main(int argc, char **argv)
         else if (!SDL_strcmp(argv[i], "--size")) { SDL_sscanf(argv[++i], "%dx%d", &w, &h); }
         else if (!SDL_strcmp(argv[i], "--keys")) keys = argv[++i];
         else if (!SDL_strcmp(argv[i], "--fake-release")) release_fake(argv[++i]);
+        else if (!SDL_strcmp(argv[i], "--fake-tool-update")) tool_update_fake(argv[++i]);
+        else if (!SDL_strcmp(argv[i], "--tool-update")) update = SDL_atoi(argv[++i]);
         else if (!SDL_strcmp(argv[i], "--shot")) shot = argv[++i];
     }
     paths_init();
@@ -216,6 +218,9 @@ int main(int argc, char **argv)
         const int bad = strings_check();
         printf(bad ? "%d strings don't fit\n" : "all strings fit\n", bad);
         return bad != 0;
+    }
+    if (update >= 0) {
+        return tool_update_now(update) ? 0 : 1;
     }
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Digimon World 2003", SDL_GetError(), NULL);

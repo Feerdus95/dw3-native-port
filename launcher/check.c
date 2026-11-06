@@ -8,10 +8,10 @@ static const short DESCRIPTIONS[] = {S_PLAY_D, S_SETTINGS_D, S_TOOLS_D, S_LANGUA
                                      S_CHECKING, S_UP_TO_DATE, S_CHECK_FAILED, S_GAME_RUNNING, S_GAME_FAILED, S_NO_EXE, S_SAVE_FAILED, S_NO_LOG,
                                      S_BIND_D, S_PRESS_KEY, S_PRESS_PAD, S_T_READY, S_T_FAILED, S_T_CANCELLED, S_T_NO_START, S_T_BUSY, S_T_NEED_DISC,
                                      S_SAVES_D, S_EXPORT_D, S_IMPORT_D, S_UNDO_D, S_SV_FOLDER_D, S_SV_EXPORTED, S_SV_IMPORTED, S_SV_WARN, S_SV_REJECT,
-                                     S_SV_RESTORED, S_SV_NO_BACKUP, S_SV_FAILED};
+                                     S_SV_RESTORED, S_SV_NO_BACKUP, S_SV_FAILED, S_T_UPDATE_D, S_T_UPDATED, S_T_CLOSE_IT};
 static const short TOOL_VALUES[] = {S_T_GET, S_T_OPEN, S_T_SETUP, S_T_DOWNLOADING, S_T_UNPACKING, S_T_PREPARING};
 static const short BUTTON_NAMES[] = {S_B_UP, S_B_RIGHT, S_B_DOWN, S_B_LEFT, S_B_TRIANGLE, S_B_CIRCLE, S_B_CROSS, S_B_SQUARE};
-static const short MENU[] = {S_PLAY, S_SETTINGS, S_TOOLS, S_RELEASE, S_QUIT, S_VIEWER, S_EDITOR, S_FOLDER, S_LOG, S_BACK, S_CHECK, S_CREDITS, S_SAVES, S_EXPORT, S_IMPORT, S_UNDO, S_SV_FOLDER};
+static const short MENU[] = {S_PLAY, S_SETTINGS, S_TOOLS, S_RELEASE, S_QUIT, S_VIEWER, S_EDITOR, S_FOLDER, S_LOG, S_BACK, S_CHECK, S_CREDITS, S_SAVES, S_EXPORT, S_IMPORT, S_UNDO, S_SV_FOLDER, S_T_UPDATE};
 static const short STATUS[] = {S_READY, S_DISC_OK, S_VERSION, S_RELEASE, S_TAGLINE};
 static const short CENTRED[] = {S_NEED, S_ONCE, S_ISO, S_E_OPEN, S_E_GAME, S_E_BAD, S_E_WRITE, S_E_READ, S_E_TRUNCATED, S_E_CUE, S_E_SPACE, S_SEE_LOG, S_READING, S_NO_EXE, S_SAVE_FAILED, S_GAME_RUNNING};
 
@@ -115,9 +115,49 @@ static int ini_selftest(void)
     return bad;
 }
 
+/* a tool's update: the new files replace the old, in subfolders too, and what only the tool's folder has stays */
+static int move_tree_selftest(void)
+{
+    char base[1200], from[1300], to[1300], path[1400];
+    int bad = 0;
+    path_in_root(base, sizeof base, ".move-test");
+    SDL_snprintf(from, sizeof from, "%s/from", base);
+    SDL_snprintf(to, sizeof to, "%s/to", base);
+#define PATH(root, name) (SDL_snprintf(path, sizeof path, "%s/%s", root, name), path)
+#define PUT(root, name, s) SDL_SaveFile(PATH(root, name), s, SDL_strlen(s))
+    SDL_CreateDirectory(PATH(from, "sub"));
+    SDL_CreateDirectory(PATH(to, "sub"));
+    PUT(from, "a.txt", "new");
+    PUT(from, "sub/b.txt", "new");
+    PUT(to, "a.txt", "old");
+    PUT(to, "settings.ini", "mine");
+    PUT(to, "sub/mine.txt", "mine");
+    bad += !path_move_tree(from, to);
+    const char *const WANT[][2] = {{"a.txt", "new"}, {"sub/b.txt", "new"}, {"settings.ini", "mine"}, {"sub/mine.txt", "mine"}};
+    for (int i = 0; i < 4; i++) {
+        char *s = SDL_LoadFile(PATH(to, WANT[i][0]), NULL);
+        bad += !s || SDL_strcmp(s, WANT[i][1]);
+        SDL_free(s);
+    }
+    bad += SDL_GetPathInfo(PATH(from, "a.txt"), NULL) || SDL_GetPathInfo(PATH(from, "sub"), NULL); /* nothing left behind */
+    for (int i = 0; i < 4; i++) {
+        SDL_RemovePath(PATH(to, WANT[i][0]));
+    }
+    SDL_RemovePath(PATH(to, "sub"));
+    SDL_RemovePath(to);
+    SDL_RemovePath(from);
+    SDL_RemovePath(base);
+#undef PUT
+#undef PATH
+    if (bad) {
+        SDL_Log("move tree: %d wrong", bad);
+    }
+    return bad;
+}
+
 int strings_check(void)
 {
-    s_bad += ini_selftest() + release_selftest() + binds_selftest() + tools_selftest() + saves_selftest();
+    s_bad += ini_selftest() + move_tree_selftest() + release_selftest() + binds_selftest() + tools_selftest() + saves_selftest();
     for (int i = 0; i < LANGS; i++) {
         check_lang(LANG_TABLE[i]);
     }

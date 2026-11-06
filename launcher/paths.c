@@ -24,6 +24,26 @@ void paths_init(void)
 
 const char *path_data(void) { return s_data; }
 
+bool path_move_tree(const char *from, const char *to)
+{
+    int n = 0;
+    char **names = SDL_GlobDirectory(from, "*", 0, &n);
+    bool ok = names != NULL;
+    for (int i = 0; ok && i < n; i++) {
+        char a[1400], b[1400];
+        SDL_PathInfo info;
+        SDL_snprintf(a, sizeof a, "%s/%s", from, names[i]);
+        SDL_snprintf(b, sizeof b, "%s/%s", to, names[i]);
+        if (SDL_GetPathInfo(a, &info) && info.type == SDL_PATHTYPE_DIRECTORY) {
+            ok = SDL_CreateDirectory(b) && path_move_tree(a, b) && SDL_RemovePath(a);
+        } else {
+            ok = SDL_RenamePath(a, b);
+        }
+    }
+    SDL_free(names);
+    return ok;
+}
+
 bool data_has_file(const char *name)
 {
     char path[1300];
