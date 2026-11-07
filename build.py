@@ -31,9 +31,9 @@ DECOMP = ROOT / "dw3_decomp"
 SANITIZE = "--sanitize" in sys.argv
 SAN_FLAGS = ["-fsanitize=bounds,null", "-fsanitize-recover=bounds,null",
              "-DNATIVE_HEAP_SIZE=(4*1024*1024)"] if SANITIZE else []
-# the checks bloat -O0 code past the 16 MB too: that build is -O1, with the
+# the checks bloat -O0 code past the 16 MB too, and -O1's exe has grown past it as well (17 MB): that build is -Os, with the
 # PSX GCC's leniency on type punning and overflow kept
-GAME_OPT = ["-O1", "-fno-strict-aliasing", "-fwrapv"] if SANITIZE else ["-O0"]
+GAME_OPT = ["-Os", "-fno-strict-aliasing", "-fwrapv"] if SANITIZE else ["-O0"]
 # --O2: the PSX GCC's leniency kept (type punning, overflow, reads through
 # NULL), and the IR emitted unoptimised so the rewrites below see the game's
 # own operations before -O2 works on them
