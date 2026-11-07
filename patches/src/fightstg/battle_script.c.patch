@@ -33,13 +33,15 @@
                  break;
              }
          }
-@@ -503,6 +515,13 @@
+@@ -503,6 +515,15 @@
      s32 sound = *script->pc++;
      s32 time = *script->pc++;
  
 +#ifdef NATIVE
-+    /* the hit's sound is left out where the effect has a sound of its own (native.h) */
-+    if ((sound == 0x62 || sound == 0x63) && native_effect_has_sound(script->effect, script->nativeCritical, script->nativeStage)) {
++    /* the hit's sound is left out where the effect has a sound of its own (native.h), unless the hit is of result 3 (0x38: the
++       effect may not play then) */
++    if ((sound == 0x62 || sound == 0x63) && script->hits[sound == 0x62 ? script->sounds : 3] != 3 &&
++        native_effect_has_sound(script->effect, script->nativeCritical, script->nativeStage)) {
 +        script->sounds++;
 +        return;
 +    }
@@ -47,7 +49,7 @@
      if (sound == 0x62) {
          sound = script->hits[script->sounds] == 3 ? 0x38 : script->sound;
          script->sounds++;
-@@ -550,10 +569,20 @@
+@@ -550,10 +571,20 @@
              script->model = script->enemy != 0 ? 0x10 : 0;
              script->models = TASK_REGISTRY.funcs.find(BATTLE_TASK_MODELS, -1, -1);
              script->fighter = script->models->get(script->models, script->model)->fighter;
@@ -68,7 +70,7 @@
              if (script->index != 12) {
                  script->nextState(script);
                  break;
-@@ -644,7 +673,15 @@
+@@ -644,7 +675,15 @@
  
  /* Creates a battle script, which plays a technique (FIGHTSTG_updateBattleScript) */
  BattleScript *FIGHTSTG_createBattleScript(void) {

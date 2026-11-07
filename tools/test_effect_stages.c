@@ -91,6 +91,17 @@ int main(void) {
     art("mods/effects/4", 50, "");
     art("mods/effects/4/champion", 60, ", \"active\": 0");
     sound("mods/effects/6");
+    {
+        char d[800];
+
+        SDL_snprintf(d, sizeof d, "%s/mods/effects/7", s_root);
+        assert(SDL_CreateDirectory(d));
+        SDL_snprintf(d, sizeof d, "%s/mods/effects/8", s_root);
+        assert(SDL_CreateDirectory(d));
+    }
+    put("mods/effects/7/effect.json", "{\"sound\": {\"file\": \"nope.wav\"}}"); /* no such file */
+    put("mods/effects/8/effect.json", "{\"sound\": {\"file\": \"bad.wav\"}}");
+    put("mods/effects/8/bad.wav", "not a wav"); /* read when it is needed */
     put("mods/effects/stages.json", "{\"rookie\": [3], \"champion\": [5, 19]}");
 
     assert(native_fighter_stage(3) == 1 && native_fighter_stage(5) == 2 && native_fighter_stage(19) == 2);
@@ -112,6 +123,9 @@ int main(void) {
     assert(played(6, 0, 0) == 0 && abs(mixed() - 500) < 20); /* a sound only: no images, a sound at half volume (22.05 -> 44.1 kHz) */
     assert(abs(mixed() - 500) < 20 && abs(mixed() - 500) < 20 && mixed() == 0); /* 0.1 s is 3 vsyncs of 1470 frames, then it ends */
     assert(native_effect_has_sound(6, 0, 0) && !native_effect_has_sound(2, 0, 0) && !native_effect_has_sound(7, 0, 0));
+    assert(native_effect_has_sound(8, 0, 0)); /* until it is read */
+    played(8, 0, 0);
+    assert(!native_effect_has_sound(8, 0, 0) && mixed() == 0); /* unreadable: the game's sound plays */
     g_custom_sounds = 0;
     assert(!native_effect_has_sound(6, 0, 0)); /* off: the game's hit sound plays */
     assert(played(6, 0, 0) == 0 && mixed() == 0);

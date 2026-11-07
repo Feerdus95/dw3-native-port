@@ -15,7 +15,8 @@
    effect starts (a folder with only that has no PNGs):
      "sound": {"file": "hit.wav", "volume": 1}
    a WAV of the folder, in place of the game's hit sound of the attack (the
-   attack script leaves it out: native_effect_has_sound). The folders are read
+   attack script leaves it out, but for a hit of result 3: native_effect_has_sound).
+   The WAVs are read after the images, one a frame (or at their first use). The folders are read
    once, at the start; g_custom_effects and g_custom_sounds (the options) are
    looked at each time an effect starts, so they switch while playing. */
 #include <stdlib.h>
@@ -42,7 +43,8 @@ static struct {
     short image[MAX_FRAMES], end[MAX_FRAMES];
     float x, y, scale;
     int add;
-    int16_t *snd; /* its sound, stereo at AUDIO_RATE */
+    char *snd_path; /* its sound's file, if it has one */
+    int16_t *snd; /* the sound once read, stereo at AUDIO_RATE */
     int snd_frames;
     int snd_vol; /* 256 = as it is */
 } s_sets[MAX_SETS];
@@ -60,35 +62,57 @@ static int by_name(const void *a, const void *b) {
     return strcmp(*(char *const *)a, *(char *const *)b);
 }
 
-/* FILE (a WAV in DIR) as SET's sound, at AUDIO_RATE stereo; VOL is the JSON's volume or NULL */
+/* FILE (a WAV in DIR) is SET's sound: only its path and volume are kept (VOL is the JSON's volume or NULL), the WAV is
+   read and converted when first needed (sound_ready) */
 static void load_sound(int set, const char *dir, const char *file, const Json *vol) {
     char path[1200];
-    SDL_AudioSpec src, dst = {SDL_AUDIO_S16, 2, AUDIO_RATE};
-    Uint8 *raw = NULL, *out = NULL;
-    Uint32 raw_len = 0;
-    int out_len = 0;
 
     if (strchr(file, '/') != NULL || strchr(file, '\\') != NULL || strstr(file, "..") != NULL) {
         LOG("effects: %s: sound %s is not a file of the folder", dir, file);
         return;
     }
     SDL_snprintf(path, sizeof path, "%s/%s", dir, file);
-    if (!SDL_LoadWAV(path, &src, &raw, &raw_len)) {
-        LOG("effects: %s: %s", path, SDL_GetError());
+    if (!SDL_GetPathInfo(path, NULL)) {
+        LOG("effects: %s: no such sound", path);
         return;
     }
-    if (SDL_ConvertAudioSamples(&src, raw, (int)raw_len, &dst, &out, &out_len) && out_len >= 4) {
+    SDL_free(s_sets[set].snd_path);
+    s_sets[set].snd_path = SDL_strdup(path);
+    s_sets[set].snd_vol = 256;
+    if (vol != NULL && vol->type == 'n' && vol->num >= 0 && vol->num <= 4) {
+        s_sets[set].snd_vol = (int)(vol->num * 256);
+    }
+}
+
+/* SET's sound, read and converted to AUDIO_RATE stereo the first time (at the start, a set a frame: native_effects_warm; or
+   on the spot): 1 when it can play. One that can't be read stops counting as a sound, so the game's plays */
+static int sound_ready(int set) {
+    SDL_AudioSpec src, dst = {SDL_AUDIO_S16, 2, AUDIO_RATE};
+    Uint8 *raw = NULL, *out = NULL;
+    Uint32 raw_len = 0;
+    int out_len = 0;
+
+    if (s_sets[set].snd != NULL) {
+        return 1;
+    }
+    if (s_sets[set].snd_path == NULL) {
+        return 0;
+    }
+    if (!SDL_LoadWAV(s_sets[set].snd_path, &src, &raw, &raw_len)) {
+        LOG("effects: %s: %s", s_sets[set].snd_path, SDL_GetError());
+    } else if (SDL_ConvertAudioSamples(&src, raw, (int)raw_len, &dst, &out, &out_len) && out_len >= 4) {
         s_sets[set].snd_frames = SDL_min(out_len / 4, SFX_MAX_FRAMES);
         s_sets[set].snd = (int16_t *)out;
-        s_sets[set].snd_vol = 256;
-        if (vol != NULL && vol->type == 'n' && vol->num >= 0 && vol->num <= 4) {
-            s_sets[set].snd_vol = (int)(vol->num * 256);
-        }
+        SDL_free(raw);
+        return 1;
     } else {
-        LOG("effects: %s: %s", path, SDL_GetError());
-        SDL_free(out);
+        LOG("effects: %s: %s", s_sets[set].snd_path, SDL_GetError());
     }
     SDL_free(raw);
+    SDL_free(out);
+    SDL_free(s_sets[set].snd_path);
+    s_sets[set].snd_path = NULL;
+    return 0;
 }
 
 /* The folder's effect.json, into SET's frames; 0 without one */
@@ -132,7 +156,8 @@ static int read_json(int set, const char *dir) {
     }
     if ((v = json_get(root, "active")) != NULL && v->type == 'n' && v->num == 0) {
         s_sets[set].frames = 0;
-        s_sets[set].snd_frames = 0;
+        SDL_free(s_sets[set].snd_path);
+        s_sets[set].snd_path = NULL;
     }
     json_free(root);
     return 1;
@@ -272,7 +297,7 @@ static int pick_set(int effect, int critical, int stage, int sound) {
         for (c = critical != 0; c >= 0; c--) {
             int set = find_set(effect, s, c);
 
-            if (set >= 0 && (sound ? s_sets[set].snd_frames > 0 : s_sets[set].frames > 0)) {
+            if (set >= 0 && (sound ? s_sets[set].snd_path != NULL : s_sets[set].frames > 0)) {
                 return set;
             }
         }
@@ -291,7 +316,7 @@ int native_effect_images(int effect, int critical, int stage, int *ticks) {
     int set;
 
     scan_mods();
-    if (g_custom_sounds && (set = pick_set(effect, critical, stage, 1)) >= 0) {
+    if (g_custom_sounds && (set = pick_set(effect, critical, stage, 1)) >= 0 && sound_ready(set)) {
         int v;
 
         for (v = 0; v < SFX_VOICES && s_voice[v].data != NULL; v++) {
@@ -338,7 +363,7 @@ void native_sfx_mix(int16_t *buf, int frames) {
    milliseconds, and were done in the frame an effect first showed: a hitch in each of the first frames of a signature
    move. An effect that plays before it is warm is made on the spot, as before. */
 void native_effects_warm(void) {
-    static int s_set, s_img;
+    static int s_set, s_img, s_snd;
 
     scan_mods();
     for (; s_set < s_count; s_set++, s_img = 0) {
@@ -349,6 +374,12 @@ void native_effects_warm(void) {
                 }
                 return; /* not up yet: the same one next frame */
             }
+        }
+    }
+    for (; s_snd < s_count; s_snd++) { /* the images are all up: the sounds, one a frame */
+        if (s_sets[s_snd].snd_path != NULL && s_sets[s_snd].snd == NULL) {
+            sound_ready(s_snd++);
+            return;
         }
     }
 }
