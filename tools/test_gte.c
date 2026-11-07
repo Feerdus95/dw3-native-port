@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+int g_log;
+int getMode(void) { return 0; } /* gte.c asks the game which mode it is in */
 #include "../platform/gte.c"
 static void view_of(MATRIX *w, const int32_t q[3], int32_t out[3]) {
     apply_lv(w->m, q, out);

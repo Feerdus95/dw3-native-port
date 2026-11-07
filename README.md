@@ -279,6 +279,11 @@ The first build has no `data/` yet, so its exe keeps the game's tables and can r
 after that takes them out (`tools/asset_scan.py`) and writes `dw2003.fill`. `python tools/smoke.py` builds and boots the
 game unattended for 20 seconds; `python build.py --sanitize` builds with UBSan into `build-san/`.
 
+`build.py` refuses a `dw3_decomp` that isn't at `DECOMP_COMMIT` (`--allow-decomp-mismatch` goes on anyway) and a PsyQ
+stub that `tools/stubs.baseline` doesn't list (`--update-stub-baseline` rewrites the list); `build/report.md` says what
+each build was made of. `python tools/run_tests.py` builds and runs the unit tests that need neither the game nor its
+data (GitHub Actions runs it, and the self-tests, on every push).
+
 ## Credits
 
 The port stands on [dw3_decomp](https://github.com/ReGame-Labs/dw3_decomp) (ReGame-Labs, juandav). Also:

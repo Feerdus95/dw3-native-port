@@ -1,0 +1,23 @@
+name: tests
+on: [push, pull_request]
+
+jobs:
+  unit:
+    # the tests that need neither the game's data nor its code (tools/run_tests.py); the build itself needs dw3_decomp and is run by hand
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: llvm-mingw and SDL
+        shell: pwsh
+        run: |
+          curl.exe -sSL -o llvm.zip https://github.com/mstorsjo/llvm-mingw/releases/download/20250114/llvm-mingw-20250114-ucrt-x86_64.zip
+          Expand-Archive llvm.zip -DestinationPath $env:RUNNER_TEMP
+          "LLVM_MINGW=$env:RUNNER_TEMP\llvm-mingw-20250114-ucrt-x86_64" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          curl.exe -sSL -o sdl.zip https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-devel-3.4.16-mingw.zip
+          Expand-Archive sdl.zip -DestinationPath third_party
+      - run: python tools/run_tests.py
+      - run: python build.py --selftest
+      - run: python tools/package.py --selftest

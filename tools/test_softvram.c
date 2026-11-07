@@ -19,6 +19,7 @@ int MoveImage(RECT *r, int x, int y);
 void gpu_gp0(const uint32_t *p, int n);
 
 int g_depth, g_log;
+int gl_scale(void) { return 1; }
 uint16_t g_vram_dirty[8];
 void gl_sync(int force) {}
 void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {}
