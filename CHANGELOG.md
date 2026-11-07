@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.18.5 (beta)
+
+- **Custom effects and Custom sounds** (Options, Mods; on by default). Custom effects plays the battle effects' own images (`data/mods/effects/`) instead of the game's; off plays the game's own. An `effect.json` can also give the folder a sound (`{"sound": {"file": "hit.wav", "volume": 1}}`: a WAV of up to 10 s, any rate or channels, volume 0 to 4) that plays when the effect starts, mixed with the game's own; a folder with only a sound needs no PNGs. Both switch in game and show at the next effect. They are also in `native.ini` and in the launcher's Mods tab.
+- The launcher's Tools tab shows an **Update** button, with the new version, to the right of Open on the model viewer's and the field editor's rows when a newer release of that tool is out, instead of one row for both. Left and right move between the two buttons; the mouse picks by where it clicks.
+
 ## v0.18.4 (beta)
 
 - **Save anywhere** (Options, Mods; off by default). The field menu gets a SAVE row that opens the game's memory card screen from wherever you stand; loading that save puts you back at the same spot. The slot shows the area and the place's name. Cancelling returns to the field. A save made this way can show a wrong place name in the original game or an emulator. Thanks to Hucaru (#2).
