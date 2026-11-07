@@ -23,7 +23,7 @@
          break;
      }
  }
-@@ -90,6 +99,12 @@
+@@ -90,12 +99,24 @@
      mode = GAME.funcs.getMode() & 0xFF;
      screen->loading = (u32)GAME.funcs.getModeArg() >> 31 ^ 1;
      prev = GAME.funcs.getPrevMode();
@@ -36,3 +36,15 @@
      for (i = 0; STGMCARD_prevModes[i].mode != 0; i++) {
          if (STGMCARD_prevModes[i].mode == prev) {
              screen->area = STGMCARD_prevModes[i].area;
+         }
+     }
+     screen->place = STGMCARD_places[mode];
++#ifdef NATIVE
++    /* the places are the save points'; from the menu the slot shows the area only (string 0 is empty) */
++    if (g_save_from_menu) {
++        screen->place = 0;
++    }
++#endif
+     SOUND.loadBank(0x20);
+     return screen;
+ }
