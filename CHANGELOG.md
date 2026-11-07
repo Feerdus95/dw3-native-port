@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.18.4 (beta)
+
+- **Save anywhere** (Options, Mods; off by default). The field menu gets a SAVE row that opens the game's memory card screen from wherever you stand; loading that save puts you back at the same spot. The slot shows the area and the place's name. Cancelling returns to the field. A save made this way can show a wrong place name in the original game or an emulator. Thanks to Hucaru (#2).
+- **Quit** in the field menu asks "Do you wish to quit the game?" with TITLE MENU, DESKTOP and CANCEL (shown in the game's five languages), and the options menu (Display tab) has a Quit game row. Thanks to Hucaru (#1).
+- The launcher's Mods tab has the Full EXP Share and Save anywhere rows.
+- Fixed: the launcher's "Your team" showed the slot with the most play time instead of the last one saved.
+
 ## v0.18.3 (beta)
 
 - **Full EXP Share** (Options, Mods; off by default). Every party partner still standing at the end of a battle gets the full EXP, even if it did not fight, and its selected or used digivolutions the full Digimon EXP; knocked-out partners get neither. Thanks to Zaw Htet Naing (#13, #12).
