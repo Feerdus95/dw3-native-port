@@ -141,4 +141,6 @@ strings = [
 	"Un adversaire coriace le garde ici.\nBats-le pour l'obtenir.",
 	"Un adversaire le garde ici. Sinon,\nles boutiques le vendront plus tard.",
 	"Un adversaire le garde ici. Sinon,\nles boutiques le vendront plus tard.",
+	"QUITTER",
+	"QUITTER ?",
 ]

@@ -148,10 +148,7 @@ static void change(int item, int dir) {
                 s_quit_armed = 1;
                 return;
             }
-            if (s_changed) {
-                save();
-            }
-            exit(0);
+            native_quit();
         }
         return;
     case WINDOW:
@@ -233,6 +230,13 @@ static void save(void) {
         LOG("menu: can't write %s", path);
     }
     SDL_free(out);
+}
+
+void native_quit(void) {
+    if (s_changed) {
+        save();
+    }
+    exit(0);
 }
 
 void menu_toggle(void) {

@@ -46,6 +46,7 @@ union SDL_Event;
 struct SDL_Renderer;
 int menu_active(void);   /* the game waits while it is open */
 void menu_toggle(void);
+void native_quit(void); /* the field menu's Quit (include/native.h): saves the menu's changes, then exits */
 int menu_event(const union SDL_Event *e); /* 1: the menu's */
 void menu_draw(struct SDL_Renderer *r);
 void set_fps(int sixty); /* the game's 60 Hz mode on or off */

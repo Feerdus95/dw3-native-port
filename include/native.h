@@ -71,6 +71,7 @@ extern const int NATIVE_EXTRA_PACKS[3][3]; /* their partners */
    greeting, 12-13 the word of the intro and the one replacing it; and the
    port's other texts: 14 fast travel's question */
 const void *native_packs_text(int language);
+void native_quit(void); /* the field menu's Quit: saves the options menu's changes, then exits as closing the window does */
 #define NATIVE_PACK_SCENE(pack) ((pack) >= 3 ? 1 : (pack))
 
 /* BladeGarurumon as a partner's Digimon: model 471 and the texts of its

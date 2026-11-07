@@ -1,6 +1,19 @@
 --- a/src/main/menu/field_menu.c
 +++ b/src/main/menu/field_menu.c
-@@ -156,6 +156,15 @@
+@@ -141,6 +141,12 @@
+ 
+ s32 FIELD_MENU_SPRITES[6] = { 29, 30, 31, 32, 33, 34 };
+ 
++#ifdef NATIVE
++#define QUIT_TEXT 142      /* packs_text: QUIT */
++#define QUIT_SURE_TEXT 143 /* packs_text: QUIT? */
++static s32 quitArmed;
++#endif
++
+ /* Starts the field menu: opens the panels and the windows, with the extra option
+    when the player has item 0x192 and option 2 only in a field zone */
+ static inline void openFieldMenu(FieldMenu *task, FieldMenuWindows *win) {
+@@ -156,6 +162,18 @@
          FIELD_MENU_CHOICE.extra = 0;
      }
      task->count = task->extraOption + 5;
@@ -9,6 +22,9 @@
 +    if (g_journal) {
 +        task->count++;
 +    }
++    /* then Quit (native.h), asking for a second press */
++    task->count++;
++    quitArmed = 0;
 +    if (task->cursor > task->count - 1) {
 +        task->cursor = task->count - 1;
 +    }
@@ -16,11 +32,15 @@
      if (getFieldZone() >= 0) {
          task->option2Enabled = 1;
      } else {
-@@ -168,6 +177,12 @@
+@@ -168,6 +186,16 @@
  static inline void showFieldMenuOptions(FieldMenu *task, FieldMenuWindows *win) {
      showPartnerPage(task, win, 1, 1);
      for (task->counter = 0; task->counter < task->count; task->counter++) {
 +#ifdef NATIVE
++        if (task->counter == task->count - 1) {
++            win->options[task->counter]->setString(win->options[task->counter], (void *)native_packs_text(LANGUAGE), QUIT_TEXT);
++            continue;
++        }
 +        if (task->counter == task->extraOption + 5) {
 +            win->options[task->counter]->setString(win->options[task->counter], (void *)native_packs_text(LANGUAGE), 15);
 +            continue;
@@ -29,7 +49,37 @@
          win->options[task->counter]->setString(win->options[task->counter], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)),
                                    FIELD_MENU_OPTIONS[task->extraOption][task->counter]);
      }
-@@ -319,6 +334,60 @@
+@@ -206,6 +234,12 @@
+         }
+     }
+     if (prev != task->cursor) {
++#ifdef NATIVE
++        if (quitArmed) {
++            quitArmed = 0;
++            win->options[task->count - 1]->setString(win->options[task->count - 1], (void *)native_packs_text(LANGUAGE), QUIT_TEXT);
++        }
++#endif
+         SOUND.playSound(SOUND_CURSOR);
+         win->cursor->setPos(win->cursor, 0xB0, task->cursor * 14 + 0x31);
+         return;
+@@ -216,6 +250,16 @@
+         if (task->option2Enabled == 0 && task->cursor == 2) {
+             return;
+         }
++#ifdef NATIVE
++        if (task->cursor == task->count - 1) {
++            if (!quitArmed) {
++                quitArmed = 1;
++                win->options[task->cursor]->setString(win->options[task->cursor], (void *)native_packs_text(LANGUAGE), QUIT_SURE_TEXT);
++                return;
++            }
++            native_quit();
++        }
++#endif
+         done = 1;
+         if (GAME.funcs.getMode() == MODE_STATUS) {
+             task->step = 1;
+@@ -319,6 +363,61 @@
      }
  }
  
@@ -41,7 +91,7 @@
 +#define PANEL_ROWS6 0x1B
 +#define PANEL_ROW_H 14
 +#define PANEL_LAST_ROW 64 /* the six rows' last middle row, then the bottom */
-+static void *sevenRowPanel(void) {
++static void *sevenRowPanel(s32 extra) { /* extra: the rows after the sixth */
 +    static s32 sheet[512];
 +    s32 *orig = FILE_CACHE.getEntry(FILE_MENU_SPRITES << 16);
 +    u8 *ids = (u8 *)orig + orig[1];
@@ -51,6 +101,7 @@
 +    s32 parts = 0;
 +    s32 n = 0;
 +    s32 i;
++    s32 j;
 +
 +    for (i = 0; ids[i] != PANEL_ROWS6; i++) {
 +    }
@@ -73,10 +124,10 @@
 +        s16 x = frame[4 + i * 3];
 +        s16 y = frame[5 + i * 3];
 +
-+        out[3 + n * 3] = part, out[4 + n * 3] = x, out[5 + n * 3] = y > PANEL_LAST_ROW ? y + PANEL_ROW_H : y;
++        out[3 + n * 3] = part, out[4 + n * 3] = x, out[5 + n * 3] = y > PANEL_LAST_ROW ? y + extra * PANEL_ROW_H : y;
 +        n++;
-+        if (y == PANEL_LAST_ROW) {
-+            out[3 + n * 3] = part, out[4 + n * 3] = x, out[5 + n * 3] = y + PANEL_ROW_H;
++        for (j = 1; y == PANEL_LAST_ROW && j <= extra; j++) {
++            out[3 + n * 3] = part, out[4 + n * 3] = x, out[5 + n * 3] = y + j * PANEL_ROW_H;
 +            n++;
 +        }
 +    }
@@ -90,13 +141,13 @@
  /* Runs the field menu: opens its panels, moves the cursor and switches mode on a choice */
  void updateFieldMenu(FieldMenu *task, FieldMenuWindows *win) {
      SpriteDrawer obj;
-@@ -420,6 +489,13 @@
+@@ -420,6 +519,13 @@
              } else {
                  obj.setScale(ONE, ONE, ONE);
              }
 +#ifdef NATIVE
-+            if (task->count == 7) {
-+                obj.draw(sevenRowPanel(), PANEL_ROWS6, 0xA8, 0x28);
++            if (task->count >= 7) {
++                obj.draw(sevenRowPanel(task->count - 6), PANEL_ROWS6, 0xA8, 0x28);
 +            } else if (task->count == 6) {
 +                obj.draw(FILE_CACHE.getEntry(FILE_MENU_SPRITES << 16), PANEL_ROWS6, 0xA8, 0x28);
 +            } else
