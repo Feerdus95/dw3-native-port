@@ -15,7 +15,7 @@
 +    for (i = 0; (index = native_render_next(i)) >= 0; i++) {
 +        s32 id = FIGHTSTG_battleSounds[index];
 +
-+        if (id == 0) {
++        if (id == 0 || (id >> 30 & 1)) { /* nothing, or the music (exclusive) */
 +            continue;
 +        }
 +        SOUND.stopAll();

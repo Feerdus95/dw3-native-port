@@ -266,8 +266,9 @@ For scripts: `dw2003.exe --extract "path/to/image.cue"` reads the disc without t
 environment variable points the port at a `data/` elsewhere. `dw2003.exe --check-mods` lists what the loader makes of each
 folder of `data/mods/digimon` (loaded, disabled, rejected and why, warnings) without opening the game; the exit code is
 how many of the listed ones were rejected (the folders past the report's room are counted apart, not judged).
-`dw2003.exe --render-sounds DIR 28,0x2A` renders the game's own battle hit sounds (indexes of its battle sound table, a technique's
-`scriptSound`) to `DIR/<index>.wav` with the window hidden, in a couple of seconds, for the model viewer's Original button.
+`dw2003.exe --render-sounds DIR [28,0x2A]` renders the game's own battle hit sounds (indexes of its battle sound table, a technique's
+`scriptSound`; all of them without a list) to `DIR/<index>.wav` with the window hidden, in about three seconds. The launcher does it
+once into `data/sounds` after it reads the disc (or when the folder is missing), for the model viewer's Original buttons.
 
 ## Building
 

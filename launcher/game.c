@@ -38,6 +38,31 @@ int process_wait(const char *const *args, const char *cwd)
     return code;
 }
 
+void sounds_render(void)
+{
+    char exe[1200], dir[1200];
+    path_in_root(exe, sizeof exe, "dw2003.exe");
+    SDL_snprintf(dir, sizeof dir, "%s/sounds", path_data());
+    if (SDL_GetPathInfo(exe, NULL)) {
+        const char *args[] = {exe, "--render-sounds", dir, NULL};
+        process_wait(args, SDL_GetBasePath());
+    }
+}
+
+static int SDLCALL sounds_thread(void *unused)
+{
+    (void)unused;
+    sounds_render();
+    return 0;
+}
+
+void sounds_prepare(void)
+{
+    if (!data_has_file("sounds/1.wav")) {
+        SDL_DetachThread(SDL_CreateThread(sounds_thread, "sounds", NULL));
+    }
+}
+
 bool game_start(void)
 {
     char path[1200];

@@ -1,6 +1,7 @@
-/* dw2003 --render-sounds DIR 28,0x2A,...: the game's own battle sounds (indexes of FIGHTSTG_battleSounds, the
+/* dw2003 --render-sounds DIR [28,0x2A,...]: the game's own battle sounds (indexes of FIGHTSTG_battleSounds, the
    hit sound a technique's scriptSound is), each played by the game's sound code and the SPU's mix written to
-   DIR/<index>.wav (44.1 kHz stereo 16 bit), for the model viewer's "Original" button. The game boots with its window
+   DIR/<index>.wav (44.1 kHz stereo 16 bit), for the model viewer's "Original" button. Without a list, every
+   sound (the launcher renders them all once, into data/sounds, after the disc is read). The game boots with its window
    hidden and, right after it starts its sound (src/main/system/main.c, patched), plays them one after another, as
    fast as it can mix: no audio device, no waiting. The program ends there. */
 #include <stdint.h>
@@ -21,7 +22,7 @@ static int s_frames, s_seen, s_quiet;
 #define CAPTURE_SECONDS 8
 #define QUIET_LEVEL 16 /* a sample above this is sound */
 
-/* "28,0x2A": the indexes to render; 0 when there are none */
+/* "28,0x2A": the indexes to render, every one if the list is empty; 0 when there are none */
 int native_render_parse(const char *dir, const char *list) {
     char *end;
 
@@ -38,6 +39,9 @@ int native_render_parse(const char *dir, const char *list) {
             s_list[s_count++] = (int)v;
         }
         p = end + strspn(end, ", ");
+    }
+    for (int i = 1; *list == 0 && i < 0x5A; i++) {
+        s_list[s_count++] = i;
     }
     g_render_sounds = s_count > 0;
     return s_count;

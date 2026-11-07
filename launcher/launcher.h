@@ -115,6 +115,10 @@ bool game_running(void);
 bool game_ended(int *code); /* once, when it ends */
 bool process_open(const char *const *args, const char *cwd); /* started and left alone */
 int process_wait(const char *const *args, const char *cwd);  /* hidden, to its end: its exit code, or -1 */
+/* The game's own battle sounds as WAV files in data/sounds, for the model viewer (dw2003 --render-sounds): rendered once, after the
+   disc is read, and again if the folder is gone. sounds_render blocks (a few seconds); sounds_prepare does it in a thread when missing */
+void sounds_render(void);
+void sounds_prepare(void);
 
 /* net.c: HTTPS, blocking */
 typedef bool (*NetSink)(const void *data, int size, void *ctx); /* false stops */

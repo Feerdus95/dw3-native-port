@@ -310,7 +310,7 @@ int main(int argc, char **argv) {
         LOG("the game's memory is above 16 MB: the GPU's 24-bit tags can't reach it");
         return 1;
     }
-    if (argc == 4 && SDL_strcmp(argv[1], "--render-sounds") == 0 && native_render_parse(argv[2], argv[3]) == 0) {
+    if ((argc == 3 || argc == 4) && SDL_strcmp(argv[1], "--render-sounds") == 0 && native_render_parse(argv[2], argc == 4 ? argv[3] : "") == 0) {
         LOG("--render-sounds DIR 28,0x2A: no sound index (0 to 0x59) in the list");
         return 1;
     }

@@ -213,6 +213,9 @@ int main(int argc, char **argv)
     g_app.lang = lang;
     g_app.state = state >= 0 ? state : data_has_file("SLES_039.36") ? ST_READY : ST_NO_GAME;
     g_app.error = S_E_BAD;
+    if (g_app.state == ST_READY && !check) {
+        sounds_prepare();
+    }
     g_app.screen = settings ? SC_SETTINGS : SC_HOME;
     if (check) {
         const int bad = strings_check();
