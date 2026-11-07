@@ -46,20 +46,15 @@ static int by_name(const void *a, const void *b) {
 /* The folder's effect.json, into SET's frames; 0 without one */
 static int read_json(int set, const char *dir) {
     char path[1200];
-    char *text;
-    const char *p;
+    JsonInfo ji;
     Json *root, *frames, *v;
     int i, k, tick = 0;
 
     SDL_snprintf(path, sizeof path, "%s/effect.json", dir);
-    if ((text = SDL_LoadFile(path, NULL)) == NULL) {
-        return 0;
-    }
-    p = text;
-    root = json_value(&p);
-    SDL_free(text);
-    if (root == NULL) {
-        LOG("effects: %s isn't JSON", path);
+    if ((root = json_load(path, JSON_LIMITS_STAGE, &ji)) == NULL) {
+        if (!ji.unopened) {
+            LOG("effects: %s: %s (line %d)", path, ji.msg, ji.line);
+        }
         return 0;
     }
     frames = json_get(root, "frames");
@@ -153,20 +148,15 @@ static void load_set(int effect, int stage, int critical) {
 /* stages.json, into s_staged */
 static void read_stages(void) {
     char path[1100];
-    char *text;
-    const char *p;
+    JsonInfo ji;
     Json *root;
     int s, i;
 
     SDL_snprintf(path, sizeof path, "%s/mods/effects/stages.json", data_dir());
-    if ((text = SDL_LoadFile(path, NULL)) == NULL) {
-        return;
-    }
-    p = text;
-    root = json_value(&p);
-    SDL_free(text);
-    if (root == NULL) {
-        LOG("effects: %s isn't JSON", path);
+    if ((root = json_load(path, JSON_LIMITS_STAGE, &ji)) == NULL) {
+        if (!ji.unopened) {
+            LOG("effects: %s: %s (line %d)", path, ji.msg, ji.line);
+        }
         return;
     }
     for (s = 1; s < STAGE_COUNT; s++) {

@@ -938,8 +938,7 @@ static void props_load_log(int id, uint64_t t0, const char *from) {
 
 static void props_load(int id) {
     char dir[1024], path[1100];
-    char *text;
-    const char *p;
+    JsonInfo ji;
     Json *root, *list, *o;
     int i;
     uint64_t t0 = SDL_GetPerformanceCounter();
@@ -968,14 +967,10 @@ static void props_load(int id) {
     s_inst = NULL, s_ivbo = 0;
     SDL_memset(s_icnt, 0, sizeof s_icnt);
     s_nbb = s_nem = s_nmd = 0, s_pwind = 1, s_pfog_on = 0, s_pleaves = -1;
-    if ((text = SDL_LoadFile(path, NULL)) == NULL) {
-        return;
-    }
-    p = text;
-    root = json_value(&p);
-    SDL_free(text);
-    if (root == NULL) {
-        LOG("props: %s isn't JSON", path);
+    if ((root = json_load(path, JSON_LIMITS_STAGE, &ji)) == NULL) {
+        if (!ji.unopened) {
+            LOG("props: %s: %s (line %d)", path, ji.msg, ji.line);
+        }
         return;
     }
     s_pwind = jnum(root, "wind", 1.0f);

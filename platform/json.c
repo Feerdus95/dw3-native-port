@@ -469,18 +469,6 @@ Json *json_load(const char *path, const JsonLimits *limits, JsonInfo *info) {
     return j;
 }
 
-Json *json_value(const char **p) {
-    JsonInfo spare;
-    P s;
-    Json *j;
-
-    start(&s, *p, (long)strlen(*p), NULL, NULL, &spare);
-    if ((j = value(&s, 0)) != NULL) {
-        *p = s.p;
-    }
-    return j;
-}
-
 Json *json_get(Json *obj, const char *key) {
     for (Json *c = obj != NULL ? obj->child : NULL; c != NULL; c = c->next) {
         if (c->key != NULL && strcmp(c->key, key) == 0) {

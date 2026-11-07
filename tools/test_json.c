@@ -43,7 +43,6 @@ static const char *path(const char *name) {
 int main(void) {
     JsonInfo info;
     Json *j;
-    const char *p;
 
     SDL_snprintf(s_dir, sizeof s_dir, "%sdw3_test_json", SDL_GetBasePath());
     SDL_RemovePath(s_dir);
@@ -122,8 +121,7 @@ int main(void) {
         s = nested(JSON_MAX_DEPTH), j = parse(s, &lim, &info), assert(j != NULL), json_free(j), free(s);
         s = nested(JSON_MAX_DEPTH + 1), j = parse(s, &lim, &info), assert(j == NULL), free(s);
         s = nested(200000), j = parse(s, NULL, &info), assert(j == NULL && strstr(info.msg, "nested more than 64") != NULL), free(s); /* no stack to spare */
-        s = nested(JSON_MAX_DEPTH + 1), p = s, j = json_value(&p), assert(j == NULL), free(s);
-        s_checks += 6;
+        s_checks += 5;
     }
 
     /* bytes: the text's, and a file's */
@@ -181,15 +179,6 @@ int main(void) {
     assert(json_int(json_at(j, 6)) == 5 && json_int(json_at(j, 7)) == -5 && json_int(json_at(j, 8)) == 0 && json_int(NULL) == 0);
     json_free(j);
     s_checks += 8;
-
-    /* the old reader's entry: one value from a text, what follows isn't looked at */
-    p = "{\"a\": 1} and more";
-    j = json_value(&p);
-    assert(j != NULL && strcmp(p, " and more") == 0);
-    json_free(j);
-    p = "[1, ";
-    assert(json_value(&p) == NULL);
-    s_checks += 2;
 
     SDL_RemovePath(s_dir);
     printf("ok, %d checks\n", s_checks);

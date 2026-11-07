@@ -41,9 +41,6 @@ typedef struct JsonInfo {
 Json *json_parse(const char *text, long len, const JsonLimits *limits, JsonInfo *info);
 /* A file, read whole with every failure checked (it can't be opened, is bigger than the limit, can't be read) */
 Json *json_load(const char *path, const JsonLimits *limits, JsonInfo *info);
-/* One value from a NUL-ended text, *p left after it (what is behind it isn't looked at); NULL when it isn't JSON. For the readers that
-   don't take limits (the stage props and the effects) */
-Json *json_value(const char **p);
 void json_free(Json *j);
 Json *json_get(Json *obj, const char *key);
 Json *json_at(Json *arr, int i);
