@@ -14,7 +14,13 @@ static char s_root[512];
 static int s_checks;
 int g_log;
 const char *data_dir(void) { return s_root; }
-long native_read_raw(int fid, uint8_t **out) { *out = NULL; return 0; }
+/* the game's fighters' file: absent, or a stub of 16 bytes in which 259 and 300 are partners (bladegaru.c holds the real reader) */
+static int s_fighters;
+long native_read_raw(int fid, uint8_t **out) {
+    *out = s_fighters ? calloc(16, 1) : NULL;
+    return s_fighters ? 16 : 0;
+}
+int native_fighter_has_record(const uint8_t *f, long size, int model) { return f != NULL && size == 16 && (model == 259 || model == 300); }
 
 static int has(const char *sub, int fid) {
     char p[800];
@@ -220,6 +226,12 @@ int main(void) {
     WARNS(", \"pair\": {\"ids\": [259, 5]}", "no scripts' archive"); /* the model of 5 entries has none */
 
     /* what would make the game read what isn't there, or a number its field can't hold, is refused with the reason */
+    /* "like" against the partners of the fighters' file: another that is there, one that isn't, and no file to look in */
+    s_fighters = 1;
+    GOOD(", \"like\": 300");
+    REJECTS(manifest(472, 7000, ", \"like\": 301"), "like 301 isn't a partner");
+    s_fighters = 0;
+    GOOD(", \"like\": 301");
     REJECTS("{", "ends");
     REJECTS("[1]", "must hold an object");
     REJECTS("{\"id\": 472, \"fid\": 7000,, " TECHS "}", "member's name");

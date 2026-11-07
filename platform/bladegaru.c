@@ -17,7 +17,7 @@
 #include "platform.h"
 #include "../include/native.h"
 
-#define FIGHTERS_FILE 0x1CC /* SMDLDATA.PRO */
+#define FIGHTERS_FILE NATIVE_FIGHTERS_FILE
 #define NEW_FID 1           /* the Japanese MSAMTMAP, which the European game never reads */
 #define NEW_MODEL 471
 #define OLD_MODEL 469 /* BladeGarurumon's DNA form */
@@ -539,18 +539,37 @@ static uint8_t *build_fighters(const uint8_t *f, long size, long *out_size, int 
     return insert_record(f, size, out_size, NEW_MODEL, rec, f[old + 3]);
 }
 
+/* The key of MODEL in the fighters' file F when a whole partner's record is there for it (what a mod's "like" copies), else -1 */
+static long partner_key(const uint8_t *f, long size, int model) {
+    uint32_t o2, o3, end;
+    long k;
+
+    if (f == NULL || size < 16) {
+        return -1;
+    }
+    o2 = rd32(f + 8), o3 = rd32(f + 12);
+    k = find_key(f, size, model, &end);
+    return k >= 0 && o3 <= (uint32_t)size && (uint64_t)o2 + (f[k + 2] + 1) * RECORD <= o3 ? k : -1;
+}
+
+/* For the manifest's check (digimon_mods.c): is MODEL a partner of the fighters' file F? 471 is the port's own, added after the file is read */
+int native_fighter_has_record(const uint8_t *f, long size, int model) {
+    return model == NEW_MODEL || partner_key(f, size, model) >= 0;
+}
+
 /* A Digimon mod (native.h): a partner's record for its id, that of its "like" model (ExVeemon's: cameras, face, distance) with the file the
    model is in and the entries its manifest names (dw2-extractor's converter puts them there). NULL when it can't be made */
 static uint8_t *add_mod(const uint8_t *f, long size, long *out_size, const NativeMod *mod) {
-    uint32_t o2 = rd32(f + 8), o3 = rd32(f + 12), end;
-    long ex = find_key(f, size, mod->like, &end);
+    long ex = partner_key(f, size, mod->like);
     uint8_t rec[RECORD], *out;
+    uint32_t o3;
     int i;
 
-    if (size < 16 || ex < 0 || o2 + (f[ex + 2] + 1) * RECORD > o3 || o3 > (uint32_t)size) {
+    if (ex < 0) {
         return NULL;
     }
-    memcpy(rec, f + o2 + f[ex + 2] * RECORD, RECORD);
+    o3 = rd32(f + 12);
+    memcpy(rec, f + rd32(f + 8) + f[ex + 2] * RECORD, RECORD);
     for (i = 0; i < 3; i++) {
         wr32(rec + 4 * i, (uint32_t)mod->fid << 16 | mod->subs[i]);
     }

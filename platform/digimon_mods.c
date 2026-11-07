@@ -422,6 +422,15 @@ static void check_files(Check *c) {
         }
     }
     SDL_free(f);
+    if (!BAD(c)) { /* the partner whose record (cameras, face, distance) the mod's is made from; no fighters' file to look in: nothing to say */
+        uint8_t *fighters = NULL;
+        long n = native_read_raw(NATIVE_FIGHTERS_FILE, &fighters);
+
+        if (n > 0 && !native_fighter_has_record(fighters, n, m->like)) {
+            reject(c, "like %d isn't a partner of the game's fighters' file (259 is ExVeemon's)", m->like);
+        }
+        free(fighters); /* calloc'd by native_read_raw: not SDL's heap */
+    }
     if (BAD(c)) {
         return;
     }

@@ -262,6 +262,8 @@ extern int g_bladegarurumon; /* bladegarurumon = 0: partners don't learn it (mod
 /* a file an option makes anew, whole, or NULL for the game's (mods.c; packs.c, bladegaru.c) */
 const uint8_t *made_file(int fid, long *size);
 void native_bladegarurumon_setup(void);
+#define NATIVE_FIGHTERS_FILE 0x1CC /* SMDLDATA.PRO: the fighters, with the partners' records */
+int native_fighter_has_record(const unsigned char *f, long size, int model); /* bladegaru.c: MODEL is a partner of that file (a mod's "like") */
 const uint8_t *packs_file(int fid, long *size);
 const uint8_t *bladegaru_file(int fid, long *size);
 long native_read_raw(int fid, uint8_t **out); /* files.c: a file on disk whole, malloc'd; its size */
