@@ -39,6 +39,17 @@ int process_wait(const char *const *args, const char *cwd)
     return code;
 }
 
+/* data/sounds/NAME holds SOUNDS_VERSION: version.txt after a full render, failed.txt after one that did not finish */
+static bool sounds_mark(const char *name)
+{
+    char path[1300];
+    SDL_snprintf(path, sizeof path, "%s/sounds/%s", path_data(), name);
+    char *text = SDL_LoadFile(path, NULL);
+    const bool yes = text && SDL_atoi(text) == SOUNDS_VERSION;
+    SDL_free(text);
+    return yes;
+}
+
 void sounds_render(void)
 {
     char exe[1200], dir[1200];
@@ -47,6 +58,12 @@ void sounds_render(void)
     if (SDL_GetPathInfo(exe, NULL)) {
         const char *args[] = {exe, "--render-sounds", dir, NULL};
         process_wait(args, SDL_GetBasePath());
+        if (!sounds_mark("version.txt")) { /* not retried at every start: only after a new SOUNDS_VERSION or an extraction */
+            char path[1300], text[16];
+            SDL_snprintf(path, sizeof path, "%s/failed.txt", dir);
+            SDL_snprintf(text, sizeof text, "%d\n", SOUNDS_VERSION);
+            SDL_SaveFile(path, text, SDL_strlen(text));
+        }
     }
 }
 
@@ -59,12 +76,7 @@ static int SDLCALL sounds_thread(void *unused)
 
 void sounds_prepare(void)
 {
-    char path[1300];
-    SDL_snprintf(path, sizeof path, "%s/sounds/version.txt", path_data());
-    char *text = SDL_LoadFile(path, NULL);
-    const bool current = text && SDL_atoi(text) == SOUNDS_VERSION;
-    SDL_free(text);
-    if (!current) {
+    if (!sounds_mark("version.txt") && !sounds_mark("failed.txt")) {
         SDL_DetachThread(SDL_CreateThread(sounds_thread, "sounds", NULL));
     }
 }
