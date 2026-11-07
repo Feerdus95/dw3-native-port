@@ -1,0 +1,30 @@
+--- a/src/stfgtrep/partner.c
++++ b/src/stfgtrep/partner.c
+@@ -196,14 +196,26 @@
+    in the battle, and blinks the slot when its level goes up */
+ static inline void giveDigimonExp(ReportPartner *partner) {
+     s32 member;
++    s32 eligible;
+ 
+     member = GAME.funcs.getPartyMember(partner->index);
+     GAME.funcs.getPartnerSlots(member, partner->slots);
+-    if (BATTLE_RESULT.partners[partner->index].used[partner->slot] != 0 && partner->slots[partner->slot] >= 4) {
++    eligible = BATTLE_RESULT.partners[partner->index].used[partner->slot] != 0;
++#ifdef NATIVE
++    if (g_full_exp_report) {
++        eligible = g_full_exp_eligible[partner->index] &&
++                   (eligible || partner->slots[partner->slot] == GAME.partners[member].battleDigivolve);
++    }
++#endif
++    if (eligible && partner->slots[partner->slot] >= 4) {
+         partner->slotBlinks[partner->slot].blink.on = STFGTREP_funcs.addDigimonExp(
+             member, partner->slots[partner->slot],
+             STFGTREP_funcs.getDigimonExp(member, partner->slots[partner->slot],
++#ifdef NATIVE
++                                         STFGTREP_rewards[BATTLE_RESULT.battle].digimonExp, g_full_exp_report ? 1 : partner->report->used));
++#else
+                                          STFGTREP_rewards[BATTLE_RESULT.battle].digimonExp, partner->report->used));
++#endif
+     }
+     partner->substate++;
+ }

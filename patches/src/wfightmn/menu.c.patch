@@ -19,3 +19,13 @@
              for (i = 0, unit = FIGHTSTG_battle.fighters[1]; i < 3; i++, unit++) {
                  if (unit->id != 0 && unit->hp != 0) {
                      task->setSubstate(task, 5);
+@@ -509,6 +516,9 @@
+         }
+         for (member = 0; member < 3; member++) {
+             partner = GAME.funcs.getPartyMember(member);
++#ifdef NATIVE
++            g_full_exp_eligible[member] = partner >= 0 && (FIGHTSTG_battle.fighters[0] + member)->hp > 0;
++#endif
+             if (partner >= 0) {
+                 if ((FIGHTSTG_battle.fighters[0] + member)->hp <= 0) {
+                     GAME.partners[partner].info.stats[STAT_HP] = 1;

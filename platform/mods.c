@@ -13,6 +13,9 @@ int g_ff_speed = 1;  /* fast forward: the game's ticks a frame shown (etc.c); no
 int g_give_form; /* --give ID (main.c) */
 int g_dna_other; /* native.h */
 int g_bladegarurumon = 1; /* bladegarurumon = 0: partners don't learn it (stfgtrep's growth.c) */
+int g_full_exp_share = 0; /* full_exp_share = 1: full rewards for every non-KO party member */
+int g_full_exp_eligible[3]; /* battle-end HP > 0, including partners who stayed on the bench */
+int g_full_exp_report; /* the option captured once when a reward report starts */
 
 /* The files options make anew (files.c): the lobby's Veemon (packs.c),
    BladeGarurumon's model and the fighters' file (bladegaru.c) */
