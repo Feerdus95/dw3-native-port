@@ -221,6 +221,14 @@ extern int g_battle_shadows;
    effect's point). Returns its images, -1 without, and their ticks. STAGE is
    native_fighter_stage's: without images, the nearest lower stage's play */
 int native_effect_images(int effect, int critical, int stage, int *ticks);
+/* --render-sounds (platform/soundrender.c), run by main.c's boot after it starts the sound: the battle sound index I of
+   the list or -1, a sound's capture (begin, a frame of the SPU's mix at a time while 1, end writes its WAV) and done exits */
+extern int g_render_sounds;
+int native_render_next(int i);
+void native_render_begin(int index);
+int native_render_frame(void);
+void native_render_end(int index);
+void native_render_done(void);
 /* 1 when the effect (for that critical hit and stage) has a sound of its own that plays (g_custom_sounds on): the attack script
    leaves the game's hit sound out then */
 int native_effect_has_sound(int effect, int critical, int stage);

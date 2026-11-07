@@ -1,0 +1,55 @@
+--- a/src/main/system/main.c
++++ b/src/main/system/main.c
+@@ -8,6 +8,40 @@
+ static RECT BOOT_IMAGE_RECT = { 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT * 2 };
+ static void *ROOT_TASK = NULL; /* the task that runs the game mode */
+ 
++#ifdef NATIVE
++extern s32 FIGHTSTG_battleSounds[]; /* an overlay's table, whose initial values are in the exe */
++
++/* --render-sounds (soundrender.c): the sound is up, so each battle sound asked for is played by the game's own sound code,
++   with its bank loaded as the battle does, and the mix captured; then the program ends */
++static void nativeRenderSounds(void) {
++    s32 i, index;
++
++    for (i = 0; (index = native_render_next(i)) >= 0; i++) {
++        s32 id = FIGHTSTG_battleSounds[index];
++
++        if (id == 0) {
++            continue;
++        }
++        SOUND.stopAll();
++        if (findSoundBank(SOUND_BANK(id)) == -1) {
++            SOUND.loadBank(SOUND_BANK(id));
++            while (SOUND.isLoading()) {
++                FILE_CACHE.update();
++                SOUND.updateLoading();
++            }
++        }
++        native_render_begin(index);
++        SOUND.playSound(id);
++        do {
++            SsSeqCalledTbyT();
++        } while (native_render_frame());
++        SOUND.stopSound(id);
++        native_render_end(index);
++    }
++    native_render_done();
++}
++#endif
++
+ /* Starts the hardware, the libraries and the engine, then runs a frame per iteration */
+ int main(void) {
+     RECT rect;
+@@ -59,6 +93,11 @@
+     CdControlB(CdlPause, 0, 0);
+     HEAP.init();
+     SOUND.init();
++#ifdef NATIVE
++    if (g_render_sounds) {
++        nativeRenderSounds();
++    }
++#endif
+     RANDOM.seed(0);
+     MEMCARD_FUNCS.init();
+     PAD.init(0, 0x12);

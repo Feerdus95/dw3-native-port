@@ -289,6 +289,8 @@ int native_disk_file(int fid); /* files.c: data/mods/<fid>.bin or the disc's is 
 void state_key(int key);  /* a debug key (SDL keycode), from pump_events */
 void state_frame(void);   /* at the frame's end (native_wait_vblank): runs what the keys asked */
 int movie_playing(void);  /* movie.c */
+extern int g_render_sounds; /* --render-sounds: a hidden window, the sounds rendered to WAV files, then exit (soundrender.c) */
+int native_render_parse(const char *dir, const char *list); /* the indexes to render; 0 when none */
 int stage_dump(const char *dir); /* stagedump.c: --dump-stages DIR */
 extern int g_field_mode, g_field_progress, g_field_arg; /* state.c: --field MODE --progress N */
 extern int g_field_sets[64][2], g_field_set_count; /* --set CODE=VALUE (hex code), repeated */

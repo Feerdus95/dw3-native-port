@@ -13,6 +13,10 @@ void audio_vblank(int rate) {
     static int frac;
     int base, frames, queued, target;
 
+    if (g_render_sounds) {
+        return; /* the sounds are mixed by the render, not played */
+    }
+
     if (s_dump == NULL && SDL_getenv("DW3_WAV") != NULL) {
         s_dump = fopen(SDL_getenv("DW3_WAV"), "wb");
     }
