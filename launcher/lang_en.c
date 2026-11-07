@@ -158,5 +158,6 @@ const Lang LANG_EN = {
         [O_JOURNAL] = {"Digilog (field menu)", "Adds DIGILOG to the field menu: a journal of the story's current step and the side quests you have found (DDNA bosses, old weapons, knights...), with what is done apart."},
         [O_PACKS] = {"Extra starter packs", "Three more packs to pick in a new game: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon) and Mystic (Kumamon, Renamon, Veemon)."},
         [O_BLADEGARURUMON] = {"BladeGarurumon", "A 45th Digimon every partner can learn, from Growlmon and Grizzmon at level 40, with its own model (made from your disc), techniques and signature, Solar Laser. Saves stay standard memory cards."},
+        [O_FULL_EXP_SHARE] = {"Full EXP Share", "Every partner still standing after a battle gets the full EXP, even if it did not fight, and its selected or used digivolutions the full Digimon EXP. Knocked-out partners get nothing."},
     },
 };

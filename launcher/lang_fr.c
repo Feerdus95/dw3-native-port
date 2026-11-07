@@ -158,5 +158,6 @@ const Lang LANG_FR = {
         [O_JOURNAL] = {"Digilog (menu de terrain)", "Ajoute DIGILOG au menu de terrain : un journal de l'étape actuelle et des quêtes annexes trouvées (boss DDNA, armes anciennes, chevaliers...), avec ce qui est terminé à part."},
         [O_PACKS] = {"Packs de départ en plus", "Trois packs de plus pour une nouvelle partie : Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon) et Mystic (Kumamon, Renamon, Veemon)."},
         [O_BLADEGARURUMON] = {"BladeGarurumon", "Un 45e Digimon que chaque partenaire peut apprendre, dès Growlmon et Grizzmon au niveau 40, avec son modèle (créé depuis votre disque), ses techniques et sa signature, Solar Laser. Les sauvegardes restent standard."},
+        [O_FULL_EXP_SHARE] = {"EXP complète pour tous", "Chaque partenaire encore debout à la fin d'un combat reçoit toute l'EXP, même sans avoir combattu, et ses digivolutions choisies ou utilisées toute l'EXP Digimon. Les partenaires K.O. ne reçoivent rien."},
     },
 };

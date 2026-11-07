@@ -27,6 +27,7 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_JOURNAL] = {"journal", K_BOOL, 0},
     [O_PACKS] = {"extra_packs", K_BOOL, 1},
     [O_BLADEGARURUMON] = {"bladegarurumon", K_BOOL, 1},
+    [O_FULL_EXP_SHARE] = {"full_exp_share", K_BOOL, 0},
 };
 static const char *const ICON_KEYS[] = {"auto", "ps1", "ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch", "keyboard"};
 static const char *const ICON_NAMES[] = {NULL, "PS1", "PS3", "PS4", "PS5", "Xbox 360", "Xbox One", "Xbox Series", "Switch", NULL};
