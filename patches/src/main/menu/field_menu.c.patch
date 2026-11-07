@@ -1,19 +1,99 @@
 --- a/src/main/menu/field_menu.c
 +++ b/src/main/menu/field_menu.c
-@@ -141,6 +141,12 @@
+@@ -141,6 +141,92 @@
  
  s32 FIELD_MENU_SPRITES[6] = { 29, 30, 31, 32, 33, 34 };
  
 +#ifdef NATIVE
-+#define QUIT_TEXT 142      /* packs_text: QUIT */
-+#define QUIT_SURE_TEXT 143 /* packs_text: QUIT? */
-+static s32 quitArmed;
++/* Quit (native.h), the last row: it asks in the title's banner, with three
++   answers in place of the rows (the title screen, the desktop, cancel).
++   packs_text: 142 the row, 143 the question, 144-146 the answers */
++#define QUIT_TEXT 142
++#define QUIT_ASK_TEXT 143
++#define QUIT_ANSWER_TEXT 144
++#define QUIT_BANNER_X 0x84 /* the question is longer than the title's text */
++static s32 quitAsk;
++static s32 quitRows; /* the rows the menu had, while it asks */
++static s32 quitToTitle;
++
++/* Shows the question, or the rows again */
++static void showQuitAsk(FieldMenu *task, FieldMenuWindows *win, s32 ask) {
++    void *own = (void *)native_packs_text(LANGUAGE);
++    s32 i;
++
++    if (ask) {
++        quitRows = task->count;
++        task->count = 3;
++        win->title->setPos(win->title, QUIT_BANNER_X, 0x13);
++        win->title->setString(win->title, own, QUIT_ASK_TEXT);
++        for (i = 0; i < 3; i++) {
++            win->options[i]->setString(win->options[i], own, QUIT_ANSWER_TEXT + i);
++            win->options[i]->setPalette(win->options[i], PALETTE_WHITE);
++        }
++        for (i = 3; i < quitRows; i++) {
++            win->options[i]->setVisible(win->options[i], 0);
++        }
++    } else {
++        task->count = quitRows;
++        win->title->setPos(win->title, 0x98, 0x13);
++        win->title->setString(win->title, FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)), 0x13);
++        for (i = 0; i < task->count; i++) {
++            if (i == task->count - 1) {
++                win->options[i]->setString(win->options[i], own, QUIT_TEXT);
++            } else if (i == task->extraOption + 5) {
++                win->options[i]->setString(win->options[i], own, 15);
++            } else {
++                win->options[i]->setString(win->options[i], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)),
++                                           FIELD_MENU_OPTIONS[task->extraOption][i]);
++            }
++            win->options[i]->setVisible(win->options[i], 1);
++            win->options[i]->setPalette(win->options[i], i == 2 && task->option2Enabled == 0 ? PALETTE_GREY : PALETTE_WHITE);
++        }
++    }
++    quitAsk = ask;
++    task->cursor = ask ? 2 : task->count - 1; /* cancel / the Quit row */
++    win->cursor->setPos(win->cursor, 0xB0, task->cursor * 14 + 0x31);
++}
++
++/* While it asks: up and down choose, X answers, triangle cancels. 1 to go to
++   the title screen */
++static s32 answerQuit(FieldMenu *task, FieldMenuWindows *win) {
++    s32 prev = task->cursor;
++
++    if (PAD_PRESSED(PAD_UP) || PAD_REPEATED(PAD_UP)) {
++        if (--task->cursor < 0) {
++            task->cursor = 0;
++        }
++    } else if (PAD_PRESSED(PAD_DOWN) || PAD_REPEATED(PAD_DOWN)) {
++        if (++task->cursor > 2) {
++            task->cursor = 2;
++        }
++    }
++    if (prev != task->cursor) {
++        SOUND.playSound(SOUND_CURSOR);
++        win->cursor->setPos(win->cursor, 0xB0, task->cursor * 14 + 0x31);
++    } else if (PAD_PRESSED(PAD_CROSS)) {
++        SOUND.playSound(SOUND_SELECT);
++        if (task->cursor == 1) {
++            native_quit();
++        }
++        if (task->cursor == 0) {
++            quitToTitle = 1;
++            return 1;
++        }
++        showQuitAsk(task, win, 0);
++    } else if (PAD_PRESSED(PAD_TRIANGLE)) {
++        SOUND.playSound(SOUND_MENU_CANCEL);
++        showQuitAsk(task, win, 0);
++    }
++    return 0;
++}
 +#endif
 +
  /* Starts the field menu: opens the panels and the windows, with the extra option
     when the player has item 0x192 and option 2 only in a field zone */
  static inline void openFieldMenu(FieldMenu *task, FieldMenuWindows *win) {
-@@ -156,6 +162,18 @@
+@@ -156,6 +242,19 @@
          FIELD_MENU_CHOICE.extra = 0;
      }
      task->count = task->extraOption + 5;
@@ -22,9 +102,10 @@
 +    if (g_journal) {
 +        task->count++;
 +    }
-+    /* then Quit (native.h), asking for a second press */
++    /* then Quit (native.h) */
 +    task->count++;
-+    quitArmed = 0;
++    quitAsk = 0;
++    quitToTitle = 0;
 +    if (task->cursor > task->count - 1) {
 +        task->cursor = task->count - 1;
 +    }
@@ -32,7 +113,7 @@
      if (getFieldZone() >= 0) {
          task->option2Enabled = 1;
      } else {
-@@ -168,6 +186,16 @@
+@@ -168,6 +267,16 @@
  static inline void showFieldMenuOptions(FieldMenu *task, FieldMenuWindows *win) {
      showPartnerPage(task, win, 1, 1);
      for (task->counter = 0; task->counter < task->count; task->counter++) {
@@ -49,37 +130,61 @@
          win->options[task->counter]->setString(win->options[task->counter], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)),
                                    FIELD_MENU_OPTIONS[task->extraOption][task->counter]);
      }
-@@ -206,6 +234,12 @@
-         }
-     }
-     if (prev != task->cursor) {
+@@ -194,6 +303,16 @@
+     s32 prev;
+     s32 done;
+ 
 +#ifdef NATIVE
-+        if (quitArmed) {
-+            quitArmed = 0;
-+            win->options[task->count - 1]->setString(win->options[task->count - 1], (void *)native_packs_text(LANGUAGE), QUIT_TEXT);
++    if (quitAsk) {
++        done = answerQuit(task, win);
++        if (!done) {
++            return;
 +        }
++        task->step = 0; /* the fade, and the title screen */
++        goto choose;
++    }
 +#endif
-         SOUND.playSound(SOUND_CURSOR);
-         win->cursor->setPos(win->cursor, 0xB0, task->cursor * 14 + 0x31);
-         return;
-@@ -216,6 +250,16 @@
+     prev = task->cursor;
+     if (PAD_PRESSED(PAD_UP) || PAD_REPEATED(PAD_UP)) {
+         if (--task->cursor < 0) {
+@@ -216,6 +335,12 @@
          if (task->option2Enabled == 0 && task->cursor == 2) {
              return;
          }
 +#ifdef NATIVE
 +        if (task->cursor == task->count - 1) {
-+            if (!quitArmed) {
-+                quitArmed = 1;
-+                win->options[task->cursor]->setString(win->options[task->cursor], (void *)native_packs_text(LANGUAGE), QUIT_SURE_TEXT);
-+                return;
-+            }
-+            native_quit();
++            showQuitAsk(task, win, 1);
++            return;
 +        }
 +#endif
          done = 1;
          if (GAME.funcs.getMode() == MODE_STATUS) {
              task->step = 1;
-@@ -319,6 +363,61 @@
+@@ -232,6 +357,9 @@
+             task->step = 1;
+         }
+     }
++#ifdef NATIVE
++choose:
++#endif
+     if (done) {
+         startPanel(&task->panels[0], 0);
+         startPanel(&task->panels[1], 0);
+@@ -282,6 +410,13 @@
+         }
+         break;
+     case 6:
++#ifdef NATIVE
++        if (quitToTitle) {
++            GAME.funcs.requestMode(MODE_TITLE, 0);
++            task->substate++;
++            break;
++        }
++#endif
+         if (GAME.funcs.getMode() == MODE_STATUS) {
+             GAME.funcs.requestMode(GAME.fieldMode, 0);
+         } else {
+@@ -319,6 +454,64 @@
      }
  }
  
@@ -91,7 +196,7 @@
 +#define PANEL_ROWS6 0x1B
 +#define PANEL_ROW_H 14
 +#define PANEL_LAST_ROW 64 /* the six rows' last middle row, then the bottom */
-+static void *sevenRowPanel(s32 extra) { /* extra: the rows after the sixth */
++static void *sevenRowPanel(s32 extra) { /* extra: the rows after the sixth, or fewer (negative) */
 +    static s32 sheet[512];
 +    s32 *orig = FILE_CACHE.getEntry(FILE_MENU_SPRITES << 16);
 +    u8 *ids = (u8 *)orig + orig[1];
@@ -124,6 +229,9 @@
 +        s16 x = frame[4 + i * 3];
 +        s16 y = frame[5 + i * 3];
 +
++        if (extra < 0 && y > PANEL_LAST_ROW + extra * PANEL_ROW_H && y <= PANEL_LAST_ROW) {
++            continue; /* a middle row less */
++        }
 +        out[3 + n * 3] = part, out[4 + n * 3] = x, out[5 + n * 3] = y > PANEL_LAST_ROW ? y + extra * PANEL_ROW_H : y;
 +        n++;
 +        for (j = 1; y == PANEL_LAST_ROW && j <= extra; j++) {
@@ -141,12 +249,12 @@
  /* Runs the field menu: opens its panels, moves the cursor and switches mode on a choice */
  void updateFieldMenu(FieldMenu *task, FieldMenuWindows *win) {
      SpriteDrawer obj;
-@@ -420,6 +519,13 @@
+@@ -420,6 +613,13 @@
              } else {
                  obj.setScale(ONE, ONE, ONE);
              }
 +#ifdef NATIVE
-+            if (task->count >= 7) {
++            if (task->count >= 7 || task->count < 5) {
 +                obj.draw(sevenRowPanel(task->count - 6), PANEL_ROWS6, 0xA8, 0x28);
 +            } else if (task->count == 6) {
 +                obj.draw(FILE_CACHE.getEntry(FILE_MENU_SPRITES << 16), PANEL_ROWS6, 0xA8, 0x28);

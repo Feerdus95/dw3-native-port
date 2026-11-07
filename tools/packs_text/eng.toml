@@ -142,5 +142,8 @@ strings = [
 	"A strong foe guards it here. If you\nmiss it, shops sell it later.",
 	"A strong foe guards it here. If you\nmiss it, shops sell it later.",
 	"QUIT",
-	"QUIT?",
+	"Do you wish to quit the game?",
+	"TITLE MENU",
+	"DESKTOP",
+	"CANCEL",
 ]

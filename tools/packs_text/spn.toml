@@ -142,5 +142,8 @@ strings = [
 	"Un rival fuerte lo guarda aquí. Si\nno, se venderá luego en tiendas.",
 	"Un rival fuerte lo guarda aquí. Si\nno, se venderá luego en tiendas.",
 	"SALIR",
-	"SALIR?",
+	"¿Quieres salir del juego?",
+	"MENÚ DE TÍTULO",
+	"ESCRITORIO",
+	"CANCELAR",
 ]

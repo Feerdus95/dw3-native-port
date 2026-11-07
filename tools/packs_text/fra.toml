@@ -142,5 +142,8 @@ strings = [
 	"Un adversaire le garde ici. Sinon,\nles boutiques le vendront plus tard.",
 	"Un adversaire le garde ici. Sinon,\nles boutiques le vendront plus tard.",
 	"QUITTER",
-	"QUITTER ?",
+	"Voulez-vous quitter le jeu ?",
+	"ÉCRAN TITRE",
+	"BUREAU",
+	"ANNULER",
 ]
