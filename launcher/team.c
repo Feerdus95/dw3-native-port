@@ -1,5 +1,6 @@
 /* The party the player has, read (never written) from the memory card: saves/card1.mcd, the game's own file with its
-   three slots, each a raw image of the game state (kb/docs/save_flow.md). The slot played the longest is the one shown. */
+   three slots, each a raw image of the game state (kb/docs/save_flow.md). The slot last saved to (the file's summary says which) is the one
+   shown, else the one played the longest. */
 #include "launcher.h"
 
 enum {
@@ -17,7 +18,8 @@ Uint32 team_colour(int partner) { return COLOURS[SDL_clamp(partner, 0, PARTNERS 
 static int s16(const Uint8 *p) { return (Sint16)(p[0] | p[1] << 8); }
 static int s32(const Uint8 *p) { return (Sint32)(p[0] | p[1] << 8 | p[2] << 16 | (Uint32)p[3] << 24); }
 
-/* the game's file in the card's directory (frame 1 to 15 name a block each), then the slot with the most play time */
+/* the game's file in the card's directory (frame 1 to 15 name a block each), then its last saved slot (MemCardFile.last, the summary
+   after the 0x200 of header and icons, its magic at 4), else the slot with the most play time */
 static bool parse(const Uint8 *d, size_t size, Team *t)
 {
     int base = -1, best = -1;
@@ -29,6 +31,7 @@ static bool parse(const Uint8 *d, size_t size, Team *t)
     if (base < 0 || size < (size_t)base + SLOT_START + SLOTS * SLOT_SIZE) {
         return false;
     }
+    const int last = size > (size_t)base + 0x208 && !SDL_memcmp(d + base + 0x204, "DMW3", 4) ? d[base + 0x201] : -1;
     for (int slot = 0; slot < SLOTS; slot++) {
         const Uint8 *g = d + base + SLOT_START + slot * SLOT_SIZE;
         const int seconds = s16(g + G_TIME) * 3600 + s16(g + G_TIME + 2) * 60 + s16(g + G_TIME + 4);
@@ -42,8 +45,9 @@ static bool parse(const Uint8 *d, size_t size, Team *t)
                 here.level[here.count++] = level;
             }
         }
-        if (here.count && seconds > best) {
-            best = seconds;
+        const int score = slot == last ? 0x7FFFFFFF : seconds;
+        if (here.count && score > best) {
+            best = score;
             here.hours = s16(g + G_TIME);
             here.minutes = s16(g + G_TIME + 2);
             *t = here;
