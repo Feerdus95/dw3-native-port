@@ -166,7 +166,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Full EXP Share | every party partner still above 0 HP at battle end gets the full partner EXP, even if benched; its selected or used digivolutions get full Digimon EXP. Knocked-out partners get neither. Each partner gets the whole reward, not a share, so with three partners the party earns three times the EXP. Off by default |
 | Save anywhere | a SAVE row in the field menu (before QUIT): save wherever you stand, not only at save points, and loading puts you back in the same spot. It uses the game's own memory card screen and the same save format, so the save also loads with the option off. |
 | Custom effects | on by default: the battle effects' own images (`data/mods/effects/`, see below) play instead of the game's. Off plays the game's own; it switches in game, from the Mods tab, and shows at the next effect |
-| Custom sounds | on by default: the sound an effect's `effect.json` gives (see below) plays instead of the game's hit sound (an effect without one keeps the game's). It switches in game, from the Mods tab |
+| Custom sounds | on by default: the sound an effect's `effect.json` gives (see below) plays instead of the game's hit sound (an effect without one keeps the game's), and so do the sounds of the sound library that replace one of the game's. It switches in game, from the Mods tab |
 
 `native.ini` can also be written by hand (see `native.ini.example`); every line is optional:
 
@@ -244,6 +244,15 @@ the Fight command's hit. The ids are the model viewer's Effects tab's, which als
 PNGs, plays them, sets the levels and writes the folder's `effect.json`:
 
     {"frames": [["00.png", 2], ["01.png", 3]], "x": 0, "y": 0, "scale": 1, "blend": "alpha"}
+
+**The sound library.** `data/mods/sounds/sounds.json` names WAVs of its folder and says which of the game's battle sounds each
+replaces (the numbers the model viewer's Effects tab shows beside "Original"), wherever the game plays them:
+
+    {"sounds": {"punch": {"file": "punch.wav", "volume": 1}}, "replace": {"57": "punch"}}
+
+A name is 1 to 32 of `a-z 0-9 _ -`, a file a plain file name of the folder, the volume 0 to 4, a replaced number 1 to 89. A
+sound the game has no number for, a name that isn't in the library or a WAV that can't be read leaves the game's own sound (the log
+says why). It is read when the game starts, each WAV when it first plays, and Custom sounds switches it while the game runs.
 
 Each frame is a PNG and its ticks. The battle counts time in ticks of 1/60 s (on PAL too), so an effect lasts its
 ticks / 60 seconds; the original hit is 11 ticks, 0.18 s. `x`, `y` move the images in screen pixels, `scale` sizes

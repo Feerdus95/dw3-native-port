@@ -1,6 +1,6 @@
-/* Which folder of data/mods/effects an effect plays (platform/effects.c), by stage and critical hit, on a tree it makes beside
+/* Which folder of data/mods/effects an effect plays (platform/effects.c), by stage and critical hit, and the sound library (soundlib.c), on a tree it makes beside
    the exe. Run from native/ (with SDL3.dll beside the exe):
-   i686-w64-mingw32-clang -Iplatform -Iinclude -I<SDL>/include tools/test_effect_stages.c platform/effects.c platform/json.c -L<SDL>/lib -lSDL3 -o build/test_effect_stages.exe
+   i686-w64-mingw32-clang -Iplatform -Iinclude -I<SDL>/include tools/test_effect_stages.c platform/effects.c platform/clips.c platform/soundlib.c platform/json.c -L<SDL>/lib -lSDL3 -o build/test_effect_stages.exe
    build/test_effect_stages.exe */
 #include <assert.h>
 #include <stdio.h>
@@ -11,11 +11,13 @@
 
 int native_effect_images(int effect, int critical, int stage, int *ticks);
 int native_fighter_stage(int fighter);
+int native_sound_replace(int index);
 void native_sfx_mix(int16_t *buf, int frames);
 
 static char s_root[512];
 const char *data_dir(void) { return s_root; }
 int g_log;
+int g_render_sounds;
 void native_log(const char *fmt, ...) {}
 int gte_widescreen(void) { return 0; }
 int gl_image_prepare(const struct SDL_Surface *s, unsigned *tex) { *tex = 1; return 1; }
@@ -102,6 +104,10 @@ int main(void) {
     put("mods/effects/7/effect.json", "{\"sound\": {\"file\": \"nope.wav\"}}"); /* no such file */
     put("mods/effects/8/effect.json", "{\"sound\": {\"file\": \"bad.wav\"}}");
     put("mods/effects/8/bad.wav", "not a wav"); /* read when it is needed */
+    sound("mods/sounds"); /* hit.wav, 0.1 s of 1000 */
+    put("mods/sounds/sounds.json",
+        "{\"sounds\": {\"punch\": {\"file\": \"hit.wav\", \"volume\": 0.5}, \"Bad\": {\"file\": \"hit.wav\"}, \"gone\": {\"file\": \"nope.wav\"}, "
+        "\"esc\": {\"file\": \"../x.wav\"}}, \"replace\": {\"57\": \"punch\", \"0\": \"punch\", \"999\": \"punch\", \"58\": \"gone\", \"59\": \"nobody\", \"60\": \"Bad\"}}");
     put("mods/effects/stages.json", "{\"rookie\": [3], \"champion\": [5, 19]}");
 
     assert(native_fighter_stage(3) == 1 && native_fighter_stage(5) == 2 && native_fighter_stage(19) == 2);
@@ -134,6 +140,19 @@ int main(void) {
     assert(played(2, 0, 0) == 0 && played(3, 0, 2) == 0); /* the game's own images */
     g_custom_effects = 1;
     assert(played(2, 0, 0) == 10);
+
+    /* the sound library: a replaced battle sound plays the library's WAV at its volume, the rest are the game's */
+    assert(native_sound_replace(57) == 1 && abs(mixed() - 500) < 20);
+    assert(abs(mixed() - 500) < 20 && abs(mixed() - 500) < 20 && mixed() == 0);
+    assert(native_sound_replace(56) == 0 && native_sound_replace(0) == 0 && native_sound_replace(999) == 0); /* not replaced, nor a sound of the game */
+    assert(native_sound_replace(58) == 0 && native_sound_replace(59) == 0 && native_sound_replace(60) == 0); /* no file, no such name, a bad name */
+    g_custom_sounds = 0;
+    assert(native_sound_replace(57) == 0 && mixed() == 0); /* off: the game's sound */
+    g_custom_sounds = 1;
+    g_render_sounds = 1;
+    assert(native_sound_replace(57) == 0); /* --render-sounds writes the game's own */
+    g_render_sounds = 0;
+    assert(native_sound_replace(57) == 1);
     puts("ok");
     return 0;
 }

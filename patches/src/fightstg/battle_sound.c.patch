@@ -1,0 +1,15 @@
+--- a/src/fightstg/battle_sound.c
++++ b/src/fightstg/battle_sound.c
+@@ -55,6 +55,12 @@
+     s32 id;
+     BattleSound *task;
+ 
++#ifdef NATIVE
++    /* a sound of the library replaces the game's (native.h): it plays to its end, so no task keys it off */
++    if (native_sound_replace(index)) {
++        return NULL;
++    }
++#endif
+     switch (index) {
+     default:
+         id = FIGHTSTG_battleSounds[index];

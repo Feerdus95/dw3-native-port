@@ -29,8 +29,6 @@
 #define MAX_STAGED 512
 static const char *const STAGES[] = {"", "rookie", "champion", "ultimate", "mega"};
 #define STAGE_COUNT 5
-#define SFX_VOICES 8
-#define SFX_MAX_FRAMES (AUDIO_RATE * 10)
 int g_custom_effects = 1;
 int g_custom_sounds = 1;
 static struct {
@@ -43,15 +41,8 @@ static struct {
     short image[MAX_FRAMES], end[MAX_FRAMES];
     float x, y, scale;
     int add;
-    char *snd_path; /* its sound's file, if it has one */
-    int16_t *snd; /* the sound once read, stereo at AUDIO_RATE */
-    int snd_frames;
-    int snd_vol; /* 256 = as it is */
+    NativeClip snd; /* its sound, if it has one (clips.c) */
 } s_sets[MAX_SETS];
-static struct {
-    const int16_t *data;
-    int frames, pos, vol;
-} s_voice[SFX_VOICES];
 static int s_count;
 static struct {
     short fighter, stage;
@@ -63,7 +54,7 @@ static int by_name(const void *a, const void *b) {
 }
 
 /* FILE (a WAV in DIR) is SET's sound: only its path and volume are kept (VOL is the JSON's volume or NULL), the WAV is
-   read and converted when first needed (sound_ready) */
+   read and converted when first needed (native_clip_ready) */
 static void load_sound(int set, const char *dir, const char *file, const Json *vol) {
     char path[1200];
 
@@ -76,43 +67,7 @@ static void load_sound(int set, const char *dir, const char *file, const Json *v
         LOG("effects: %s: no such sound", path);
         return;
     }
-    SDL_free(s_sets[set].snd_path);
-    s_sets[set].snd_path = SDL_strdup(path);
-    s_sets[set].snd_vol = 256;
-    if (vol != NULL && vol->type == 'n' && vol->num >= 0 && vol->num <= 4) {
-        s_sets[set].snd_vol = (int)(vol->num * 256);
-    }
-}
-
-/* SET's sound, read and converted to AUDIO_RATE stereo the first time (at the start, a set a frame: native_effects_warm; or
-   on the spot): 1 when it can play. One that can't be read stops counting as a sound, so the game's plays */
-static int sound_ready(int set) {
-    SDL_AudioSpec src, dst = {SDL_AUDIO_S16, 2, AUDIO_RATE};
-    Uint8 *raw = NULL, *out = NULL;
-    Uint32 raw_len = 0;
-    int out_len = 0;
-
-    if (s_sets[set].snd != NULL) {
-        return 1;
-    }
-    if (s_sets[set].snd_path == NULL) {
-        return 0;
-    }
-    if (!SDL_LoadWAV(s_sets[set].snd_path, &src, &raw, &raw_len)) {
-        LOG("effects: %s: %s", s_sets[set].snd_path, SDL_GetError());
-    } else if (SDL_ConvertAudioSamples(&src, raw, (int)raw_len, &dst, &out, &out_len) && out_len >= 4) {
-        s_sets[set].snd_frames = SDL_min(out_len / 4, SFX_MAX_FRAMES);
-        s_sets[set].snd = (int16_t *)out;
-        SDL_free(raw);
-        return 1;
-    } else {
-        LOG("effects: %s: %s", s_sets[set].snd_path, SDL_GetError());
-    }
-    SDL_free(raw);
-    SDL_free(out);
-    SDL_free(s_sets[set].snd_path);
-    s_sets[set].snd_path = NULL;
-    return 0;
+    native_clip_set(&s_sets[set].snd, path, vol != NULL && vol->type == 'n' && vol->num >= 0 && vol->num <= 4 ? (int)(vol->num * 256) : 256);
 }
 
 /* The folder's effect.json, into SET's frames; 0 without one */
@@ -156,8 +111,7 @@ static int read_json(int set, const char *dir) {
     }
     if ((v = json_get(root, "active")) != NULL && v->type == 'n' && v->num == 0) {
         s_sets[set].frames = 0;
-        SDL_free(s_sets[set].snd_path);
-        s_sets[set].snd_path = NULL;
+        native_clip_clear(&s_sets[set].snd);
     }
     json_free(root);
     return 1;
@@ -297,7 +251,7 @@ static int pick_set(int effect, int critical, int stage, int sound) {
         for (c = critical != 0; c >= 0; c--) {
             int set = find_set(effect, s, c);
 
-            if (set >= 0 && (sound ? s_sets[set].snd_path != NULL : s_sets[set].frames > 0)) {
+            if (set >= 0 && (sound ? s_sets[set].snd.path != NULL : s_sets[set].frames > 0)) {
                 return set;
             }
         }
@@ -316,46 +270,14 @@ int native_effect_images(int effect, int critical, int stage, int *ticks) {
     int set;
 
     scan_mods();
-    if (g_custom_sounds && (set = pick_set(effect, critical, stage, 1)) >= 0 && sound_ready(set)) {
-        int v;
-
-        for (v = 0; v < SFX_VOICES && s_voice[v].data != NULL; v++) {
-        }
-        if (v < SFX_VOICES) {
-            s_voice[v].data = s_sets[set].snd;
-            s_voice[v].frames = s_sets[set].snd_frames;
-            s_voice[v].pos = 0;
-            s_voice[v].vol = s_sets[set].snd_vol;
-        }
+    if (g_custom_sounds && (set = pick_set(effect, critical, stage, 1)) >= 0) {
+        native_clip_play(&s_sets[set].snd);
     }
     if (!g_custom_effects || (set = pick_set(effect, critical, stage, 0)) < 0) {
         return -1;
     }
     *ticks = s_sets[set].end[s_sets[set].frames - 1];
     return set;
-}
-
-/* Adds the playing sounds to BUF, FRAMES stereo frames (audio.c, each vsync) */
-void native_sfx_mix(int16_t *buf, int frames) {
-    int v, i;
-
-    for (v = 0; v < SFX_VOICES; v++) {
-        if (s_voice[v].data == NULL) {
-            continue;
-        }
-        for (i = 0; i < frames && s_voice[v].pos < s_voice[v].frames; i++, s_voice[v].pos++) {
-            int k;
-
-            for (k = 0; k < 2; k++) {
-                int m = buf[i * 2 + k] + (s_voice[v].data[s_voice[v].pos * 2 + k] * s_voice[v].vol >> 8);
-
-                buf[i * 2 + k] = (int16_t)SDL_clamp(m, -32768, 32767);
-            }
-        }
-        if (s_voice[v].pos >= s_voice[v].frames) {
-            s_voice[v].data = NULL;
-        }
-    }
 }
 
 /* Once a frame from the start: every effect folder of the mod is read the first time (the game's start, behind its
@@ -377,11 +299,12 @@ void native_effects_warm(void) {
         }
     }
     for (; s_snd < s_count; s_snd++) { /* the images are all up: the sounds, one a frame */
-        if (s_sets[s_snd].snd_path != NULL && s_sets[s_snd].snd == NULL) {
-            sound_ready(s_snd++);
+        if (s_sets[s_snd].snd.path != NULL && s_sets[s_snd].snd.data == NULL) {
+            native_clip_ready(&s_sets[s_snd++].snd);
             return;
         }
     }
+    native_soundlib_warm();
 }
 
 void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int cy1, int cx2, int cy2) {

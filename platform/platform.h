@@ -261,8 +261,20 @@ extern int g_fast_travel;   /* fast_travel = 1: X on the map screen travels ther
 extern int g_extra_packs;   /* extra_packs = 0: the starter choice has the game's three (packs.c) */
 extern int g_bladegarurumon; /* bladegarurumon = 0: partners don't learn it (mods.c) */
 extern int g_custom_effects; /* custom_effects = 0: no effect images of data/mods/effects (effects.c) */
-extern int g_custom_sounds; /* custom_sounds = 0: no effect sounds of data/mods/effects (effects.c) */
-void native_sfx_mix(int16_t *buf, int frames); /* the effect sounds playing, added to the vsync's mix (effects.c) */
+extern int g_custom_sounds; /* custom_sounds = 0: no effect sounds of data/mods/effects, nor the sound library (effects.c) */
+/* A WAV of a mod, read the first time it plays (clips.c); its voices are added to the vsync's mix by native_sfx_mix */
+typedef struct {
+    char *path; /* kept until it has been read, and NULL once it can't be */
+    int16_t *data; /* stereo at AUDIO_RATE, once read */
+    int frames, vol; /* vol 256 = as it is */
+} NativeClip;
+void native_clip_set(NativeClip *c, const char *path, int vol);
+void native_clip_clear(NativeClip *c);
+int native_clip_ready(NativeClip *c);
+void native_clip_play(NativeClip *c);
+void native_sfx_mix(int16_t *buf, int frames);
+int native_sound_replace(int index); /* the sound library's WAV plays in place of the game's battle sound, 1 if so (soundlib.c) */
+void native_soundlib_warm(void);
 extern int g_save_anywhere; /* save_anywhere = 1: a SAVE row in the field menu (mods.c) */
 extern int g_save_from_menu;
 extern int g_full_exp_share; /* full_exp_share = 1: full rewards for non-KO party members (mods.c) */

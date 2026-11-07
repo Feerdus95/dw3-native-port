@@ -232,6 +232,8 @@ void native_render_done(void);
 /* 1 when the effect (for that critical hit and stage) has a sound of its own that plays (g_custom_sounds on): the attack script
    leaves the game's hit sound out then */
 int native_effect_has_sound(int effect, int critical, int stage);
+/* the sound library's WAV plays in place of the game's battle sound INDEX (data/mods/sounds): 1 if so, and the game's is left out */
+int native_sound_replace(int index);
 /* FIGHTER's stage in data/mods/effects/stages.json: 1 rookie, 2 champion,
    3 ultimate, 4 mega, 0 for one it doesn't list */
 int native_fighter_stage(int fighter);
