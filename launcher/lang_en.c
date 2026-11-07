@@ -161,6 +161,6 @@ const Lang LANG_EN = {
         [O_FULL_EXP_SHARE] = {"Full EXP Share", "Every partner still standing after a battle gets the full EXP, even if it did not fight, and its selected or used digivolutions the full Digimon EXP. Knocked-out partners get nothing."},
         [O_SAVE_ANYWHERE] = {"Save anywhere", "Adds a SAVE row to the field menu so you can save wherever you stand, not only at save points. Loading puts you back in the same spot."},
         [O_CUSTOM_EFFECTS] = {"Custom effects", "Plays the 2D battle effects' own images (data/mods/effects) instead of the game's. Switches in game."},
-        [O_CUSTOM_SOUNDS] = {"Custom sounds", "Plays the sounds mods give to battle effects, with the game's own. Switches in game."},
+        [O_CUSTOM_SOUNDS] = {"Custom sounds", "Plays the hit sounds mods give to battle effects instead of the game's. Switches in game."},
     },
 };

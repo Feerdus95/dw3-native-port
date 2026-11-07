@@ -221,6 +221,9 @@ extern int g_battle_shadows;
    effect's point). Returns its images, -1 without, and their ticks. STAGE is
    native_fighter_stage's: without images, the nearest lower stage's play */
 int native_effect_images(int effect, int critical, int stage, int *ticks);
+/* 1 when the effect (for that critical hit and stage) has a sound of its own that plays (g_custom_sounds on): the attack script
+   leaves the game's hit sound out then */
+int native_effect_has_sound(int effect, int critical, int stage);
 /* FIGHTER's stage in data/mods/effects/stages.json: 1 rookie, 2 champion,
    3 ultimate, 4 mega, 0 for one it doesn't list */
 int native_fighter_stage(int fighter);

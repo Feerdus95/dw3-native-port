@@ -161,6 +161,6 @@ const Lang LANG_DE = {
         [O_FULL_EXP_SHARE] = {"Volle EXP für alle", "Jeder Partner, der nach einem Kampf noch steht, erhält die volle EXP, auch ohne gekämpft zu haben, und seine gewählten oder benutzten Digitationen die volle Digimon-EXP. Besiegte Partner erhalten nichts."},
         [O_SAVE_ANYWHERE] = {"Überall speichern", "Fügt dem Feldmenü eine Zeile SPEICHERN hinzu: speichern, wo du stehst, nicht nur an Speicherpunkten. Beim Laden stehst du wieder dort."},
         [O_CUSTOM_EFFECTS] = {"Eigene Effekte", "Nutzt die eigenen Bilder der 2D-Kampfeffekte (data/mods/effects) statt der des Spiels. Im Spiel umschaltbar."},
-        [O_CUSTOM_SOUNDS] = {"Eigene Sounds", "Spielt die Sounds, die Mods Kampfeffekten geben, zusätzlich zu denen des Spiels. Im Spiel umschaltbar."},
+        [O_CUSTOM_SOUNDS] = {"Eigene Sounds", "Spielt die Trefferklänge, die Mods Kampfeffekten geben, statt der des Spiels. Im Spiel umschaltbar."},
     },
 };

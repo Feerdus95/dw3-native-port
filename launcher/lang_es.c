@@ -161,6 +161,6 @@ const Lang LANG_ES = {
         [O_FULL_EXP_SHARE] = {"EXP completa para todos", "Cada compañero que siga en pie al acabar un combate recibe la EXP completa, aunque no haya peleado, y sus digievoluciones elegidas o usadas, la EXP de Digimon completa. Los derrotados no reciben nada."},
         [O_SAVE_ANYWHERE] = {"Guardar donde sea", "Añade una fila GUARDAR al menú del campo para guardar donde estés, no solo en los puntos de guardado. Al cargar vuelves al mismo sitio."},
         [O_CUSTOM_EFFECTS] = {"Efectos propios", "Usa las imágenes propias de los efectos 2D de combate (data/mods/effects) en vez de las del juego. Se cambia en el juego."},
-        [O_CUSTOM_SOUNDS] = {"Sonidos propios", "Reproduce los sonidos que los mods dan a los efectos de combate, junto a los del juego. Se cambia en el juego."},
+        [O_CUSTOM_SOUNDS] = {"Sonidos propios", "Reproduce los sonidos de golpe que los mods dan a los efectos de combate, en vez de los del juego. Se cambia en el juego."},
     },
 };

@@ -111,7 +111,9 @@ int main(void) {
     /* the options: effects and sounds switch while the exe runs, each at its own start */
     assert(played(6, 0, 0) == 0 && abs(mixed() - 500) < 20); /* a sound only: no images, a sound at half volume (22.05 -> 44.1 kHz) */
     assert(abs(mixed() - 500) < 20 && abs(mixed() - 500) < 20 && mixed() == 0); /* 0.1 s is 3 vsyncs of 1470 frames, then it ends */
+    assert(native_effect_has_sound(6, 0, 0) && !native_effect_has_sound(2, 0, 0) && !native_effect_has_sound(7, 0, 0));
     g_custom_sounds = 0;
+    assert(!native_effect_has_sound(6, 0, 0)); /* off: the game's hit sound plays */
     assert(played(6, 0, 0) == 0 && mixed() == 0);
     g_custom_sounds = 1;
     g_custom_effects = 0;

@@ -166,7 +166,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Full EXP Share | every party partner still above 0 HP at battle end gets the full partner EXP, even if benched; its selected or used digivolutions get full Digimon EXP. Knocked-out partners get neither. Each partner gets the whole reward, not a share, so with three partners the party earns three times the EXP. Off by default |
 | Save anywhere | a SAVE row in the field menu (before QUIT): save wherever you stand, not only at save points, and loading puts you back in the same spot. It uses the game's own memory card screen and the same save format, so the save also loads with the option off. |
 | Custom effects | on by default: the battle effects' own images (`data/mods/effects/`, see below) play instead of the game's. Off plays the game's own; it switches in game, from the Mods tab, and shows at the next effect |
-| Custom sounds | on by default: the sound an effect's `effect.json` gives (see below) plays with the game's own. It switches in game, from the Mods tab |
+| Custom sounds | on by default: the sound an effect's `effect.json` gives (see below) plays instead of the game's hit sound (an effect without one keeps the game's). It switches in game, from the Mods tab |
 
 `native.ini` can also be written by hand (see `native.ini.example`); every line is optional:
 
@@ -234,7 +234,7 @@ it, each with its own `effect.json` and `critical/`, and `data/mods/effects/stag
 A partner plays its level's images, else the nearest lower level's, else the base ones, else the original; one the file
 doesn't list, and every enemy, plays the base ones. In each folder a critical hit plays its `critical/`, else the plain
 images. `"active": 0` in an `effect.json` leaves that folder out. An effect.json can also give the folder a sound,
-played when the effect starts and mixed with the game's own (a folder with only this needs no PNGs):
+played when the effect starts, in place of the game's hit sound of that attack (a folder with only this needs no PNGs):
 
     {"sound": {"file": "hit.wav", "volume": 1}}
 

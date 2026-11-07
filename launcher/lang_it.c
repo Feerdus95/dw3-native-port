@@ -161,6 +161,6 @@ const Lang LANG_IT = {
         [O_FULL_EXP_SHARE] = {"EXP completa per tutti", "Ogni partner ancora in piedi a fine battaglia riceve tutta l'EXP, anche senza aver combattuto, e le sue digievoluzioni scelte o usate tutta l'EXP Digimon. I partner K.O. non ricevono nulla."},
         [O_SAVE_ANYWHERE] = {"Salva ovunque", "Aggiunge una riga SALVA al menu del campo per salvare dove ti trovi, non solo ai punti di salvataggio. Caricando torni nello stesso punto."},
         [O_CUSTOM_EFFECTS] = {"Effetti propri", "Usa le immagini proprie degli effetti 2D di battaglia (data/mods/effects) al posto di quelle del gioco. Si cambia in gioco."},
-        [O_CUSTOM_SOUNDS] = {"Suoni propri", "Riproduce i suoni che le mod danno agli effetti di battaglia, insieme a quelli del gioco. Si cambia in gioco."},
+        [O_CUSTOM_SOUNDS] = {"Suoni propri", "Riproduce i suoni di colpo che le mod danno agli effetti di battaglia, al posto di quelli del gioco. Si cambia in gioco."},
     },
 };

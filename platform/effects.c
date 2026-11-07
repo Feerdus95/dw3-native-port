@@ -14,7 +14,8 @@
    names' order, 2 ticks each. A folder may also carry a sound, played when the
    effect starts (a folder with only that has no PNGs):
      "sound": {"file": "hit.wav", "volume": 1}
-   a WAV of the folder, mixed with the game's own sound. The folders are read
+   a WAV of the folder, in place of the game's hit sound of the attack (the
+   attack script leaves it out: native_effect_has_sound). The folders are read
    once, at the start; g_custom_effects and g_custom_sounds (the options) are
    looked at each time an effect starts, so they switch while playing. */
 #include <stdlib.h>
@@ -277,6 +278,12 @@ static int pick_set(int effect, int critical, int stage, int sound) {
         }
     }
     return -1;
+}
+
+/* Whether the effect plays a sound of its own: the game's hit sound is then left out (battle_script.c) */
+int native_effect_has_sound(int effect, int critical, int stage) {
+    scan_mods();
+    return g_custom_sounds && pick_set(effect, critical, stage, 1) >= 0;
 }
 
 /* An effect starts: its set's sound plays (g_custom_sounds), and its images are returned (g_custom_effects), else -1 */
