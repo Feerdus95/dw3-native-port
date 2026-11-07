@@ -1,0 +1,14 @@
+--- a/src/stgmcard/info.c
++++ b/src/stgmcard/info.c
+@@ -47,6 +47,11 @@
+     } else {
+         windows[0]->setString(windows[0], save, -1);
+         windows[1]->setString(windows[1], FILE_CACHE.load(TEXT_FILE(TEXT_AREA_NAMES)), save->area);
++#ifdef NATIVE
++        if (save->place & 0x100) { /* a menu save's: a field's place (screen.c) */
++            windows[2]->setString(windows[2], FILE_CACHE.load(TEXT_FILE(TEXT_STAGE_NAMES)), save->place & 0xFF);
++        } else
++#endif
+         windows[2]->setString(windows[2], FILE_CACHE.load(TEXT_FILE(TEXT_SHOP_NAMES)), save->place);
+         for (i = 0; i < 2; i++) {
+             windows[i + 3]->setString(windows[i + 3], FILE_CACHE.load(TEXT_FILE(TEXT_MEMORY_CARD)), 0x15);
