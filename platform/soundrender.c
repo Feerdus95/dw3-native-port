@@ -10,6 +10,7 @@
 #include <string.h>
 #include <SDL3/SDL.h>
 #include "platform.h"
+#include "sounds_version.h"
 
 extern int NTSC_MODE;
 
@@ -17,7 +18,7 @@ int g_render_sounds;
 static char s_dir[1024];
 static int s_list[256], s_count;
 static int16_t *s_buf;
-static int s_frames, s_seen, s_quiet;
+static int s_frames, s_seen, s_quiet, s_all;
 
 #define CAPTURE_SECONDS 8
 #define QUIET_LEVEL 16 /* a sample above this is sound */
@@ -40,6 +41,7 @@ int native_render_parse(const char *dir, const char *list) {
         }
         p = end + strspn(end, ", ");
     }
+    s_all = *list == 0;
     for (int i = 1; *list == 0 && i < 0x5A; i++) {
         s_list[s_count++] = i;
     }
@@ -111,5 +113,12 @@ void native_render_end(int index) {
 
 void native_render_done(void) {
     free(s_buf);
+    if (s_all) { /* every sound was tried: the launcher need not render again until SOUNDS_VERSION changes */
+        char path[1200], text[16];
+
+        SDL_snprintf(path, sizeof path, "%s/version.txt", s_dir);
+        SDL_snprintf(text, sizeof text, "%d\n", SOUNDS_VERSION);
+        SDL_SaveFile(path, text, strlen(text));
+    }
     exit(0);
 }

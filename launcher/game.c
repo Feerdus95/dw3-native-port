@@ -1,5 +1,6 @@
 /* Starts the game next to the launcher and hears when it ends. Closing the launcher leaves the game running. */
 #include "launcher.h"
+#include "sounds_version.h"
 
 static SDL_Process *s_game;
 
@@ -58,7 +59,12 @@ static int SDLCALL sounds_thread(void *unused)
 
 void sounds_prepare(void)
 {
-    if (!data_has_file("sounds/1.wav")) {
+    char path[1300];
+    SDL_snprintf(path, sizeof path, "%s/sounds/version.txt", path_data());
+    char *text = SDL_LoadFile(path, NULL);
+    const bool current = text && SDL_atoi(text) == SOUNDS_VERSION;
+    SDL_free(text);
+    if (!current) {
         SDL_DetachThread(SDL_CreateThread(sounds_thread, "sounds", NULL));
     }
 }
