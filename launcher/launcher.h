@@ -47,7 +47,7 @@ enum {
 enum {
     S_TAGLINE, S_FAN,
     S_PLAY, S_PLAY_D, S_SETTINGS, S_SETTINGS_D, S_TOOLS, S_TOOLS_D, S_LANGUAGE, S_LANGUAGE_D, S_QUIT, S_QUIT_D,
-    S_RELEASE, S_RELEASE_D, S_READY, S_DISC_OK, S_VERSION,
+    S_RELEASE, S_RELEASE_D, S_U_CLOSE_GAME, S_READY, S_DISC_OK, S_VERSION,
     S_BROWSE, S_NEED, S_ONCE, S_DROP, S_OR, S_ISO, S_KEYS, S_READING, S_CANCEL,
     S_E_OPEN, S_E_GAME, S_E_BAD, S_E_WRITE, S_E_READ, S_E_TRUNCATED, S_E_CUE, S_E_SPACE, S_SEE_LOG,
     S_DISPLAY, S_GRAPHICS, S_INPUT, S_MODS, S_PLAYABLE, S_RESET, S_RESET_D, S_ON, S_OFF, S_AUTO, S_KEYBOARD,
@@ -136,6 +136,13 @@ void tools_poll(void);
 void tools_shutdown(void);
 int tools_selftest(void);
 
+/* self_update.c: the port's own update, when asked */
+void port_update_activate(void);
+void port_update_poll(void);
+void port_update_shutdown(void);
+void port_cleanup(void); /* the .old programs of the last update */
+bool port_updating(void);
+
 /* release.c: is there a newer port on GitHub? */
 void release_start(bool manual);
 void release_fake(const char *tag);
@@ -143,6 +150,7 @@ bool release_newer(const char *tag, const char *own); /* both exactly v1.2.3, an
 const char *release_tag(void); /* the newer version, or NULL */
 bool release_busy(void);
 void release_url(char *out, int size);
+void release_zip_url(char *out, int size); /* the zip of that version */
 int release_finished_manual(void); /* once after a manual check: a string to show, or -1 */
 int release_selftest(void);
 

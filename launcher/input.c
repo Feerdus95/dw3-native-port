@@ -70,7 +70,6 @@ static void open_credits(void)
 
 static void activate(int id)
 {
-    char url[256];
     switch (id) {
     case S_PLAY: play(); break;
     case S_SETTINGS:
@@ -95,8 +94,7 @@ static void activate(int id)
     case S_QUIT: g_app.quit = true; break;
     case S_RESET: options_reset(); break;
     case S_RELEASE:
-        release_url(url, sizeof url);
-        SDL_OpenURL(url);
+        port_update_activate();
         break;
     case S_BROWSE: first_run_browse(); break;
     case S_VIEWER: tool_activate(0); break;
@@ -300,6 +298,7 @@ bool screens_tick(void)
     int code = 0;
     first_run_poll();
     tools_poll();
+    port_update_poll();
     saves_poll();
     if (game_ended(&code) && code != 0) {
         SDL_snprintf(failed, sizeof failed, L->s[S_GAME_FAILED], code);
@@ -309,13 +308,14 @@ bool screens_tick(void)
     if (message >= 0) {
         g_app.note = L->s[message];
     }
-    return first_run_reading() || game_running() || release_busy() || tools_busy() || saves_busy() || bind_capturing() >= 0;
+    return first_run_reading() || game_running() || release_busy() || tools_busy() || port_updating() || saves_busy() || bind_capturing() >= 0;
 }
 
 /* the settings kept, the disc's reading stopped cleanly; the game, if running, goes on */
 void screens_shutdown(void)
 {
     first_run_wait();
+    port_update_shutdown();
     tools_shutdown();
     if (g_app.screen == SC_SETTINGS) {
         options_save();

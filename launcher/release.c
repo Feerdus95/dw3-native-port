@@ -95,6 +95,11 @@ bool release_busy(void) { return SDL_GetAtomicInt(&s_state) == RUNNING; }
 
 void release_url(char *out, int size) { SDL_snprintf(out, size, "https://github.com/" REPO "/releases/tag/%s", s_tag); }
 
+void release_zip_url(char *out, int size)
+{
+    SDL_snprintf(out, size, "https://github.com/" REPO "/releases/download/%s/dw2003-native-%s.zip", s_tag, s_tag);
+}
+
 int release_finished_manual(void)
 {
     const int state = SDL_GetAtomicInt(&s_state);

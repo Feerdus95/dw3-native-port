@@ -162,6 +162,10 @@ static void launch(int i, const char *exe)
 void tool_activate(int i)
 {
     char exe[1200];
+    if (port_updating()) {
+        g_app.note = L->s[S_T_BUSY];
+        return;
+    }
     if (s_thread) {
         if (i == s_tool) {
             SDL_SetAtomicInt(&s_stop, 1);

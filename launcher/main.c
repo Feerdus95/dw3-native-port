@@ -252,6 +252,7 @@ int main(int argc, char **argv)
     }
     redraw(r);
     SDL_RenderPresent(r);
+    port_cleanup();
     release_start(false);
     SDL_Event e;
     bool closing = false, busy = screens_tick(), was_running = false;
