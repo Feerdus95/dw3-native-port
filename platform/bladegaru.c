@@ -464,7 +464,7 @@ static long find_key(const uint8_t *f, long size, int model, uint32_t *end) {
     uint32_t at = rd32(f + 4);
     long found = -1;
 
-    for (; at + 4 <= (uint32_t)size && (f[at] | f[at + 1] << 8) != 0; at += 4) {
+    for (; (uint64_t)at + 4 <= (uint64_t)size && (f[at] | f[at + 1] << 8) != 0; at += 4) {
         if ((int16_t)(f[at] | f[at + 1] << 8) == model) {
             found = at;
         }
