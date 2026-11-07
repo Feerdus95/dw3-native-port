@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased
+## v0.18.3 (beta)
 
 - **Full EXP Share** (Options, Mods; off by default). Every party partner still standing at the end of a battle gets the full EXP, even if it did not fight, and its selected or used digivolutions the full Digimon EXP; knocked-out partners get neither. Thanks to Zaw Htet Naing (#13, #12).
+- For mod authors: `dw2003.exe --check-mods` lists the Digimon mods in `data/mods/digimon` (loaded, disabled, rejected or skipped, with the reason and any warning) and exits with the number rejected. It prints to standard output, so redirect it to a file (`dw2003.exe --check-mods > mods.txt`).
+- If the game cannot allocate memory at start-up it now says so in a message box and exits, instead of crashing.
+- For builders: `build.py` stops when `dw3_decomp` is not at the commit the port was made against, or has uncommitted changes (`--allow-decomp-mismatch` overrides it); it also fails on a new unimplemented PsyQ function (`tools/stubs.baseline`), records what built it in `build/report.md`, and the repository's tests run on GitHub Actions (`tools/run_tests.py`).
 
 ## v0.18.2 (beta)
 
