@@ -58,7 +58,7 @@ int fetch_unpack(const char *url, const char *tmp)
     /* Windows' own tar, by its full path: the zip's in a folder of plain names, whatever the path above it */
     SDL_SetAtomicInt(&s_phase, P_UNPACK);
     GetSystemDirectoryA(tar, MAX_PATH);
-    SDL_strlcat(tar, "\tar.exe", sizeof tar);
+    SDL_strlcat(tar, "\\tar.exe", sizeof tar); /* a lone "\t" is a tab */
     const char *args[] = {tar, "-xf", "tool.zip", NULL};
     const int code = process_wait(args, tmp);
     SDL_RemovePath(zip);
