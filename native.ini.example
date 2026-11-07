@@ -104,6 +104,11 @@ bladegarurumon = 1
 # partners get neither. The report uses the setting it had when it began.
 full_exp_share = 0
 
+# 1: the field menu gets a SAVE row (before QUIT) to save wherever the player
+# stands, not only at save points; loading puts the player back there. The
+# save has the same format, so it loads with the option off too.
+save_anywhere = 0
+
 # 1: debug keys. F1 the developers' stage select (stages, sound test, test
 # battles), F3 the sound test, F4 the vibration test, F2 the game state to game_<n>.bin, F5 / F9 save / load a state
 # (saves/quick.state, only for this same build)

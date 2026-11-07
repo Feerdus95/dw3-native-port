@@ -159,5 +159,6 @@ const Lang LANG_IT = {
         [O_PACKS] = {"Pacchetti iniziali extra", "Altri tre pacchetti per una nuova partita: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon) e Mystic (Kumamon, Renamon, Veemon)."},
         [O_BLADEGARURUMON] = {"BladeGarurumon", "Un 45° Digimon che ogni partner può imparare, da Growlmon e Grizzmon al livello 40, con modello proprio (creato dal tuo disco), tecniche e firma, Solar Laser. I salvataggi restano memory card standard."},
         [O_FULL_EXP_SHARE] = {"EXP completa per tutti", "Ogni partner ancora in piedi a fine battaglia riceve tutta l'EXP, anche senza aver combattuto, e le sue digievoluzioni scelte o usate tutta l'EXP Digimon. I partner K.O. non ricevono nulla."},
+        [O_SAVE_ANYWHERE] = {"Salva ovunque", "Aggiunge una riga SALVA al menu del campo per salvare dove ti trovi, non solo ai punti di salvataggio. Caricando torni nello stesso punto."},
     },
 };

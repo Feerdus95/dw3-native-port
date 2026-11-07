@@ -13,6 +13,8 @@ int g_ff_speed = 1;  /* fast forward: the game's ticks a frame shown (etc.c); no
 int g_give_form; /* --give ID (main.c) */
 int g_dna_other; /* native.h */
 int g_bladegarurumon = 1; /* bladegarurumon = 0: partners don't learn it (stfgtrep's growth.c) */
+int g_save_anywhere = 0; /* save_anywhere = 1: a SAVE row in the field menu (patches: main/menu/field_menu.c) */
+int g_save_from_menu = 0; /* the memory card screen was opened from that row: it goes back to the field */
 int g_full_exp_share = 0; /* full_exp_share = 1: full rewards for every non-KO party member */
 int g_full_exp_eligible[3]; /* battle-end HP > 0, including partners who stayed on the bench */
 int g_full_exp_report; /* the option captured once when a reward report starts */

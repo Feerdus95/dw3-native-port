@@ -164,6 +164,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Extra starter packs | three more packs to pick in a new game: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon), Mystic (Kumamon, Renamon, Veemon) |
 | BladeGarurumon | a 45th Digimon every partner can learn, with Growlmon and Grizzmon at level 40: its own model (made at start from your disc's), techniques and signature, Solar Laser. Saves stay standard memory cards: its progress sits in the card file's spare space (see *Extra Digimon and your saves*), and an older save is carried over |
 | Full EXP Share | every party partner still above 0 HP at battle end gets the full partner EXP, even if benched; its selected or used digivolutions get full Digimon EXP. Knocked-out partners get neither. Each partner gets the whole reward, not a share, so with three partners the party earns three times the EXP. Off by default |
+| Save anywhere | a SAVE row in the field menu (before QUIT): save wherever you stand, not only at save points, and loading puts you back in the same spot. It uses the game's own memory card screen and the same save format, so the save also loads with the option off. |
 
 `native.ini` can also be written by hand (see `native.ini.example`); every line is optional:
 
@@ -191,6 +192,7 @@ button can be changed in the options menu's Input tab, **Controls**.
     extra_packs = 1      ; 0: only the game's three starter packs
     bladegarurumon = 1   ; 0: partners don't learn BladeGarurumon
     full_exp_share = 0   ; 1: full EXP and Digimon EXP for non-KO party members
+    save_anywhere = 0    ; 1: a SAVE row in the field menu, to save anywhere
                          ; F12 in game saves the picture to screenshots/ by the exe
     debug = 0            ; 1: F1 debug stage select, F3 sound test, F4 vibration test, F2 dump of the game state,
                          ;    F5 / F9 save / load a state (saves/quick.state)

@@ -1,13 +1,17 @@
 --- a/src/main/menu/field_menu.c
 +++ b/src/main/menu/field_menu.c
-@@ -141,6 +141,92 @@
+@@ -141,6 +141,106 @@
  
  s32 FIELD_MENU_SPRITES[6] = { 29, 30, 31, 32, 33, 34 };
  
 +#ifdef NATIVE
-+/* Quit (native.h), the last row: it asks in the title's banner, with three
-+   answers in place of the rows (the title screen, the desktop, cancel).
-+   packs_text: 142 the row, 143 the question, 144-146 the answers */
++/* SAVE (native.h, save_anywhere), the row before Quit: it opens the memory
++   card screen for saving, from where the player stands (GAME.fieldMode,
++   fieldPos and fieldDir, kept when this menu opens, are in the save).
++   Quit, the last row, asks in the title's banner, with three answers in place
++   of the rows (the title screen, the desktop, cancel).
++   packs_text: 142 Quit's row, 143 the question, 144-146 the answers, 147 SAVE */
++#define SAVE_TEXT 147
 +#define QUIT_TEXT 142
 +#define QUIT_ASK_TEXT 143
 +#define QUIT_ANSWER_TEXT 144
@@ -15,6 +19,23 @@
 +static s32 quitAsk;
 +static s32 quitRows; /* the rows the menu had, while it asks */
 +static s32 quitToTitle;
++static s32 saveNow;
++
++/* A row's text: the game's, the journal's, SAVE's or Quit's */
++static void setFieldRow(FieldMenu *task, FieldMenuWindows *win, s32 i) {
++    void *own = (void *)native_packs_text(LANGUAGE);
++
++    if (i == task->count - 1) {
++        win->options[i]->setString(win->options[i], own, QUIT_TEXT);
++    } else if (g_save_anywhere && i == task->count - 2) {
++        win->options[i]->setString(win->options[i], own, SAVE_TEXT);
++    } else if (i == task->extraOption + 5) {
++        win->options[i]->setString(win->options[i], own, 15);
++    } else {
++        win->options[i]->setString(win->options[i], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)),
++                                   FIELD_MENU_OPTIONS[task->extraOption][i]);
++    }
++}
 +
 +/* Shows the question, or the rows again */
 +static void showQuitAsk(FieldMenu *task, FieldMenuWindows *win, s32 ask) {
@@ -38,14 +59,7 @@
 +        win->title->setPos(win->title, 0x98, 0x13);
 +        win->title->setString(win->title, FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)), 0x13);
 +        for (i = 0; i < task->count; i++) {
-+            if (i == task->count - 1) {
-+                win->options[i]->setString(win->options[i], own, QUIT_TEXT);
-+            } else if (i == task->extraOption + 5) {
-+                win->options[i]->setString(win->options[i], own, 15);
-+            } else {
-+                win->options[i]->setString(win->options[i], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)),
-+                                           FIELD_MENU_OPTIONS[task->extraOption][i]);
-+            }
++            setFieldRow(task, win, i);
 +            win->options[i]->setVisible(win->options[i], 1);
 +            win->options[i]->setPalette(win->options[i], i == 2 && task->option2Enabled == 0 ? PALETTE_GREY : PALETTE_WHITE);
 +        }
@@ -93,7 +107,7 @@
  /* Starts the field menu: opens the panels and the windows, with the extra option
     when the player has item 0x192 and option 2 only in a field zone */
  static inline void openFieldMenu(FieldMenu *task, FieldMenuWindows *win) {
-@@ -156,6 +242,19 @@
+@@ -156,6 +256,23 @@
          FIELD_MENU_CHOICE.extra = 0;
      }
      task->count = task->extraOption + 5;
@@ -102,10 +116,14 @@
 +    if (g_journal) {
 +        task->count++;
 +    }
-+    /* then Quit (native.h) */
++    /* then SAVE (save_anywhere) and Quit (native.h) */
++    if (g_save_anywhere) {
++        task->count++;
++    }
 +    task->count++;
 +    quitAsk = 0;
 +    quitToTitle = 0;
++    saveNow = 0;
 +    if (task->cursor > task->count - 1) {
 +        task->cursor = task->count - 1;
 +    }
@@ -113,24 +131,18 @@
      if (getFieldZone() >= 0) {
          task->option2Enabled = 1;
      } else {
-@@ -168,6 +267,16 @@
+@@ -168,6 +285,10 @@
  static inline void showFieldMenuOptions(FieldMenu *task, FieldMenuWindows *win) {
      showPartnerPage(task, win, 1, 1);
      for (task->counter = 0; task->counter < task->count; task->counter++) {
 +#ifdef NATIVE
-+        if (task->counter == task->count - 1) {
-+            win->options[task->counter]->setString(win->options[task->counter], (void *)native_packs_text(LANGUAGE), QUIT_TEXT);
-+            continue;
-+        }
-+        if (task->counter == task->extraOption + 5) {
-+            win->options[task->counter]->setString(win->options[task->counter], (void *)native_packs_text(LANGUAGE), 15);
-+            continue;
-+        }
++        setFieldRow(task, win, task->counter);
++        continue;
 +#endif
          win->options[task->counter]->setString(win->options[task->counter], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)),
                                    FIELD_MENU_OPTIONS[task->extraOption][task->counter]);
      }
-@@ -194,6 +303,16 @@
+@@ -194,6 +315,16 @@
      s32 prev;
      s32 done;
  
@@ -147,7 +159,7 @@
      prev = task->cursor;
      if (PAD_PRESSED(PAD_UP) || PAD_REPEATED(PAD_UP)) {
          if (--task->cursor < 0) {
-@@ -216,6 +335,12 @@
+@@ -216,6 +347,13 @@
          if (task->option2Enabled == 0 && task->cursor == 2) {
              return;
          }
@@ -156,11 +168,24 @@
 +            showQuitAsk(task, win, 1);
 +            return;
 +        }
++        saveNow = g_save_anywhere && task->cursor == task->count - 2;
 +#endif
          done = 1;
          if (GAME.funcs.getMode() == MODE_STATUS) {
              task->step = 1;
-@@ -232,6 +357,9 @@
+@@ -223,6 +361,11 @@
+             task->step = 0;
+         }
+         FIELD_MENU_CHOICE.option = task->cursor;
++#ifdef NATIVE
++        if (saveNow) {
++            task->step = 0; /* the fade, and the memory card screen */
++        }
++#endif
+     } else if (PAD_PRESSED(PAD_TRIANGLE)) {
+         SOUND.playSound(SOUND_MENU_CANCEL);
+         done = 1;
+@@ -232,6 +375,9 @@
              task->step = 1;
          }
      }
@@ -170,7 +195,7 @@
      if (done) {
          startPanel(&task->panels[0], 0);
          startPanel(&task->panels[1], 0);
-@@ -282,6 +410,13 @@
+@@ -282,6 +428,19 @@
          }
          break;
      case 6:
@@ -180,11 +205,17 @@
 +            task->substate++;
 +            break;
 +        }
++        if (saveNow) {
++            g_save_from_menu = 1;
++            GAME.funcs.requestMode(MODE_CONTINUE, (s32)0x80000000);
++            task->substate++;
++            break;
++        }
 +#endif
          if (GAME.funcs.getMode() == MODE_STATUS) {
              GAME.funcs.requestMode(GAME.fieldMode, 0);
          } else {
-@@ -319,6 +454,64 @@
+@@ -319,6 +478,64 @@
      }
  }
  
@@ -249,7 +280,7 @@
  /* Runs the field menu: opens its panels, moves the cursor and switches mode on a choice */
  void updateFieldMenu(FieldMenu *task, FieldMenuWindows *win) {
      SpriteDrawer obj;
-@@ -420,6 +613,13 @@
+@@ -420,6 +637,13 @@
              } else {
                  obj.setScale(ONE, ONE, ONE);
              }

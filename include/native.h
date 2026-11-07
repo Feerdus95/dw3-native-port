@@ -88,6 +88,8 @@ void native_bladegarurumon_setup(void);
 /* Full EXP Share: battle-end eligibility and the option frozen for this report
    (platform/mods.c; WFIGHTMN and STFGTREP patches). */
 extern int g_full_exp_share;
+extern int g_save_anywhere;
+extern int g_save_from_menu;
 extern int g_full_exp_eligible[3];
 extern int g_full_exp_report;
 /* Digimon mods (platform/digimon_mods.c): a folder data/mods/digimon/<name>/digimon.json makes one more Digimon a partner can digivolve into

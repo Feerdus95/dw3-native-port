@@ -1,0 +1,38 @@
+--- a/src/stgmcard/screen.c
++++ b/src/stgmcard/screen.c
+@@ -66,6 +66,12 @@
+         SOUND.stopSound(0x60800000);
+         if (screen->step != 0) {
+             if (screen->loading == 0) {
++#ifdef NATIVE
++                /* from the field menu's SAVE row (native.h): back to the field */
++                if (g_save_from_menu) {
++                    GAME.funcs.requestMode(GAME.fieldMode, 0);
++                } else
++#endif
+                 GAME.funcs.requestMode(GAME.funcs.getPrevMode(), 0);
+             } else {
+                 GAME.funcs.requestMode(MODE_TITLE, 0);
+@@ -74,6 +80,9 @@
+             GAME.funcs.requestMode(GAME.fieldMode, 0);
+         }
+         STGMCARD_funcs.freeBuffers();
++#ifdef NATIVE
++        g_save_from_menu = 0;
++#endif
+         break;
+     }
+ }
+@@ -90,6 +99,12 @@
+     mode = GAME.funcs.getMode() & 0xFF;
+     screen->loading = (u32)GAME.funcs.getModeArg() >> 31 ^ 1;
+     prev = GAME.funcs.getPrevMode();
++#ifdef NATIVE
++    /* from the field menu (STSTATUS) the area is the field's */
++    if (prev == MODE_STATUS) {
++        prev = GAME.fieldMode;
++    }
++#endif
+     for (i = 0; STGMCARD_prevModes[i].mode != 0; i++) {
+         if (STGMCARD_prevModes[i].mode == prev) {
+             screen->area = STGMCARD_prevModes[i].area;
