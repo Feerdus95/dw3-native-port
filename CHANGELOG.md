@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.18.1 (beta)
+
+- Fixed: the launcher's updates (the port's and the tools') never unpacked: the path of Windows' tar had a tab in it, so tar never started. Versions before this one still can't update from the launcher; unpack this release by hand once and they can.
+
 ## v0.18.0 (beta)
 
 - **Digimon mods are checked.** Each `digimon.json` is read by a stricter JSON reader (`platform/json.c`: limits on size and depth, every
