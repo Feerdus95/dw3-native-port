@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.18.6 (beta)
+
+- **An effect's sound replaces the game's hit sound** (v0.18.5 mixed it with the game's). With Custom sounds on and a sound in the effect's folder, only that sound plays; with it off, or no sound in the folder, the game's own plays. A hit that is a result 3 always keeps the game's. WAVs load the first time they are needed, not at start-up, so nothing stalls a hit.
+- `dw2003.exe --render-sounds DIR [list]` plays the game's battle sounds with its own sound code and writes each as `DIR/<index>.wav`, with no window or audio device. The launcher does it for all of them into `data/sounds` after reading the disc, and once at start-up on an install that doesn't have them (or whose `data/sounds/version.txt` is older), in the background. A render that fails is not retried at every start. The model viewer (v0.18.3) uses them for its Original sound buttons.
+
 ## v0.18.5 (beta)
 
 - **Custom effects and Custom sounds** (Options, Mods; on by default). Custom effects plays the battle effects' own images (`data/mods/effects/`) instead of the game's; off plays the game's own. An `effect.json` can also give the folder a sound (`{"sound": {"file": "hit.wav", "volume": 1}}`: a WAV of up to 10 s, any rate or channels, volume 0 to 4) that plays when the effect starts, mixed with the game's own; a folder with only a sound needs no PNGs. Both switch in game and show at the next effect. They are also in `native.ini` and in the launcher's Mods tab.
