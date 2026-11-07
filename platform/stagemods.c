@@ -28,127 +28,6 @@ extern uint8_t GAME[]; /* the game's GameState */
 #define GAME_PLACE 0x44 /* GAME.place, u16: the place that picks a stage's battles */
 int getMode(void);
 
-/* --- a small JSON reader: numbers, strings, arrays and objects (platform.h) --- */
-
-
-static void json_ws(const char **p) {
-    while (**p == ' ' || **p == '\n' || **p == '\r' || **p == '\t') (*p)++;
-}
-
-void json_free(Json *j) {
-    while (j != NULL) {
-        Json *next = j->next;
-        json_free(j->child);
-        free(j->str);
-        free(j->key);
-        free(j);
-        j = next;
-    }
-}
-
-static char *json_string(const char **p) {
-    const char *s = ++*p;
-    size_t n = 0;
-    char *out;
-
-    size_t k = 0;
-
-    while (s[n] != 0 && s[n] != '"') n += s[n] == '\\' && s[n + 1] != 0 ? 2 : 1;
-    out = malloc(n + 1);
-    for (size_t i = 0; i < n; i++) {
-        if (s[i] == '\\') i++; /* \" and \\ as they are */
-        out[k++] = s[i];
-    }
-    out[k] = 0;
-    *p = s + n + (s[n] == '"');
-    return out;
-}
-
-Json *json_value(const char **p) {
-    Json *j = calloc(1, sizeof(Json));
-
-    json_ws(p);
-    if (**p == '[' || **p == '{') {
-        char close = **p == '[' ? ']' : '}';
-        Json **tail = &j->child;
-
-        j->type = **p;
-        (*p)++;
-        for (;;) {
-            char *key = NULL;
-            Json *v;
-
-            json_ws(p);
-            if (**p == close) {
-                (*p)++;
-                break;
-            }
-            if (j->type == '{') {
-                if (**p != '"') goto bad;
-                key = json_string(p);
-                json_ws(p);
-                if (**p != ':') {
-                    free(key);
-                    goto bad;
-                }
-                (*p)++;
-            }
-            if ((v = json_value(p)) == NULL) {
-                free(key);
-                goto bad;
-            }
-            v->key = key;
-            *tail = v;
-            tail = &v->next;
-            json_ws(p);
-            if (**p == ',') (*p)++;
-            else if (**p != close) goto bad;
-        }
-        return j;
-    }
-    if (**p == '"') {
-        j->type = 's';
-        j->str = json_string(p);
-        return j;
-    }
-    if (strncmp(*p, "null", 4) == 0) {
-        *p += 4;
-        return j;
-    }
-    {
-        char *end;
-        j->num = strtod(*p, &end);
-        if (end == *p) goto bad;
-        j->type = 'n';
-        *p = end;
-        return j;
-    }
-bad:
-    json_free(j);
-    return NULL;
-}
-
-Json *json_get(Json *obj, const char *key) {
-    for (Json *c = obj != NULL ? obj->child : NULL; c != NULL; c = c->next) {
-        if (c->key != NULL && strcmp(c->key, key) == 0) return c;
-    }
-    return NULL;
-}
-
-Json *json_at(Json *arr, int i) {
-    Json *c = arr != NULL ? arr->child : NULL;
-    while (c != NULL && i-- > 0) c = c->next;
-    return c;
-}
-
-int json_len(Json *arr) {
-    int n = 0;
-    for (Json *c = arr != NULL ? arr->child : NULL; c != NULL; c = c->next) n++;
-    return n;
-}
-
-int json_int(Json *j) { return j != NULL && j->type == 'n' ? (int)j->num : 0; }
-
 /* --- the tables --- */
 
 /* What the last applied mod allocated: freed when the next field starts */
@@ -338,27 +217,15 @@ static int s_new_mode, s_new_area, s_new_place;
 static char s_new_name[16];
 
 static Json *read_json(const char *path) {
-    FILE *f = fopen(path, "rb");
-    long size;
-    char *text;
-    const char *p;
-    Json *j;
+    JsonInfo info;
+    Json *j = json_load(path, JSON_LIMITS_STAGE, &info);
 
-    if (f == NULL) return NULL;
-    fseek(f, 0, SEEK_END);
-    size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    text = malloc(size + 1);
-    text[fread(text, 1, size, f)] = 0;
-    fclose(f);
-    p = text;
-    j = json_value(&p);
-    free(text);
     if (j != NULL && j->type != '{') {
         json_free(j);
         j = NULL;
+        snprintf(info.msg, sizeof info.msg, "the root isn't an object");
     }
-    if (j == NULL) LOG("stage mod %s: not a JSON object, left out", path);
+    if (j == NULL && !info.unopened) LOG("stage mod %s: left out (%s, line %d)", path, info.msg, info.line);
     return j;
 }
 

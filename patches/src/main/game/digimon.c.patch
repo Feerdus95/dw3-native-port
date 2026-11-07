@@ -12,7 +12,7 @@
      {0x17F, {0x30, 0x2C, 0x29, 0x22, 0x21, 1}, {0x55, 0x7D, 0x50, 0x50, 0x73, 0x64, 0x5F}, {1, 0, 0, 0, 0, 0, 0x35}, 0,
       {0x32, 0xA, 0x14, 0x28, 0x1E}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, 0x64, 0, 8, 0x96, 0x64, 0x55, 0x37, {4, 3, 3, 3, 2, 3}, {2, 5, 2, 2, 4, 3, 3}, {9, 0x14, 0x21, 0x2F, 0x2D}, 1, 1},
      {0x181, {0x38, 0x3A, 0x13, 0x11, 0x31, 1}, {0x50, 0x73, 0x69, 0x78, 0x55, 0x73, 0x3C}, {3, 0, 0, 0, 0, 0, 0x37}, 0,
-@@ -127,9 +131,119 @@
+@@ -127,9 +131,121 @@
              return i;
          }
      }
@@ -91,8 +91,10 @@
 +        *d = DIGIMON_DATA[m->template];
 +        d->id = m->id;
 +        d->nameId = m->name_id;
-+        d->hp = d->hp * m->hp_permille / 1000;
-+        d->mp = d->mp * m->mp_permille / 1000;
++        i = d->hp * m->hp_permille / 1000; /* a byte: a permille that overflows it stops at 255, and 0 would be dead on arrival */
++        d->hp = i < 1 ? 1 : i > 255 ? 255 : i;
++        i = d->mp * m->mp_permille / 1000;
++        d->mp = i < 1 ? 1 : i > 255 ? 255 : i;
 +        for (i = 0; i < 5; i++) {
 +            d->battleStats[i] = m->stats[i];
 +            d->statusResists[i] = m->status[i];

@@ -121,7 +121,18 @@ typedef struct NativeMod {
     int fx[16][2], fx_n; /* effect id -> a file of data/mods, for its techniques' own models */
     char name[24], folder[40];
 } NativeMod;
+/* What the loader made of each folder of data/mods/digimon, in the order of their names (native_mods_report) */
+enum { NATIVE_MOD_LOADED, NATIVE_MOD_DISABLED, NATIVE_MOD_REJECTED, NATIVE_MOD_SKIPPED /* no digimon.json in it */ };
+#define NATIVE_MOD_REPORTS 256 /* the report's room: the folders past it are read all the same, only left out of it (dropped) */
+typedef struct NativeModReport {
+    char folder[64], name[24];
+    int id, fid, status;
+    char reason[192];   /* why it is not loaded: the first thing wrong with it, or what it clashes with */
+    char warnings[192]; /* what is unusual in it, separated by "; " */
+} NativeModReport;
+#define NATIVE_MOD_SCHEMA 1 /* the manifest's "schema_version" this port reads; a manifest without one is 1 */
 void native_mods_load(void);
+const NativeModReport *native_mods_report(int *count, int *dropped);
 const NativeMod *native_mod_at(int k);       /* mod k (id - 472) or NULL */
 const NativeMod *native_mod_by_id(int id);   /* by form id, or NULL */
 const NativeMod *native_mod_for_effect(int id, int *fid); /* the mod with an effect model of its own */

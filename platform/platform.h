@@ -81,21 +81,7 @@ void gl_depth_clear(void); /* a new ordering table: its 3D drawn over what came 
 void gl_refresh(int x, int y, int w, int h); /* the copy from VRAM, after the CPU wrote it */
 void gl_copy(int sx, int sy, int w, int h, int dx, int dy);
 void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw);
-/* A small JSON reader (stagemods.c): numbers, strings, arrays and objects */
-typedef struct Json {
-    int type; /* 'n' number, 's' string, '[' array, '{' object, 0 null */
-    double num;
-    char *str;           /* a string */
-    char *key;           /* an object member's key */
-    struct Json *child;  /* the first item of an array or object */
-    struct Json *next;   /* the next item */
-} Json;
-Json *json_value(const char **p); /* NULL when it isn't JSON */
-void json_free(Json *j);
-Json *json_get(Json *obj, const char *key);
-Json *json_at(Json *arr, int i);
-int json_len(Json *arr);
-int json_int(Json *j);
+#include "json.h" /* the JSON reader (json.c) */
 /* an RGBA image over the copy, from (x0, y0) to (x1, y1), blended by its
    alpha (or added, ADD) inside the drawing area; its texture made in *tex on first use */
 typedef struct {
@@ -279,6 +265,9 @@ void native_bladegarurumon_setup(void);
 const uint8_t *packs_file(int fid, long *size);
 const uint8_t *bladegaru_file(int fid, long *size);
 long native_read_raw(int fid, uint8_t **out); /* files.c: a file on disk whole, malloc'd; its size */
+#define NATIVE_MAX_FIDS 8192 /* the file ids files.c keeps: the disc's, then the field editor's and the mods' */
+int native_disc_file(int fid); /* files.c: data/files/<fid>.bin, a file of the player's disc, is there */
+int native_disk_file(int fid); /* files.c: data/mods/<fid>.bin or the disc's is there (the files options make anew aren't asked) */
 
 /* Platform state that is the console's, saved with the game's in a
    savestate (state.c): it sits in the game's variables' section */

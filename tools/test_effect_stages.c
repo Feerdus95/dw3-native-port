@@ -1,6 +1,6 @@
 /* Which folder of data/mods/effects an effect plays (platform/effects.c), by stage and critical hit, on a tree it makes beside
    the exe. Run from native/ (with SDL3.dll beside the exe):
-   i686-w64-mingw32-clang -Iplatform -Iinclude -I<SDL>/include tools/test_effect_stages.c platform/effects.c -L<SDL>/lib -lSDL3 -o build/test_effect_stages.exe
+   i686-w64-mingw32-clang -Iplatform -Iinclude -I<SDL>/include tools/test_effect_stages.c platform/effects.c platform/json.c -L<SDL>/lib -lSDL3 -o build/test_effect_stages.exe
    build/test_effect_stages.exe */
 #include <assert.h>
 #include <stdio.h>
@@ -20,66 +20,7 @@ int gte_widescreen(void) { return 0; }
 int gl_image_prepare(const struct SDL_Surface *s, unsigned *tex) { *tex = 1; return 1; }
 void gl_image(const struct SDL_Surface *s, unsigned *tex, float x1, float y1, float x2, float y2, int add, int cx1, int cy1, int cx2, int cy2) {}
 
-/* just what effects.c asks of the port's JSON: this test's files are written below, with no strings in the lists */
-static const char *skip(const char *p) { while (*p == ' ' || *p == '\n') p++; return p; }
-Json *json_value(const char **pp) {
-    const char *p = skip(*pp);
-    Json *j = calloc(1, sizeof *j), **tail = &j->child;
-
-    if (*p == '{' || *p == '[') {
-        char close = *p == '{' ? '}' : ']';
-
-        j->type = *p++;
-        for (p = skip(p); *p != close;) {
-            const char *key = NULL;
-            Json *item;
-            size_t len = 0;
-
-            if (j->type == '{') {
-                key = ++p;
-                len = strchr(p, '"') - p;
-                p = skip(key + len + 1) + 1;
-            }
-            *pp = p;
-            item = json_value(pp);
-            p = skip(*pp);
-            if (key) item->key = SDL_strndup(key, len);
-            *tail = item, tail = &item->next;
-            if (*p == ',') p = skip(p + 1);
-        }
-        *pp = p + 1;
-    } else if (*p == '"') {
-        const char *end = strchr(p + 1, '"');
-
-        j->type = 's', j->str = SDL_strndup(p + 1, end - p - 1), *pp = end + 1;
-    } else {
-        char *end;
-
-        j->type = 'n', j->num = strtod(p, &end), *pp = end;
-    }
-    return j;
-}
-void json_free(Json *j) {}
-Json *json_get(Json *o, const char *k) {
-    Json *c;
-
-    for (c = o ? o->child : NULL; c; c = c->next) if (c->key && strcmp(c->key, k) == 0) return c;
-    return NULL;
-}
-Json *json_at(Json *a, int i) {
-    Json *c = a ? a->child : NULL;
-
-    while (c && i-- > 0) c = c->next;
-    return c;
-}
-int json_len(Json *a) {
-    int n = 0;
-    Json *c;
-
-    for (c = a ? a->child : NULL; c; c = c->next) n++;
-    return n;
-}
-int json_int(Json *j) { return j ? (int)j->num : 0; }
+/* the port's JSON reader is linked in (platform/json.c) */
 
 static void put(const char *file, const char *text) {
     char p[800];

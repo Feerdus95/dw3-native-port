@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **Digimon mods are checked.** Each `digimon.json` is read by a stricter JSON reader (`platform/json.c`: limits on size and depth, every
+  allocation checked, real escapes and UTF-8, JSON's number grammar, a name twice in an object refused, `true`/`false`, nothing after the value) and validated: a wrong type, a number out of its
+  field's range, fewer than six techniques, a model that isn't there, isn't a model file or has fewer entries than `subs` asks for, `pair.scripts` past its scripts, a name or help that isn't plain ASCII, a missing English help, or a `fid` that is a file of the
+  game's disc rejects the mod, and the log says why. Folders are read in the order of their names, and mods that clash on id, fusion pair or
+  effect id are all left out. `schema_version`, `author` and `version` are accepted; `enabled` takes `true`/`false`.
+- Fixed: a manifest with fewer than six techniques read outside the techniques table; a `template` out of range and a Digimon's HP/MP above 255 or at 0
+  are now refused or held in the byte they live in.
+- Fixed: the stage mods' files were read without checking the file's size or a failed read.
+- New tests: `tools/test_json.c`, `tools/test_mods.c`; `test_effect_stages` now runs on the real JSON reader.
+
 ## v0.17.8 (beta)
 
 - **The launcher updates the port.** When a newer version is out, the "New version" chip downloads it, installs it over the old files and

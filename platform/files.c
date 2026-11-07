@@ -6,7 +6,7 @@
 #include "platform.h"
 
 #define SECTOR 2048
-#define MAX_FILES 8192 /* the disc's, then the field editor's new ones (3000 on) */
+#define MAX_FILES NATIVE_MAX_FIDS /* the disc's, then the field editor's new ones (3000 on) */
 
 static long s_size[MAX_FILES]; /* bytes; 0 unknown, -1 missing */
 
@@ -47,6 +47,25 @@ static long file_size(int fid) {
     long size;
 
     return made_file(fid, &size) != NULL ? size : disk_size(fid);
+}
+
+int native_disk_file(int fid) {
+    return disk_size(fid) > 0;
+}
+
+int native_disc_file(int fid) {
+    char path[1200];
+    FILE *f;
+
+    if (fid < 0 || fid >= MAX_FILES) {
+        return 0;
+    }
+    snprintf(path, sizeof path, "%s/files/%04d.bin", data_dir(), fid);
+    if ((f = fopen(path, "rb")) == NULL) {
+        return 0;
+    }
+    fclose(f);
+    return 1;
 }
 
 int native_file_exists(int fid) {

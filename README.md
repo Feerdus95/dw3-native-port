@@ -197,10 +197,14 @@ button can be changed in the options menu's Input tab, **Controls**.
 ### Effects' own images (mods)
 
 **Digimon mods.** Any folder `data/mods/digimon/<name>/` with a `digimon.json` adds one more Digimon partners can digivolve into, with no
-change to the port (up to 4 at once). The mod is on while its model, the file `data/mods/<fid>.bin`, is there and `"enabled"` isn't 0;
+change to the port (up to 4 at once). The mod is on while its model, the file `data/mods/<fid>.bin`, is there and `"enabled"` isn't `false` or 0;
 the launcher and `native.ini` have no switch for it. The model and the manifest come from a converter (the model viewer's DW2 tab, or
 `dw2-extractor/flame_dcb.py`, which makes Flamedramon's from your own Digimon World 2 and Digital Card Battle discs), or you write them.
-The manifest holds numbers, strings and arrays (no `true`/`false`):
+The manifest is JSON (numbers, strings, `true`/`false` and lists). Every manifest is checked when the game starts: one that would make
+the game read what isn't there, or holds a number its field can't take, is left out and the reason is written to the log
+(`digimon mod <folder>: rejected, ...`); what is only unusual loads with a `warning`. Two mods that want the same id, the same fusion pair
+or the same effect id are all left out (none wins by the order of the folders). Add `"schema_version": 1` (what a manifest without one is) and, for
+whoever shares it, `"author"` and `"version"`:
 
 - `id` (472, 473, ...: one a mod, it is how a save knows the form), `name` (ASCII), `fid`, `subs` [skeleton, motions, effects], `like` (a
   model whose record gives it cameras and face: 259, ExVeemon), `template` (a Digimon of the game it starts from, 40: MetalGarurumon).
