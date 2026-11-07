@@ -202,6 +202,35 @@ static int open_launcher(void) {
     return 1;
 }
 
+/* --check-mods: what the loader makes of each folder of data/mods/digimon, as the game and the launcher get it from native_mods_report.
+   The exit code is how many were rejected */
+static int check_mods_cli(void) {
+    static const char *const STATUS[] = {"loaded", "disabled", "REJECTED", "skipped"};
+    int n, dropped, bad = 0;
+    const NativeModReport *r = native_mods_report(&n, &dropped);
+
+    for (int i = 0; i < n; i++) {
+        bad += r[i].status == NATIVE_MOD_REJECTED;
+        printf("%-9s %-24s %s", STATUS[r[i].status], r[i].folder, r[i].name);
+        if (r[i].status == NATIVE_MOD_LOADED || r[i].status == NATIVE_MOD_DISABLED) {
+            printf(" (id %d, model %d)", r[i].id, r[i].fid);
+        }
+        printf("\n");
+        if (r[i].reason[0]) {
+            printf("          why: %s\n", r[i].reason);
+        }
+        if (r[i].warnings[0]) {
+            printf("          warning: %s\n", r[i].warnings);
+        }
+    }
+    if (dropped > 0) {
+        printf("%d more folders are not listed here (the report's room is %d)\n", dropped, NATIVE_MOD_REPORTS);
+    }
+    printf("%d folders, %d rejected\n", n + dropped, bad);
+    fflush(stdout);
+    return bad;
+}
+
 int main(int argc, char **argv) {
     const char *env = getenv("DW3_DATA");
 
@@ -245,6 +274,9 @@ int main(int argc, char **argv) {
     }
     native_bladegarurumon_setup(); /* the game's tables as read, then its own */
     native_mods_load(); /* data/mods/digimon/<name>/digimon.json, before the tables take them */
+    if (argc == 2 && SDL_strcmp(argv[1], "--check-mods") == 0) {
+        return check_mods_cli();
+    }
     native_mods_setup();
     native_snapshot_overlays();
     native_fast_travel_setup(); /* the stages' doors, their variables put back */

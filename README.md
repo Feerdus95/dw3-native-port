@@ -249,7 +249,9 @@ ticks each (30 a second).
   helps), and a memory card from just before if you can. Never attach the game's files.
 
 For scripts: `dw2003.exe --extract "path/to/image.cue"` reads the disc without the window, and the `DW3_DATA`
-environment variable points the port at a `data/` elsewhere.
+environment variable points the port at a `data/` elsewhere. `dw2003.exe --check-mods` lists what the loader makes of each
+folder of `data/mods/digimon` (loaded, disabled, rejected and why, warnings) without opening the game; the exit code is
+how many were rejected.
 
 ## Building
 
