@@ -261,14 +261,20 @@ DECOMP_COMMIT = "241649d58b5a6efdff87766a675e00faf5a49851"
 STUB_BASELINE = NATIVE / "tools/stubs.baseline"
 
 
+def decomp_changes():
+    """dw3_decomp's own tracked files changed since its commit (its submodules, m2c and maspsx, are tools, not the code built)."""
+    return run(["git", "-C", DECOMP, "status", "--short", "--untracked-files=no", "--ignore-submodules=all"]).stdout.strip()
+
+
 def provenance(head):
     """What this build was made of, for the report: a bug report says which build it came from."""
     def git(*a, cwd=NATIVE):
         return run(["git", "-C", cwd, *a]).stdout.strip()
     dirty = " (with changes not committed)" if git("status", "--short", "--", ".") else ""
-    flags = "sanitized (-O1, UBSan bounds/null)" if SANITIZE else "-O2 (game IR rewritten first)" if O2 else "-O0"
+    flags = "sanitized (-Os, UBSan bounds/null)" if SANITIZE else "-O2 (game IR rewritten first)" if O2 else "-O0"
     return [f"- dw3-native-port: {git('rev-parse', 'HEAD')[:12] or 'not a git checkout'}{dirty}",
-            f"- dw3_decomp: {head[:12] or 'not a git checkout'}" + ("" if head == DECOMP_COMMIT else f" (the port expects {DECOMP_COMMIT[:12]})"),
+            f"- dw3_decomp: {head[:12] or 'not a git checkout'}" + ("" if head == DECOMP_COMMIT else f" (the port expects {DECOMP_COMMIT[:12]})") +
+            (" (with changes not committed)" if decomp_changes() else ""),
             f"- compiler: {(run([CC, '--version']).stdout.splitlines() or ['unknown'])[0]}",
             f"- SDL: {SDL.parent.name}",
             f"- game code: {flags}"]
@@ -291,11 +297,12 @@ def check_stub_baseline(missing):
 def main():
     clean = "--clean" in sys.argv
     head = run(["git", "-C", DECOMP, "rev-parse", "HEAD"]).stdout.strip()
-    if head != DECOMP_COMMIT:
+    changes = decomp_changes() if head else ""
+    if head != DECOMP_COMMIT or changes:
         if "--allow-decomp-mismatch" not in sys.argv:
-            sys.exit(f"ERROR: incompatible dw3_decomp revision\n\nExpected: {DECOMP_COMMIT}\nFound:    {head or 'not a git checkout'}\n\n"
-                     "Use --allow-decomp-mismatch to override.")
-        print(f"warning: dw3_decomp is at {head[:7] or '?'}, the port was made against {DECOMP_COMMIT[:7]} (see DECOMP_COMMIT)")
+            sys.exit(f"ERROR: incompatible dw3_decomp revision\n\nExpected: {DECOMP_COMMIT}\nFound:    {head or 'not a git checkout'}"
+                     + (f", with changes not committed:\n{changes}" if changes else "") + "\n\nUse --allow-decomp-mismatch to override.")
+        print(f"warning: dw3_decomp is at {head[:7] or '?'}{' with changes' if changes else ''}, the port was made against {DECOMP_COMMIT[:7]} (see DECOMP_COMMIT)")
     if clean and OUT.exists():
         shutil.rmtree(OUT, ignore_errors=True)
     OUT.mkdir(parents=True, exist_ok=True)
