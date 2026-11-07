@@ -7,6 +7,7 @@ static void go(int screen)
 {
     g_app.screen = screen;
     g_app.sel[screen] = 0;
+    g_app.btn = 0;
 }
 
 static void go_home(void)
@@ -26,6 +27,7 @@ static void move_selection(int dir)
         i = (i + dir + n) % n;
     } while (r[i].kind == R_HEADING);
     g_app.sel[g_app.screen] = i;
+    g_app.btn = 0;
 }
 
 void language_set(int lang)
@@ -68,6 +70,16 @@ static void open_credits(void)
     SDL_OpenURL(path);
 }
 
+/* a tool's row: its program, or its update when that button has the focus */
+static void tool_row(int tool)
+{
+    if (tool_update_focus(tool)) {
+        tool_update_activate(tool);
+    } else {
+        tool_activate(tool);
+    }
+}
+
 static void activate(int id)
 {
     switch (id) {
@@ -97,12 +109,11 @@ static void activate(int id)
         port_update_activate();
         break;
     case S_BROWSE: first_run_browse(); break;
-    case S_VIEWER: tool_activate(0); break;
-    case S_EDITOR: tool_activate(1); break;
+    case S_VIEWER: tool_row(0); break;
+    case S_EDITOR: tool_row(1); break;
     case S_FOLDER: SDL_OpenURL(SDL_GetBasePath()); break;
     case S_LOG: open_log(); break;
     case S_CREDITS: open_credits(); break;
-    case S_T_UPDATE: tool_update_activate(); break;
     case S_CHECK:
         if (tools_busy()) { /* the check would write what the download reads */
             g_app.note = L->s[S_T_BUSY];
@@ -162,6 +173,8 @@ void screens_action(int a)
             } else {
                 language_set((g_app.lang + dir + LANGS) % LANGS);
             }
+        } else if (a != A_OK && row_tool(r) >= 0) { /* between the tool's two buttons */
+            g_app.btn = dir > 0 && tool_update_has(row_tool(r));
         } else if (a == A_OK) {
             activate(r->id);
         }
@@ -276,6 +289,9 @@ void screens_mouse(int x, int y, bool clicked)
         return;
     }
     select_row(i);
+    if (row_tool(&r[i]) >= 0) {
+        g_app.btn = tool_update_has(row_tool(&r[i])) && x >= update_button(row_tool(&r[i])).x;
+    }
     if (r[i].kind == R_BIND) {
         bind_slot_set(x >= bind_column(2) ? 2 : x >= bind_column(1) ? 1 : 0);
         if (clicked) {

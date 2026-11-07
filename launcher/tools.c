@@ -15,6 +15,7 @@ static SDL_AtomicInt s_done;
 SDL_AtomicInt s_stop, s_percent, s_phase;
 static int s_tool;
 static char s_image[1200];
+bool s_faked;
 char s_update[TOOLS_COUNT][32];
 static bool s_updating;
 
@@ -219,34 +220,31 @@ int tool_update_index(void)
     return -1;
 }
 
-void tool_update_activate(void)
+bool tool_update_has(int i) { return s_update[i][0] && !release_busy() && !s_thread; }
+
+const char *tool_update_tag(int i) { return s_update[i]; }
+
+bool tool_update_focus(int i) { return g_app.btn && tool_update_has(i); }
+
+void tool_update_activate(int i)
 {
-    const int i = tool_update_index();
-    if (s_thread) {
-        if (s_updating) {
-            SDL_SetAtomicInt(&s_stop, 1);
-        } else {
-            g_app.note = L->s[S_T_BUSY];
-        }
-    } else if (i >= 0) {
+    if (port_updating() || s_thread) {
+        g_app.note = L->s[S_T_BUSY];
+    } else if (s_faked) { /* --fake-tool-update: nothing is downloaded */
+        s_update[i][0] = 0;
+        g_app.btn = 0;
+        g_app.note = L->s[S_T_UPDATED];
+    } else if (s_update[i][0]) {
         s_updating = true;
         start(i, "");
     }
 }
 
-void tool_update_value(char *out, int size)
+void tool_update_fake(const char *tag)
 {
-    const int i = tool_update_index();
-    if (i < 0) {
-        out[0] = 0;
-    } else if (s_thread) {
-        tool_value(i, out, size);
-    } else {
-        SDL_snprintf(out, size, "%s %s", L->s[i == VIEWER ? S_VIEWER : S_EDITOR], s_update[i]);
-    }
+    s_faked = true;
+    SDL_strlcpy(s_update[VIEWER], tag, sizeof s_update[VIEWER]);
 }
-
-void tool_update_fake(const char *tag) { SDL_strlcpy(s_update[VIEWER], tag, sizeof s_update[VIEWER]); }
 
 bool tool_update_now(int i)
 {
@@ -269,6 +267,7 @@ static void finish(void)
         s_update[s_tool][0] = 0;
     }
     s_updating = false;
+    g_app.btn = 0;
     g_app.note = L->s[result];
 }
 

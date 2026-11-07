@@ -1,7 +1,7 @@
 /* --check: every string of every language exists and fits where it is drawn. */
 #include "launcher.h"
 
-enum { DESC_W = SCREEN_W - 48, DESC_LINES = 4, ZONE_W = 340, BUTTON_W = 120, PICKER_W = 60, BOTTOM_W = SCREEN_W - 16, MENU_W = 160, STATUS_W = 224, LABEL_W = 270, TOOL_VALUE_W = 200, BIND_NAME_W = 100 };
+enum { DESC_W = SCREEN_W - 48, DESC_LINES = 4, ZONE_W = 340, BUTTON_W = 120, PICKER_W = 60, BOTTOM_W = SCREEN_W - 16, MENU_W = 160, STATUS_W = 224, LABEL_W = 270, TOOL_VALUE_W = 200, BIND_NAME_W = 100, UPDATE_W = 150 };
 
 static const short DESCRIPTIONS[] = {S_PLAY_D, S_SETTINGS_D, S_TOOLS_D, S_LANGUAGE_D, S_QUIT_D, S_RELEASE_D,
                                      S_RESET_D, S_BACK_D, S_CREDITS_D, S_FOLDER_D, S_LOG_D, S_VIEWER_D, S_EDITOR_D, S_CHECK_D,
@@ -71,6 +71,9 @@ static void check_lang(const Lang *l)
     for (int i = 0; i < (int)SDL_arraysize(BUTTON_NAMES); i++) {
         check_width(l, "button's name", l->s[BUTTON_NAMES[i]], BIND_NAME_W);
     }
+    char button[96];
+    SDL_snprintf(button, sizeof button, "%s v99.99.99", l->s[S_T_UPDATE]);
+    check_width(l, "update button", button, UPDATE_W);
     check_width(l, "column", l->s[S_KEYBOARD], BIND_NAME_W);
     check_width(l, "column", l->s[S_GAMEPAD], BIND_NAME_W);
     check_width(l, "heading", l->s[S_BUTTONS], BIND_NAME_W);

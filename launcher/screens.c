@@ -12,7 +12,6 @@ static const Row HOME_NEWS[] = {ACT(S_PLAY), ACT(S_SETTINGS), ACT(S_SAVES), ACT(
 static const Row SAVES[] = {ACT(S_EXPORT), ACT(S_IMPORT), ACT(S_UNDO), ACT(S_SV_FOLDER), ACT(S_BACK), {R_END}};
 static const Row FIRST_RUN[] = {ACT(S_BROWSE), {R_LANGUAGE}, {R_END}};
 static const Row TOOLS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_LOG), ACT(S_CHECK), ACT(S_CREDITS), ACT(S_BACK), {R_END}};
-static const Row TOOLS_NEWS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_LOG), ACT(S_CHECK), ACT(S_CREDITS), ACT(S_T_UPDATE), ACT(S_BACK), {R_END}};
 /* the Input tab's buttons in the order of the game's Controls page */
 static const Row TABS[4][24] = {
     {OPT(O_FPS), OPT(O_FULLSCREEN), OPT(O_WINDOW), OPT(O_WIDESCREEN), OPT(O_VSYNC), OPT(O_MOVIES), ACT(S_RESET), ACT(S_BACK), {R_END}},
@@ -37,15 +36,32 @@ App g_app;
 
 bool first_run_screen(void) { return s_screen == SC_HOME && s_state != ST_READY; }
 
+int row_tool(const Row *r)
+{
+    return r->kind != R_ACTION ? -1 : r->id == S_VIEWER ? 0 : r->id == S_EDITOR ? 1 : -1;
+}
+
+static void update_label(int tool, char *out, int size)
+{
+    SDL_snprintf(out, size, "%s %s", L->s[S_T_UPDATE], tool_update_tag(tool));
+}
+
+SDL_Rect update_button(int tool)
+{
+    char label[64];
+    const SDL_Rect a = list_rect();
+    update_label(tool, label, sizeof label);
+    const int w = text_width(label, 1) + 12;
+    return (SDL_Rect){a.x + a.w - 6 - w, 0, w, ROW_H - 2};
+}
+
 const Row *rows(void)
 {
     if (s_screen == SC_SETTINGS) {
         return TABS[s_tab];
     }
     if (s_screen == SC_TOOLS) {
-        const Row *r = tool_update_index() >= 0 ? TOOLS_NEWS : TOOLS;
-        s_sel[SC_TOOLS] = SDL_min(s_sel[SC_TOOLS], row_count(r) - 1); /* the update's row goes when it's done */
-        return r;
+        return TOOLS;
     }
     if (s_screen == SC_SAVES) {
         return SAVES;
@@ -156,15 +172,22 @@ static void draw_list(void)
             draw_bind(&r[i], y, sel);
             continue;
         }
-        if (s_screen == SC_TOOLS && (r[i].id == S_VIEWER || r[i].id == S_EDITOR)) {
+        const int tool = row_tool(&r[i]);
+        if (tool >= 0) {
             char value[64];
-            tool_value(r[i].id == S_EDITOR, value, sizeof value);
-            text_right(a.x + a.w - 8, y, sel ? C_GOLD : C_SOFT, value);
-        }
-        if (r[i].id == S_T_UPDATE) {
-            char value[96];
-            tool_update_value(value, sizeof value);
-            text_right(a.x + a.w - 8, y, C_GOLD, value);
+            int right = a.x + a.w - 8;
+            const bool on = sel && g_app.btn && tool_update_has(tool);
+            if (tool_update_has(tool)) {
+                char label[64];
+                const SDL_Rect b = update_button(tool);
+                update_label(tool, label, sizeof label);
+                fill(b.x, y + 1, b.w, ROW_H - 2, C_EDGE);
+                fill(b.x + 1, y + 2, b.w - 2, ROW_H - 4, on ? C_PANEL : C_BG);
+                text(b.x + 6, y, 1, on ? C_GOLD : C_TEXT, label);
+                right = b.x - 8;
+            }
+            tool_value(tool, value, sizeof value);
+            text_right(right, y, sel && !on ? C_GOLD : C_SOFT, value);
         }
         text(a.x + 13, y, 1, sel ? C_GOLD : C_TEXT, r[i].kind == R_OPTION ? L->option[r[i].id].name : L->s[r[i].id]);
         if (r[i].kind == R_OPTION) {
@@ -190,6 +213,7 @@ static void draw_description(void)
                   : r->kind == R_OPTION ? L->option[r->id].desc
                   : r->kind == R_LANGUAGE ? L->s[S_LANGUAGE_D]
                   : r->kind == R_BIND ? L->s[S_BIND_D]
+                  : row_tool(r) >= 0 && g_app.btn && tool_update_has(row_tool(r)) ? L->s[S_T_UPDATE_D]
                   : L->s[r->id + 1];
     const bool home = s_screen == SC_HOME; /* two lines under the team, with room around it */
     const int y = home ? 204 : DESC_Y, h = home ? 28 : DESC_H;

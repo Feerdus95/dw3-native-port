@@ -127,8 +127,10 @@ void tool_activate(int tool);
 void tool_value(int tool, char *out, int size);
 void tools_check(void);        /* blocking: which of those the launcher installed have a newer release */
 int tool_update_index(void);   /* the tool with an update on offer, or being updated, or -1 */
-void tool_update_activate(void);
-void tool_update_value(char *out, int size);
+bool tool_update_has(int tool);   /* its Update button is there to press */
+const char *tool_update_tag(int tool);
+bool tool_update_focus(int tool); /* ...and the focus is on it */
+void tool_update_activate(int tool);
 void tool_update_fake(const char *tag);
 bool tool_update_now(int tool); /* --tool-update: blocking, for the tests */
 bool tools_busy(void);
@@ -166,6 +168,7 @@ typedef struct {
     int scroll; /* the first row in sight of a list too long for its panel */
     bool quit;
     const char *note; /* shown instead of the description until the next move */
+    int btn; /* on a tool's row with an update: 1 when its Update button has the focus */
 } App;
 extern App g_app;
 #define L (LANG_TABLE[g_app.lang])
@@ -176,6 +179,8 @@ int list_first(void);       /* the first in sight, with the selected one kept in
 int bind_column(int slot);  /* where a binding's slot starts on screen */
 SDL_Rect list_rect(void);
 SDL_Rect tab_rect(int tab);
+SDL_Rect update_button(int tool); /* a tool row's Update button: x and width */
+int row_tool(const Row *r);       /* the tool a row opens, or -1 */
 bool first_run_screen(void);
 void screens_draw(void);
 

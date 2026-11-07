@@ -82,6 +82,9 @@ static void stamp_path(int i, char *out, int size)
 void tools_check(void)
 {
     for (int i = 0; i < TOOLS_COUNT; i++) {
+        if (s_faked && i == VIEWER) {
+            continue;
+        }
         char path[1300], folder[1200], own[32] = "v0.0.0", tag[32];
         path_in_root(folder, sizeof folder, TOOLS[i].folder);
         SDL_snprintf(path, sizeof path, "%s/%s", folder, TOOLS[i].exe);
