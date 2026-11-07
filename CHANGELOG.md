@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.18.2 (beta)
+
+- **A Digimon mod's `like` is checked.** It must be a partner of the game's fighters' file (259, ExVeemon's, by default); a mod that points at one that isn't there is rejected and the log says so, where before it loaded and its record was silently left out.
+- The effects' and the stage props' JSON files (`effect.json`, `stages.json`, `props.json`) are read by the same strict reader as the manifests: a name twice, a malformed number, text after the value or a file over 4 MB is now reported in the log, with its line, instead of being let by.
+- Fixed: looking up a fighter in the fighters' file could read outside it when the file's list started at a word near 4 GB.
+
 ## v0.18.1 (beta)
 
 - Fixed: the launcher's updates (the port's and the tools') never unpacked: the path of Windows' tar had a tab in it, so tar never started. Versions before this one still can't update from the launcher; unpack this release by hand once and they can.
