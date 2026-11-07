@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Full EXP Share** (Options, Mods; off by default). Every party partner still standing at the end of a battle gets the full EXP, even if it did not fight, and its selected or used digivolutions the full Digimon EXP; knocked-out partners get neither. Thanks to Zaw Htet Naing (#13, #12).
+
 ## v0.18.2 (beta)
 
 - **A Digimon mod's `like` is checked.** It must be a partner of the game's fighters' file (259, ExVeemon's, by default); a mod that points at one that isn't there is rejected and the log says so, where before it loaded and its record was silently left out.
