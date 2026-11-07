@@ -262,8 +262,11 @@ STUB_BASELINE = NATIVE / "tools/stubs.baseline"
 
 
 def decomp_changes():
-    """dw3_decomp's own tracked files changed since its commit (its submodules, m2c and maspsx, are tools, not the code built)."""
-    return run(["git", "-C", DECOMP, "status", "--short", "--untracked-files=no", "--ignore-submodules=all"]).stdout.strip()
+    """dw3_decomp's own tracked files changed since its commit, and external/psyq_headers (the headers the game is compiled against) moved or changed.
+    The other submodules (m2c, maspsx, decomp-permuter) are the decompilation's tools, not the code built: they are not looked at."""
+    own = run(["git", "-C", DECOMP, "status", "--short", "--untracked-files=no", "--ignore-submodules=all"]).stdout
+    headers = run(["git", "-C", DECOMP, "status", "--short", "--untracked-files=no", "--", "external/psyq_headers"]).stdout
+    return (own + headers).strip()
 
 
 def provenance(head):
