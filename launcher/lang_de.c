@@ -162,5 +162,6 @@ const Lang LANG_DE = {
         [O_SAVE_ANYWHERE] = {"Überall speichern", "Fügt dem Feldmenü eine Zeile SPEICHERN hinzu: speichern, wo du stehst, nicht nur an Speicherpunkten. Beim Laden stehst du wieder dort."},
         [O_CUSTOM_EFFECTS] = {"Eigene Effekte", "Nutzt die eigenen Bilder der 2D-Kampfeffekte (data/mods/effects) statt der des Spiels. Im Spiel umschaltbar."},
         [O_CUSTOM_SOUNDS] = {"Eigene Sounds", "Spielt die Trefferklänge, die Mods Kampfeffekten geben, statt der des Spiels. Im Spiel umschaltbar."},
+        [O_CUSTOM_SCRIPTS] = {"Eigene Skripte", "Spielt die Kampfskripte, die Mods einem Digimon geben, statt der des Spiels. Im Spiel umschaltbar."},
     },
 };

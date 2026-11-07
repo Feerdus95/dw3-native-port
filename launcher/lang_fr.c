@@ -162,5 +162,6 @@ const Lang LANG_FR = {
         [O_SAVE_ANYWHERE] = {"Sauvegarde partout", "Ajoute une ligne SAUVER au menu du terrain pour sauvegarder où vous êtes, pas seulement aux points de sauvegarde. Le chargement vous y ramène."},
         [O_CUSTOM_EFFECTS] = {"Effets perso", "Utilise les images propres des effets 2D de combat (data/mods/effects) au lieu de celles du jeu. Se change en jeu."},
         [O_CUSTOM_SOUNDS] = {"Sons perso", "Joue les sons de coup que les mods donnent aux effets de combat, à la place de ceux du jeu. Se change en jeu."},
+        [O_CUSTOM_SCRIPTS] = {"Scripts perso", "Joue les scripts de combat que les mods donnent à un Digimon, à la place de ceux du jeu. Se change en jeu."},
     },
 };

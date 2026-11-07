@@ -162,5 +162,6 @@ const Lang LANG_EN = {
         [O_SAVE_ANYWHERE] = {"Save anywhere", "Adds a SAVE row to the field menu so you can save wherever you stand, not only at save points. Loading puts you back in the same spot."},
         [O_CUSTOM_EFFECTS] = {"Custom effects", "Plays the 2D battle effects' own images (data/mods/effects) instead of the game's. Switches in game."},
         [O_CUSTOM_SOUNDS] = {"Custom sounds", "Plays the hit sounds mods give to battle effects instead of the game's. Switches in game."},
+        [O_CUSTOM_SCRIPTS] = {"Custom scripts", "Plays the battle scripts mods give to a Digimon (data/mods/scripts) instead of the game's. Switches in game."},
     },
 };

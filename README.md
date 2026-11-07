@@ -167,6 +167,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Save anywhere | a SAVE row in the field menu (before QUIT): save wherever you stand, not only at save points, and loading puts you back in the same spot. It uses the game's own memory card screen and the same save format, so the save also loads with the option off. |
 | Custom effects | on by default: the battle effects' own images (`data/mods/effects/`, see below) play instead of the game's. Off plays the game's own; it switches in game, from the Mods tab, and shows at the next effect |
 | Custom sounds | on by default: the sound an effect's `effect.json` gives (see below) plays instead of the game's hit sound (an effect without one keeps the game's), and so do the sounds of the sound library that replace one of the game's. It switches in game, from the Mods tab |
+| Custom scripts | on by default: the battle scripts of `data/mods/scripts/` (see below) play instead of the game's for the fighters that have one. Off plays the game's own; it switches in game, from the Mods tab |
 
 `native.ini` can also be written by hand (see `native.ini.example`); every line is optional:
 
@@ -253,6 +254,23 @@ replaces (the numbers the model viewer's Effects tab shows beside "Original"), w
 A name is 1 to 32 of `a-z 0-9 _ -`, a file a plain file name of the folder, the volume 0 to 4, a replaced number 1 to 89. A
 sound the game has no number for, a name that isn't in the library or a WAV that can't be read leaves the game's own sound (the log
 says why). It is read when the game starts, each WAV when it first plays, and Custom sounds switches it while the game runs.
+
+**Script mods.** `data/mods/scripts/<fighter>/<script>.json` is the whole battle script of one fighter (the fighter's number and the
+script's position in its archive, as the model viewer's Fighter tab shows them: 5 is the basic attack, 2 a hit reaction, 3 a KO):
+
+    {"schema_version": 1, "commands": [
+      {"op": "model", "who": "own", "do": "motion", "n": 3},
+      {"op": "sound", "sound": "punch", "time": 0, "hit": true},
+      {"op": "effect", "mode": "play", "effect": 2, "at": [0, -384, 5120]},
+      {"op": "wait", "ticks": 10},
+      {"op": "end"}]}
+
+The commands are `hit`, `model`, `effect`, `stage`, `camera`, `effect_model`, `flash`, `sound`, `wait`, `end` and `raw` (one command's
+words, for anything else); `docs/script-and-sound-mods.md` lists their fields. A sound is a name of the sound library, a game sound's
+number (1 to 89) or `"hit"` / `"hit_last"` (the technique's hit sound); `"hit": true` makes a hit of result 3 play the game's own sound
+instead. The numbers a command carries are the words the game stores, as the viewer lists them. A file with anything wrong in it is
+rejected as a whole and the game's script plays (`dw2003.exe --check-mods` and the log say why). The folders are read when the game
+starts, and Custom scripts switches them while the game runs.
 
 Each frame is a PNG and its ticks. The battle counts time in ticks of 1/60 s (on PAL too), so an effect lasts its
 ticks / 60 seconds; the original hit is 11 ticks, 0.18 s. `x`, `y` move the images in screen pixels, `scale` sizes

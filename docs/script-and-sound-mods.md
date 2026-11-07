@@ -1,6 +1,9 @@
 # Sound library and script mods (design draft)
 
-Status: draft for review. Nothing here is implemented. Today a sound belongs to an effect folder
+Status: phases 1 (sound library) and 2 (script mods in the port) are implemented; 3 and 4 are not. Where the port differs from this draft:
+ids of library sounds are the order of `sounds.json` (not by name, nothing stores them), fighter ids in the folder are not checked against
+the game's table, a command's numbers are the words the game stores, and `camera` takes `aim` for the target (tx, ty, tz) as well.
+Today a sound belongs to an effect folder
 (`effects/<id>/effect.json` `"sound"`); that keeps working.
 
 ## Goal

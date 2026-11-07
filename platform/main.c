@@ -177,6 +177,8 @@ static void read_ini(int data_only) {
             g_custom_effects = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "custom_sounds") == 0) {
             g_custom_sounds = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "custom_scripts") == 0) {
+            g_custom_scripts = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "fps") == 0) {
             s_fps60 = atoi(value) == 60;
         } else if (SDL_strcasecmp(key, "icons") == 0) {
@@ -247,6 +249,7 @@ static int check_mods_cli(void) {
         printf("%d more folders are not listed here (the report's room is %d)\n", dropped, NATIVE_MOD_REPORTS);
     }
     printf("%d folders, %d rejected\n", n + dropped, bad);
+    bad += native_scripts_check();
     fflush(stdout);
     return bad;
 }

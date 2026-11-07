@@ -117,6 +117,10 @@ custom_effects = 1
 # are left out. Switches in game, from the Mods tab.
 custom_sounds = 1
 
+# 0: the battle scripts of data/mods/scripts/<fighter>/<script>.json are left
+# out and the game's own run. Switches in game, from the Mods tab.
+custom_scripts = 1
+
 # 1: debug keys. F1 the developers' stage select (stages, sound test, test
 # battles), F3 the sound test, F4 the vibration test, F2 the game state to game_<n>.bin, F5 / F9 save / load a state
 # (saves/quick.state, only for this same build)

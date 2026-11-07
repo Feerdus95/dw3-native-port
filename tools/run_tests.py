@@ -21,7 +21,8 @@ import build  # noqa: E402
 TESTS = {
     "json": ["platform/json.c"],
     "mods": ["platform/digimon_mods.c", "platform/json.c"],
-    "effect_stages": ["platform/effects.c", "platform/clips.c", "platform/soundlib.c", "platform/json.c"],
+    "effect_stages": ["platform/effects.c", "platform/clips.c", "platform/soundlib.c", "platform/scriptmod.c", "platform/json.c"],
+    "scriptmod": ["platform/scriptmod.c", "platform/json.c"],
     "forms": ["platform/forms.c"],
     "memcard_forms": ["platform/memcard.c", "platform/forms.c"],
     "gte": [],

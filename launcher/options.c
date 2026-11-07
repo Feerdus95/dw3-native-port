@@ -31,6 +31,7 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_SAVE_ANYWHERE] = {"save_anywhere", K_BOOL, 0},
     [O_CUSTOM_EFFECTS] = {"custom_effects", K_BOOL, 1},
     [O_CUSTOM_SOUNDS] = {"custom_sounds", K_BOOL, 1},
+    [O_CUSTOM_SCRIPTS] = {"custom_scripts", K_BOOL, 1},
 };
 static const char *const ICON_KEYS[] = {"auto", "ps1", "ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch", "keyboard"};
 static const char *const ICON_NAMES[] = {NULL, "PS1", "PS3", "PS4", "PS5", "Xbox 360", "Xbox One", "Xbox Series", "Switch", NULL};

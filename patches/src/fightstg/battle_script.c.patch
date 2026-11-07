@@ -33,7 +33,7 @@
                  break;
              }
          }
-@@ -503,6 +515,15 @@
+@@ -503,6 +515,22 @@
      s32 sound = *script->pc++;
      s32 time = *script->pc++;
  
@@ -46,10 +46,17 @@
 +        return;
 +    }
 +#endif
++#ifdef NATIVE
++    /* a script mod's sound that gives way to the game's own on a hit of result 3 (scriptmod.c) */
++    if (sound & 0x4000) {
++        sound = script->hits[script->sounds < 3 ? script->sounds : 3] == 3 ? 0x38 : sound & 0x3FFF;
++        script->sounds++;
++    } else
++#endif
      if (sound == 0x62) {
          sound = script->hits[script->sounds] == 3 ? 0x38 : script->sound;
          script->sounds++;
-@@ -550,10 +571,20 @@
+@@ -550,10 +578,27 @@
              script->model = script->enemy != 0 ? 0x10 : 0;
              script->models = TASK_REGISTRY.funcs.find(BATTLE_TASK_MODELS, -1, -1);
              script->fighter = script->models->get(script->models, script->model)->fighter;
@@ -63,14 +70,21 @@
              /* getArchiveEntry gives the entry as a u8 * */
              script->pc = FILE_CACHE.getArchiveEntry(script->index, FILE_CACHE.getEntry(script->archive));
 +#ifdef NATIVE
-+            if (script->index == 12 && g_dna_other != 0) {
-+                script->pc = native_dna_script(script->pc, g_dna_other, RANDOM.next());
++            {
++                /* a mod's script for this fighter plays instead (data/mods/scripts), the DNA fusion's included */
++                const short *mod = native_script_mod(script->fighter, script->index);
++
++                if (mod != NULL) {
++                    script->pc = (s16 *)mod;
++                } else if (script->index == 12 && g_dna_other != 0) {
++                    script->pc = native_dna_script(script->pc, g_dna_other, RANDOM.next());
++                }
 +            }
 +#endif
              if (script->index != 12) {
                  script->nextState(script);
                  break;
-@@ -644,7 +675,15 @@
+@@ -644,7 +689,15 @@
  
  /* Creates a battle script, which plays a technique (FIGHTSTG_updateBattleScript) */
  BattleScript *FIGHTSTG_createBattleScript(void) {

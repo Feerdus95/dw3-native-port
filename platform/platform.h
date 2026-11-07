@@ -275,6 +275,12 @@ void native_clip_play(NativeClip *c);
 void native_sfx_mix(int16_t *buf, int frames);
 int native_sound_replace(int index); /* the sound library's WAV plays in place of the game's battle sound, 1 if so (soundlib.c) */
 void native_soundlib_warm(void);
+int native_sound_id(const char *name); /* a library sound's id for a script mod (0x100 and up), -1 when there is none (soundlib.c) */
+struct Json;
+int native_script_compile(struct Json *root, short *out, char *err, int errsz); /* a script mod's commands as the game's words (scriptmod.c) */
+void native_scripts_scan(void);
+int native_scripts_check(void); /* --check-mods: lists the script files, returns how many are rejected */
+extern int g_custom_scripts; /* custom_scripts = 0: the game's own battle scripts (scriptmod.c) */
 extern int g_save_anywhere; /* save_anywhere = 1: a SAVE row in the field menu (mods.c) */
 extern int g_save_from_menu;
 extern int g_full_exp_share; /* full_exp_share = 1: full rewards for non-KO party members (mods.c) */

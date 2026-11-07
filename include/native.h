@@ -234,6 +234,8 @@ void native_render_done(void);
 int native_effect_has_sound(int effect, int critical, int stage);
 /* the sound library's WAV plays in place of the game's battle sound INDEX (data/mods/sounds): 1 if so, and the game's is left out */
 int native_sound_replace(int index);
+/* the words of fighter FIGHTER's battle script INDEX from data/mods/scripts when a mod has a valid one and Custom scripts is on, else NULL */
+const short *native_script_mod(int fighter, int index);
 /* FIGHTER's stage in data/mods/effects/stages.json: 1 rookie, 2 champion,
    3 ultimate, 4 mega, 0 for one it doesn't list */
 int native_fighter_stage(int fighter);

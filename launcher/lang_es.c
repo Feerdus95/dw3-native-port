@@ -162,5 +162,6 @@ const Lang LANG_ES = {
         [O_SAVE_ANYWHERE] = {"Guardar donde sea", "Añade una fila GUARDAR al menú del campo para guardar donde estés, no solo en los puntos de guardado. Al cargar vuelves al mismo sitio."},
         [O_CUSTOM_EFFECTS] = {"Efectos propios", "Usa las imágenes propias de los efectos 2D de combate (data/mods/effects) en vez de las del juego. Se cambia en el juego."},
         [O_CUSTOM_SOUNDS] = {"Sonidos propios", "Reproduce los sonidos de golpe que los mods dan a los efectos de combate, en vez de los del juego. Se cambia en el juego."},
+        [O_CUSTOM_SCRIPTS] = {"Scripts propios", "Reproduce los scripts de combate que los mods dan a un Digimon, en vez de los del juego. Se cambia en el juego."},
     },
 };

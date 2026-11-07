@@ -144,7 +144,9 @@ int main(void) {
     /* the sound library: a replaced battle sound plays the library's WAV at its volume, the rest are the game's */
     assert(native_sound_replace(57) == 1 && abs(mixed() - 500) < 20);
     assert(abs(mixed() - 500) < 20 && abs(mixed() - 500) < 20 && mixed() == 0);
-    assert(native_sound_replace(56) == 0 && native_sound_replace(0) == 0 && native_sound_replace(999) == 0); /* not replaced, nor a sound of the game */
+    assert(native_sound_replace(56) == 0 && native_sound_replace(0) == 0 && native_sound_replace(200) == 0); /* not replaced, nor a sound of the game */
+    /* a script mod names a library sound by id (0x100 and up): it plays, and is only silent with Custom sounds off */
+    assert(native_sound_id("punch") == 0x100 && native_sound_id("gone") == -1);
     assert(native_sound_replace(58) == 0 && native_sound_replace(59) == 0 && native_sound_replace(60) == 0); /* no file, no such name, a bad name */
     g_custom_sounds = 0;
     assert(native_sound_replace(57) == 0 && mixed() == 0); /* off: the game's sound */
@@ -153,6 +155,9 @@ int main(void) {
     assert(native_sound_replace(57) == 0); /* --render-sounds writes the game's own */
     g_render_sounds = 0;
     assert(native_sound_replace(57) == 1);
+    g_custom_sounds = 0;
+    assert(native_sound_replace(0x100) == 1); /* a script mod's sound is silent, the game has none in its place */
+    g_custom_sounds = 1;
     puts("ok");
     return 0;
 }

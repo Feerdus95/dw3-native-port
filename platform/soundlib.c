@@ -20,6 +20,7 @@ static struct {
 } s_lib[MAX_LIB];
 static int s_lib_count;
 static short s_replace[MAX_INDEX]; /* 1 + the library entry that replaces the sound, 0 for none */
+static char s_used[MAX_LIB];       /* a sound that replaces one, or that a script mod names: read ahead (native_soundlib_warm) */
 
 static int valid_name(const char *name) {
     size_t i, n = strlen(name);
@@ -88,6 +89,7 @@ static void read_library(void) {
             LOG("sounds: %s: sound %ld: no sound named in the library", path, index);
         } else {
             s_replace[index] = (short)(lib + 1);
+            s_used[lib] = 1;
         }
     }
     json_free(root);
@@ -102,9 +104,33 @@ static void scan(void) {
     }
 }
 
-/* The game plays battle sound INDEX: 1 when the library's sound plays in its place, 0 and the game's goes on */
+/* The id a script mod gives the library's sound NAME (0x100 and up, as FIGHTSTG_playBattleSound takes it), -1 when there is none */
+int native_sound_id(const char *name) {
+    int i;
+
+    scan();
+    if ((i = find_name(name)) < 0) {
+        return -1;
+    }
+    s_used[i] = 1;
+    return 0x100 + i;
+}
+
+/* The game plays battle sound INDEX: 1 when the library's sound plays in its place, 0 and the game's goes on. A library sound a script
+   mod names (0x100 and up) is always 1: with Custom sounds off it is silent, there is no game sound in its place */
 int native_sound_replace(int index) {
-    if (g_render_sounds || !g_custom_sounds || index < 1 || index >= MAX_INDEX) {
+    if (g_render_sounds) {
+        return index >= 0x100;
+    }
+    if (index >= 0x100) {
+        index -= 0x100;
+        scan();
+        if (g_custom_sounds && index < s_lib_count && native_clip_ready(&s_lib[index].clip)) {
+            native_clip_play(&s_lib[index].clip);
+        }
+        return 1;
+    }
+    if (!g_custom_sounds || index < 1 || index >= MAX_INDEX) {
         return 0;
     }
     scan();
@@ -115,14 +141,16 @@ int native_sound_replace(int index) {
     return 1;
 }
 
-/* Once a frame from the start, after the effects': the sounds that replace one of the game's are read, one a frame */
+/* Once a frame from the start, after the effects': the sounds that replace one of the game's, or that a script mod names, are read,
+   one a frame */
 void native_soundlib_warm(void) {
-    static int s_index = 1;
+    static int s_index;
 
+    native_scripts_scan();
     scan();
-    for (; s_index < MAX_INDEX; s_index++) {
-        if (s_replace[s_index] != 0 && s_lib[s_replace[s_index] - 1].clip.data == NULL) {
-            native_clip_ready(&s_lib[s_replace[s_index] - 1].clip);
+    for (; s_index < s_lib_count; s_index++) {
+        if (s_used[s_index] && s_lib[s_index].clip.data == NULL) {
+            native_clip_ready(&s_lib[s_index].clip);
             s_index++;
             return;
         }
