@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.17.8 (beta)
+
+- **The launcher updates the port.** When a newer version is out, the "New version" chip downloads it, installs it over the old files and
+  restarts the launcher; settings, saves and data stay. It asks to close the game first and never stops it.
+
 ## v0.17.7 (beta)
 
 - **Digimon mods are folders now.** `data/mods/digimon/<name>/digimon.json` adds a Digimon partners can learn (stats, techniques with
