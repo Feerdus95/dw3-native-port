@@ -202,6 +202,18 @@ static int open_launcher(void) {
     return 1;
 }
 
+void *native_must(void *p, const char *what) {
+    if (p == NULL) {
+        char text[200];
+
+        snprintf(text, sizeof text, "Out of memory (%s). The game can't go on; close other programs and start it again.", what);
+        LOG("%s", text);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Digimon World 2003", text, NULL);
+        exit(1);
+    }
+    return p;
+}
+
 /* --check-mods: what the loader makes of each folder of data/mods/digimon, as the game and the launcher get it from native_mods_report.
    The exit code is how many were rejected */
 static int check_mods_cli(void) {

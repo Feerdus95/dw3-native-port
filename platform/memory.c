@@ -29,9 +29,9 @@ static uint8_t *s_initial[2];
 
 /* The initial values, before the game runs */
 void native_snapshot_overlays(void) {
-    s_initial[0] = malloc(ovl_mode_end - ovl_mode_begin);
+    s_initial[0] = native_must(malloc(ovl_mode_end - ovl_mode_begin), "the mode overlays' variables");
     memcpy(s_initial[0], ovl_mode_begin, ovl_mode_end - ovl_mode_begin);
-    s_initial[1] = malloc(ovl_sub_end - ovl_sub_begin);
+    s_initial[1] = native_must(malloc(ovl_sub_end - ovl_sub_begin), "the stage overlays' variables");
     memcpy(s_initial[1], ovl_sub_begin, ovl_sub_end - ovl_sub_begin);
 }
 

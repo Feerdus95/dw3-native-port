@@ -93,7 +93,7 @@ typedef struct {
 static int split(const uint8_t *b, long size, Blob **out) {
     uint32_t n = size >= 4 ? rd32(b) / 4 : 0, i, from, to;
 
-    *out = calloc(n ? n : 1, sizeof(Blob));
+    *out = native_must(calloc(n ? n : 1, sizeof(Blob)), "a model's entries");
     for (i = 0; i < n; i++) {
         from = rd32(b + 4 * i);
         to = i + 1 < n ? rd32(b + 4 * (i + 1)) : (uint32_t)size;
@@ -114,7 +114,7 @@ static uint8_t *join(const Blob *subs, int n, long *size) {
     for (i = 0; i < n; i++) {
         at += subs[i].n;
     }
-    out = malloc(at);
+    out = native_must(malloc(at), "a model file");
     *size = at;
     at = 4 * n;
     for (i = 0; i < n; i++) {
@@ -139,7 +139,7 @@ typedef struct {
 static void push(Keys *s, int x, int y, int z, int t) {
     if (s->n == s->cap) {
         s->cap = s->cap ? s->cap * 2 : 16;
-        s->k = realloc(s->k, s->cap * sizeof(Key));
+        s->k = native_must(realloc(s->k, s->cap * sizeof(Key)), "a motion's keys");
     }
     s->k[s->n].v[0] = x, s->k[s->n].v[1] = y, s->k[s->n].v[2] = z, s->k[s->n].v[3] = t;
     s->n++;
@@ -175,7 +175,7 @@ static Blob build_track(Keys secs[4]) {
     for (k = 0; k < 4; k++) {
         b.n += 8 * secs[k].n;
     }
-    b.p = malloc(b.n);
+    b.p = native_must(malloc(b.n), "a motion track");
     for (k = 0; k < 4; k++) {
         wr32(b.p + 4 * k, at);
         for (i = 0; i < secs[k].n; i++, at += 8) {
@@ -342,7 +342,7 @@ static uint8_t *build_model(const uint8_t *bgf, long bgsize, const uint8_t *mgf,
     height = (double)t0[0].k[0].v[1] / m0[0].k[0].v[1]; /* the roots' heights, a double */
     scale = height;
     free_keys(t0), free_keys(m0);
-    out = calloc(nb, sizeof(Blob));
+    out = native_must(calloc(nb, sizeof(Blob)), "BladeGarurumon's model");
     memcpy(out, bg, nb * sizeof(Blob));
     for (node = 0; skeleton(bg[BG_SKEL], node, 2) >= 0; node++) {
         int trk = skeleton(bg[BG_SKEL], node, 2);
@@ -393,7 +393,7 @@ static uint8_t *build_model(const uint8_t *bgf, long bgsize, const uint8_t *mgf,
     /* the motions: MetalGarurumon's table, with BladeGarurumon's idle (motion 0)
        and its DNA attack, moved, in place of the signature's segments */
     ev.n = mg[0].n;
-    ev.p = malloc(ev.n);
+    ev.p = native_must(malloc(ev.n), "BladeGarurumon's motions");
     memcpy(ev.p, mg[0].p, ev.n);
     if (rd32(ev.p) + 24 > ev.n || rd32(bg[0].p) + 24 > bg[0].n) {
         goto done;
@@ -433,7 +433,7 @@ static uint8_t *build_model(const uint8_t *bgf, long bgsize, const uint8_t *mgf,
         for (i = 0; i < 18; i++) {
             scripts.n += i == 11 ? code + pad : parts[i].n;
         }
-        scripts.p = calloc(1, scripts.n);
+        scripts.p = native_must(calloc(1, scripts.n), "BladeGarurumon's scripts");
         for (i = 0; i < 18; i++) {
             wr32(scripts.p + 4 * i, at);
             if (i == 11) {
@@ -484,7 +484,7 @@ static uint8_t *insert_record(const uint8_t *f, long size, long *out_size, int m
         return NULL;
     }
     *out_size = size + 4 + RECORD;
-    out = malloc(*out_size);
+    out = native_must(malloc(*out_size), "the fighters' file");
     memcpy(out, f, end);
     out[end] = (uint8_t)model, out[end + 1] = model >> 8, out[end + 2] = (uint8_t)n_player, out[end + 3] = (uint8_t)kind;
     memcpy(out + end + 4, f + end, o3 - end);
@@ -738,7 +738,7 @@ static uint8_t *with_strings(int fid, const Add *add, int n_add, long *size) {
         return NULL;
     }
     room += (uint32_t)fsize + 4 * count + 2 + count;
-    out = calloc(1, room + 2048);
+    out = native_must(calloc(1, room + 2048), "a text file");
     wr32(out, count);
     at = 4 + 4 * count;
     for (i = 0; i < count; i++) {

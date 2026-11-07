@@ -262,6 +262,9 @@ extern int g_bladegarurumon; /* bladegarurumon = 0: partners don't learn it (mod
 /* a file an option makes anew, whole, or NULL for the game's (mods.c; packs.c, bladegaru.c) */
 const uint8_t *made_file(int fid, long *size);
 void native_bladegarurumon_setup(void);
+/* An allocation the game can't go on without (the overlays' first values, BladeGarurumon's and the mods' files, built once): P, or a message box
+   saying what ran out and the exit (main.c). What can fall back (an image, a cache) checks its NULL and does */
+void *native_must(void *p, const char *what);
 #define NATIVE_FIGHTERS_FILE 0x1CC /* SMDLDATA.PRO: the fighters, with the partners' records */
 int native_fighter_has_record(const unsigned char *f, long size, int model); /* bladegaru.c: MODEL is a partner of that file (a mod's "like") */
 const uint8_t *packs_file(int fid, long *size);
