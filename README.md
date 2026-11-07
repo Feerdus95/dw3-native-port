@@ -165,6 +165,8 @@ button can be changed in the options menu's Input tab, **Controls**.
 | BladeGarurumon | a 45th Digimon every partner can learn, with Growlmon and Grizzmon at level 40: its own model (made at start from your disc's), techniques and signature, Solar Laser. Saves stay standard memory cards: its progress sits in the card file's spare space (see *Extra Digimon and your saves*), and an older save is carried over |
 | Full EXP Share | every party partner still above 0 HP at battle end gets the full partner EXP, even if benched; its selected or used digivolutions get full Digimon EXP. Knocked-out partners get neither. Each partner gets the whole reward, not a share, so with three partners the party earns three times the EXP. Off by default |
 | Save anywhere | a SAVE row in the field menu (before QUIT): save wherever you stand, not only at save points, and loading puts you back in the same spot. It uses the game's own memory card screen and the same save format, so the save also loads with the option off. |
+| Custom effects | on by default: the battle effects' own images (`data/mods/effects/`, see below) play instead of the game's. Off plays the game's own; it switches in game, from the Mods tab, and shows at the next effect |
+| Custom sounds | on by default: the sound an effect's `effect.json` gives (see below) plays with the game's own. It switches in game, from the Mods tab |
 
 `native.ini` can also be written by hand (see `native.ini.example`); every line is optional:
 
@@ -193,6 +195,8 @@ button can be changed in the options menu's Input tab, **Controls**.
     bladegarurumon = 1   ; 0: partners don't learn BladeGarurumon
     full_exp_share = 0   ; 1: full EXP and Digimon EXP for non-KO party members
     save_anywhere = 0    ; 1: a SAVE row in the field menu, to save anywhere
+    custom_effects = 1   ; 0: the game's own effect images, not data/mods/effects'
+    custom_sounds = 1    ; 0: no effect sounds from data/mods/effects
                          ; F12 in game saves the picture to screenshots/ by the exe
     debug = 0            ; 1: F1 debug stage select, F3 sound test, F4 vibration test, F2 dump of the game state,
                          ;    F5 / F9 save / load a state (saves/quick.state)
@@ -229,7 +233,13 @@ it, each with its own `effect.json` and `critical/`, and `data/mods/effects/stag
 
 A partner plays its level's images, else the nearest lower level's, else the base ones, else the original; one the file
 doesn't list, and every enemy, plays the base ones. In each folder a critical hit plays its `critical/`, else the plain
-images. `"active": 0` in an `effect.json` leaves that folder out. The folders are read when the game starts. Effect 2 is
+images. `"active": 0` in an `effect.json` leaves that folder out. An effect.json can also give the folder a sound,
+played when the effect starts and mixed with the game's own (a folder with only this needs no PNGs):
+
+    {"sound": {"file": "hit.wav", "volume": 1}}
+
+`file` is a WAV of the folder (any rate or channels; up to 10 s) and `volume` goes from 0 to 4. The Mods tab's Custom effects
+and Custom sounds switch the images and the sounds while the game runs. The folders are read when the game starts. Effect 2 is
 the Fight command's hit. The ids are the model viewer's Effects tab's, which also does all of this for you: it imports the
 PNGs, plays them, sets the levels and writes the folder's `effect.json`:
 

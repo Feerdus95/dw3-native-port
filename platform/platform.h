@@ -260,6 +260,9 @@ extern int g_journal;       /* journal = 1: the field menu's journal row (mods.c
 extern int g_fast_travel;   /* fast_travel = 1: X on the map screen travels there (mods.c) */
 extern int g_extra_packs;   /* extra_packs = 0: the starter choice has the game's three (packs.c) */
 extern int g_bladegarurumon; /* bladegarurumon = 0: partners don't learn it (mods.c) */
+extern int g_custom_effects; /* custom_effects = 0: no effect images of data/mods/effects (effects.c) */
+extern int g_custom_sounds; /* custom_sounds = 0: no effect sounds of data/mods/effects (effects.c) */
+void native_sfx_mix(int16_t *buf, int frames); /* the effect sounds playing, added to the vsync's mix (effects.c) */
 extern int g_save_anywhere; /* save_anywhere = 1: a SAVE row in the field menu (mods.c) */
 extern int g_save_from_menu;
 extern int g_full_exp_share; /* full_exp_share = 1: full rewards for non-KO party members (mods.c) */

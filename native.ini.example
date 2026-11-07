@@ -109,6 +109,14 @@ full_exp_share = 0
 # save has the same format, so it loads with the option off too.
 save_anywhere = 0
 
+# 0: the battle effects' own images (data/mods/effects/<id>/*.png) are left
+# out and the game's play. Switches in game, from the Mods tab.
+custom_effects = 1
+
+# 0: the effects' own sounds (the "sound" of data/mods/effects/<id>/effect.json)
+# are left out. Switches in game, from the Mods tab.
+custom_sounds = 1
+
 # 1: debug keys. F1 the developers' stage select (stages, sound test, test
 # battles), F3 the sound test, F4 the vibration test, F2 the game state to game_<n>.bin, F5 / F9 save / load a state
 # (saves/quick.state, only for this same build)

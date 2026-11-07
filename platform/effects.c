@@ -11,7 +11,12 @@
    each frame a PNG and its ticks (1/60 s, as the battle counts), the images
    moved by (x, y) screen pixels and scaled, blended by their alpha or added
    ("add"); "active": 0 leaves the folder out. Without it, every PNG in their
-   names' order, 2 ticks each. The folders are read once, at the start. */
+   names' order, 2 ticks each. A folder may also carry a sound, played when the
+   effect starts (a folder with only that has no PNGs):
+     "sound": {"file": "hit.wav", "volume": 1}
+   a WAV of the folder, mixed with the game's own sound. The folders are read
+   once, at the start; g_custom_effects and g_custom_sounds (the options) are
+   looked at each time an effect starts, so they switch while playing. */
 #include <stdlib.h>
 #include <string.h>
 #include <SDL3/SDL.h>
@@ -22,6 +27,10 @@
 #define MAX_STAGED 512
 static const char *const STAGES[] = {"", "rookie", "champion", "ultimate", "mega"};
 #define STAGE_COUNT 5
+#define SFX_VOICES 8
+#define SFX_MAX_FRAMES (AUDIO_RATE * 10)
+int g_custom_effects = 1;
+int g_custom_sounds = 1;
 static struct {
     int effect, critical, stage;
     int images; /* PNGs, in their names' order */
@@ -32,7 +41,14 @@ static struct {
     short image[MAX_FRAMES], end[MAX_FRAMES];
     float x, y, scale;
     int add;
+    int16_t *snd; /* its sound, stereo at AUDIO_RATE */
+    int snd_frames;
+    int snd_vol; /* 256 = as it is */
 } s_sets[MAX_SETS];
+static struct {
+    const int16_t *data;
+    int frames, pos, vol;
+} s_voice[SFX_VOICES];
 static int s_count;
 static struct {
     short fighter, stage;
@@ -41,6 +57,37 @@ static int s_staged_count;
 
 static int by_name(const void *a, const void *b) {
     return strcmp(*(char *const *)a, *(char *const *)b);
+}
+
+/* FILE (a WAV in DIR) as SET's sound, at AUDIO_RATE stereo; VOL is the JSON's volume or NULL */
+static void load_sound(int set, const char *dir, const char *file, const Json *vol) {
+    char path[1200];
+    SDL_AudioSpec src, dst = {SDL_AUDIO_S16, 2, AUDIO_RATE};
+    Uint8 *raw = NULL, *out = NULL;
+    Uint32 raw_len = 0;
+    int out_len = 0;
+
+    if (strchr(file, '/') != NULL || strchr(file, '\\') != NULL || strstr(file, "..") != NULL) {
+        LOG("effects: %s: sound %s is not a file of the folder", dir, file);
+        return;
+    }
+    SDL_snprintf(path, sizeof path, "%s/%s", dir, file);
+    if (!SDL_LoadWAV(path, &src, &raw, &raw_len)) {
+        LOG("effects: %s: %s", path, SDL_GetError());
+        return;
+    }
+    if (SDL_ConvertAudioSamples(&src, raw, (int)raw_len, &dst, &out, &out_len) && out_len >= 4) {
+        s_sets[set].snd_frames = SDL_min(out_len / 4, SFX_MAX_FRAMES);
+        s_sets[set].snd = (int16_t *)out;
+        s_sets[set].snd_vol = 256;
+        if (vol != NULL && vol->type == 'n' && vol->num >= 0 && vol->num <= 4) {
+            s_sets[set].snd_vol = (int)(vol->num * 256);
+        }
+    } else {
+        LOG("effects: %s: %s", path, SDL_GetError());
+        SDL_free(out);
+    }
+    SDL_free(raw);
 }
 
 /* The folder's effect.json, into SET's frames; 0 without one */
@@ -79,7 +126,13 @@ static int read_json(int set, const char *dir) {
     if ((v = json_get(root, "y")) != NULL && v->type == 'n') s_sets[set].y = (float)v->num;
     if ((v = json_get(root, "scale")) != NULL && v->type == 'n' && v->num > 0) s_sets[set].scale = (float)v->num;
     if ((v = json_get(root, "blend")) != NULL && v->type == 's') s_sets[set].add = SDL_strcmp(v->str, "add") == 0;
-    if ((v = json_get(root, "active")) != NULL && v->type == 'n' && v->num == 0) s_sets[set].frames = 0;
+    if ((v = json_get(root, "sound")) != NULL && (v = json_get(v, "file")) != NULL && v->type == 's') {
+        load_sound(set, dir, v->str, json_get(json_get(root, "sound"), "volume"));
+    }
+    if ((v = json_get(root, "active")) != NULL && v->type == 'n' && v->num == 0) {
+        s_sets[set].frames = 0;
+        s_sets[set].snd_frames = 0;
+    }
     json_free(root);
     return 1;
 }
@@ -103,7 +156,8 @@ static void load_set(int effect, int stage, int critical) {
 
     SDL_snprintf(dir, sizeof dir, "%s/mods/effects/%d%s%s%s", data_dir(), effect, stage ? "/" : "", STAGES[stage], critical ? "/critical" : "");
     names = SDL_GlobDirectory(dir, "*.png", SDL_GLOB_CASEINSENSITIVE, &n);
-    if (names == NULL || n == 0) {
+    SDL_snprintf(path, sizeof path, "%s/effect.json", dir);
+    if (names == NULL || (n == 0 && !SDL_GetPathInfo(path, NULL))) { /* no PNGs, nor a sound's folder */
         SDL_free(names);
         return;
     }
@@ -208,23 +262,68 @@ int native_fighter_stage(int fighter) {
     return 0;
 }
 
-/* STAGE's images, else (no folder, or one left out) the nearest lower stage's and at last the base ones: in each, a critical hit's
-   if they are there, else the plain ones */
-int native_effect_images(int effect, int critical, int stage, int *ticks) {
+/* STAGE's set, else (no folder, or one left out) the nearest lower stage's and at last the base one: in each, a critical hit's
+   if it is there, else the plain one. A set counts when it has images, or a sound if SOUND */
+static int pick_set(int effect, int critical, int stage, int sound) {
     int s, c;
 
-    scan_mods();
     for (s = stage >= 0 && stage < STAGE_COUNT ? stage : 0; s >= 0; s--) {
         for (c = critical != 0; c >= 0; c--) {
             int set = find_set(effect, s, c);
 
-            if (set >= 0 && s_sets[set].frames > 0) {
-                *ticks = s_sets[set].end[s_sets[set].frames - 1];
+            if (set >= 0 && (sound ? s_sets[set].snd_frames > 0 : s_sets[set].frames > 0)) {
                 return set;
             }
         }
     }
     return -1;
+}
+
+/* An effect starts: its set's sound plays (g_custom_sounds), and its images are returned (g_custom_effects), else -1 */
+int native_effect_images(int effect, int critical, int stage, int *ticks) {
+    int set;
+
+    scan_mods();
+    if (g_custom_sounds && (set = pick_set(effect, critical, stage, 1)) >= 0) {
+        int v;
+
+        for (v = 0; v < SFX_VOICES && s_voice[v].data != NULL; v++) {
+        }
+        if (v < SFX_VOICES) {
+            s_voice[v].data = s_sets[set].snd;
+            s_voice[v].frames = s_sets[set].snd_frames;
+            s_voice[v].pos = 0;
+            s_voice[v].vol = s_sets[set].snd_vol;
+        }
+    }
+    if (!g_custom_effects || (set = pick_set(effect, critical, stage, 0)) < 0) {
+        return -1;
+    }
+    *ticks = s_sets[set].end[s_sets[set].frames - 1];
+    return set;
+}
+
+/* Adds the playing sounds to BUF, FRAMES stereo frames (audio.c, each vsync) */
+void native_sfx_mix(int16_t *buf, int frames) {
+    int v, i;
+
+    for (v = 0; v < SFX_VOICES; v++) {
+        if (s_voice[v].data == NULL) {
+            continue;
+        }
+        for (i = 0; i < frames && s_voice[v].pos < s_voice[v].frames; i++, s_voice[v].pos++) {
+            int k;
+
+            for (k = 0; k < 2; k++) {
+                int m = buf[i * 2 + k] + (s_voice[v].data[s_voice[v].pos * 2 + k] * s_voice[v].vol >> 8);
+
+                buf[i * 2 + k] = (int16_t)SDL_clamp(m, -32768, 32767);
+            }
+        }
+        if (s_voice[v].pos >= s_voice[v].frames) {
+            s_voice[v].data = NULL;
+        }
+    }
 }
 
 /* Once a frame from the start: every effect folder of the mod is read the first time (the game's start, behind its

@@ -11,6 +11,7 @@
 
 int native_effect_images(int effect, int critical, int stage, int *ticks);
 int native_fighter_stage(int fighter);
+void native_sfx_mix(int16_t *buf, int frames);
 
 static char s_root[512];
 const char *data_dir(void) { return s_root; }
@@ -50,6 +51,35 @@ static int played(int effect, int critical, int stage) {
     return native_effect_images(effect, critical, stage, &ticks) < 0 ? 0 : ticks;
 }
 
+/* a folder with a sound only: a 0.1 s mono 22.05 kHz WAV of a constant 1000 */
+static void sound(const char *dir) {
+    unsigned char w[44 + 2205 * 2] = {'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ', 16, 0, 0, 0, 1, 0, 1, 0, 0x22, 0x56, 0, 0,
+                                      0x44, 0xAC, 0, 0, 2, 0, 16, 0, 'd', 'a', 't', 'a', 0x3A, 0x11, 0, 0};
+    char p[800];
+    int i;
+
+    for (i = 0; i < 2205; i++) {
+        w[44 + i * 2] = 1000 & 0xFF;
+        w[45 + i * 2] = 1000 >> 8;
+    }
+    SDL_snprintf(p, sizeof p, "%s/%s", s_root, dir);
+    assert(SDL_CreateDirectory(p));
+    SDL_snprintf(p, sizeof p, "%s/hit.wav", dir);
+    SDL_snprintf(p, sizeof p, "%s/%s/hit.wav", s_root, dir);
+    assert(SDL_SaveFile(p, w, sizeof w));
+    SDL_snprintf(p, sizeof p, "%s/effect.json", dir);
+    put(p, "{\"sound\": {\"file\": \"hit.wav\", \"volume\": 0.5}}");
+}
+
+/* the mix of one vsync's worth of frames: the left sample of its frame 1000 */
+static int mixed(void) {
+    static int16_t buf[1470 * 2];
+
+    memset(buf, 0, sizeof buf);
+    native_sfx_mix(buf, 1470);
+    return buf[1000 * 2];
+}
+
 int main(void) {
     SDL_snprintf(s_root, sizeof s_root, "%sdw3_test_effect_stages", SDL_GetBasePath());
     SDL_RemovePath(s_root); /* a tree of an earlier run stays: it is rewritten */
@@ -60,6 +90,7 @@ int main(void) {
     art("mods/effects/3/champion", 40, "");
     art("mods/effects/4", 50, "");
     art("mods/effects/4/champion", 60, ", \"active\": 0");
+    sound("mods/effects/6");
     put("mods/effects/stages.json", "{\"rookie\": [3], \"champion\": [5, 19]}");
 
     assert(native_fighter_stage(3) == 1 && native_fighter_stage(5) == 2 && native_fighter_stage(19) == 2);
@@ -76,6 +107,17 @@ int main(void) {
     assert(played(3, 0, 2) == 40);
     assert(played(4, 0, 2) == 50); /* "active": 0 leaves it out */
     assert(played(5, 0, 2) == 0 && played(2, 0, 99) == 10);
+
+    /* the options: effects and sounds switch while the exe runs, each at its own start */
+    assert(played(6, 0, 0) == 0 && abs(mixed() - 500) < 20); /* a sound only: no images, a sound at half volume (22.05 -> 44.1 kHz) */
+    assert(abs(mixed() - 500) < 20 && abs(mixed() - 500) < 20 && mixed() == 0); /* 0.1 s is 3 vsyncs of 1470 frames, then it ends */
+    g_custom_sounds = 0;
+    assert(played(6, 0, 0) == 0 && mixed() == 0);
+    g_custom_sounds = 1;
+    g_custom_effects = 0;
+    assert(played(2, 0, 0) == 0 && played(3, 0, 2) == 0); /* the game's own images */
+    g_custom_effects = 1;
+    assert(played(2, 0, 0) == 10);
     puts("ok");
     return 0;
 }

@@ -173,6 +173,10 @@ static void read_ini(int data_only) {
             g_full_exp_share = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "save_anywhere") == 0) {
             g_save_anywhere = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "custom_effects") == 0) {
+            g_custom_effects = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "custom_sounds") == 0) {
+            g_custom_sounds = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "fps") == 0) {
             s_fps60 = atoi(value) == 60;
         } else if (SDL_strcasecmp(key, "icons") == 0) {

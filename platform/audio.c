@@ -42,6 +42,7 @@ void audio_vblank(int rate) {
         frames = frames < base / 2 ? base / 2 : frames > base * 2 ? base * 2 : frames;
     }
     spu_render(buf, frames);
+    native_sfx_mix(buf, frames);
     if (g_log & LOG_SND) {
         static int count;
         int n, env, active = 0, rel = 0;
