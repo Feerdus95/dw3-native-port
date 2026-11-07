@@ -84,6 +84,11 @@ const void *native_packs_text(int language);
 #define NATIVE_SOLAR_LASER 444 /* its signature: a technique past the game's 443 */
 extern int g_bladegarurumon;
 void native_bladegarurumon_setup(void);
+/* Full EXP Share: battle-end eligibility and the option frozen for this report
+   (platform/mods.c; WFIGHTMN and STFGTREP patches). */
+extern int g_full_exp_share;
+extern int g_full_exp_eligible[3];
+extern int g_full_exp_report;
 /* Digimon mods (platform/digimon_mods.c): a folder data/mods/digimon/<name>/digimon.json makes one more Digimon a partner can digivolve into
    (Flamedramon is the first). Its model is the file FID of data/mods; the mod is on only while that file is there and "enabled" isn't 0.
    A mod's id is its own (472 on, one number a mod, the number of its form in a save), and from it the rest follows: its DIGIMON_DATA entry

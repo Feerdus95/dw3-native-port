@@ -1,0 +1,30 @@
+--- a/src/stfgtrep/report.c
++++ b/src/stfgtrep/report.c
+@@ -296,6 +296,9 @@
+         switch (report->substate) {
+         case 0:
+         default:
++#ifdef NATIVE
++            g_full_exp_report = g_full_exp_share; /* one reward rule for the whole report */
++#endif
+             STFGTREP_funcs.loadFiles();
+             report->substate++;
+             break;
+@@ -334,6 +337,17 @@
+                 break;
+             }
+             for (i = 0; i < report->count; i++) {
++#ifdef NATIVE
++                if (g_full_exp_report) {
++                    s32 full = g_full_exp_eligible[i] ? STFGTREP_rewards[BATTLE_RESULT.battle].exp : 0;
++
++                    children->partners[i] = STFGTREP_createPartner(report, i, full);
++                    if (full != 0) {
++                        report->exp[i] = children->partners[i]->boostExp(children->partners[i]);
++                    }
++                    continue;
++                }
++#endif
+                 if (BATTLE_RESULT.partners[i].fought != 0) {
+                     children->partners[i] = STFGTREP_createPartner(report, i, exp);
+                     report->exp[i] = children->partners[i]->boostExp(children->partners[i]);
