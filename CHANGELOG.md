@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.18.0 (beta)
 
 - **Digimon mods are checked.** Each `digimon.json` is read by a stricter JSON reader (`platform/json.c`: limits on size and depth, every
   allocation checked, real escapes and UTF-8, JSON's number grammar, a name twice in an object refused, `true`/`false`, nothing after the value) and validated: a wrong type, a number out of its
