@@ -19,6 +19,7 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_BATTLE_SHADOWS] = {"battle_shadows", K_BOOL, 1},
     [O_BATTLE_SKY] = {"battle_sky", K_BOOL, 0},
     [O_INACTIVE] = {"inactive_window", K_FOCUS, 0, 0, 2, 1},
+    [O_SKIP_START] = {"skip_press_start", K_BOOL, 0},
     [O_ICONS] = {"icons", K_ICONS, 4, 0, 9, 1},
     [O_RUMBLE] = {"rumble", K_BOOL, 1},
     [O_DEADZONE] = {"deadzone", K_PERCENT, 10, 0, 50, 5},

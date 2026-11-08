@@ -155,6 +155,7 @@ const Lang LANG_DE = {
         [O_ICONS] = {"Tastensymbole", "Die Symbole in Menüs und Texten, von Xelu. Auto folgt der zuletzt benutzten Tastatur oder dem Gamepad."},
         [O_RUMBLE] = {"Vibration", "Die Vibration des Gamepads."},
         [O_DEADZONE] = {"Stick-Totzone", "Wie weit sich Sticks und Trigger bewegen, bevor sie zählen."},
+        [O_SKIP_START] = {"PRESS START überspringen", "Der Titelbildschirm zeigt Neues Spiel und Fortsetzen sofort, ohne auf Start zu warten."},
         [O_FAST_TEXT] = {"Schneller Text (X halten)", "X halten lässt Dialoge weiterlaufen, ohne bei jeder Zeile zu drücken, außer in Kämpfen und Kartenspielen, wo X Befehle bestätigt. Nach Dmw2003FastText von markisha64."},
         [O_FAST_TRAVEL] = {"Schnellreise (Karte, X)", "Auf der Karte bringt dich X auf einem besuchten Gebiet beim Schließen des Menüs dorthin, durch eine der spieleigenen Türen, die an dieser Stelle der Geschichte offen sind. Nach Flawe's Mod von Flawe."},
         [O_OBJECTIVE] = {"Ziel auf der Karte", "Die Karte lässt das Gebiet des nächsten Story-Schritts blinken, besucht oder nicht, auch auf der Karte des anderen Servers, wenn der Schritt dort liegt."},

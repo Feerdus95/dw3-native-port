@@ -1,0 +1,18 @@
+--- a/src/stdwtitl/menu.c
++++ b/src/stdwtitl/menu.c
+@@ -170,6 +170,15 @@
+         if (task->substate == 0) {
+             return;
+         }
++#ifdef NATIVE
++        if (g_skip_press_start) {
++            /* skip_press_start (platform/mods.c): where "PRESS START" would wait, the two options
++               at once, as when it is done; the ten seconds' timeout goes with it */
++            task->setState(task, TASK_DONE);
++            runOptions(task);
++            break;
++        }
++#endif
+         runPressStart(task);
+         break;
+     case TASK_DONE:

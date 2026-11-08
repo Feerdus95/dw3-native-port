@@ -88,6 +88,7 @@ void native_bladegarurumon_setup(void);
 /* Full EXP Share: battle-end eligibility and the option frozen for this report
    (platform/mods.c; WFIGHTMN and STFGTREP patches). */
 extern int g_full_exp_share;
+extern int g_skip_press_start; /* skip_press_start = 1: the title has no PRESS START (STDWTITL menu.c) */
 extern int g_heal_on_levelup; /* heal_on_levelup = 1: a partner that levels up is healed (STFGTREP growth.c) */
 extern int g_save_anywhere;
 extern int g_save_from_menu;

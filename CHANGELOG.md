@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Skip PRESS START** (Options, Input; off by default). The title screen shows New game and Continue as soon as its intro ends, without waiting for Start. Also in the launcher's Input tab. Thanks to Hucaru (#17).
 - **Heal on level up** (Options, Mods; off by default). A partner that levels up in a battle gets its HP and MP back in full, unless it was knocked out; its Digimon's levels do not heal. Also in the launcher's Mods tab. Thanks to Hucaru (#18).
 - **Inactive window** (Options, Display; off by default). While the game's window is not in front, nothing happens as before, the sound is muted, or the game is paused until the window is back. Also in the launcher's Display tab. Thanks to Hucaru (#16).
 
