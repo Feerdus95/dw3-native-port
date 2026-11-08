@@ -178,6 +178,8 @@ void screens_action(int a)
             g_app.btn = dir > 0 && tool_update_has(row_tool(r));
         } else if (a == A_OK) {
             activate(r->id);
+        } else if (g_app.screen == SC_SETTINGS) { /* nothing to step on this row: the tabs */
+            screens_action(dir > 0 ? A_NEXT : A_PREV);
         }
         break;
     }
