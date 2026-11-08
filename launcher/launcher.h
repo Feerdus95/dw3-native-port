@@ -50,7 +50,7 @@ enum {
     S_RELEASE, S_RELEASE_D, S_U_CLOSE_GAME, S_READY, S_DISC_OK, S_VERSION,
     S_BROWSE, S_NEED, S_ONCE, S_DROP, S_OR, S_ISO, S_KEYS, S_READING, S_CANCEL,
     S_E_OPEN, S_E_GAME, S_E_BAD, S_E_WRITE, S_E_READ, S_E_TRUNCATED, S_E_CUE, S_E_SPACE, S_SEE_LOG,
-    S_DISPLAY, S_GRAPHICS, S_INPUT, S_MODS, S_PLAYABLE, S_RESET, S_RESET_D, S_ON, S_OFF, S_AUTO, S_KEYBOARD, S_MUTE, S_PAUSE,
+    S_DISPLAY, S_GRAPHICS, S_INPUT, S_MODS, S_PLAYABLE, S_RESET, S_RESET_D, S_SWAP, S_SWAP_D, S_ON, S_OFF, S_AUTO, S_KEYBOARD, S_MUTE, S_PAUSE,
     S_BACK, S_BACK_D, S_FOLDER, S_FOLDER_D, S_LOG, S_LOG_D, S_VIEWER, S_VIEWER_D, S_EDITOR, S_EDITOR_D, S_CHECK, S_CHECK_D,
     S_CHECKING, S_UP_TO_DATE, S_CHECK_FAILED, S_GAME_RUNNING, S_GAME_FAILED, S_NO_EXE, S_SAVE_FAILED, S_NO_LOG,
     S_HINT_MENU, S_HINT_SETTINGS,
@@ -98,6 +98,7 @@ bool option_is_off(int option);
 enum { BIND_COUNT = 16 };
 void binds_load(void);
 void binds_reset(void);
+void binds_swap_cancel(void); /* Triangle and Circle trade their keys and pad buttons */
 bool binds_save(void);
 const char *bind_text(int bit, int slot); /* slots: two keys, the pad's button */
 const char *bind_label(int bit);

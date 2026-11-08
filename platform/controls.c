@@ -22,8 +22,9 @@ static const struct {
     int glyph, bit;
 } GAME_BUTTONS[4] = {{0x1A, 14}, {0x2E, 13}, {0x31, 15}, {0x33, 12}}; /* cross, circle, square, triangle */
 
-/* The page's lines: the buttons, face ones first, then Reset */
-#define LINES 17
+/* The page's lines: the buttons, face ones first, then Reset and the swap of Triangle and Circle */
+#define LINES 18
+#define LINE_SWAP 17
 static const int ORDER[16] = {14, 13, 15, 12, 10, 11, 8, 9, 1, 2, 3, 0, 4, 6, 7, 5};
 static const char *LABELS[16] = {"Select", "L3", "R3", "Start", "Up", "Right", "Down", "Left",
                                  "L2", "R2", "L1", "R1", "Triangle", "Circle", "Cross", "Square"};
@@ -296,6 +297,17 @@ static void set_key(int bit, int sc) {
     pad_keys(bit)[s_slot] = sc;
 }
 
+/* Cancel on B: Triangle (the game's cancel) and Circle trade their keys and pad buttons, as if
+   set by hand; the icons in the game's texts follow. Pressed again, it undoes itself */
+static void swap_cancel(void) {
+    int i, t;
+
+    for (i = 0; i < 2; i++) {
+        t = pad_keys(12)[i], pad_keys(12)[i] = pad_keys(13)[i], pad_keys(13)[i] = t;
+    }
+    t = *pad_source(12), *pad_source(12) = *pad_source(13), *pad_source(13) = t;
+}
+
 static void set_button(int bit, int src) {
     int b;
 
@@ -366,6 +378,9 @@ int controls_event(const SDL_Event *e) {
     s_slot = SDL_clamp(s_slot + right - left, 0, 2);
     if (back) {
         s_open = 0;
+    } else if (ok && s_line == LINE_SWAP) {
+        swap_cancel();
+        return 1;
     } else if (ok && bit < 0) {
         pad_bind_reset();
         return 1;
@@ -408,7 +423,7 @@ void controls_draw(SDL_Renderer *r, float x, float y, float w, int rows) {
         }
         SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
         if (bit < 0) {
-            SDL_RenderDebugText(r, x + 26, ly, "Reset to defaults");
+            SDL_RenderDebugText(r, x + 26, ly, line == LINE_SWAP ? "Swap Triangle/Circle" : "Reset to defaults");
             continue;
         }
         button(r, FAM_PS5, PLACE[bit], x + 10, ly, 1, 1);

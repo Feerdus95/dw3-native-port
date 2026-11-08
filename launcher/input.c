@@ -105,6 +105,7 @@ static void activate(int id)
     case S_BACK: go_home(); break;
     case S_QUIT: g_app.quit = true; break;
     case S_RESET: options_reset(); break;
+    case S_SWAP: binds_swap_cancel(); break;
     case S_RELEASE:
         port_update_activate();
         break;
