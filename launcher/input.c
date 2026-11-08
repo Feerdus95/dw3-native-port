@@ -8,6 +8,7 @@ static void go(int screen)
     g_app.screen = screen;
     g_app.sel[screen] = 0;
     g_app.btn = 0;
+    g_app.tabfocus = false;
 }
 
 static void go_home(void)
@@ -16,6 +17,15 @@ static void go_home(void)
         g_app.note = L->s[S_SAVE_FAILED];
     }
     g_app.screen = SC_HOME;
+}
+
+static int first_selectable(void)
+{
+    int i = 0;
+    while (rows()[i].kind == R_HEADING) {
+        i++;
+    }
+    return i;
 }
 
 static void move_selection(int dir)
@@ -148,6 +158,19 @@ void screens_action(int a)
         }
         return;
     }
+    if (g_app.tabfocus) { /* the tabs: Left/Right switch, Down goes back to the rows */
+        if (a == A_LEFT || a == A_RIGHT) {
+            a = a == A_RIGHT ? A_NEXT : A_PREV;
+        } else if (a == A_DOWN || a == A_OK) {
+            g_app.tabfocus = false;
+            return;
+        } else if (a == A_UP || a == A_CLEAR) {
+            return;
+        }
+    } else if (a == A_UP && g_app.screen == SC_SETTINGS && first_selectable() == g_app.sel[SC_SETTINGS]) {
+        g_app.tabfocus = true;
+        return;
+    }
     switch (a) {
     case A_UP: move_selection(-1); break;
     case A_DOWN: move_selection(1); break;
@@ -178,8 +201,6 @@ void screens_action(int a)
             g_app.btn = dir > 0 && tool_update_has(row_tool(r));
         } else if (a == A_OK) {
             activate(r->id);
-        } else if (g_app.screen == SC_SETTINGS) { /* nothing to step on this row: the tabs */
-            screens_action(dir > 0 ? A_NEXT : A_PREV);
         }
         break;
     }
@@ -207,6 +228,7 @@ static void select_row(int i)
         g_app.note = NULL;
     }
     g_app.sel[g_app.screen] = i;
+    g_app.tabfocus = false;
 }
 
 /* the language list, over everything: true when it took the mouse */

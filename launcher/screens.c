@@ -164,7 +164,7 @@ static void draw_list(void)
     const int first = list_first(), n = list_rows(r), end = s_screen == SC_SETTINGS ? SDL_min(n, first + ROWS_IN_SIGHT) : n;
     for (int i = first; i < end; i++) {
         const int y = a.y + 4 + (i - first) * ROW_H;
-        const bool sel = i == s_sel[s_screen];
+        const bool sel = i == s_sel[s_screen] && !g_app.tabfocus;
         if (r[i].kind == R_HEADING) {
             draw_heading(&r[i], y);
             continue;
@@ -243,7 +243,7 @@ static void draw_tabs(void)
     for (int i = 0; i < 4; i++) {
         const SDL_Rect t = tab_rect(i);
         const bool sel = i == s_tab;
-        fill(t.x, t.y, t.w, t.h, C_EDGE);
+        fill(t.x, t.y, t.w, t.h, sel && g_app.tabfocus ? C_GOLD : C_EDGE);
         fill(t.x + 1, t.y + 1, t.w - 2, t.h - 1, sel ? C_PANEL : C_BG);
         text(t.x + 8, t.y + 2, 1, sel ? C_GOLD : C_SOFT, L->s[TAB_NAME[i]]);
     }

@@ -174,6 +174,7 @@ typedef struct {
     int scroll; /* the first row in sight of a list too long for its panel */
     bool quit;
     const char *note; /* shown instead of the description until the next move */
+    bool tabfocus; /* Settings: the focus is on the tabs, Left/Right switch them */
     int btn; /* on a tool's row with an update: 1 when its Update button has the focus */
 } App;
 extern App g_app;
