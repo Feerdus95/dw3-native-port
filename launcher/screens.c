@@ -94,6 +94,8 @@ SDL_Rect list_rect(void)
 
 int list_in_sight(void) { return ROWS_IN_SIGHT; }
 
+int list_inset(void) { return s_screen == SC_SETTINGS && list_rows(rows()) > ROWS_IN_SIGHT ? 6 : 0; }
+
 int list_first(void)
 {
     const int n = list_rows(rows()), sel = s_sel[s_screen];
@@ -138,7 +140,7 @@ static void draw_heading(const Row *row, int y)
         text(bind_column(0), y, 1, C_GOLD, L->s[S_KEYBOARD]);
         text(bind_column(2), y, 1, C_GOLD, L->s[S_GAMEPAD]);
     } else {
-        fill(a.x + 12 + w, y + 8, a.w - 18 - w, 1, C_RULE);
+        fill(a.x + 12 + w, y + 8, a.w - 18 - w - list_inset(), 1, C_RULE);
     }
 }
 
@@ -177,7 +179,7 @@ static void draw_list(void)
         const int tool = row_tool(&r[i]);
         if (tool >= 0) {
             char value[64];
-            int right = a.x + a.w - 8;
+            int right = a.x + a.w - 8 - list_inset();
             const bool on = sel && g_app.btn && tool_update_has(tool);
             if (tool_update_has(tool)) {
                 char label[64];
@@ -193,11 +195,11 @@ static void draw_list(void)
         }
         text(a.x + 13, y, 1, sel ? C_GOLD : C_TEXT, r[i].kind == R_OPTION ? L->option[r[i].id].name : L->s[r[i].id]);
         if (r[i].kind == R_ACTION && r[i].id == S_SWAP) { /* on or off, so it shows it took */
-            text_right(a.x + a.w - 12, y, binds_swapped() ? C_GOLD : C_SOFT, L->s[binds_swapped() ? S_ON : S_OFF]);
+            text_right(a.x + a.w - 12 - list_inset(), y, binds_swapped() ? C_GOLD : C_SOFT, L->s[binds_swapped() ? S_ON : S_OFF]);
         }
         if (r[i].kind == R_OPTION) {
             char value[32];
-            const int right = a.x + a.w - (sel ? 13 : 8);
+            const int right = a.x + a.w - (sel ? 13 : 8) - list_inset();
             option_value(r[i].id, L, value, sizeof value);
             text_right(right, y, option_is_off(r[i].id) ? C_SOFT : C_TEXT, value);
             if (sel) {

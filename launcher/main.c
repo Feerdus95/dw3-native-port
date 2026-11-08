@@ -90,6 +90,11 @@ static void handle_event(SDL_Renderer *r, SDL_Event *e)
             screens_mouse((int)e->button.x, (int)e->button.y, true);
         }
         break;
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+        if (e->button.button == SDL_BUTTON_LEFT) {
+            screens_mouse_release();
+        }
+        break;
     default: break;
     }
 }

@@ -181,6 +181,7 @@ extern App g_app;
 const Row *rows(void);
 int row_count(const Row *r);
 int list_rows(const Row *r); /* those drawn in the list: all but the language */
+int list_inset(void);       /* the width the scroll bar takes from the rows' right edge, 0 without one */
 int list_in_sight(void);    /* the rows a settings list shows at once */
 int list_first(void);       /* the first in sight, with the selected one kept in sight */
 int bind_column(int slot);  /* where a binding's slot starts on screen */
@@ -195,6 +196,7 @@ void screens_draw(void);
 enum { A_NONE, A_UP, A_DOWN, A_LEFT, A_RIGHT, A_OK, A_BACK, A_PREV, A_NEXT, A_CLEAR };
 void screens_action(int action);
 void screens_mouse(int x, int y, bool clicked);
+void screens_mouse_release(void);
 void screens_wheel(int dir); /* the wheel: -1 up, 1 down */
 bool screens_tick(void); /* true while something's going on in the background */
 void screens_shutdown(void);
