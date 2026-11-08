@@ -1,12 +1,13 @@
 --- a/src/stfgtrep/growth.c
 +++ b/src/stfgtrep/growth.c
-@@ -120,6 +120,13 @@
+@@ -120,6 +120,14 @@
          }
          level++;
      } while (up);
 +#ifdef NATIVE
-+    /* Heal on level up (platform/mods.c): a partner still standing gets its HP and MP back in full */
-+    if (leveled && g_heal_on_levelup && stats->stats[STAT_HP] > 0) {
++    /* Heal on level up (platform/mods.c): a partner that levels up gets its HP and MP back in full
++       (a knocked-out one gets no exp, so it never gets here) */
++    if (leveled && g_heal_on_levelup) {
 +        stats->stats[STAT_HP] = stats->stats[STAT_MAX_HP];
 +        stats->stats[STAT_MP] = stats->stats[STAT_MAX_MP];
 +    }
@@ -14,7 +15,7 @@
      return leveled;
  }
  
-@@ -137,9 +144,44 @@
+@@ -137,9 +145,44 @@
      s32 id;
      s32 i;
      s32 j;
