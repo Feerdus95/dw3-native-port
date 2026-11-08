@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.18.8 (beta)
+
+- **Script mods** (`data/mods/scripts/<fighter>/<script>.json`): a fighter's battle script (its attack, hit, KO and evade scripts) as a list of commands that replaces the game's, e.g. `{"schema_version": 1, "commands": [{"op": "sound", "sound": "punch"}, {"op": "end"}]}`. A sound command can play a sound of the library, one of the game's (1 to 89), the hit's sound, or the game's own on a result 3 hit. A file that is wrong is rejected with the reason and the game's script runs; `--check-mods` lists them. Options > Mods > Custom scripts switches them off in game (also `native.ini` and the launcher's Mods tab). The model viewer (v0.18.5) edits the scripts in its Fighter tab and saves these files.
+
 ## v0.18.7 (beta)
 
 - **A sound library** (`data/mods/sounds/sounds.json`): WAVs of that folder, each with a name and a volume, and a `replace` table that says which of the game's battle sounds (1 to 89) each one replaces, e.g. `{"sounds": {"punch": {"file": "punch.wav", "volume": 1}}, "replace": {"57": "punch"}}`. A replaced sound plays the WAV wherever the game plays it (hits, steps, falls, effects' casts), to its end. Options > Mods > Custom sounds switches it off in game, and `--render-sounds` never replaces, so the game's own stay available. WAVs load when they first play, or a frame at a time at start-up for the ones that replace a sound. The model viewer (v0.18.4) has a Sounds tab to import, name and assign them.
