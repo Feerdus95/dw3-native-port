@@ -108,6 +108,10 @@ inactive_window = 0
 # partners get neither. The report uses the setting it had when it began.
 full_exp_share = 0
 
+# 1: a partner that levels up in a battle gets its HP and MP back in full
+# (not a knocked-out one, and not its Digimon's levels).
+heal_on_levelup = 0
+
 # 1: the field menu gets a SAVE row (before QUIT) to save wherever the player
 # stands, not only at save points; loading puts the player back there. The
 # save has the same format, so it loads with the option off too.

@@ -29,6 +29,7 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_PACKS] = {"extra_packs", K_BOOL, 1},
     [O_BLADEGARURUMON] = {"bladegarurumon", K_BOOL, 1},
     [O_FULL_EXP_SHARE] = {"full_exp_share", K_BOOL, 0},
+    [O_HEAL_LEVELUP] = {"heal_on_levelup", K_BOOL, 0},
     [O_SAVE_ANYWHERE] = {"save_anywhere", K_BOOL, 0},
     [O_CUSTOM_EFFECTS] = {"custom_effects", K_BOOL, 1},
     [O_CUSTOM_SOUNDS] = {"custom_sounds", K_BOOL, 1},

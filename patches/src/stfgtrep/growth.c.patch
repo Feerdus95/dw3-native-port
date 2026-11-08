@@ -1,6 +1,20 @@
 --- a/src/stfgtrep/growth.c
 +++ b/src/stfgtrep/growth.c
-@@ -137,9 +137,44 @@
+@@ -120,6 +120,13 @@
+         }
+         level++;
+     } while (up);
++#ifdef NATIVE
++    /* Heal on level up (platform/mods.c): a partner still standing gets its HP and MP back in full */
++    if (leveled && g_heal_on_levelup && stats->stats[STAT_HP] > 0) {
++        stats->stats[STAT_HP] = stats->stats[STAT_MAX_HP];
++        stats->stats[STAT_MP] = stats->stats[STAT_MAX_MP];
++    }
++#endif
+     return leveled;
+ }
+ 
+@@ -137,9 +144,44 @@
      s32 id;
      s32 i;
      s32 j;
