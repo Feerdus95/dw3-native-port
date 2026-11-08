@@ -233,16 +233,23 @@ static void draw_team(const Lang *l)
     }
 }
 
+bool home_on_bar(void)
+{
+    const Row *r = &rows()[g_app.sel[SC_HOME]];
+    return r->kind == R_LANGUAGE || (r->kind == R_ACTION && (r->id == S_SETTINGS || r->id == S_SAVES || r->id == S_TOOLS || (r->id == S_PLAY && g_app.playtab)));
+}
+
 void home_draw(void)
 {
     const Lang *l = L;
     const Row *r = &rows()[g_app.sel[SC_HOME]];
     const int cur = r->kind == R_ACTION ? r->id : -1;
+    const bool bar = home_on_bar();
     scene();
-    bar_draw(S_PLAY, cur);
+    bar_draw(S_PLAY, bar ? cur : -1);
     text(MARGIN, TITLE_Y, 2, C_TEXT, l->s[S_READY]);
     text(MARGIN, SUB_Y, 1, C_SOFT, GAME_NAME);
-    draw_chips(l, cur);
-    draw_buttons(l, cur);
+    draw_chips(l, bar ? -1 : cur);
+    draw_buttons(l, bar ? -1 : cur);
     draw_team(l);
 }

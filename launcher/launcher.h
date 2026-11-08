@@ -174,6 +174,7 @@ typedef struct {
     int scroll; /* the first row in sight of a list too long for its panel */
     bool quit;
     const char *note; /* shown instead of the description until the next move */
+    bool playtab; /* Home: the Play row stands for the bar's Play, not the button */
     bool tabfocus; /* Settings: the focus is on the tabs, Left/Right switch them */
     int btn; /* on a tool's row with an update: 1 when its Update button has the focus */
 } App;
@@ -184,6 +185,7 @@ int row_count(const Row *r);
 int list_rows(const Row *r); /* those drawn in the list: all but the language */
 int list_inset(void);       /* the width the scroll bar takes from the rows' right edge, 0 without one */
 int list_in_sight(void);    /* the rows a settings list shows at once */
+bool home_on_bar(void);    /* Home: the focus is on the bar (Play tab, Settings, Saves, Tools, language) */
 int list_first(void);       /* the first in sight, with the selected one kept in sight */
 int bind_column(int slot);  /* where a binding's slot starts on screen */
 SDL_Rect list_rect(void);

@@ -9,6 +9,7 @@ static void go(int screen)
     g_app.sel[screen] = 0;
     g_app.btn = 0;
     g_app.tabfocus = false;
+    g_app.playtab = false;
 }
 
 static void go_home(void)
@@ -28,22 +29,50 @@ static int first_selectable(void)
     return i;
 }
 
-/* Home: Left/Right walk the bar, Play | Settings | Saves | Tools | Language, round; the
-   buttons under it (Quit, the release chip) count as Play */
-static void home_step(int dir)
+/* Home has two levels. The bar: Play | Settings | Saves | Tools | Language, moved with
+   Left/Right only (Down from the Play tab goes under it). Under it: the release chip
+   above the Play and Quit buttons; Left/Right swap those two, Up/Down go between levels */
+static int find_row(int kind, int id)
+{
+    const Row *r = rows();
+    for (int i = 0; i < row_count(r); i++) {
+        if (r[i].kind == kind && (kind == R_LANGUAGE || r[i].id == id)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void home_move(int a)
 {
     static const short BAR[5] = {S_PLAY, S_SETTINGS, S_SAVES, S_TOOLS, -1}; /* -1: the language */
-    const Row *r = rows();
-    const int n = row_count(r), sel = g_app.sel[SC_HOME];
-    int at = 0, want;
-    for (int k = 0; k < 5; k++) {
-        at = (r[sel].kind == R_LANGUAGE ? BAR[k] == -1 : r[sel].kind == R_ACTION && r[sel].id == BAR[k]) ? k : at;
-    }
-    want = BAR[(at + dir + 5) % 5];
-    for (int i = 0; i < n; i++) {
-        if (want == -1 ? r[i].kind == R_LANGUAGE : r[i].kind == R_ACTION && r[i].id == want) {
-            g_app.sel[SC_HOME] = i;
+    const Row *cur = &rows()[g_app.sel[SC_HOME]];
+    const bool bar = home_on_bar();
+    int to = -1;
+    if (bar && (a == A_LEFT || a == A_RIGHT)) {
+        int at = 0;
+        for (int k = 0; k < 5; k++) {
+            at = (cur->kind == R_LANGUAGE ? BAR[k] == -1 : cur->id == BAR[k]) ? k : at;
         }
+        const int want = BAR[(at + (a == A_RIGHT ? 1 : 4)) % 5];
+        to = want == -1 ? find_row(R_LANGUAGE, 0) : find_row(R_ACTION, want);
+        g_app.playtab = want == S_PLAY;
+    } else if (bar && a == A_DOWN && cur->id == S_PLAY) {
+        to = find_row(R_ACTION, S_PLAY);
+        g_app.playtab = false;
+    } else if (!bar && (a == A_LEFT || a == A_RIGHT) && cur->id != S_RELEASE) {
+        to = find_row(R_ACTION, cur->id == S_PLAY ? S_QUIT : S_PLAY);
+    } else if (!bar && a == A_UP) {
+        to = cur->id != S_RELEASE ? find_row(R_ACTION, S_RELEASE) : -1;
+        if (to < 0) {
+            to = find_row(R_ACTION, S_PLAY);
+            g_app.playtab = true;
+        }
+    } else if (!bar && a == A_DOWN && cur->id == S_RELEASE) {
+        to = find_row(R_ACTION, S_PLAY);
+    }
+    if (to >= 0) {
+        g_app.sel[SC_HOME] = to;
     }
     g_app.btn = 0;
 }
@@ -191,8 +220,8 @@ void screens_action(int a)
         g_app.tabfocus = true;
         return;
     }
-    if (g_app.screen == SC_HOME && !first_run_screen() && (a == A_LEFT || a == A_RIGHT)) {
-        home_step(a == A_RIGHT ? 1 : -1);
+    if (g_app.screen == SC_HOME && !first_run_screen() && a >= A_UP && a <= A_RIGHT) {
+        home_move(a);
         return;
     }
     switch (a) {
@@ -253,6 +282,7 @@ static void select_row(int i)
     }
     g_app.sel[g_app.screen] = i;
     g_app.tabfocus = false;
+    g_app.playtab = false;
 }
 
 /* the language list, over everything: true when it took the mouse */
