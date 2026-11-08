@@ -7,6 +7,11 @@
 static SDL_AudioStream *s_stream;
 static FILE *s_dump; /* DW3_WAV=<file>: the mix as raw s16 stereo 44.1 kHz, to check by ear or by script */
 static int s_failed;
+static int s_muted; /* the window is inactive (inactive_window = 1) */
+
+void audio_mute(int on) {
+    s_muted = on;
+}
 
 void audio_vblank(int rate) {
     static int16_t buf[AUDIO_RATE / 25 * 2];
@@ -60,6 +65,9 @@ void audio_vblank(int rate) {
         if (++count % 25 == 0) {
             LOG("voices: %d playing, %d releasing", active, rel);
         }
+    }
+    if (s_muted) {
+        SDL_memset(buf, 0, frames * 4);
     }
     if (s_stream != NULL) {
         SDL_PutAudioStreamData(s_stream, buf, frames * 4);

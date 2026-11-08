@@ -99,6 +99,10 @@ extra_packs = 1
 # at level 40), with its signature Solar Laser
 bladegarurumon = 1
 
+# What the game does while its window is not the one in front (minimised, or
+# another window has the focus): 0 nothing, 1 mute the sound, 2 pause it all.
+inactive_window = 0
+
 # 1: each party partner still above 0 HP at battle end gets the full partner
 # EXP, and its selected or used digivolutions get full Digimon EXP. Knocked-out
 # partners get neither. The report uses the setting it had when it began.

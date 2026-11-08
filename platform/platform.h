@@ -170,6 +170,8 @@ int spu_cd_queued(void);
 void spu_cd_clear(void);
 void spu_render(int16_t *out, int frames);
 void audio_vblank(int rate); /* mixes and queues one vsync of sound */
+void audio_mute(int on);     /* silence, while the window is inactive */
+extern int g_inactive_window; /* inactive_window: 0 nothing, 1 mute, 2 pause the game (mods.c) */
 void movie_vblank(int rate); /* platform/movie.c: the CD streams on */
 
 /* Logs once per call site key: for stubs and first-time events */

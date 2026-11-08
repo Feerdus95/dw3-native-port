@@ -67,6 +67,18 @@ int pump_events(void) {
         if (e.type == SDL_EVENT_QUIT) {
             return 0;
         }
+        /* the window lost its focus: sound muted, or the game held until it is back */
+        if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST && g_inactive_window) {
+            audio_mute(1);
+            while (g_inactive_window == 2 && SDL_WaitEvent(&e) && e.type != SDL_EVENT_WINDOW_FOCUS_GAINED) {
+                if (e.type == SDL_EVENT_QUIT) {
+                    return 0;
+                }
+            }
+        }
+        if (e.type == SDL_EVENT_WINDOW_FOCUS_GAINED) {
+            audio_mute(0);
+        }
         if (menu_event(&e)) {
             continue;
         }

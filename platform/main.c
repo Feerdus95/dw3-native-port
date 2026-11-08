@@ -78,7 +78,7 @@ static int load_boot_image(void) {
    render_scale = 1-8, fast_text = 0/1, fast_travel = 0/1, map_objective = 0/1, journal = 0/1, extra_packs = 0/1,
    bladegarurumon = 0/1, full_exp_share = 0/1, save_anywhere = 0/1, soft_shadows = 0/1, true_color = 0/1, perspective = 0/1,
    smooth_3d = 0/1, battle_shadows = 0/1, battle_sky = 0/1, widescreen = 0/1,
-   vsync = 0/1;
+   vsync = 0/1, inactive_window = 0 nothing / 1 mute / 2 pause;
    the options menu (menu.c) writes them back */
 static int s_fullscreen, s_scale, s_fps60, s_res_set; /* s_scale 0: from the screen */
 extern int NTSC_MODE;
@@ -157,6 +157,8 @@ static void read_ini(int data_only) {
         } else if (SDL_strcasecmp(key, "render_scale") == 0) {
             g_res_scale = SDL_clamp(atoi(value), 1, 8);
             s_res_set = 1;
+        } else if (SDL_strcasecmp(key, "inactive_window") == 0) {
+            g_inactive_window = SDL_clamp(atoi(value), 0, 2);
         } else if (SDL_strcasecmp(key, "fast_text") == 0) {
             g_fast_text = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "extra_packs") == 0) {

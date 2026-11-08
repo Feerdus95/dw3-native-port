@@ -152,6 +152,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Battle sky and fog | battles get a sky behind the stage and their far side fades into a fog, each stage by its kind (open air, night, rooms, water) in `stages.ini` by the exe, which can be edited; digital, space and technique backdrops are left as they are |
 | Smooth movies | the movies smoothed when scaled up, or with sharp pixels |
 | VSync | each frame shown whole, at the screen's refresh: no tearing |
+| Inactive window | what the game does while its window is not in front (minimised, or another window has the focus): nothing, mute the sound, or pause everything until it is back |
 | Fullscreen, Window size | the window fits the screen it is on, centred |
 | Controls | each PlayStation button's two keys and gamepad button: pick a slot, press the key or button (Esc / Back cancels); Del / Y clears it, the last line puts the defaults back. A key or button set to one leaves any other it was on |
 | Button icons | the menu's icons: PS1 (the game's own in its texts), PS3, PS4, PS5 (the default), Xbox 360, Xbox One, Xbox Series, Switch, Keyboard, or Auto (the keyboard or the gamepad you used last, by its maker). The game's texts show their buttons (✕ ○ □ △) the same way, as the key or button each is bound to. By [Xelu](https://thoseawesomeguys.com/prompts/) |

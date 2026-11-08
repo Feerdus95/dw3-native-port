@@ -10,6 +10,7 @@ int g_fast_travel = 0; /* fast_travel = 1: X on the map screen travels (ststatus
 int g_map_objective = 0; /* map_objective = 1: the map blinks the story's next area (ststatus/map_screen.c) */
 int g_journal = 0; /* journal = 1: the field menu's journal row (ststatus/item_list.c) */
 int g_ff_speed = 1;  /* fast forward: the game's ticks a frame shown (etc.c); not saved */
+int g_inactive_window = 0; /* inactive_window: 0 nothing, 1 mute, 2 pause the game (video.c) */
 int g_give_form; /* --give ID (main.c) */
 int g_dna_other; /* native.h */
 int g_bladegarurumon = 1; /* bladegarurumon = 0: partners don't learn it (stfgtrep's growth.c) */
