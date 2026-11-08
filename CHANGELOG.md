@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- **Cancel on B**: a row in Controls (options menu, Input tab; and the launcher's Input tab) that swaps Triangle and Circle, keys and gamepad buttons, so the game's cancel is on B. It is a remap: the icons in the game's texts follow it, and pressing it again undoes it. The row shows On or Off. Thanks to Hucaru (#14).
-- The launcher's settings list scrolls with the wheel by itself (three rows a notch) and the selection goes to the row under the pointer, instead of the selection jumping row by row and fighting the pointer; its scroll bar is wider, leaves the values clear and can be dragged with the mouse.
+- **Cancel on B**: a row in Controls (options menu, Input tab; and the launcher's Input tab) that swaps Triangle and Circle, keys and gamepad buttons, so the game's cancel is on B. It is a remap: the icons in the game's texts follow it, and pressing it again undoes it. The row, before the list of buttons, shows On or Off. Thanks to Hucaru (#14).
+- The launcher's settings list scrolls with the wheel by itself (three rows a notch) and the selection goes to the row under the pointer, instead of the selection jumping row by row and fighting the pointer; its scroll bar is wider, leaves the values clear and can be dragged with the mouse, its thumb lighting under the pointer and when held.
 - **Menus in fast forward** (Options, Input; off by default). With fast forward on, a menu's cursor repeats at its normal pace when a direction is held, instead of at the game's speed. Also in the launcher's Input tab. Thanks to Hucaru (#19).
 - **Skip PRESS START** (Options, Input; off by default). The title screen shows New game and Continue as soon as its intro ends, without waiting for Start. Also in the launcher's Input tab. Thanks to Hucaru (#17).
 - **Heal on level up** (Options, Mods; off by default). A partner that levels up in a battle gets its HP and MP back in full; its Digimon's levels do not heal. Also in the launcher's Mods tab. Thanks to Hucaru (#18).

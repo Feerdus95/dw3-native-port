@@ -196,6 +196,8 @@ void screens_draw(void);
 enum { A_NONE, A_UP, A_DOWN, A_LEFT, A_RIGHT, A_OK, A_BACK, A_PREV, A_NEXT, A_CLEAR };
 void screens_action(int action);
 void screens_mouse(int x, int y, bool clicked);
+bool scroll_mouse(int x, int y, bool clicked); /* scroll.c: true while the scroll bar holds the pointer */
+int scrollbar_state(void);   /* 0 at rest, 1 pointer over the bar, 2 held */
 void screens_mouse_release(void);
 void screens_wheel(int dir); /* the wheel: -1 up, 1 down */
 bool screens_tick(void); /* true while something's going on in the background */

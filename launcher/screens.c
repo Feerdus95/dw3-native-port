@@ -16,9 +16,9 @@ static const Row TOOLS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_L
 static const Row TABS[4][26] = {
     {OPT(O_FPS), OPT(O_FULLSCREEN), OPT(O_WINDOW), OPT(O_WIDESCREEN), OPT(O_VSYNC), OPT(O_MOVIES), OPT(O_INACTIVE), ACT(S_RESET), ACT(S_BACK), {R_END}},
     {OPT(O_RESOLUTION), OPT(O_PERSPECTIVE), OPT(O_SMOOTH_3D), OPT(O_TRUE_COLOR), OPT(O_DITHER), OPT(O_SOFT_SHADOWS), OPT(O_BATTLE_SHADOWS), OPT(O_BATTLE_SKY), ACT(S_RESET), ACT(S_BACK), {R_END}},
-    {OPT(O_ICONS), OPT(O_RUMBLE), OPT(O_DEADZONE), OPT(O_FF_MENUS), OPT(O_SKIP_START), {R_HEADING, S_BUTTONS},
+    {OPT(O_ICONS), OPT(O_RUMBLE), OPT(O_DEADZONE), OPT(O_FF_MENUS), OPT(O_SKIP_START), ACT(S_SWAP), {R_HEADING, S_BUTTONS},
      BIND(14), BIND(13), BIND(15), BIND(12), BIND(10), BIND(11), BIND(8), BIND(9), BIND(1), BIND(2), BIND(3), BIND(0), BIND(4), BIND(6), BIND(7), BIND(5),
-     ACT(S_SWAP), ACT(S_RESET), ACT(S_BACK), {R_END}},
+     ACT(S_RESET), ACT(S_BACK), {R_END}},
     {OPT(O_FAST_TEXT), OPT(O_FAST_TRAVEL), OPT(O_OBJECTIVE), OPT(O_JOURNAL), OPT(O_PACKS), OPT(O_FULL_EXP_SHARE), OPT(O_HEAL_LEVELUP), OPT(O_SAVE_ANYWHERE), OPT(O_CUSTOM_EFFECTS), OPT(O_CUSTOM_SOUNDS), OPT(O_CUSTOM_SCRIPTS), {R_HEADING, S_PLAYABLE}, OPT(O_BLADEGARURUMON), ACT(S_RESET), ACT(S_BACK), {R_END}},
 };
 static const short TAB_NAME[4] = {S_DISPLAY, S_GRAPHICS, S_INPUT, S_MODS};
@@ -150,8 +150,9 @@ static void draw_scrollbar(int n, int first)
     const SDL_Rect a = list_rect();
     if (n > ROWS_IN_SIGHT) {
         const int track = a.h - 4, thumb = track * ROWS_IN_SIGHT / n;
-        fill(a.x + a.w - 7, a.y + 2, 4, track, C_RULE);
-        fill(a.x + a.w - 7, a.y + 2 + (track - thumb) * first / (n - ROWS_IN_SIGHT), 4, thumb, C_GOLD);
+        fill(a.x + a.w - 7, a.y + 2, 4, track, scrollbar_state() ? C_EDGE : C_RULE);
+        const int state = scrollbar_state(); /* as a web page's: lit under the pointer, brightest held */
+        fill(a.x + a.w - 7, a.y + 2 + (track - thumb) * first / (n - ROWS_IN_SIGHT), 4, thumb, state == 2 ? C_GOLD_HI : state == 1 ? C_GOLD : C_SOFT);
     }
 }
 

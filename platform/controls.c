@@ -22,9 +22,10 @@ static const struct {
     int glyph, bit;
 } GAME_BUTTONS[4] = {{0x1A, 14}, {0x2E, 13}, {0x31, 15}, {0x33, 12}}; /* cross, circle, square, triangle */
 
-/* The page's lines: the buttons, face ones first, then Reset and the swap of Triangle and Circle */
+/* The page's lines: the swap of Triangle and Circle, the buttons (face ones first), then Reset */
 #define LINES 18
-#define LINE_SWAP 17
+#define LINE_SWAP 0
+#define LINE_BIT(l) ((l) >= 1 && (l) <= 16 ? ORDER[(l) - 1] : -1)
 static const int ORDER[16] = {14, 13, 15, 12, 10, 11, 8, 9, 1, 2, 3, 0, 4, 6, 7, 5};
 static const char *LABELS[16] = {"Select", "L3", "R3", "Start", "Up", "Right", "Down", "Left",
                                  "L2", "R2", "L1", "R1", "Triangle", "Circle", "Cross", "Square"};
@@ -276,7 +277,8 @@ void controls_tab_icons(SDL_Renderer *r, float left, float right, float y) {
 
 void controls_open(void) {
     s_open = 1;
-    s_line = s_slot = s_capture = 0;
+    s_line = 1; /* on the first button */
+    s_slot = s_capture = 0;
 }
 
 int controls_active(void) {
@@ -351,7 +353,7 @@ static int capture(const SDL_Event *e, int bit) {
 /* The page's keys: arrows / D-pad to move, Enter / A to set, Del / Y to
    clear, Esc / B / Back to go back; 1 when a binding changed */
 int controls_event(const SDL_Event *e) {
-    int bit = s_line < 16 ? ORDER[s_line] : -1, up = 0, down = 0, left = 0, right = 0, ok = 0, clear = 0, back = 0;
+    int bit = LINE_BIT(s_line), up = 0, down = 0, left = 0, right = 0, ok = 0, clear = 0, back = 0;
 
     if (s_capture) {
         return capture(e, bit);
@@ -412,7 +414,7 @@ void controls_draw(SDL_Renderer *r, float x, float y, float w, int rows) {
     SDL_RenderLine(r, x + 4, y + 21, x + w - 4, y + 21);
 
     for (i = 0; i < rows && first + i < LINES; i++) {
-        int line = first + i, bit = line < 16 ? ORDER[line] : -1;
+        int line = first + i, bit = LINE_BIT(line);
         float ly = y + 32 + i * 14;
 
         if (line == s_line) {
