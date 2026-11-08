@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.18.9 (beta)
 
+- The launcher moves with the arrows where it makes sense. On the home screen, Left and Right walk the bar (Play, Settings, Saves, Tools, language) and Up and Down move between it and the buttons under it, where Left and Right swap Play and Quit. In Settings, Up from the first row reaches the tabs, and Left and Right switch them.
 - **Menu cursor wraps** (Options, Input; off by default). Up from the first row goes to the last, and down from the last to the first, in the field menu, the item lists and shops, and the techniques list (who uses it, which, and whom it heals). The other menus keep stopping at their ends. Also in the launcher's Input tab. Thanks to Hucaru (#14).
 - **Cancel on B**: a row in Controls (options menu, Input tab; and the launcher's Input tab) that swaps Triangle and Circle, keys and gamepad buttons, so the game's cancel is on B. It is a remap: the icons in the game's texts follow it, and pressing it again undoes it. The row, before the list of buttons, shows On or Off. Thanks to Hucaru (#14).
 - The launcher's settings list scrolls with the wheel by itself (three rows a notch) and the selection goes to the row under the pointer, instead of the selection jumping row by row and fighting the pointer; its scroll bar is wider, leaves the values clear and can be dragged with the mouse, its thumb lighting under the pointer and when held.
