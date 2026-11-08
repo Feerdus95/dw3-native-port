@@ -97,6 +97,12 @@ void binds_swap_cancel(void)
     s_dirty[12] = s_dirty[13] = true;
 }
 
+bool binds_swapped(void)
+{
+    return !SDL_memcmp(s_keys[12], DEFAULT_KEYS[13], sizeof s_keys[12]) && !SDL_memcmp(s_keys[13], DEFAULT_KEYS[12], sizeof s_keys[13]) &&
+           s_pad[12] == DEFAULT_PAD[13] && s_pad[13] == DEFAULT_PAD[12];
+}
+
 /* a button back at its default loses its lines, as the game writes only what differs */
 bool binds_save(void)
 {

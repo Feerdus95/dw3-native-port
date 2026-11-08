@@ -236,6 +236,7 @@ const char *pad_button_name(int bit);   /* "cross" */
 int *pad_keys(int bit);                 /* its two scancodes, 0 for none */
 int *pad_source(int bit);               /* its gamepad button, PAD_LT / PAD_RT or PAD_NONE */
 const char *pad_source_name(int src);   /* SDL's name: "a", "lefttrigger" */
+int pad_swapped(void);                  /* Triangle and Circle trade places (the Controls page's swap row) */
 void pad_bind_reset(void);              /* the defaults */
 int pad_bind_ini(const char *key, const char *value); /* 1: a binding, read */
 int pad_bind_line(int i, char *key, char *value, size_t size); /* line 0-31 for native.ini; 1: not the default */

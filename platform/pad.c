@@ -48,6 +48,13 @@ void pad_bind_reset(void) {
     s_bound = 1;
 }
 
+/* 1 when Triangle and Circle hold each other's default keys and pad button (controls.c' swap row) */
+int pad_swapped(void) {
+    bound();
+    return !SDL_memcmp(s_keys[12], DEFAULT_KEYS[13], sizeof s_keys[12]) && !SDL_memcmp(s_keys[13], DEFAULT_KEYS[12], sizeof s_keys[13]) &&
+           s_pad[12] == DEFAULT_PAD[13] && s_pad[13] == DEFAULT_PAD[12];
+}
+
 const char *pad_button_name(int bit) {
     return NAMES[bit];
 }

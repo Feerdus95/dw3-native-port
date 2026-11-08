@@ -92,6 +92,8 @@ SDL_Rect list_rect(void)
     return (SDL_Rect){PAD, s_screen == SC_SAVES ? 86 : 54, s_screen == SC_HOME ? 178 : SCREEN_W - 2 * PAD, list_rows(rows()) * ROW_H + 8};
 }
 
+int list_in_sight(void) { return ROWS_IN_SIGHT; }
+
 int list_first(void)
 {
     const int n = list_rows(rows()), sel = s_sel[s_screen];
@@ -140,14 +142,14 @@ static void draw_heading(const Row *row, int y)
     }
 }
 
-/* a thin bar on the panel's edge, when the list is longer than it */
+/* a bar on the panel's edge, when the list is longer than it */
 static void draw_scrollbar(int n, int first)
 {
     const SDL_Rect a = list_rect();
     if (n > ROWS_IN_SIGHT) {
         const int track = a.h - 4, thumb = track * ROWS_IN_SIGHT / n;
-        fill(a.x + a.w - 4, a.y + 2, 2, track, C_RULE);
-        fill(a.x + a.w - 4, a.y + 2 + (track - thumb) * first / (n - ROWS_IN_SIGHT), 2, thumb, C_GOLD);
+        fill(a.x + a.w - 7, a.y + 2, 4, track, C_RULE);
+        fill(a.x + a.w - 7, a.y + 2 + (track - thumb) * first / (n - ROWS_IN_SIGHT), 4, thumb, C_GOLD);
     }
 }
 
@@ -190,6 +192,9 @@ static void draw_list(void)
             text_right(right, y, sel && !on ? C_GOLD : C_SOFT, value);
         }
         text(a.x + 13, y, 1, sel ? C_GOLD : C_TEXT, r[i].kind == R_OPTION ? L->option[r[i].id].name : L->s[r[i].id]);
+        if (r[i].kind == R_ACTION && r[i].id == S_SWAP) { /* on or off, so it shows it took */
+            text_right(a.x + a.w - 12, y, binds_swapped() ? C_GOLD : C_SOFT, L->s[binds_swapped() ? S_ON : S_OFF]);
+        }
         if (r[i].kind == R_OPTION) {
             char value[32];
             const int right = a.x + a.w - (sel ? 13 : 8);

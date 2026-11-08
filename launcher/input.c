@@ -234,8 +234,37 @@ static bool mouse_picker(int x, int y, bool clicked)
     return true;
 }
 
+static int s_mx = -1, s_my = -1; /* the pointer's last place, for the wheel */
+
+/* A list longer than its panel scrolls under the wheel by itself, three rows a notch, and the selection
+   goes to the row under the pointer (or stays in sight); a short one moves the selection a row */
+void screens_wheel(int dir)
+{
+    const Row *r = rows();
+    const int n = list_rows(r), visible = list_in_sight();
+    if (g_app.screen != SC_SETTINGS || n <= visible || picker_is_open() || bind_capturing() >= 0) {
+        screens_action(dir < 0 ? A_UP : A_DOWN);
+        return;
+    }
+    g_app.scroll = SDL_clamp(g_app.scroll + dir * 3, 0, n - visible);
+    int sel = SDL_clamp(g_app.sel[g_app.screen], g_app.scroll, g_app.scroll + visible - 1);
+    while (sel < n - 1 && r[sel].kind == R_HEADING) {
+        sel++;
+    }
+    if (g_app.sel[g_app.screen] != sel) {
+        g_app.note = NULL;
+        g_app.sel[g_app.screen] = sel;
+        g_app.btn = 0;
+    }
+    const SDL_Rect a = list_rect();
+    if (s_mx >= a.x && s_mx < a.x + a.w && s_my >= a.y && s_my < a.y + a.h) {
+        screens_mouse(s_mx, s_my, false);
+    }
+}
+
 void screens_mouse(int x, int y, bool clicked)
 {
+    s_mx = x, s_my = y;
     if (mouse_picker(x, y, clicked)) {
         return;
     }

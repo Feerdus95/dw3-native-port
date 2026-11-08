@@ -424,6 +424,12 @@ void controls_draw(SDL_Renderer *r, float x, float y, float w, int rows) {
         SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
         if (bit < 0) {
             SDL_RenderDebugText(r, x + 26, ly, line == LINE_SWAP ? "Swap Triangle/Circle" : "Reset to defaults");
+            if (line == LINE_SWAP) { /* on or off, so it shows it took */
+                const char *state = pad_swapped() ? "On" : "Off";
+
+                SDL_SetRenderDrawColor(r, 255, 210, 90, 255);
+                SDL_RenderDebugText(r, x + w - 12 - 8.0f * SDL_strlen(state), ly, state);
+            }
             continue;
         }
         button(r, FAM_PS5, PLACE[bit], x + 10, ly, 1, 1);
