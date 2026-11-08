@@ -28,6 +28,31 @@ void native_wait_vblank(void);
 /* 0 for a vsync fast forward adds (the game's ticks between frames shown) */
 int native_real_vsync(void);
 int native_real_time(void); /* the vsyncs shown, as the game counts time (etc.c) */
+extern int g_menu_wrap; /* menu_wrap = 1: a menu's cursor goes round at its ends (mods.c; the menus' patches) */
+/* A list's cursor that went nowhere at its first or last row (old == now: the game's clamp held it)
+   goes to the other end. dir: -1 up, 1 down; last: the last row */
+static inline int native_wrap_list(int old, int now, int dir, int last) {
+    if (g_menu_wrap && old == now && last > 0) {
+        return dir < 0 && now == 0 ? last : dir > 0 && now == last ? 0 : now;
+    }
+    return now;
+}
+/* The same for a page of two columns (the item lists): from the top row up to the column's last row,
+   from its last row down to the top. Elsewhere the game's own move stands */
+static inline int native_wrap_grid(int old, int now, int first, int last, int dir) {
+    int col = (old - first) & 1, bottom = ((last - first) & 1) == col ? last : last - 1;
+
+    if (!g_menu_wrap) {
+        return now;
+    }
+    if (bottom < first) {
+        bottom = first;
+    }
+    if (dir < 0 && old - first < 2) {
+        return bottom;
+    }
+    return dir > 0 && old == bottom ? (first + col <= last ? first + col : first) : now;
+}
 extern int g_ff_menu_speed; /* ff_menu_speed = 1: a held button repeats at its normal pace in fast forward (pad/port.c) */
 
 /* Overlay variables back to their initial values: the mode overlays (sub 0)

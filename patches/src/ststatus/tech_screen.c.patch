@@ -1,0 +1,56 @@
+--- a/src/ststatus/tech_screen.c
++++ b/src/ststatus/tech_screen.c
+@@ -510,11 +510,17 @@
+         if (screen->member < 0) {
+             screen->member = 0;
+         }
++#ifdef NATIVE
++        screen->member = native_wrap_list(member, screen->member, -1, screen->count - 1);
++#endif
+     } else if (PAD_PRESSED(PAD_DOWN) || PAD_REPEATED(PAD_DOWN)) {
+         screen->member++;
+         if (screen->member > screen->count - 1) {
+             screen->member = screen->count - 1;
+         }
++#ifdef NATIVE
++        screen->member = native_wrap_list(member, screen->member, 1, screen->count - 1);
++#endif
+     }
+     if (member != screen->member) {
+         SOUND.playSound(SOUND_MENU_MOVE);
+@@ -588,11 +594,17 @@
+         if (screen->cursor < 0) {
+             screen->cursor = 0;
+         }
++#ifdef NATIVE
++        screen->cursor = native_wrap_list(old, screen->cursor, -1, screen->rows[screen->member].techCount - 1);
++#endif
+     } else if (PAD_PRESSED(PAD_DOWN) || PAD_REPEATED(PAD_DOWN)) {
+         screen->cursor++;
+         if (screen->cursor > screen->rows[screen->member].techCount - 1) {
+             screen->cursor = screen->rows[screen->member].techCount - 1;
+         }
++#ifdef NATIVE
++        screen->cursor = native_wrap_list(old, screen->cursor, 1, screen->rows[screen->member].techCount - 1);
++#endif
+     }
+     if (old != screen->cursor) {
+         windows->cursor->setPos(windows->cursor, 0xA6, screen->cursor * 0xE + 0x41);
+@@ -648,11 +660,17 @@
+         if (screen->target < 0) {
+             screen->target = 0;
+         }
++#ifdef NATIVE
++        screen->target = native_wrap_list(old, screen->target, -1, screen->count - 1);
++#endif
+     } else if (PAD_PRESSED(PAD_DOWN) || PAD_REPEATED(PAD_DOWN)) {
+         screen->target++;
+         if (screen->target > screen->count - 1) {
+             screen->target = screen->count - 1;
+         }
++#ifdef NATIVE
++        screen->target = native_wrap_list(old, screen->target, 1, screen->count - 1);
++#endif
+     }
+     if (old != screen->target) {
+         SOUND.playSound(SOUND_MENU_MOVE);

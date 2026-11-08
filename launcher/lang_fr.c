@@ -159,6 +159,7 @@ const Lang LANG_FR = {
         [O_DEADZONE] = {"Zone morte du stick", "La course des sticks et gâchettes avant qu'ils ne comptent."},
         [O_FF_MENUS] = {"Menus en avance rapide", "Avec l'avance rapide, maintenir une direction déplace le curseur du menu à son rythme normal."},
         [O_SKIP_START] = {"Passer PRESS START", "L'écran titre affiche Nouvelle partie et Continuer tout de suite, sans attendre Start."},
+        [O_MENU_WRAP] = {"Curseur en boucle", "Haut depuis la première ligne va à la dernière, et bas depuis la dernière à la première : menu, objets, boutiques et techniques."},
         [O_FAST_TEXT] = {"Texte rapide (maintenir X)", "Maintenir X fait avancer les dialogues sans appuyer à chaque ligne, hors combats et jeux de cartes, où X confirme les ordres. D'après Dmw2003FastText, de markisha64."},
         [O_FAST_TRAVEL] = {"Voyage rapide (carte, X)", "Sur la carte, X sur une zone visitée vous y emmène à la fermeture du menu, par une des portes du jeu ouvertes à ce stade de l'histoire. D'après Flawe's Mod, de Flawe."},
         [O_OBJECTIVE] = {"Objectif sur la carte", "La carte fait clignoter la zone de la prochaine étape de l'histoire, visitée ou non, y compris sur la carte de l'autre serveur si l'étape s'y trouve."},

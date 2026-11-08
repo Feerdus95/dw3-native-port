@@ -1,6 +1,24 @@
 --- a/src/ststatus/item_list.c
 +++ b/src/ststatus/item_list.c
-@@ -377,3 +377,470 @@
+@@ -142,11 +142,17 @@
+         if (panel->cursor < first) {
+             panel->cursor = first;
+         }
++#ifdef NATIVE
++        panel->cursor = native_wrap_grid(cursor, panel->cursor, first, last, -1);
++#endif
+     } else if (PAD_PRESSED(PAD_DOWN) || PAD_REPEATED(PAD_DOWN)) {
+         panel->cursor += 2;
+         if (panel->cursor > last) {
+             panel->cursor = last;
+         }
++#ifdef NATIVE
++        panel->cursor = native_wrap_grid(cursor, panel->cursor, first, last, 1);
++#endif
+     }
+     if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
+         if (!PAD_HELD(PAD_DOWN)) {
+@@ -377,3 +383,470 @@
      panel->list = list;
      return panel;
  }

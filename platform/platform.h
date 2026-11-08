@@ -286,6 +286,7 @@ int native_scripts_check(void); /* --check-mods: lists the script files, returns
 extern int g_custom_scripts; /* custom_scripts = 0: the game's own battle scripts (scriptmod.c) */
 extern int g_save_anywhere; /* save_anywhere = 1: a SAVE row in the field menu (mods.c) */
 extern int g_save_from_menu;
+extern int g_menu_wrap;      /* menu_wrap = 1: a menu's cursor goes round at its ends (mods.c) */
 extern int g_ff_menu_speed;  /* ff_menu_speed = 1: menus repeat at their normal pace in fast forward (mods.c) */
 extern int g_skip_press_start; /* skip_press_start = 1: no PRESS START on the title (mods.c) */
 extern int g_heal_on_levelup; /* heal_on_levelup = 1: a partner that levels up is healed in full (mods.c) */

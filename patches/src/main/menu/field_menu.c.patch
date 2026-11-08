@@ -142,7 +142,7 @@
          win->options[task->counter]->setString(win->options[task->counter], FILE_CACHE.load(TEXT_FILE(TEXT_STATUS)),
                                    FIELD_MENU_OPTIONS[task->extraOption][task->counter]);
      }
-@@ -194,6 +315,16 @@
+@@ -194,16 +315,32 @@
      s32 prev;
      s32 done;
  
@@ -159,7 +159,23 @@
      prev = task->cursor;
      if (PAD_PRESSED(PAD_UP) || PAD_REPEATED(PAD_UP)) {
          if (--task->cursor < 0) {
-@@ -216,6 +347,13 @@
+             task->cursor = 0;
+         }
++#ifdef NATIVE
++        task->cursor = native_wrap_list(prev, task->cursor, -1, task->count - 1);
++#endif
+     } else if (PAD_PRESSED(PAD_DOWN) || PAD_REPEATED(PAD_DOWN)) {
+         task->cursor++;
+         if (task->cursor > task->count - 1) {
+             task->cursor = task->count - 1;
+         }
++#ifdef NATIVE
++        task->cursor = native_wrap_list(prev, task->cursor, 1, task->count - 1);
++#endif
+     }
+     if (prev != task->cursor) {
+         SOUND.playSound(SOUND_CURSOR);
+@@ -216,6 +353,13 @@
          if (task->option2Enabled == 0 && task->cursor == 2) {
              return;
          }
@@ -173,7 +189,7 @@
          done = 1;
          if (GAME.funcs.getMode() == MODE_STATUS) {
              task->step = 1;
-@@ -223,6 +361,11 @@
+@@ -223,6 +367,11 @@
              task->step = 0;
          }
          FIELD_MENU_CHOICE.option = task->cursor;
@@ -185,7 +201,7 @@
      } else if (PAD_PRESSED(PAD_TRIANGLE)) {
          SOUND.playSound(SOUND_MENU_CANCEL);
          done = 1;
-@@ -232,6 +375,9 @@
+@@ -232,6 +381,9 @@
              task->step = 1;
          }
      }
@@ -195,7 +211,7 @@
      if (done) {
          startPanel(&task->panels[0], 0);
          startPanel(&task->panels[1], 0);
-@@ -282,6 +428,19 @@
+@@ -282,6 +434,19 @@
          }
          break;
      case 6:
@@ -215,7 +231,7 @@
          if (GAME.funcs.getMode() == MODE_STATUS) {
              GAME.funcs.requestMode(GAME.fieldMode, 0);
          } else {
-@@ -319,6 +478,64 @@
+@@ -319,6 +484,64 @@
      }
  }
  
@@ -280,7 +296,7 @@
  /* Runs the field menu: opens its panels, moves the cursor and switches mode on a choice */
  void updateFieldMenu(FieldMenu *task, FieldMenuWindows *win) {
      SpriteDrawer obj;
-@@ -420,6 +637,13 @@
+@@ -420,6 +643,13 @@
              } else {
                  obj.setScale(ONE, ONE, ONE);
              }

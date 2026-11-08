@@ -1,0 +1,20 @@
+--- a/src/stitshop/item_list.c
++++ b/src/stitshop/item_list.c
+@@ -227,11 +227,17 @@
+                     if (list->selection < first) {
+                         list->selection = first;
+                     }
++#ifdef NATIVE
++                    list->selection = native_wrap_grid(old, list->selection, first, last, -1);
++#endif
+                 } else if (PAD_PRESSED(PAD_DOWN) || PAD_REPEATED(PAD_DOWN)) {
+                     list->selection += 2;
+                     if (list->selection > last) {
+                         list->selection = last;
+                     }
++#ifdef NATIVE
++                    list->selection = native_wrap_grid(old, list->selection, first, last, 1);
++#endif
+                 }
+                 if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
+                     if (!PAD_HELD(PAD_DOWN)) {

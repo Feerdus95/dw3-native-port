@@ -108,6 +108,11 @@ inactive_window = 0
 # partners get neither. The report uses the setting it had when it began.
 full_exp_share = 0
 
+# 1: a menu's cursor goes round at its ends: up from the first row to the last,
+# down from the last to the first (the field menu, the item lists and shops, the
+# techniques list). The other menus keep stopping at their ends.
+menu_wrap = 0
+
 # 1: in fast forward (Tab / R3) a menu's cursor keeps moving at its normal pace
 # when a direction is held, instead of racing at the game's speed.
 ff_menu_speed = 0

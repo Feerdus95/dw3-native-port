@@ -159,6 +159,7 @@ const Lang LANG_IT = {
         [O_DEADZONE] = {"Zona morta dello stick", "Quanto si muovono stick e grilletti prima di contare."},
         [O_FF_MENUS] = {"Menu in avanti veloce", "Con l'avanti veloce attivo, tenere premuta una direzione muove il cursore del menu al ritmo normale."},
         [O_SKIP_START] = {"Salta PRESS START", "La schermata del titolo mostra subito Nuova partita e Continua, senza attendere Start."},
+        [O_MENU_WRAP] = {"Cursore a giro", "Su dalla prima riga porta all'ultima e giù dall'ultima alla prima: menu, liste oggetti, negozi e tecniche."},
         [O_FAST_TEXT] = {"Testo rapido (tieni X)", "Tenere premuto X fa avanzare i dialoghi senza premere a ogni riga, fuori da battaglie e giochi di carte, dove X conferma i comandi. Da Dmw2003FastText di markisha64."},
         [O_FAST_TRAVEL] = {"Viaggio rapido (mappa, X)", "Sulla mappa, X su una zona visitata ti porta lì alla chiusura del menu, da una delle porte del gioco aperte in quel punto della storia. Da Flawe's Mod di Flawe."},
         [O_OBJECTIVE] = {"Obiettivo sulla mappa", "La mappa fa lampeggiare la zona del prossimo passo della storia, visitata o no, anche sulla mappa dell'altro server se il passo è lì."},
