@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Cancel on B shows On when either the swapped keys or the swapped gamepad buttons are in place, so a custom binding on the other half no longer leaves it showing Off.
+
 ## v0.18.9 (beta)
 
 - The launcher moves with the arrows where it makes sense. On the home screen, Left and Right walk the bar (Play, Settings, Saves, Tools, language) and Up and Down move between it and the buttons under it, where Left and Right swap Play and Quit. In Settings, Up from the first row reaches the tabs, and Left and Right switch them.
