@@ -21,6 +21,14 @@ static uint64_t period_ns(void) {
    heard), the rest run the game at once; movies keep their time */
 static int s_real = 1, s_ff_tick;
 
+/* The vsyncs shown, in the game's 1/256 steps (GFX.time's): what a held button's repeat counts
+   with ff_menu_speed, so a menu repeats at its normal pace in fast forward (pad/port.c patch) */
+static unsigned s_real_time;
+
+int native_real_time(void) {
+    return (int)(s_real_time >> 8);
+}
+
 int native_real_vsync(void) {
     return s_real;
 }
@@ -37,6 +45,7 @@ static void vblank(void) {
     soft_age();
     s_real = g_ff_speed <= 1 || movie_playing() || ++s_ff_tick >= g_ff_speed;
     if (s_real) {
+        s_real_time += NTSC_MODE ? 0x100 : 0x133;
         s_ff_tick = 0;
         if (s_next_ns == 0 || now > s_next_ns + 100000000ull) {
             s_next_ns = now; /* first one, or we fell behind (debugger): don't catch up */

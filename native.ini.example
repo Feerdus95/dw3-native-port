@@ -108,6 +108,10 @@ inactive_window = 0
 # partners get neither. The report uses the setting it had when it began.
 full_exp_share = 0
 
+# 1: in fast forward (Tab / R3) a menu's cursor keeps moving at its normal pace
+# when a direction is held, instead of racing at the game's speed.
+ff_menu_speed = 0
+
 # 1: the title screen shows New game / Continue at once, without waiting for
 # Start on PRESS START (the ten seconds' timeout goes with it).
 skip_press_start = 0

@@ -27,6 +27,8 @@ void native_read_file(int fid, int sector, int count, void *dst);
 void native_wait_vblank(void);
 /* 0 for a vsync fast forward adds (the game's ticks between frames shown) */
 int native_real_vsync(void);
+int native_real_time(void); /* the vsyncs shown, as the game counts time (etc.c) */
+extern int g_ff_menu_speed; /* ff_menu_speed = 1: a held button repeats at its normal pace in fast forward (pad/port.c) */
 
 /* Overlay variables back to their initial values: the mode overlays (sub 0)
    or the stages and WFIGHTMN/TS (sub 1) (platform/memory.c) */

@@ -1,0 +1,39 @@
+--- a/src/main/pad/port.c
++++ b/src/main/pad/port.c
+@@ -1,6 +1,15 @@
+ #include "game.h"
+ #include <libpad.h>
+ 
++#ifdef NATIVE
++/* The time a held button's repeat counts (ff_menu_speed, platform/etc.c): with the option on, the
++   vsyncs shown, not the game's own ticks, which fast forward runs several of per vsync shown, so a
++   menu's cursor repeats at its normal pace */
++#define PAD_TIME() (g_ff_menu_speed ? native_real_time() : GFX.funcs.getTime())
++#else
++#define PAD_TIME() GFX.funcs.getTime()
++#endif
++
+ /*
+  * The libpad state of a port while it can be read (0 otherwise); a stable pad gets its actuators
+  * aligned
+@@ -119,17 +128,17 @@
+ 
+         if ((buttons >> bit) & 1) {
+             if (PAD.repeatRate > 0) {
+-                if ((GFX.funcs.getTime() - *time + *count) / PAD.repeatRate != 0) {
++                if ((PAD_TIME() - *time + *count) / PAD.repeatRate != 0) {
+                     *count += 10;
+                     if (*count >= 12) {
+                         *count = 12;
+                     }
+-                    *time = GFX.funcs.getTime();
++                    *time = PAD_TIME();
+                     slot->repeated |= 1 << slot->buttonMap[i];
+                 }
+             }
+         } else {
+-            *time = GFX.funcs.getTime();
++            *time = PAD_TIME();
+             *count = 0;
+         }
+     }

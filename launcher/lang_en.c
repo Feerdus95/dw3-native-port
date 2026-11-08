@@ -155,6 +155,7 @@ const Lang LANG_EN = {
         [O_ICONS] = {"Button icons", "The icons in menus and texts, by Xelu. Auto follows the keyboard or gamepad you used last."},
         [O_RUMBLE] = {"Vibration", "The gamepad's vibration."},
         [O_DEADZONE] = {"Stick deadzone", "How far the sticks and triggers move before they count."},
+        [O_FF_MENUS] = {"Menus in fast forward", "With fast forward on, holding a direction moves a menu's cursor at its normal pace."},
         [O_SKIP_START] = {"Skip PRESS START", "The title screen shows New game and Continue at once, without waiting for Start."},
         [O_FAST_TEXT] = {"Fast text (hold X)", "Holding X advances the dialogue instead of pressing it for each line, outside battles and card games, where X confirms commands. After Dmw2003FastText, by markisha64."},
         [O_FAST_TRAVEL] = {"Fast travel (map, X)", "On the map screen, X on an area you have visited takes you there as the menu closes, through one of the game's own doors open at that point of the story. After Flawe's Mod, by Flawe."},

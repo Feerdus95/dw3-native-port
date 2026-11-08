@@ -155,6 +155,7 @@ const Lang LANG_FR = {
         [O_ICONS] = {"Icônes des boutons", "Les icônes des menus et des textes, par Xelu. Auto suit le clavier ou la manette utilisés en dernier."},
         [O_RUMBLE] = {"Vibration", "La vibration de la manette."},
         [O_DEADZONE] = {"Zone morte du stick", "La course des sticks et gâchettes avant qu'ils ne comptent."},
+        [O_FF_MENUS] = {"Menus en avance rapide", "Avec l'avance rapide, maintenir une direction déplace le curseur du menu à son rythme normal."},
         [O_SKIP_START] = {"Passer PRESS START", "L'écran titre affiche Nouvelle partie et Continuer tout de suite, sans attendre Start."},
         [O_FAST_TEXT] = {"Texte rapide (maintenir X)", "Maintenir X fait avancer les dialogues sans appuyer à chaque ligne, hors combats et jeux de cartes, où X confirme les ordres. D'après Dmw2003FastText, de markisha64."},
         [O_FAST_TRAVEL] = {"Voyage rapide (carte, X)", "Sur la carte, X sur une zone visitée vous y emmène à la fermeture du menu, par une des portes du jeu ouvertes à ce stade de l'histoire. D'après Flawe's Mod, de Flawe."},
