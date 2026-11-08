@@ -28,6 +28,26 @@ static int first_selectable(void)
     return i;
 }
 
+/* Home: Left/Right walk the bar, Play | Settings | Saves | Tools | Language, round; the
+   buttons under it (Quit, the release chip) count as Play */
+static void home_step(int dir)
+{
+    static const short BAR[5] = {S_PLAY, S_SETTINGS, S_SAVES, S_TOOLS, -1}; /* -1: the language */
+    const Row *r = rows();
+    const int n = row_count(r), sel = g_app.sel[SC_HOME];
+    int at = 0, want;
+    for (int k = 0; k < 5; k++) {
+        at = (r[sel].kind == R_LANGUAGE ? BAR[k] == -1 : r[sel].kind == R_ACTION && r[sel].id == BAR[k]) ? k : at;
+    }
+    want = BAR[(at + dir + 5) % 5];
+    for (int i = 0; i < n; i++) {
+        if (want == -1 ? r[i].kind == R_LANGUAGE : r[i].kind == R_ACTION && r[i].id == want) {
+            g_app.sel[SC_HOME] = i;
+        }
+    }
+    g_app.btn = 0;
+}
+
 static void move_selection(int dir)
 {
     const Row *r = rows();
@@ -169,6 +189,10 @@ void screens_action(int a)
         }
     } else if (a == A_UP && g_app.screen == SC_SETTINGS && first_selectable() == g_app.sel[SC_SETTINGS]) {
         g_app.tabfocus = true;
+        return;
+    }
+    if (g_app.screen == SC_HOME && !first_run_screen() && (a == A_LEFT || a == A_RIGHT)) {
+        home_step(a == A_RIGHT ? 1 : -1);
         return;
     }
     switch (a) {
