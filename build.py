@@ -144,7 +144,7 @@ def widen_returns(ll):
 
 
 GLOBAL = re.compile(r"^(@\S+ = (?:[a-z_]+ )*global .*?)(, align \d+.*)$")
-SUB_OVERLAYS = {"stages", "wfightmn", "wfightts"}
+SUB_OVERLAYS = ("field/stages", "battle/normal_battle", "debug/battle_test")  # the stages, WFIGHTMN, WFIGHTTS
 
 
 def overlay_sections(ll, group):
@@ -212,7 +212,7 @@ def compile_game(src, force):
     ll_text = mips_divisions(widen_returns(ll.read_text()))
     # main's variables in .data$dw3g1: with the overlays' after them, the
     # game's whole state is one range (platform/state.c's savestates)
-    ll_text = overlay_sections(ll_text, "g" if rel.parts[0] == "main" else "s" if rel.parts[0] in SUB_OVERLAYS else "m")
+    ll_text = overlay_sections(ll_text, "g" if rel.parts[0] == "engine" else "s" if rel.as_posix().startswith(SUB_OVERLAYS) else "m")
     ll.write_text(ll_text)
     r = run([CC, "-c", *GAME_OPT, "-g", "-Wno-override-module", *SAN_FLAGS, ll, "-o", obj])
     return rel, obj if r.returncode == 0 else None, r.stderr, True
