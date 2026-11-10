@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The Digilog marks a side quest that needs an item first: while you lack it, the bar shows NEEDS and the item's name where the kind is. Tree Boots (Veemon) asks for the Folder Bag.
 - Cancel on B shows On when either the swapped keys or the swapped gamepad buttons are in place, so a custom binding on the other half no longer leaves it showing Off.
 
 ## v0.18.9 (beta)

@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -377,3 +383,470 @@
+@@ -367,3 +373,490 @@
      panel->list = list;
      return panel;
  }
@@ -44,6 +44,7 @@
 +#define TEXT_SIDE 111
 +#define TEXT_DONE 112
 +#define TEXT_SIDE_QUEST(quest) (113 + (quest)) /* its text */
++#define TEXT_NEEDS 148 /* "NEEDS", in the bar where the kind is, then the item */
 +#define TAB_ACTIVE 0
 +#define TAB_DONE 1
 +s32 STSTATUS_objectiveModeAt(s32 progress); /* map_screen.c */
@@ -65,6 +66,7 @@
 +    u16 mode; /* its field */
 +    u16 done; /* a flag code (FLAG) */
 +    u16 last; /* the last story step it can be done at */
++    u16 req; /* an item it needs first (0 for none), shown while the player lacks it */
 +} SideQuest;
 +#define ANY_STEP 0xFF
 +
@@ -88,7 +90,7 @@
 +    { 0x033, 0x2D3, FLAG(0x40, 0x85) }, /* Mind Chip, Fire Master */
 +    { 0x141, 0x2D4, FLAG(0x40, 0x87) }, /* EXP Adapter, Dark Master */
 +    { 0x18C, 0x293, FLAG(0x40, 0x1D) }, /* Crony ID, Kenny */
-+    { 0x004, 0x229, FLAG(0x1A, 0x28) }, /* Tree Boots, Veemon */
++    { 0x004, 0x229, FLAG(0x1A, 0x28), 0, 0x192 }, /* Tree Boots, Veemon (Hide's event needs the Folder Bag) */
 +    { 0x192, 0x211, FLAG(0x40, 0xA1) }, /* Folder Bag, the tamers */
 +    { 0x02A, 0x28B, FLAG(0x40, 0x77) }, /* Platinum ID, BK WarGreymon */
 +    { 0x0F2, 0x295, FLAG(0x40, 0x79) }, /* Wild Helmet, BK MegaGargomon */
@@ -140,6 +142,7 @@
 +    TextWindow *next;
 +    TextWindow *area;
 +    TextWindow *state;
++    TextWindow *need; /* the item the entry needs, after "NEEDS" in state */
 +    TextWindow *help;
 +    Cursor *cursor;
 +} JournalWindows;
@@ -152,6 +155,13 @@
 +    const SideQuest *q = &SIDE_QUESTS[quest];
 +
 +    return FLAGS_00.checkCondition((q->mode & 0xFF) | 0x2000, 1) == 1 && GAME.progress <= (q->last ? q->last : ANY_STEP);
++}
++
++/* The item an entry needs and the player lacks, or 0 */
++static s32 journalNeeds(s32 entry) {
++    s32 req = entry < 0 ? SIDE_QUESTS[-1 - entry].req : 0;
++
++    return req != 0 && FLAGS_00.checkCondition(ITEM(0, req), 1) != 1 ? req : 0;
 +}
 +
 +static s32 sideQuestDone(s32 quest) {
@@ -209,14 +219,17 @@
 +static void showJournalEntry(Journal *journal, JournalWindows *windows) {
 +    s32 entry;
 +    s32 place;
++    s32 need;
 +
 +    if (journal->count == 0) {
 +        windows->area->setVisible(windows->area, 0);
 +        windows->state->setVisible(windows->state, 0);
++        windows->need->setVisible(windows->need, 0);
 +        windows->help->setVisible(windows->help, 0);
 +        return;
 +    }
 +    entry = journal->entries[journal->cursor];
++    need = journal->tab == TAB_ACTIVE ? journalNeeds(entry) : 0;
 +    place = journalPlace(journalMode(entry));
 +    if (place != 0) {
 +        windows->area->setString(windows->area, FILE_CACHE.load(TEXT_FILE(TEXT_STAGE_NAMES)), place);
@@ -224,7 +237,12 @@
 +        windows->area->setVisible(windows->area, 0);
 +    }
 +    windows->state->setString(windows->state, journalTexts(),
-+                              journal->tab == TAB_DONE ? TEXT_DONE : entry >= 0 ? TEXT_MAIN : TEXT_SIDE);
++                              need != 0 ? TEXT_NEEDS : journal->tab == TAB_DONE ? TEXT_DONE : entry >= 0 ? TEXT_MAIN : TEXT_SIDE);
++    if (need != 0) {
++        windows->need->setString(windows->need, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_NAMES)), need);
++    } else {
++        windows->need->setVisible(windows->need, 0);
++    }
 +    windows->help->setString(windows->help, journalTexts(), entry >= 0 ? TEXT_STEP(entry) + 1 : TEXT_SIDE_QUEST(-1 - entry));
 +}
 +
@@ -288,6 +306,7 @@
 +    windows->next->setVisible(windows->next, 0);
 +    windows->area->setVisible(windows->area, 0);
 +    windows->state->setVisible(windows->state, 0);
++    windows->need->setVisible(windows->need, 0);
 +    windows->help->setVisible(windows->help, 0);
 +    windows->cursor->setVisible(windows->cursor, 0);
 +    journal->hasPrev = 0;
@@ -450,6 +469,7 @@
 +        windows->next = createTextWindow(journal->layer, 1, 0x102, 0x97);
 +        windows->area = createTextWindow(journal->layer, 1, 0x25, 0xAE);
 +        windows->state = createTextWindow(journal->layer, 1, 0xA1, 0xAF);
++        windows->need = createTextWindow(journal->layer, 1, 0xE4, 0xAF);
 +        windows->help = createTextWindow(journal->layer, 1, 20, 198);
 +        windows->help->setLines(windows->help, 2);
 +        windows->cursor = createCursor(journal->layer, journal->depth - 1, 0x1E, 0x25);
