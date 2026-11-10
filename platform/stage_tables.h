@@ -87,7 +87,8 @@ typedef struct {
 
 extern FieldState FIELDSTG_state;
 extern FieldMap FIELDSTG_map;
-extern StageEntry FIELDSTG_stages[], FIELDSTG_euStages[];
+/* the European table; the extra chapter's, which runs on into it (FIELDSTG_pickStage) */
+extern StageEntry FIELDSTG_stages[], FIELDSTG_extraStages[];
 /* the banner's names of a mode: strings of text files STAREA and STNAME */
 typedef struct {
     uint8_t area, place;

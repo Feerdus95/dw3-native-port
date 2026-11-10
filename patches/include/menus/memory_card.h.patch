@@ -1,0 +1,18 @@
+--- a/include/menus/memory_card.h
++++ b/include/menus/memory_card.h
+@@ -134,7 +134,15 @@
+     /* 0x328 */ MemCardFuncs funcs;
+ } MemCardSystem;
+ 
++#ifdef NATIVE
++/* the native link doesn't put MEMCARD_FUNCS right after MEMCARD: reach it by name */
++typedef struct MemCardSystemFuncs {
++    MemCardFuncs funcs;
++} MemCardSystemFuncs;
++#define MEMCARD_SYSTEM (*(MemCardSystemFuncs *)&MEMCARD_FUNCS)
++#else
+ #define MEMCARD_SYSTEM (*(MemCardSystem *)&MEMCARD)
++#endif
+ 
+ /* A text window of the details (STGMCARD_detailWindows) */
+ typedef struct MemCardWindowSpec {

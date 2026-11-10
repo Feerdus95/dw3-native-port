@@ -1,0 +1,31 @@
+--- a/src/engine/gfx/display.c
++++ b/src/engine/gfx/display.c
+@@ -34,6 +34,10 @@
+         GFX.dispBuffer = !GFX.dispBuffer;
+         PutDispEnv(&GFX.disp[GFX.dispBuffer]);
+     }
++#ifdef NATIVE
++    /* fast forward: the music keeps its time */
++    if (native_real_vsync())
++#endif
+     SsSeqCalledTbyT();
+     FLIP_PENDING = 0;
+ }
+@@ -71,10 +75,17 @@
+     DrawSync(0);
+     FLIP_PENDING = 1;
+     while (*(volatile s32 *)&FLIP_PENDING != 0) {
++#ifdef NATIVE
++        /* no interrupts natively: wait for the next vsync, which runs the callback */
++        native_wait_vblank();
++#endif
+     }
+     if (GFX.prim != NULL) {
+         for (i = 0; i < LAYER_COUNT; i++) {
+             if (GFX.layers[i] != NULL) {
++#ifdef NATIVE
++                g_draw_layer = GFX.layerIds[i];
++#endif
+                 GFX.layers[i]->draw(GFX.layers[i]);
+             }
+         }

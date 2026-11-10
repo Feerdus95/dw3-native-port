@@ -1,0 +1,11 @@
+--- a/include/menus/digimon_lab.h
++++ b/include/menus/digimon_lab.h
+@@ -106,7 +106,7 @@
+     /* 0x0C0 */ u8 pad[0xC8 - 0xC0]; /* never read or written */
+     /* 0x0C8 */ s32 picked; /* the list's cursor when an entry was picked */
+     /* 0x0CC */ s16 slots[3]; /* getPartnerSlots */
+-    /* 0x0D2 */ s16 entries[45]; /* listPartnerEntries */
++    /* 0x0D2 */ s16 entries[46]; /* listPartnerEntries (and the port's two extra forms) */
+     /* 0x12C */ s32 entryCount;
+ } LabSlotScreen;
+ 

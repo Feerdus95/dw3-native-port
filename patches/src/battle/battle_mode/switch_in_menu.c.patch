@@ -1,0 +1,14 @@
+--- a/src/battle/battle_mode/switch_in_menu.c
++++ b/src/battle/battle_mode/switch_in_menu.c
+@@ -159,7 +159,11 @@
+         if (data->pairPartner != 0 && data->pairPartner == partner->nameId) {
+             task->tech = data->pairTech;
+         } else {
++#ifdef NATIVE
++            task->tech = native_pair_tech(FIGHTSTG_battle.state.fighters[0][FIGHTSTG_battle.state.active[0]].id, task->ids[task->digimon]);
++#else
+             task->tech = 0;
++#endif
+         }
+     }
+ }

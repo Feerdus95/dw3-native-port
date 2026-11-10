@@ -251,10 +251,10 @@ int native_pick_new_field(int mode) {
     }
     /* the template's overlay file, as its modes have it */
     FIELDSTG_state.stageFile = 0;
-    for (const StageEntry *e = FIELDSTG_euStages; e->mode != 0 && !FIELDSTG_state.stageFile; e++) {
+    for (const StageEntry *e = FIELDSTG_stages; e->mode != 0 && !FIELDSTG_state.stageFile; e++) {
         if (e->init == s->start) FIELDSTG_state.stageFile = e->file;
     }
-    for (const StageEntry *e = FIELDSTG_stages; e->mode != 0 && !FIELDSTG_state.stageFile; e++) {
+    for (const StageEntry *e = FIELDSTG_extraStages; e->mode != 0 && !FIELDSTG_state.stageFile; e++) {
         if (e->init == s->start) FIELDSTG_state.stageFile = e->file;
     }
     FIELDSTG_state.stageInit = s->start;

@@ -50,10 +50,10 @@ static void places(FILE *f, FieldBattles *b, int list) {
 }
 
 /* [mode, overlay file, area name, place name] of each mode the stage runs */
-static void modes(FILE *f, const StageEntry *e, void *start) {
+static void modes(FILE *f, const StageEntry *e, const StageEntry *end, void *start) {
     int n = 0;
 
-    for (; e->mode != 0; e++) {
+    for (; e != end && e->mode != 0; e++) {
         if (e->init == start) {
             int area = 0, place = 0;
 
@@ -82,9 +82,9 @@ static void dump(FILE *f, const StageFuncs *s) {
     st->findBattles = s_findBattles;
 
     fprintf(f, "{\"name\":\"%s\",\"modes\":[", s->name);
-    modes(f, FIELDSTG_stages, s->start);
+    modes(f, FIELDSTG_extraStages, FIELDSTG_stages, s->start); /* up to where it runs on into the European table */
     fputs("],\"euModes\":[", f);
-    modes(f, FIELDSTG_euStages, s->start);
+    modes(f, FIELDSTG_stages, NULL, s->start);
     fprintf(f, "],\n\"mapFile\":%d,\"sheetEntry\":%d,\"imageEntry\":%d,\"imageFile\":%d,\"textFile\":%d,"
                "\"soundBank\":%d,\"music\":%d,\"start\":[%d,%d],\"startDir\":%d,\"spriteColor\":[%u,%u,%u,%u],\n"
                "\"mapFiles\":[",

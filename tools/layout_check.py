@@ -30,7 +30,7 @@ def field_name(decl):
     return m.group(1) if m else None
 
 
-MACROS = {"VERSION_EU": 1, "VERSION_US": 0, "NATIVE": 1,
+MACROS = {"VERSION_EU": 1, "VERSION_US": 0, "VERSION_JP": 0, "NATIVE": 1,
           "NAME_ENTRY_HAS_UNK98": 0, "NAME_ENTRY_HAS_HIDE": 0}  # the comments' offsets are for the overlays without it
 
 # Structs whose comments give the US offsets from a field on, as the headers say:
@@ -43,6 +43,8 @@ def eu_lines(text):
     anything else taken as true"""
     def value(cond):
         cond = cond.strip()
+        if "||" in cond:
+            return any(value(c) for c in cond.split("||"))
         neg = cond.startswith("!")
         name = re.sub(r"defined\s*\(?\s*(\w+)\s*\)?", r"\1", cond.lstrip("!")).strip()
         v = MACROS.get(name, 1)
@@ -114,7 +116,7 @@ def main():
             continue
         rel = h.relative_to(include).as_posix()
         src = out_dir / (rel.replace("/", "_") + ".c")
-        src.write_text('#include <stddef.h>\n#include "game.h"\n'
+        src.write_text('#include <stddef.h>\n#include "engine/game.h"\n'
                        f'#include "{rel}"\n'
                        + "".join(f'_Static_assert(__builtin_offsetof({t}, {f}) == {o:#x}, "{t}.{f} @ {o:#x}");\n'
                                  for t, f, o in checks))

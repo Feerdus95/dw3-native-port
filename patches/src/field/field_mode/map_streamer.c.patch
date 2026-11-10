@@ -1,0 +1,17 @@
+--- a/src/field/field_mode/map_streamer.c
++++ b/src/field/field_mode/map_streamer.c
+@@ -207,8 +207,14 @@
+                 }
+                 task->images[best].frame = slots[i].frame;
+                 task->images[best].time = GFX.funcs.getTime();
++#ifdef NATIVE
++                /* native: every tile in view at once, and shown at once, with
++                   no cover fading from it */
++                task->images[best].cover = 0;
++#else
+                 task->images[best].cover = 0xFFFF;
+                 return;
++#endif
+             }
+         }
+     }

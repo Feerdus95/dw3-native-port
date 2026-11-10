@@ -1,0 +1,23 @@
+--- a/src/engine/system/overlay.c
++++ b/src/engine/system/overlay.c
+@@ -58,6 +58,10 @@
+     if (OVERLAY_LOADER.mode != id) {
+         OVERLAY_LOADER.mode = id;
+         OVERLAY_LOADER.subOverlay = -1;
++#ifdef NATIVE
++        /* the code is linked in: what the copy did is the variables going back */
++        native_reset_overlays(0);
++#endif
+         src = FILE_CACHE.load(MODE_OVERLAY_FILES[id]);
+         dst = OVERLAY_ADDRESS;
+         memcpy(dst, src, FILE_TABLE.getSectorCount(MODE_OVERLAY_FILES[id]) * CD_SECTOR_SIZE);
+@@ -71,6 +75,9 @@
+ 
+     if (OVERLAY_LOADER.subOverlay != id) {
+         OVERLAY_LOADER.subOverlay = id;
++#ifdef NATIVE
++        native_reset_overlays(1);
++#endif
+         src = FILE_CACHE.load(id);
+         dst = SUB_OVERLAY_ADDRESS;
+         memcpy(dst, src, FILE_TABLE.getSectorCount(id) * CD_SECTOR_SIZE);

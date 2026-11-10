@@ -1,0 +1,15 @@
+--- a/src/field/stages/south_sector/wstag460.c
++++ b/src/field/stages/south_sector/wstag460.c
+@@ -305,6 +305,12 @@
+     StageTile *fading;
+     s32 frame;
+ 
++#ifdef NATIVE
++    /* the seventh wanderer (animation 4) has no map object: the PSX wrote to its low RAM through NULL */
++    if (task->state != TASK_INIT && task->tile.tile == NULL) {
++        return;
++    }
++#endif
+     switch (task->state) {
+     case TASK_INIT:
+     default:

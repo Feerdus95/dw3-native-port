@@ -7,7 +7,7 @@
 /* The heap arena (platform/memory.c); the PSX had 0x800AB800-0x801FF000, ~1.3 MB.
    Bigger on purpose: room for mods and expansions. The file cache, which on the
    PSX freed old files only when an allocation failed, also evicts when its
-   slots run out (patches/src/main/file/file_cache.c) */
+   slots run out (patches/src/engine/file/file_cache.c) */
 #ifndef NATIVE_HEAP_SIZE /* build.py --sanitize takes 4 MB, to fit its bigger code under 16 MB */
 #define NATIVE_HEAP_SIZE (6 * 1024 * 1024)
 #endif

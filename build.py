@@ -71,7 +71,7 @@ GAME_CFLAGS = [
     # K&R-style calls through `()` pointers and loose casts the PSX GCC took
     "-Wno-error=incompatible-function-pointer-types", "-Wno-error=incompatible-pointer-types",
     f"-I{NATIVE / 'include'}", f"-I{PATCHED / 'include'}",
-    f"-I{DECOMP / 'external/psyq_headers/psyq_lib47/include'}", f"-I{DECOMP / 'src/stages'}",
+    f"-I{DECOMP / 'external/psyq_headers/psyq_lib47/include'}", f"-I{DECOMP / 'src/field/stages'}", f"-I{DECOMP / 'src'}",
     "-DVERSION_EU", "-D_LANGUAGE_C", "-DLANGUAGE_C", "-DSKIP_ASM", '-DASM_DIR="asm/eu"', *SAN_FLAGS,
 ]
 PLATFORM_CFLAGS = ["-std=c11", "-c", "-O2", "-g", "-Wall", "-Wno-unused-parameter", f"-I{SDL / 'include'}", *SAN_FLAGS]
@@ -255,7 +255,7 @@ def symbols(obj):
 # The dw3_decomp commit the patches and checks were made against. To move on:
 # git pull in dw3_decomp, python native/build.py (patches that no longer apply
 # fail here, by name), tools/layout_check.py, a smoke boot, then bump this.
-DECOMP_COMMIT = "241649d58b5a6efdff87766a675e00faf5a49851"
+DECOMP_COMMIT = "791932b757b358bb8228f851ce96f4d22ae112dd"
 # The PsyQ functions known to be stubbed (one a line): a new one fails the build, so a stub that appears
 # by accident (a decomp update, a new call) isn't missed. A real one: add it with --update-stub-baseline
 STUB_BASELINE = NATIVE / "tools/stubs.baseline"

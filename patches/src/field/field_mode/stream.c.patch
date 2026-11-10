@@ -1,0 +1,17 @@
+--- a/src/field/field_mode/stream.c
++++ b/src/field/field_mode/stream.c
+@@ -74,8 +74,14 @@
+ void FIELDSTG_setStreamSource(StreamTask *task, s32 slot, Decompressor *source) {
+     task->slot = slot;
+     task->source = source;
++#ifdef NATIVE
++    /* native: the whole tile now, not 0x2800 bytes a frame */
++    task->data = source->run(source, task->buffer);
++    FIELDSTG_loadStreamSprites(task);
++#else
+     source->start(source, task->buffer, 0x2800);
+     task->setSubstate(task, 1);
++#endif
+ }
+ 
+ /* Takes a decompressed tile's sprites and loads its image into its slot's

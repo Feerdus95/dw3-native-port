@@ -1,0 +1,136 @@
+--- a/src/engine/game/digimon.c
++++ b/src/engine/game/digimon.c
+@@ -4,7 +4,11 @@
+ #include <libsnd.h>
+ 
+ /* 55 entries: the 52 Digimon, then three placeholders (0x1D4-0x1D6) */
++#ifdef NATIVE
++DigimonData DIGIMON_DATA[NATIVE_DATA_COUNT] = { /* and the Digimon mods' (native.h) */
++#else
+ DigimonData DIGIMON_DATA[55] = {
++#endif
+     {0x17F, {0x30, 0x2C, 0x29, 0x22, 0x21, 1}, {0x55, 0x7D, 0x50, 0x50, 0x73, 0x64, 0x5F}, {1, 0, 0, 0, 0, 0, 0x35}, 0,
+      {0x32, 0xA, 0x14, 0x28, 0x1E}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, 0x64, 0, 8, 0x96, 0x64, 0x55, 0x37, {4, 3, 3, 3, 2, 3}, {2, 5, 2, 2, 4, 3, 3}, {9, 0x14, 0x21, 0x2F, 0x2D}, 1, 1},
+     {0x181, {0x38, 0x3A, 0x13, 0x11, 0x31, 1}, {0x50, 0x73, 0x69, 0x78, 0x55, 0x73, 0x3C}, {3, 0, 0, 0, 0, 0, 0x37}, 0,
+@@ -127,9 +131,121 @@
+             return i;
+         }
+     }
++#ifdef NATIVE
++    /* and BladeGarurumon's, a partner's Digimon in the port (native.h) */
++    if (id == NATIVE_BLADEGARURUMON) {
++        return NATIVE_BLADEGARURUMON_DATA;
++    }
++    if (native_form_slot(id) >= 0) { /* and the Digimon mods' */
++        return native_form_slot(id);
++    }
++#endif
+     return -1;
+ }
+ 
++#ifdef NATIVE
++/* BladeGarurumon as a partner's Digimon (native.h): its DNA form's record,
++   1s, made MetalGarurumon's with a model of its own (471, which the port
++   makes: platform/bladegaru.c), a fast wolf's stats (speed and spirit high,
++   defense low), techniques and the signature Solar Laser: technique 444,
++   past the game's (443 is the final battle's), made Metal Wolf Claw's with a
++   cost, power and element of its own. Once the game's tables are read
++   (platform/main.c) */
++void native_bladegarurumon_setup(void) {
++    static const u16 STATS[5] = {30, 15, 55, 35, 65}; /* strength, defense, spirit, wisdom, speed */
++    static const u16 RESISTS[7] = {0, 0, 40, 40, 80, 80, 40};
++    static const u16 SKILLS[6] = {41, 156, 202, 158, 203, 111}; /* Thunder Bolt, Speed Up, Electro Bolt, Mega Boost, Lightning Slash */
++    static const u8 STATUS[5] = {20, 40, 10, 20, 30};
++    static const u8 LEARN[6] = {10, 25, 40, 50, 70, 85};
++    static const u8 KNOWN[5] = {30, 45, 60, 80, 99};
++    DigimonData *d = &DIGIMON_DATA[NATIVE_BLADEGARURUMON_DATA];
++    u8 nameId = d->nameId;
++    s32 i;
++
++    *d = DIGIMON_DATA[40]; /* MetalGarurumon */
++    d->id = NATIVE_BLADEGARURUMON;
++    d->nameId = nameId;
++    for (i = 0; i < 5; i++) {
++        d->battleStats[i] = STATS[i];
++        d->statusResists[i] = STATUS[i];
++        d->knownLevels[i] = KNOWN[i];
++    }
++    for (i = 0; i < 7; i++) {
++        d->resistances[i] = RESISTS[i];
++    }
++    for (i = 0; i < 6; i++) {
++        d->skills[i] = SKILLS[i];
++        d->skillLevels[i] = LEARN[i];
++    }
++    d->skills[6] = NATIVE_SOLAR_LASER;
++    d->pairTech = 0;
++    d->pairPartner = 0; /* MetalGarurumon's is WarGreymon */
++    TECHS[NATIVE_SOLAR_LASER - 1] = TECHS[92];
++    TECHS[NATIVE_SOLAR_LASER - 1].mp = 55;
++    TECHS[NATIVE_SOLAR_LASER - 1].power = 350;
++    TECHS[NATIVE_SOLAR_LASER - 1].element = 7;
++}
++
++/* The Digimon mods as partners' Digimon (native.h, platform/digimon_mods.c): each one's DIGIMON_DATA entry made from its template's
++   (the growth tables of that Digimon) with the stats, resistances, status resistances and techniques of its manifest; its techniques
++   (tech .. tech + 5) take their sprites and sounds from an existing technique, with cost, power and element of their own, and a
++   script each when the model has one; the pair's fusion (tech + 6) costs as Paildramon's. Once the game's tables are read
++   (platform/main.c) */
++void native_mods_setup(void) {
++    s32 k;
++    s32 i;
++
++    for (k = 0; k < NATIVE_MAX_MODS; k++) {
++        const NativeMod *m = native_mod_at(k);
++        DigimonData *d;
++
++        if (m == NULL) {
++            continue;
++        }
++        d = &DIGIMON_DATA[m->slot];
++        *d = DIGIMON_DATA[m->template];
++        d->id = m->id;
++        d->nameId = m->name_id;
++        i = d->hp * m->hp_permille / 1000; /* a byte: a permille that overflows it stops at 255, and 0 would be dead on arrival */
++        d->hp = i < 1 ? 1 : i > 255 ? 255 : i;
++        i = d->mp * m->mp_permille / 1000;
++        d->mp = i < 1 ? 1 : i > 255 ? 255 : i;
++        for (i = 0; i < 5; i++) {
++            d->battleStats[i] = m->stats[i];
++            d->statusResists[i] = m->status[i];
++            d->knownLevels[i] = m->known[i];
++        }
++        for (i = 0; i < 7; i++) {
++            d->resistances[i] = m->resists[i];
++        }
++        d->skills[0] = 13; /* the plain attack */
++        for (i = 0; i < 6; i++) {
++            TechData *t = &TECHS[m->tech + i - 1];
++
++            d->skills[i + 1] = m->tech + i;
++            d->skillLevels[i] = m->learn[i];
++            *t = TECHS[m->techs[i].from - 1];
++            t->mp = m->techs[i].mp;
++            t->power = m->techs[i].power;
++            t->elementPower = m->techs[i].element_power;
++            t->element = m->techs[i].element;
++            if (m->techs[i].script != 0) {
++                t->script = m->techs[i].script;
++            }
++        }
++        d->pairTech = 0;
++        d->pairPartner = 0;
++        if (m->pair[0] != 0) {
++            TechData *t = &TECHS[m->tech + 6 - 1];
++
++            *t = TECHS[373]; /* Paildramon's pair: the cost of the fusion, 100 MP each */
++            t->element = m->pair_element;
++            t->elementPower = m->pair_element_power;
++        }
++    }
++}
++#endif
++
+ /* The DIGIMON_DATA entry of Digimon `id`, or NULL */
+ DigimonData *getDigimon(s32 id) {
+     s32 index = findDigimon(id);

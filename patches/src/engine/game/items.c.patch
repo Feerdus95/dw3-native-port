@@ -1,0 +1,28 @@
+--- a/src/engine/game/items.c
++++ b/src/engine/game/items.c
+@@ -25,6 +25,13 @@
+  * that call it through ITEM_FUNCS don't truncate the result to a byte.
+  */
+ s32 getItemCategory(s32 id) {
++#ifdef NATIVE
++    /* the item screen asks for item 0 before one is under the cursor: getItem
++       is NULL there, and the PSX read its type from address 9 */
++    if (getItem(id) == NULL) {
++        return 0;
++    }
++#endif
+     return ITEM_TYPE_CATEGORIES[getItem(id)->type];
+ }
+ 
+@@ -903,7 +910,11 @@
+ u16 *ITEM_LISTS[5] = { KEY_ITEM_IDS, USABLE_ITEM_IDS, WEAPON_IDS, ARMOR_IDS, ACCESSORY_IDS };
+ 
+ /* The techniques, from 1: technique n is TECHS[n - 1] */
++#ifdef NATIVE
++TechData TECHS[NATIVE_TECH_COUNT] = { /* and the port's techniques, 444 on (native.h) */
++#else
+ TechData TECHS[443] = {
++#endif
+     /* 0x001 */ {0, 0x3C, 2, 2, 0x6E, 1, 1, 1, 1, 1, 1, 0, 2, 0x39, 5, 1},
+     /* 0x002 */ {0, 0x3C, 2, 2, 0x6E, 1, 1, 1, 1, 1, 1, 0, 2, 0x39, 5, 1},
+     /* 0x003 */ {0, 0x3C, 2, 2, 0x6E, 1, 1, 1, 1, 1, 1, 0, 2, 0x39, 5, 1},

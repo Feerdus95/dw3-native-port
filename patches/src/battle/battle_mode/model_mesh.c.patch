@@ -1,0 +1,390 @@
+--- a/src/battle/battle_mode/model_mesh.c
++++ b/src/battle/battle_mode/model_mesh.c
+@@ -380,6 +380,16 @@
+                 gte_CompMatrix(bone->parentMatrix, &bone->local, &bone->world);
+             }
+         }
++#ifdef NATIVE
++        {
++            Models *models = TASK_REGISTRY.funcs.find(BATTLE_TASK_MODELS, -1, -1);
++            s32 fighter = models != NULL && model->control >= &models->controls[0] && model->control < &models->controls[4];
++
++            for (d = 1; d < model->boneCount; d++) {
++                children[d + 1]->nativeShadow = fighter;
++            }
++        }
++#endif
+         for (j = 0; j < 2; j++) {
+             if (model->control->layers[j].enabled) {
+                 for (d = 0, drawn = model->bones; d < model->boneCount; d++, drawn++) {
+@@ -536,6 +546,134 @@
+     }
+ }
+ 
++#ifdef NATIVE
++/* Where the polygon being added got its points (state->screen's words): their
++   fractions go to the packet with them, for the render scale (platform/gte.c) */
++static s32 *FIGHTSTG_sxyFrom[4];
++void gte_precise_copy(void *dst, const void *src);
++int gte_precise_faces(s32 *const from[4], s32 quad);
++#define NATIVE_PRECISE3(prim)                                \
++    do {                                                      \
++        gte_precise_copy(&(prim)->x0, FIGHTSTG_sxyFrom[0]);   \
++        gte_precise_copy(&(prim)->x1, FIGHTSTG_sxyFrom[1]);   \
++        gte_precise_copy(&(prim)->x2, FIGHTSTG_sxyFrom[2]);   \
++    } while (0)
++#define NATIVE_PRECISE4(prim)                                \
++    do {                                                      \
++        NATIVE_PRECISE3(prim);                                \
++        gte_precise_copy(&(prim)->x3, FIGHTSTG_sxyFrom[3]);   \
++    } while (0)
++
++/* A fighter's Mesh's shadow (g_battle_shadows, native.h): its vertices dropped
++   to the ground (y 0) along a light from above, its opaque polygons as GP0 1C
++   triangles, which only the graphics card draws (darkening the ground once
++   where they overlap, behind the fighters by the depth buffer); last in the
++   layer's table, over the stage. The packets go to a buffer of their own */
++#define NATIVE_SHADOW_VERTICES 1024
++#define NATIVE_SHADOW_WORDS 0x8000
++#define NATIVE_LIGHT_X 0x5A0 /* the light's way, in 4096ths of its fall */
++#define NATIVE_LIGHT_Z 0x400
++static u_long FIGHTSTG_shadowPackets[2][NATIVE_SHADOW_WORDS];
++static s32 FIGHTSTG_shadowUsed[2];
++static u32 FIGHTSTG_shadowFrame[2];
++unsigned native_frame(void);
++
++static void nativeShadowTriangle(u_long *ot, s32 *sxy, s32 a, s32 b, s32 c) {
++    s32 buf = GFX.buffer & 1;
++    u_long *p;
++
++    if (FIGHTSTG_shadowUsed[buf] + 5 > NATIVE_SHADOW_WORDS) {
++        return;
++    }
++    p = &FIGHTSTG_shadowPackets[buf][FIGHTSTG_shadowUsed[buf]];
++    FIGHTSTG_shadowUsed[buf] += 5;
++    p[0] = 4 << 24;
++    p[1] = 0x1C000000;
++    p[2] = sxy[a];
++    p[3] = sxy[b];
++    p[4] = sxy[c];
++    gte_precise_copy(&p[2], &sxy[a]);
++    gte_precise_copy(&p[3], &sxy[b]);
++    gte_precise_copy(&p[4], &sxy[c]);
++    addPrim(ot, p);
++}
++
++static void nativeDrawMeshShadow(Mesh *mesh, Layer *layer) {
++    static s32 sxy[NATIVE_SHADOW_VERTICES];
++    ShortVec3 *vertex = mesh->vertices;
++    s32 count = vertex->x;
++    MATRIX *w = &mesh->matrix;
++    MATRIX m;
++    SVECTOR ground;
++    u_long *ot = layer->getOt(layer);
++    s32 i, x, y, z, buf = GFX.buffer & 1;
++    s32 quad = 0, textured = 0, lit = 0, abr = 0, n;
++    u8 *cmd;
++
++    if (count > NATIVE_SHADOW_VERTICES) {
++        return;
++    }
++    if (FIGHTSTG_shadowFrame[buf] != native_frame()) {
++        FIGHTSTG_shadowFrame[buf] = native_frame();
++        FIGHTSTG_shadowUsed[buf] = 0;
++    }
++    gte_CompMatrix(&GsWSMATRIX, &IDENTITY_MATRIX, &m);
++    gte_SetRotMatrix(&m);
++    gte_SetTransMatrix(&m);
++    for (i = 0, vertex++; i < count; i++, vertex++) {
++        x = ((w->m[0][0] * vertex->x + w->m[0][1] * vertex->y + w->m[0][2] * vertex->z) >> 12) + w->t[0];
++        y = ((w->m[1][0] * vertex->x + w->m[1][1] * vertex->y + w->m[1][2] * vertex->z) >> 12) + w->t[1];
++        z = ((w->m[2][0] * vertex->x + w->m[2][1] * vertex->y + w->m[2][2] * vertex->z) >> 12) + w->t[2];
++        if (y < 0) { /* above the ground (y grows down) */
++            x -= y * NATIVE_LIGHT_X >> 12;
++            z -= y * NATIVE_LIGHT_Z >> 12;
++        }
++        ground.vx = x < -0x7FFF ? -0x7FFF : x > 0x7FFF ? 0x7FFF : x;
++        ground.vy = 0;
++        ground.vz = z < -0x7FFF ? -0x7FFF : z > 0x7FFF ? 0x7FFF : z;
++        gte_ldv0(&ground);
++        gte_rtps();
++        gte_stsxy(&sxy[i]);
++    }
++    /* the polygons, as FIGHTSTG_drawMesh walks them */
++    for (cmd = mesh->commands; *cmd != 0xFF;) {
++        if (*cmd >> 4) {
++            switch (*cmd >> 4) {
++            case 8: quad = *cmd & 0xF; break;
++            case 9: textured = *cmd & 0xF; break;
++            case 12: lit = *cmd & 0xF; break;
++            case 14: abr = *cmd & 0xF; break;
++            }
++            cmd++;
++        } else if ((*cmd & 0xF) == 1) {
++            cmd += 7;
++        } else if ((*cmd & 0xF) >= 2 && (*cmd & 0xF) <= 5) {
++            cmd += 4;
++        } else if ((*cmd & 0xF) == 0) {
++            do {
++                cmd++;
++                if (!abr) { /* see-through parts (glows) cast none */
++                    nativeShadowTriangle(ot, sxy, cmd[0], cmd[1], cmd[2]);
++                    if (quad) {
++                        nativeShadowTriangle(ot, sxy, cmd[1], cmd[3], cmd[2]);
++                    }
++                }
++                n = quad + 3;
++                cmd += n;
++                if (lit) {
++                    cmd += n;
++                }
++                if (textured) {
++                    cmd += n * 2;
++                }
++            } while (*cmd == 0);
++        } else {
++            cmd++;
++        }
++    }
++}
++#endif
++
+ /* The screen positions of a Mesh's vertices and their depths in the layer's
+    ordering table */
+ void FIGHTSTG_projectMesh(Mesh *mesh, Layer *layer) {
+@@ -599,9 +737,15 @@
+         }
+         *(s32 *)&state->prim.gt4->x3 = state->sxy[3];
+         *(u16 *)&state->prim.gt4->u3 = *(u16 *)state->uv[3];
++#ifdef NATIVE
++        NATIVE_PRECISE4(state->prim.gt4);
++#endif
+         addPrim(state->ot, state->prim.gt4);
+         state->prim.gt4++;
+     } else {
++#ifdef NATIVE
++        NATIVE_PRECISE3(state->prim.gt3);
++#endif
+         setPolyGT3(state->prim.gt3);
+         if (state->abr) {
+             setSemiTrans(state->prim.gt3, 1);
+@@ -629,9 +773,15 @@
+         }
+         *(s32 *)&state->prim.ft4->x3 = state->sxy[3];
+         *(u16 *)&state->prim.ft4->u3 = *(u16 *)state->uv[3];
++#ifdef NATIVE
++        NATIVE_PRECISE4(state->prim.ft4);
++#endif
+         addPrim(state->ot, state->prim.ft4);
+         state->prim.ft4++;
+     } else {
++#ifdef NATIVE
++        NATIVE_PRECISE3(state->prim.ft3);
++#endif
+         setPolyFT3(state->prim.ft3);
+         if (state->abr) {
+             setSemiTrans(state->prim.ft3, 1);
+@@ -736,12 +886,28 @@
+         if (state->quad) {
+             state->sxy[3] = state->screen[i3];
+         }
++#ifdef NATIVE
++        FIGHTSTG_sxyFrom[0] = &state->screen[i0];
++        FIGHTSTG_sxyFrom[1] = &state->screen[i1];
++        FIGHTSTG_sxyFrom[2] = &state->screen[i2];
++        FIGHTSTG_sxyFrom[3] = &state->screen[i3];
++#endif
+         /* the checks and drawing are a do-while with breaks: its loop
+            notes weigh their references 4 instead of 3, so the screen
+            points outrank the screen base and the depth base outranks z1 */
+         do {
+             gte_ldsxy3(state->sxy[0], state->sxy[1], state->sxy[2]);
+             gte_nclip();
++#ifdef NATIVE
++            /* at the render scale, a polygon faces the camera or not by the
++               sub-pixel points it is drawn at: by its 1x pixels, a sliver or
++               a quad two of whose corners share a pixel would come and go */
++            opz = gte_precise_faces(FIGHTSTG_sxyFrom, state->quad);
++            if (opz == 0) {
++                break;
++            }
++            if (opz < 0) {
++#endif
+             if (state->sxy[0] == state->sxy[1] || state->sxy[0] == state->sxy[2] ||
+                 state->sxy[1] == state->sxy[2]) {
+                 break;
+@@ -754,6 +920,9 @@
+             if (opz <= 0) {
+                 break;
+             }
++#ifdef NATIVE
++            }
++#endif
+             if (state->lit) {
+                 p = state->cmd + (state->quad + 3);
+                 state->colors[0] = state->normalColors[p[0]];
+@@ -813,6 +982,89 @@
+    (drawMeshPolygons). The match depends on the mesh coming in as a void *,
+    on the ?: for q and on each polygon's checks and drawing being a
+    do-while (0) with breaks (both in drawMeshPolygons). */
++#ifdef NATIVE
++/* The stage's life (platform/stagefx.c, by its profile in stages.ini): its
++   painted sky turns about the arena's middle (the clouds drift), and its
++   props bend in the wind (the trees sway), only on the card's way through:
++   the stage's own data is put back as it was */
++int native_stage_drift(float *c, float *s);
++float native_stage_horizon(void);
++int native_stage_sway(float x, float y, float z, float *dx, float *dz);
++
++static float nativeWorld(MATRIX *w, ShortVec3 *p, s32 axis) {
++    return (w->m[axis][0] * p->x + w->m[axis][1] * p->y + w->m[axis][2] * p->z) / 4096.0f + w->t[axis];
++}
++
++/* All of the mesh as far out as the painted horizon */
++static s32 nativeIsHorizon(Mesh *mesh, float far) {
++    ShortVec3 *v = mesh->vertices;
++    s32 n = v->x, i;
++
++    if (far <= 0 || n <= 0) {
++        return 0;
++    }
++    for (i = 1; i <= n; i++) {
++        float x = nativeWorld(&mesh->matrix, &v[i], 0), z = nativeWorld(&mesh->matrix, &v[i], 2);
++
++        if (x * x + z * z < far * far) {
++            return 0;
++        }
++    }
++    return 1;
++}
++
++/* gte_CompMatrix with the stage's sky turned about the y axis */
++static void nativeCompMatrix(Mesh *mesh, Layer *layer, MATRIX *out) {
++    MATRIX turned;
++    MATRIX *place = &mesh->matrix;
++    float c, s;
++    s32 j;
++
++    if (layer == GFX.funcs.getLayer(BATTLE_LAYER_STAGE) && native_stage_drift(&c, &s) &&
++        nativeIsHorizon(mesh, native_stage_horizon())) {
++        turned = mesh->matrix;
++        for (j = 0; j < 3; j++) {
++            turned.m[0][j] = (s16)(c * mesh->matrix.m[0][j] + s * mesh->matrix.m[2][j]);
++            turned.m[2][j] = (s16)(-s * mesh->matrix.m[0][j] + c * mesh->matrix.m[2][j]);
++        }
++        turned.t[0] = (s32)(c * mesh->matrix.t[0] + s * mesh->matrix.t[2]);
++        turned.t[2] = (s32)(-s * mesh->matrix.t[0] + c * mesh->matrix.t[2]);
++        place = &turned;
++    }
++    gte_CompMatrix(&GsWSMATRIX, place, out);
++}
++
++/* FIGHTSTG_projectMesh with the stage's props bent by the wind: each point
++   moved in the world (into the mesh's own axes), projected, put back */
++static void nativeProjectMesh(Mesh *mesh, Layer *layer) {
++    static ShortVec3 keep[1024];
++    ShortVec3 *v = mesh->vertices;
++    s32 n = v->x, i, moved = 0;
++
++    if (layer == GFX.funcs.getLayer(BATTLE_LAYER_STAGE) && n > 0 && n < 1024 &&
++        !nativeIsHorizon(mesh, native_stage_horizon())) {
++        for (i = 1; i <= n; i++) {
++            float dx, dz;
++            MATRIX *w = &mesh->matrix;
++
++            if (native_stage_sway(nativeWorld(w, &v[i], 0), nativeWorld(w, &v[i], 1), nativeWorld(w, &v[i], 2), &dx, &dz)) {
++                if (!moved) {
++                    memcpy(keep, v, (n + 1) * sizeof *v);
++                    moved = 1;
++                }
++                v[i].x += (s16)((w->m[0][0] * dx + w->m[2][0] * dz) / 4096.0f);
++                v[i].y += (s16)((w->m[0][1] * dx + w->m[2][1] * dz) / 4096.0f);
++                v[i].z += (s16)((w->m[0][2] * dx + w->m[2][2] * dz) / 4096.0f);
++            }
++        }
++    }
++    FIGHTSTG_projectMesh(mesh, layer);
++    if (moved) {
++        memcpy(v, keep, (n + 1) * sizeof *v);
++    }
++}
++#endif
++
+ void FIGHTSTG_drawMesh(void *arg, Layer *layer) {
+     Mesh *mesh = arg;
+     MATRIX m;
+@@ -821,13 +1073,51 @@
+     s32 hi;
+     s32 lo;
+ 
++#ifdef NATIVE
++    nativeCompMatrix(mesh, layer, &m);
++#else
+     gte_CompMatrix(&GsWSMATRIX, &mesh->matrix, &m);
++#endif
+     gte_SetRotMatrix(&m);
+     gte_SetTransMatrix(&m);
+     if (FIGHTSTG_isMeshOnScreen(mesh, layer) == 0) {
+         return;
+     }
++#ifdef NATIVE
++    nativeProjectMesh(mesh, layer);
++#else
+     FIGHTSTG_projectMesh(mesh, layer);
++#endif
++#ifdef NATIVE
++    {
++        /* a stage's painted horizon: its points as far from the arena's
++           middle as its profile says (20000 for the open-air stages, whose
++           panoramas are 20000-32000 away and the ground and props within
++           ~19500, sometimes in one mesh with them); kept out of the battle's
++           fog by their depth (platform/gte.c, stagefx.c, gl.c) */
++        void gte_precise_far(const void *addr);
++        void gte_camera_save(void);
++        float native_stage_horizon(void);
++        ShortVec3 *v = mesh->vertices;
++        MATRIX *w = &mesh->matrix;
++        float far = native_stage_horizon();
++        s32 n = far > 0 ? v->x : 0, i;
++
++        if (layer == GFX.funcs.getLayer(BATTLE_LAYER_STAGE)) {
++            gte_camera_save(); /* the battle's camera, for the stage's particles (platform/stagefx.c) */
++        }
++
++        for (i = 0; i < n; i++) {
++            ShortVec3 *p = &v[i + 1];
++            float x = (w->m[0][0] * p->x + w->m[0][1] * p->y + w->m[0][2] * p->z) / 4096.0f + w->t[0];
++            float z = (w->m[2][0] * p->x + w->m[2][1] * p->y + w->m[2][2] * p->z) / 4096.0f + w->t[2];
++
++            if (x * x + z * z >= far * far) {
++                gte_precise_far(&mesh->screen[i]);
++            }
++        }
++    }
++#endif
+     FIGHTSTG_lightMesh(mesh);
+     state.cmd = mesh->commands;
+     state.texPos = mesh->texPos;
+@@ -892,6 +1182,12 @@
+         }
+     }
+     GFX.funcs.setPrim(state.prim.ptr);
++#ifdef NATIVE
++    /* on the models' layer: not the partner view's, where the partner is also drawn */
++    if (g_battle_shadows && mesh->nativeShadow && layer == GFX.funcs.getLayer(BATTLE_LAYER_MODELS)) {
++        nativeDrawMeshShadow(mesh, layer);
++    }
++#endif
+ }
+ 
+ /* A primitive tag's word with its address replaced: the top byte of tag and
+@@ -1070,6 +1366,9 @@
+     mesh->texPos = texPos;
+     mesh->draw = FIGHTSTG_queueMeshDraw;
+     mesh->drawWireframe = FIGHTSTG_queueMeshWireframe;
++#ifdef NATIVE
++    mesh->nativeShadow = 0;
++#endif
+     return mesh;
+ }
+ 

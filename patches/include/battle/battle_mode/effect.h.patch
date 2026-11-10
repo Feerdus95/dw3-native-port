@@ -1,0 +1,35 @@
+--- a/include/battle/battle_mode/effect.h
++++ b/include/battle/battle_mode/effect.h
+@@ -56,6 +56,14 @@
+     /* 0x58 */ s32 file;
+     /* 0x5C */ SVECTOR pos;
+     /* 0x64 */ s32 count;
++#ifdef NATIVE
++    s32 nativeImages; /* its own images instead (native.h), -1: none */
++    s32 nativeTicks; /* how long they play */
++    s32 nativeTime;
++    s32 nativeLayer;
++    s32 nativeCritical; /* the critical hit's images (native.h) */
++    s32 nativeStage; /* the images of its user's stage (native.h) */
++#endif
+ } SpriteEffect;
+ 
+ /* One animation of a 2D effect (FIGHTSTG_createSpriteAnim), drawn by a layer
+@@ -164,8 +172,17 @@
+     /* 0xA4 */ s32 effectImages; /* FIGHTSTG_findEffectSheet's */
+     /* 0xA8 */ s32 effectSheet;
+     /* 0xAC */ Vec2 effectTexPos;
++#ifdef NATIVE
++    s32 nativeCritical; /* its hit was a critical one: its sprite effects play those images (native.h) */
++    s32 nativeStage; /* the images of this stage (native.h): the user's, whose hit scripts have it too; -1 until it is known */
++#endif
+ };
+ 
++#ifdef NATIVE
++/* a roll since the last script took it (FIGHTSTG_adjustDamage): the next attack's script takes it */
++extern s32 FIGHTSTG_nativeCritical;
++#endif
++
+ /* FIGHTSTG_updateHitEffect's children */
+ typedef struct HitEffectChildren {
+     /* 0x0 */ SpriteEffect *effect;

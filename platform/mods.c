@@ -95,7 +95,7 @@ void native_fast_travel_setup(void) {
     FieldState *st = &FIELDSTG_state;
     int room = 0, at_x = g_field_at_x;
 
-    for (const StageEntry *e = FIELDSTG_euStages; e->mode != 0; e++) {
+    for (const StageEntry *e = FIELDSTG_stages; e->mode != 0; e++) {
         const StageFuncs *s = stage_of(e->init);
         int i = e->mode - FIRST_FIELD;
 
