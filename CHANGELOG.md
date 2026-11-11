@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.18.11 (beta)
 
 - The Digilog's pictures of the fields make themselves: the first time the game starts it draws each field (its map and its objects) from your own game files into `data/postcards`, apart from the game, in a few seconds; the journal shows each one as soon as it is there. Nothing to run by hand, and none ship. Delete the folder to have them made again.
 
