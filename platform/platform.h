@@ -319,6 +319,8 @@ int movie_playing(void);  /* movie.c */
 extern int g_render_sounds; /* --render-sounds: a hidden window, the sounds rendered to WAV files, then exit (soundrender.c) */
 int native_render_parse(const char *dir, const char *list); /* the indexes to render; 0 when none */
 int stage_dump(const char *dir); /* stagedump.c: --dump-stages DIR */
+int postcards_make(void);   /* postcards.c: --postcards, the journal's pictures of the fields */
+void postcards_start(void); /* makes them apart, the first time */
 extern int g_field_mode, g_field_progress, g_field_arg; /* state.c: --field MODE --progress N */
 extern int g_field_sets[64][2], g_field_set_count; /* --set CODE=VALUE (hex code), repeated */
 extern int g_field_party; /* --party N: the starter set given when there is no party */

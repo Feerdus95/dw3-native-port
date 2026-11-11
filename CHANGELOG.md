@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The Digilog's pictures of the fields make themselves: the first time the game starts it draws each field (its map and its objects) from your own game files into `data/postcards`, apart from the game, in a few seconds; the journal shows each one as soon as it is there. Nothing to run by hand, and none ship. Delete the folder to have them made again.
+
 ## v0.18.10 (beta)
 
 - The Digilog has a layout of its own, in the menus' colours: a title and the tab at the top, the list on the left with its count and page, the chosen entry on the right (its field's picture with the place's name on it, the title and its kind's badge, how it stands, and a side quest's reward), its description below and the keys at the foot.

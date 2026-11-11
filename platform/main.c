@@ -330,6 +330,10 @@ int main(int argc, char **argv) {
     if (argc == 3 && SDL_strcmp(argv[1], "--dump-stages") == 0) {
         return stage_dump(argv[2]);
     }
+    if (argc == 2 && SDL_strcmp(argv[1], "--postcards") == 0) {
+        return postcards_make();
+    }
+    postcards_start();
     for (int i = 1; i + 1 < argc; i++) {
         if (SDL_strcmp(argv[i], "--field") == 0) {
             g_field_mode = SDL_atoi(argv[++i]);
