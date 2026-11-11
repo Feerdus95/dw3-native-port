@@ -1,0 +1,53 @@
+--- a/src/battle/battle_mode/hud.c
++++ b/src/battle/battle_mode/hud.c
+@@ -61,15 +61,50 @@
+     }
+ }
+ 
++#ifdef NATIVE
++#define FORM_NAME_WIDTH 124 /* the HP bar's 128 px less the margin (battle_form_name) */
++
++/* The active partner's current form, or -1 (battle_form_name, native.h) */
++static s32 currentFormId(void) {
++    BattleFighter *fighter = &FIGHTSTG_battle.state.fighters[0][FIGHTSTG_battle.state.active[0]];
++
++    return GET_DIGIMON(fighter->id) != NULL ? fighter->id : -1;
++}
++
++/* Names the form in the window, and squeezes a name wider than the HP bar to a fixed advance that fits */
++static void showFormName(TextWindow *win, s32 form) {
++    s32 count;
++
++    win->setString(win, FILE_CACHE.load(TEXT_FILE(TEXT_DIGIMON_NAMES)), GET_DIGIMON(form)->nameId);
++    win->setSpacing(win, 0, 0);
++    if (measureText(&win->text[0], win->style, 0) > FORM_NAME_WIDTH) {
++        count = win->text[0].sjis != 0 ? win->text[0].len / 2 : win->text[0].len;
++        win->setSpacing(win, count > 0 ? FORM_NAME_WIDTH / count : 1, 0);
++    }
++}
++static s32 shownForm = -1;
++#endif
++
+ /* Shows the names of both sides' active fighters, when they changed */
+ void FIGHTSTG_showFighterNames(HpDisplay *task, TextWindow **windows) {
+     BattleTableEntry *enemy;
+     s32 i;
+ 
++#ifdef NATIVE
++    if (g_battle_form_name && currentFormId() != shownForm) {
++        task->shown[0] = -1; /* a digivolution changes the form without changing the slot */
++    }
++#endif
+     if (FIGHTSTG_battle.state.active[0] != task->shown[0]) {
+         if (windows[0] == NULL) {
+             windows[0] = createTextWindow(BATTLE_LAYER_MENUS, 1, 0xAE, 0x15);
+         }
++#ifdef NATIVE
++        shownForm = currentFormId();
++        if (g_battle_form_name && shownForm >= 0) {
++            showFormName(windows[0], shownForm);
++        } else
++#endif
+         windows[0]->setString(windows[0], GAME.partners[GAME.funcs.getPartyMember(FIGHTSTG_battle.state.active[0])].info.name, -1);
+     }
+     if (FIGHTSTG_battle.state.active[1] != task->shown[1]) {

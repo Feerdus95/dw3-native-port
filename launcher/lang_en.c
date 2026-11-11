@@ -154,6 +154,7 @@ const Lang LANG_EN = {
         [O_SOFT_SHADOWS] = {"Soft shadows", "Field shadows darken the ground with smooth edges, instead of the original's grey disc."},
         [O_BATTLE_SHADOWS] = {"Battle shadows", "The Digimon in battle cast their shape on the ground, as the light from above falls."},
         [O_BATTLE_SKY] = {"Battle sky and fog", "A sky behind battles, with the stage's far side fading into fog, each stage by its kind."},
+        [O_BATTLE_FORM_NAME] = {"Form name in battle", "The battle HUD names the partner's current form, which follows a digivolution, instead of its base form."},
         [O_ICONS] = {"Button icons", "The icons in menus and texts, by Xelu. Auto follows the keyboard or gamepad you used last."},
         [O_RUMBLE] = {"Vibration", "The gamepad's vibration."},
         [O_DEADZONE] = {"Stick deadzone", "How far the sticks and triggers move before they count."},

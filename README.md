@@ -188,6 +188,7 @@ button can be changed in the options menu's Input tab, **Controls**.
     dither = 1           ; 0 turns off the PlayStation's dithering
     battle_shadows = 1   ; 0: no shadows in battle
     battle_sky = 0       ; 1: a sky behind battles, the stage's far side fading into it
+    battle_form_name = 0 ; 1: the battle HUD names the partner's current form
     soft_shadows = 0     ; 1: the field's shadows see-through and smooth
     vsync = 1            ; 0: frames shown at once, which can tear
     smooth_movies = 1    ; 0 shows the movies with sharp pixels

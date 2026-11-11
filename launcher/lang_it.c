@@ -154,6 +154,7 @@ const Lang LANG_IT = {
         [O_SOFT_SHADOWS] = {"Ombre morbide", "Le ombre sulle mappe scuriscono il terreno con bordi morbidi, invece del disco grigio originale."},
         [O_BATTLE_SHADOWS] = {"Ombre in battaglia", "I Digimon in battaglia proiettano la loro sagoma a terra, secondo la luce dall'alto."},
         [O_BATTLE_SKY] = {"Cielo e nebbia in battaglia", "Un cielo dietro le battaglie, con il fondo dello scenario che sfuma nella nebbia, secondo il tipo di scenario."},
+        [O_BATTLE_FORM_NAME] = {"Nome della forma", "L'HUD di battaglia mostra il nome della forma attuale del partner, che cambia con la digievoluzione, invece di quella base."},
         [O_ICONS] = {"Icone dei pulsanti", "Le icone di menu e testi, di Xelu. Auto segue la tastiera o il controller usati per ultimi."},
         [O_RUMBLE] = {"Vibrazione", "La vibrazione del controller."},
         [O_DEADZONE] = {"Zona morta dello stick", "Quanto si muovono stick e grilletti prima di contare."},

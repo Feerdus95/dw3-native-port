@@ -154,6 +154,7 @@ const Lang LANG_DE = {
         [O_SOFT_SHADOWS] = {"Weiche Schatten", "Schatten auf den Feldern dunkeln den Boden mit weichen Kanten ab, statt der grauen Scheibe des Originals."},
         [O_BATTLE_SHADOWS] = {"Schatten im Kampf", "Die Digimon im Kampf werfen ihre Form auf den Boden, wie das Licht von oben fällt."},
         [O_BATTLE_SKY] = {"Himmel und Nebel im Kampf", "Ein Himmel hinter den Kämpfen, die Ferne der Arena verschwimmt im Nebel, je nach Art der Arena."},
+        [O_BATTLE_FORM_NAME] = {"Formname im Kampf", "Die Kampfanzeige zeigt den Namen der aktuellen Form des Partners, der sich bei der Digitation ändert, statt den der Grundform."},
         [O_ICONS] = {"Tastensymbole", "Die Symbole in Menüs und Texten, von Xelu. Auto folgt der zuletzt benutzten Tastatur oder dem Gamepad."},
         [O_RUMBLE] = {"Vibration", "Die Vibration des Gamepads."},
         [O_DEADZONE] = {"Stick-Totzone", "Wie weit sich Sticks und Trigger bewegen, bevor sie zählen."},
