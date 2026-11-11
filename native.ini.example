@@ -114,7 +114,8 @@ full_exp_share = 0
 menu_wrap = 0
 
 # 1: the battle HUD names the partner's current form, which follows a
-# digivolution, instead of its base form (long names are squeezed to fit).
+# digivolution, when its model changes, instead of its base form (long names
+# are squeezed to fit the name box).
 battle_form_name = 0
 
 # 1: in fast forward (Tab / R3) a menu's cursor keeps moving at its normal pace

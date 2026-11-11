@@ -1,20 +1,28 @@
 --- a/src/battle/battle_mode/hud.c
 +++ b/src/battle/battle_mode/hud.c
-@@ -61,15 +61,50 @@
+@@ -61,15 +61,66 @@
      }
  }
  
 +#ifdef NATIVE
-+#define FORM_NAME_WIDTH 124 /* the HP bar's 128 px less the margin (battle_form_name) */
++#define FORM_NAME_WIDTH 88 /* the name box: from the name (x 0xAE) to the HP label (x 0x10C), less a margin (battle_form_name) */
 +
-+/* The active partner's current form, or -1 (battle_form_name, native.h) */
++/* The active partner's form by its fighter, or -1 (battle_form_name, native.h) */
 +static s32 currentFormId(void) {
 +    BattleFighter *fighter = &FIGHTSTG_battle.state.fighters[0][FIGHTSTG_battle.state.active[0]];
 +
 +    return GET_DIGIMON(fighter->id) != NULL ? fighter->id : -1;
 +}
 +
-+/* Names the form in the window, and squeezes a name wider than the HP bar to a fixed advance that fits */
++/* The fighter of the partner's model on screen, 0 for none: a digivolution's
++   fighter id changes when the form is chosen, but the model only when the effect swaps it in */
++static s32 modelFormId(void) {
++    Models *models = TASK_REGISTRY.funcs.find(BATTLE_TASK_MODELS, -1, -1);
++
++    return models != NULL ? models->getFighter(models, 0) : 0;
++}
++
++/* Names the form in the window, and squeezes a name wider than the box to a fixed advance that fits */
 +static void showFormName(TextWindow *win, s32 form) {
 +    s32 count;
 +
@@ -25,7 +33,7 @@
 +        win->setSpacing(win, count > 0 ? FORM_NAME_WIDTH / count : 1, 0);
 +    }
 +}
-+static s32 shownForm = -1;
++static s32 shownModel;
 +#endif
 +
  /* Shows the names of both sides' active fighters, when they changed */
@@ -34,8 +42,14 @@
      s32 i;
  
 +#ifdef NATIVE
-+    if (g_battle_form_name && currentFormId() != shownForm) {
-+        task->shown[0] = -1; /* a digivolution changes the form without changing the slot */
++    s32 form = -1;
++
++    if (g_battle_form_name && modelFormId() != 0 && modelFormId() != shownModel) {
++        shownModel = modelFormId();
++        if (FIGHTSTG_battle.state.active[0] == task->shown[0] && GET_DIGIMON(shownModel) != NULL) {
++            task->shown[0] = -1; /* the model swapped in without the slot changing: a digivolution */
++            form = shownModel;
++        }
 +    }
 +#endif
      if (FIGHTSTG_battle.state.active[0] != task->shown[0]) {
@@ -43,9 +57,11 @@
              windows[0] = createTextWindow(BATTLE_LAYER_MENUS, 1, 0xAE, 0x15);
          }
 +#ifdef NATIVE
-+        shownForm = currentFormId();
-+        if (g_battle_form_name && shownForm >= 0) {
-+            showFormName(windows[0], shownForm);
++        if (form < 0) {
++            form = currentFormId();
++        }
++        if (g_battle_form_name && form >= 0) {
++            showFormName(windows[0], form);
 +        } else
 +#endif
          windows[0]->setString(windows[0], GAME.partners[GAME.funcs.getPartyMember(FIGHTSTG_battle.state.active[0])].info.name, -1);
