@@ -3,6 +3,7 @@
 ## v0.19.1 (beta)
 
 - Fast travel takes you there at once: Yes on the map screen fades to the area's field, instead of waiting for the menu to be closed.
+- Fast travel only works from where you could walk out to another area at that moment: not from a room only an event lets you leave, nor from a place the story has shut. There, X on the map sounds the cancel.
 
 ## v0.19.0 (beta)
 

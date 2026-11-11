@@ -66,11 +66,16 @@ void ff_cycle(void) {
     g_ff_speed = SPEEDS[(i + 1) % 4];
 }
 
-/* Fast travel's doors: every stage's exits (SLOT_EXIT), each with a mode of
-   the stage it is in, and where each mode's stage starts the player. Read
+/* Fast travel's doors: every stage's ways out (its exits, and the warps and
+   launches that leave, a slot's destination being laid out as an exit's),
+   each with a mode of the stage it is in, and where each mode's stage starts
+   the player. Read
    once before the game runs, from each stage's setup as the field runs it
    (the field editor's changes too), its variables put back after */
 #define SLOT_EXIT 1
+#define SLOT_WARP1 9
+#define SLOT_WARP0 10
+#define SLOT_LAUNCH_OUT 14
 #define FIRST_FIELD 0x200
 #define FIELDS 0xD7 /* 0x200 to 0x2D6, the map's fields */
 static NativeExit *s_exits;
@@ -111,7 +116,7 @@ void native_fast_travel_setup(void) {
         native_apply_stage_mod();
         s_starts[i].set = 1, s_starts[i].x = st->startX, s_starts[i].y = st->startY, s_starts[i].dir = st->startDir;
         for (StageSlot *slot = st->slots; slot != NULL && slot->type != 0; slot++) {
-            if (slot->type != SLOT_EXIT) {
+            if (slot->type != SLOT_EXIT && slot->type != SLOT_WARP1 && slot->type != SLOT_WARP0 && slot->type != SLOT_LAUNCH_OUT) {
                 continue;
             }
             if (s_exit_count == room) {
@@ -120,7 +125,8 @@ void native_fast_travel_setup(void) {
             }
             s_exits[s_exit_count++] = (NativeExit){e->mode, slot->arg, slot->x, slot->y, slot->dir, slot->place, slot->placeArg,
                                                    {{slot->conditions[0][0], slot->conditions[0][1]},
-                                                    {slot->conditions[1][0], slot->conditions[1][1]}}};
+                                                    {slot->conditions[1][0], slot->conditions[1][1]}},
+                                                   slot->type == SLOT_EXIT};
         }
     }
     g_field_at_x = at_x;

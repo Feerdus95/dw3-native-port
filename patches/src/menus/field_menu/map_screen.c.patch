@@ -1,10 +1,59 @@
 --- a/src/menus/field_menu/map_screen.c
 +++ b/src/menus/field_menu/map_screen.c
-@@ -130,8 +130,253 @@
+@@ -130,8 +130,301 @@
      }
  }
  
 +#ifdef NATIVE
++static s32 exitOpen(const NativeExit *e) { /* its slot's conditions, as the field tests them */
++    return (e->conditions[0][0] == 0xFFFF || FLAGS_00.checkCondition(e->conditions[0][0], e->conditions[0][1]) != 0) &&
++           (e->conditions[1][0] == 0xFFFF || FLAGS_00.checkCondition(e->conditions[1][0], e->conditions[1][1]) != 0);
++}
++
++/* Whether the player could walk out now: from the field the menu was opened
++   in (GAME.fieldMode), through ways out that are open, to a field of another
++   area or off the map. Not from where only an event lets the player go (a
++   room without doors, a dungeon the story has shut), nor from off the map */
++#define MAP_FIRST 0x200
++#define MAP_LAST 0x2D6
++static s32 canWalkOut(void) {
++    u8 seen[MAP_LAST - MAP_FIRST + 1];
++    s16 todo[MAP_LAST - MAP_FIRST + 1];
++    const NativeExit *exits;
++    s32 home = GAME.fieldMode;
++    s32 count;
++    s32 done = 0;
++    s32 n = 0;
++    s32 i;
++
++    if (home < MAP_FIRST || home > MAP_LAST) {
++        return 0;
++    }
++    exits = native_exits(&count);
++    memset(seen, 0, sizeof seen);
++    seen[home - MAP_FIRST] = 1;
++    todo[n++] = home;
++    while (done < n) {
++        s32 from = todo[done++];
++
++        for (i = 0; i < count; i++) {
++            const NativeExit *e = &exits[i];
++
++            if (e->from != from || !exitOpen(e)) {
++                continue;
++            }
++            if (e->to < MAP_FIRST || e->to > MAP_LAST || STSTATUS_mapAreas[e->to & 0xFF] != STSTATUS_mapAreas[home & 0xFF]) {
++                return 1;
++            }
++            if (!seen[e->to - MAP_FIRST]) {
++                seen[e->to - MAP_FIRST] = 1;
++                todo[n++] = e->to;
++            }
++        }
++    }
++    return 0;
++}
++
 +/* Fast travel (native.h): the field the menu goes back to becomes AREA's,
 +   in this half of the game, at a door into it from another area that is
 +   open now (its slot's conditions), or at its stage's start without one.
@@ -23,15 +72,14 @@
 +    for (i = 0; i < count; i++) {
 +        const NativeExit *e = &exits[i];
 +
-+        if (e->to < first || e->to > last || (STSTATUS_mapAreas[e->to & 0xFF] & 0x7F) != area ||
++        if (!e->door || e->to < first || e->to > last || (STSTATUS_mapAreas[e->to & 0xFF] & 0x7F) != area ||
 +            FLAGS_00.checkCondition((e->to & 0xFF) | 0x2000, 1) != 1) {
 +            continue;
 +        }
 +        if (e->from >= first && e->from <= last && (STSTATUS_mapAreas[e->from & 0xFF] & 0x7F) == area) {
 +            continue; /* a door within the area */
 +        }
-+        if ((e->conditions[0][0] != 0xFFFF && FLAGS_00.checkCondition(e->conditions[0][0], e->conditions[0][1]) == 0) ||
-+            (e->conditions[1][0] != 0xFFFF && FLAGS_00.checkCondition(e->conditions[1][0], e->conditions[1][1]) == 0)) {
++        if (!exitOpen(e)) {
 +            continue;
 +        }
 +        GAME.fieldMode = e->to;
@@ -254,7 +302,7 @@
      if (PAD_HELD(PAD_LEFT) || PAD_HELD(PAD_RIGHT)) {
          if (PAD_PRESSED(PAD_LEFT) || PAD_PRESSED(PAD_RIGHT)) {
              screen->speedX = 2;
-@@ -169,7 +414,26 @@
+@@ -169,7 +462,30 @@
      if (PAD_PRESSED(PAD_TRIANGLE)) {
          SOUND.playSound(SOUND_MENU_CANCEL);
          screen->state = TASK_KILL;
@@ -264,7 +312,7 @@
 +            loadServerMapImages(screen->menu->gameHalf != 0);
 +        }
 +#endif
-+    }
+     }
 +#ifdef NATIVE
 +    /* square: the other server's map */
 +    if (g_fast_travel && PAD_PRESSED(PAD_SQUARE) && screen->state != TASK_KILL && amaterasuVisited() &&
@@ -274,14 +322,18 @@
 +    }
 +    /* X on an area asks whether to travel there */
 +    if (g_fast_travel && screen->hovering && PAD_PRESSED(PAD_CROSS) && screen->state != TASK_KILL) {
-+        SOUND.playSound(SOUND_MENU_CONFIRM);
-+        showFastTravelQuestion(screen, windows, 1);
-     }
++        if (canWalkOut()) {
++            SOUND.playSound(SOUND_MENU_CONFIRM);
++            showFastTravelQuestion(screen, windows, 1);
++        } else {
++            SOUND.playSound(SOUND_MENU_CANCEL); /* not from here */
++        }
++    }
 +#endif
  }
  
  /* Draws the map, the visited areas, the towns and the cursor */
-@@ -181,6 +445,9 @@
+@@ -181,6 +497,9 @@
  #endif
      s32 frame;
      s32 i;
@@ -291,7 +343,7 @@
  
      if (screen->hovering) {
          initSpriteDrawer(&sprite);
-@@ -191,6 +458,11 @@
+@@ -191,6 +510,11 @@
          } else {
              sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x3B, 0, 0x14);
          }
@@ -303,7 +355,7 @@
      }
      initSpriteDrawer(&sprite);
      if (screen->ready) {
-@@ -231,14 +503,25 @@
+@@ -231,14 +555,25 @@
  #else
          frame = 0x35;
  #endif
@@ -329,7 +381,7 @@
                  sprite.draw(FILE_CACHE.getEntry(screen->archive2), STSTATUS_data.spots[i].sprite,
                              STSTATUS_data.spots[i].x + screen->scrollX,
                              STSTATUS_data.spots[i].y + screen->scrollY + screen->top);
-@@ -272,6 +555,10 @@
+@@ -272,6 +607,10 @@
  /* The map screen's update */
  void STSTATUS_updateMapScreen(StatusMapScreen *screen, TextWindow **windows) {
      s32 area;
@@ -340,7 +392,7 @@
  
      switch (screen->state) {
      case TASK_INIT:
-@@ -293,12 +580,28 @@
+@@ -293,12 +632,28 @@
              screen->homeY = STSTATUS_data.spots[area].y + 0xC;
              screen->speedX = 1;
              screen->speedY = 1;
@@ -369,7 +421,7 @@
              screen->speedX = 0;
              screen->speedY = 0;
              screen->ready = 1;
-@@ -320,7 +623,20 @@
+@@ -320,7 +675,20 @@
  /* Creates the map screen (task): the map of the first half of the game or, in the
     late game, of the second (FILE_STATUS_BG + 2), and requests its area names */
  Task *STSTATUS_createMapScreen(FieldMenuScreen *menu, s32 extra) {

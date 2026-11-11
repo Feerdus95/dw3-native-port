@@ -214,12 +214,14 @@ int native_list_partner_entries(int partner, unsigned short *out, int max);
 
 /* Fast travel (fast_travel, the options menu): X on a visited area of the
    map screen (ststatus/map_screen.c) asks, and yes fades to its field,
-   through one of the game's doors into it. The doors: every exit
-   (SLOT_EXIT) of the European stages, with the mode it is in, read before
+   through one of the game's doors into it, and only from where the player
+   could walk out to another area now. The ways out: every exit, warp and
+   launch out of the European stages, with the mode it is in, read before
    the game runs (platform/mods.c) */
 typedef struct NativeExit {
     short from, to, x, y, dir; /* to: the mode it leaves for; x, y in pixels there */
     unsigned short place, placeArg, conditions[2][2];
+    short door; /* an exit (SLOT_EXIT), what fast travel arrives through */
 } NativeExit;
 extern int g_fast_travel;
 /* Objective on map (map_objective, the options menu): the map screen blinks
