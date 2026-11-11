@@ -1,0 +1,39 @@
+--- a/src/menus/item_shop/trade.c
++++ b/src/menus/item_shop/trade.c
+@@ -3,6 +3,18 @@
+ 
+ #include "menus/item_shop.h"
+ 
++#ifdef NATIVE
++/* The disc's Spanish has "Buy" and "Sell" in English: those two are the port's own (native.h) */
++#define LANGUAGE_SPANISH 6
++#define TEXT_SHOP_BUY 212
++#define TEXT_SHOP_SELL 213
++#define SHOP_VERB(window, index, own) \
++    ((window)->setString((window), LANGUAGE == LANGUAGE_SPANISH ? (void *)native_packs_text(LANGUAGE) : FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_SHOP)), \
++                         LANGUAGE == LANGUAGE_SPANISH ? (own) : (index)))
++#else
++#define SHOP_VERB(window, index, own) (window)->setString((window), FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_SHOP)), (index))
++#endif
++
+ /* Creates the buying dialog's windows: the quantity, the total with its yes and
+    no, and the cursor */
+ void STITSHOP_createBuyWindows(ShopBuy *buy, ShopBuyWindows *win) {
+@@ -35,7 +47,7 @@
+     if (show) {
+         win->total->setString(win->total, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_SHOP)), 0x12);
+         win->total->setNumber(win->total, 1, ITEM_FUNCS.get(buy->item)->price * buy->quantity);
+-        win->yes->setString(win->yes, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_SHOP)), 0x13);
++        SHOP_VERB(win->yes, 0x13, TEXT_SHOP_BUY);
+         win->no->setString(win->no, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_SHOP)), 0x14);
+     } else {
+         win->total->setVisible(win->total, 0);
+@@ -903,7 +915,7 @@
+     if (STITSHOP_funcs.updateFade(&sell->panels[2]) != 0) {
+         win->total->setString(win->total, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_SHOP)), 0x12);
+         win->total->setNumber(win->total, 1, ITEM_FUNCS.get(sell->item)->sellPrice * sell->quantity);
+-        win->yes->setString(win->yes, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_SHOP)), 0x22);
++        SHOP_VERB(win->yes, 0x22, TEXT_SHOP_SELL);
+         win->no->setString(win->no, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_SHOP)), 0x14);
+         sell->choice = 0;
+         win->cursor->setPos(win->cursor, 0xB8, 0x49);

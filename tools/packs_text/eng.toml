@@ -211,4 +211,6 @@ strings = [
 	"The mask is in the Asuka sewers.\nGo and get it.",
 	"Sepikmon is waiting for his mask.\nTake it to his house.",
 	"Etemon, in Asuka City, can say where\nthe mask is. Talk to him.",
+	"Buy",
+	"Sell",
 ]

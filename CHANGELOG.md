@@ -4,6 +4,7 @@
 
 - The Digilog follows more of the story's steps within a step: the Seiryu Leader (Tom's word, the Protocol Ruins, MasterTyranno), the Blue Card (the Guilmons, the fake, the Trickster), Nami's word on the Symbol of Sincerity, the Agumon Suits (Master John, the couple, the man in the sewers, Kail), the search for Teddy in the Admin Center and the Staff Pass (Keith and Nick, then the hideout). The TNT Ball's step points at Tyranno Valley.
 - The Digilog's DDNA quests send you to the DRI agent first (Johann, Jimmy, Kazuki, Michael, Ken, Yuji, Yang, Bob) with the party level total the agent asks for, and to the Digimon once the agent has made the request. They show up when the agent's field has been visited.
+- The item shop's confirmation shows "Comprar" and "Vender" in Spanish; the disc has "Buy" and "Sell" in English there.
 - The Digilog follows Sepikmon's mask after it is found: who knows of it in Asuka City, who holds it in the Asuka Sewers, then back to Sepikmon for the Smelly Herb.
 - The Digilog shows the Crony ID's quest as soon as it can be done and only while it can (one step of the story), so that it isn't missed; before, it showed once it was too late.
 
