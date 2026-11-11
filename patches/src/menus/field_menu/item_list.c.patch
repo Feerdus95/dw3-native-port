@@ -222,7 +222,7 @@
 +    { 0x0E, FLAG(0x1A, 0x2A), 0, 0x235, TEXT_RULE(13) }, /* the symbol behind the wall */
 +    { 0x0E, FLAG(0x1A, 0x2B), 0, 0x239, TEXT_RULE(14) }, /* Sepikmon's hint, Shaman House */
 +    { 0x0E, FLAG(0x1C, 0x4F), 0, 0x226, TEXT_RULE(15) }, /* Baronmon, Protocol Ruins */
-+    { 0x0E, ITEM(1, 0x5A), 0, 0x226, TEXT_RULE(16) }, /* the TNT Ball, Triceramon's */
++    { 0x0E, ITEM(1, 0x5A), 0, 0x22B, TEXT_RULE(16) }, /* the TNT Ball: Triceramon, Tyranno Valley */
 +    { 0x0E, 0, 0, 0x226, TEXT_RULE(17) }, /* the ball to Baronmon */
 +    /* the Staff Pass (step 0x14): Keith and Nick, then the hideout */
 +    { 0x14, FLAG(0x40, 0x03), 1, 0x255, TEXT_RULE(35) }, /* the security hole seen */
