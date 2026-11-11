@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.19.0 (beta)
 
 - The Digilog's pictures of the fields are JPEG: about 8 MB in `data/postcards` instead of 29. The game makes them again by itself the next time it starts and removes the PNGs.
 
