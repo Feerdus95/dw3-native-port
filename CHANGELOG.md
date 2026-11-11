@@ -3,6 +3,7 @@
 ## Unreleased
 
 - The Digilog follows more of the story's steps within a step: the Seiryu Leader (Tom's word, the Protocol Ruins, MasterTyranno), the Blue Card (the Guilmons, the fake, the Trickster) Nami's word on the Symbol of Sincerity, the Agumon Suits (Master John, the couple, the man in the sewers, Kail) the search for Teddy in the Admin Center and the Staff Pass (Keith and Nick, then the hideout). The TNT Ball's step points at Tyranno Valley.
+- The Digilog shows the Crony ID's quest as soon as it can be done and only while it can (one step of the story), so that it isn't missed; before, it showed once it was too late.
 
 ## v0.19.2 (beta)
 

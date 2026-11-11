@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,829 @@
+@@ -367,3 +373,830 @@
      panel->list = list;
      return panel;
  }
@@ -125,6 +125,7 @@
 +    u16 last; /* the last story step it can be done at */
 +    u16 req; /* an item it needs first (0 for none), shown while the player lacks it */
 +    u16 from; /* the field it is found at, when not its own */
++    u16 since; /* the story step it is found at, whatever the fields visited */
 +} SideQuest;
 +#define ANY_STEP 0xFF
 +
@@ -147,7 +148,7 @@
 +    { 0x030, 0x2D2, FLAG(0x40, 0x83) }, /* MP Chip, Ice Master */
 +    { 0x033, 0x2D3, FLAG(0x40, 0x85) }, /* Mind Chip, Fire Master */
 +    { 0x141, 0x2D4, FLAG(0x40, 0x87) }, /* EXP Adapter, Dark Master */
-+    { 0x18C, 0x293, FLAG(0x40, 0x1D) }, /* Crony ID, Kenny */
++    { 0x18C, 0x293, FLAG(0x40, 0x1D), 0x1B, 0, 0, 0x1B }, /* Crony ID, Kenny: only at that step, its event's */
 +    { 0x004, 0x229, FLAG(0x1A, 0x28), 0, 0x192, 0x220 }, /* Tree Boots, Veemon (Hide's event, at Plug Cape, needs the Folder Bag) */
 +    { 0x192, 0x211, FLAG(0x40, 0xA1) }, /* Folder Bag, the tamers */
 +    { 0x02A, 0x28B, FLAG(0x40, 0x77) }, /* Platinum ID, BK WarGreymon */
@@ -314,7 +315,7 @@
 +static s32 sideQuestFound(s32 quest) {
 +    const SideQuest *q = &SIDE_QUESTS[quest];
 +
-+    return FLAGS_00.checkCondition(((q->from ? q->from : q->mode) & 0xFF) | 0x2000, 1) == 1 && GAME.progress <= (q->last ? q->last : ANY_STEP);
++    return (q->since ? GAME.progress >= q->since : FLAGS_00.checkCondition(((q->from ? q->from : q->mode) & 0xFF) | 0x2000, 1) == 1) && GAME.progress <= (q->last ? q->last : ANY_STEP);
 +}
 +
 +/* The item an entry needs and the player lacks, or 0 */
