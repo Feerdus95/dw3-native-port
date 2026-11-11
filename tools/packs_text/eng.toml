@@ -200,4 +200,12 @@ strings = [
 	"Go back to the hideout with what\nthe Suzaku Leader showed you.",
 	"Go into the Admin Center in\nyour Agumon suit.",
 	"Search the Admin Center for Teddy,\nall the way to this room.",
+	"Talk to DRI Johann here, with your\nparty's levels at 30 to 59 in total.",
+	"Talk to DRI Jimmy here, with your\nparty's levels at 30 to 59 in total.",
+	"Talk to DRI Kazuki here, with your\nparty's levels at 45 to 74 in total.",
+	"Talk to DRI Michael here, with your\nparty's levels at 45 to 74 in total.",
+	"Talk to DRI Ken here, with your\nparty's levels at 60 to 89 in total.",
+	"Talk to DRI Yuji here, with your\nparty's levels at 60 to 89 in total.",
+	"Talk to DRI Yang here, with your\nparty's levels at 60 to 89 in total.",
+	"Talk to DRI Bob here, with your\nparty's levels under 30 in total.",
 ]

@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,830 @@
+@@ -367,3 +373,839 @@
      panel->list = list;
      return panel;
  }
@@ -130,14 +130,14 @@
 +#define ANY_STEP 0xFF
 +
 +static const SideQuest SIDE_QUESTS[] = {
-+    { 0x006, 0x233, FLAG(0x40, 0x24) }, /* Agumon DDNA, MetalGreymon */
-+    { 0x022, 0x23C, FLAG(0x40, 0x26) }, /* Guilmon DDNA, WarGrowlmon */
-+    { 0x027, 0x247, FLAG(0x40, 0x28) }, /* Patamon DDNA, MagnaAngemon */
-+    { 0x026, 0x24A, FLAG(0x40, 0x2A) }, /* Renamon DDNA, Taomon */
-+    { 0x013, 0x241, FLAG(0x40, 0x2C) }, /* Kotemon DDNA, Kyukimon */
-+    { 0x168, 0x228, FLAG(0x40, 0x2E) }, /* Monmon DDNA, Armormon */
-+    { 0x18B, 0x23C, FLAG(0x40, 0x30) }, /* Kumamon DDNA, GrapLeomon */
-+    { 0x023, 0x234, FLAG(0x40, 0x32) }, /* Veemon DDNA, Paildramon */
++    { 0x006, 0x233, FLAG(0x40, 0x24), 0, 0, 0x22B }, /* Agumon DDNA, MetalGreymon */
++    { 0x022, 0x23C, FLAG(0x40, 0x26), 0, 0, 0x22E }, /* Guilmon DDNA, WarGrowlmon */
++    { 0x027, 0x247, FLAG(0x40, 0x28), 0, 0, 0x21D }, /* Patamon DDNA, MagnaAngemon */
++    { 0x026, 0x24A, FLAG(0x40, 0x2A), 0, 0, 0x21D }, /* Renamon DDNA, Taomon */
++    { 0x013, 0x241, FLAG(0x40, 0x2C), 0, 0, 0x258 }, /* Kotemon DDNA, Kyukimon */
++    { 0x168, 0x228, FLAG(0x40, 0x2E), 0, 0, 0x258 }, /* Monmon DDNA, Armormon */
++    { 0x18B, 0x23C, FLAG(0x40, 0x30), 0, 0, 0x258 }, /* Kumamon DDNA, GrapLeomon */
++    { 0x023, 0x234, FLAG(0x40, 0x32), 0, 0, 0x226 }, /* Veemon DDNA, Paildramon */
 +    { 0x066, 0x243, FLAG(0x40, 0x56) }, /* Rusty Katana, Zanbamon */
 +    { 0x074, 0x21C, FLAG(0x40, 0x09) }, /* Rusty Glove, Datamon */
 +    { 0x099, 0x22B, FLAG(0x40, 0x10) }, /* Old Claw, MasterTyranno */
@@ -232,6 +232,15 @@
 +    /* the Staff Pass (step 0x14): Keith and Nick, then the hideout */
 +    { 0x14, FLAG(0x40, 0x03), 1, 0x255, TEXT_RULE(35) }, /* the security hole seen */
 +    { 0x14, FLAG(0x1C, 0x1C), 1, 0x241, TEXT_RULE(34) }, /* Suzaku UG Lake */
++    /* the DDNA of a Digimon: the DRI agent's request comes first (flag 6, set by his talk at the right level total) */
++    { -0x006, FLAG(6, 0), 0, 0x22B, TEXT_RULE(38) }, /* DRI Johann */
++    { -0x022, FLAG(6, 1), 0, 0x22E, TEXT_RULE(39) }, /* DRI Jimmy */
++    { -0x027, FLAG(6, 2), 0, 0x21D, TEXT_RULE(40) }, /* DRI Kazuki */
++    { -0x026, FLAG(6, 3), 0, 0x21D, TEXT_RULE(41) }, /* DRI Michael */
++    { -0x013, FLAG(6, 4), 0, 0x258, TEXT_RULE(42) }, /* DRI Ken */
++    { -0x18B, FLAG(6, 5), 0, 0x258, TEXT_RULE(43) }, /* DRI Yuji */
++    { -0x168, FLAG(6, 6), 0, 0x258, TEXT_RULE(44) }, /* DRI Yang */
++    { -0x023, FLAG(6, 7), 0, 0x226, TEXT_RULE(45) }, /* DRI Bob */
 +};
 +
 +static s32 sideQuestDone(s32 quest);

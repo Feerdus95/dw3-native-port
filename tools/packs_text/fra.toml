@@ -200,4 +200,12 @@ strings = [
 	"Retourne à la cachette avec ce que\nle chef de Suzaku t'a montré.",
 	"Entre au Centre Admin dans ton\ncostume Agumon.",
 	"Cherche Teddy dans le Centre Admin\njusqu'à cette salle.",
+	"Parle ici au DRI Johann, avec une\néquipe totalisant 30 à 59 niveaux.",
+	"Parle ici au DRI Jimmy, avec une\néquipe totalisant 30 à 59 niveaux.",
+	"Parle ici au DRI Kazuki, avec une\néquipe totalisant 45 à 74 niveaux.",
+	"Parle ici au DRI Michael, avec une\néquipe totalisant 45 à 74 niveaux.",
+	"Parle ici au DRI Ken, avec une\néquipe totalisant 60 à 89 niveaux.",
+	"Parle ici au DRI Yuji, avec une\néquipe totalisant 60 à 89 niveaux.",
+	"Parle ici au DRI Yang, avec une\néquipe totalisant 60 à 89 niveaux.",
+	"Parle ici au DRI Bob, avec moins de\n30 niveaux en tout dans l'équipe.",
 ]
