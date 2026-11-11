@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,862 @@
+@@ -367,3 +373,866 @@
      panel->list = list;
      return panel;
  }
@@ -210,6 +210,10 @@
 +    { 0x08, FLAG(0x1A, 0x19), 0, 0x202, TEXT_RULE(10) }, /* the false Sepikmon, Asuka Bridge */
 +    { 0x08, FLAG(0x1A, 0x1A), 0, 0x201, TEXT_RULE(11) }, /* Etemon */
 +    { 0x08, 0, 0, 0x227, TEXT_RULE(12) }, /* Divermon's Lake */
++    /* the mask back (step 9): who knows of it, who holds it, then Sepikmon */
++    { 0x09, ITEM(0, 0x15), 1, 0x239, TEXT_RULE(47) }, /* the mask: Sepikmon, Shaman House */
++    { 0x09, FLAG(0x1A, 0x1B), 1, 0x21B, TEXT_RULE(46) }, /* the mask, Asuka Sewers */
++    { 0x09, 0, 0, 0x201, TEXT_RULE(48) }, /* Etemon, Asuka City */
 +    /* the Seiryu Leader (step 4): he trains away, and wants MasterTyranno beaten first */
 +    { 0x04, FLAG(0x1C, 0x11), 1, 0, 0 }, /* back in Seiryu City */
 +    { 0x04, FLAG(0x1C, 0x10), 1, 0x22B, TEXT_RULE(21) }, /* MasterTyranno, Tyranno Valley */
