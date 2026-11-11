@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- The Digilog marks a side quest that needs an item first: while you lack it, the bar shows NEEDS and the item's name where the kind is. Tree Boots (Veemon) asks for the Folder Bag.
+- The Digilog's panel is split in two: the list on the left, the chosen entry on the right (a frame for its place's picture, a cross for now, then the place, the title, its kind and what it needs). The bar under the list is gone.
+- The Digilog marks a side quest that needs an item first: while you lack it, NEEDS and the item's name show under its kind. Tree Boots (Veemon) asks for the Folder Bag.
 - Cancel on B shows On when either the swapped keys or the swapped gamepad buttons are in place, so a custom binding on the other half no longer leaves it showing Off.
 
 ## v0.18.9 (beta)

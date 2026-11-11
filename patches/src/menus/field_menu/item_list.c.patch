@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,490 @@
+@@ -367,3 +373,539 @@
      panel->list = list;
      return panel;
  }
@@ -29,9 +29,11 @@
 + * turned with left and right, in the item list's panels and pages. Active:
 + * the story's current step (main, highlighted), then the side quests found
 + * and not done; Done: the story's steps behind, then the side quests done.
-+ * The chosen entry's place (the field banner's name) and kind go in the
-+ * chosen item's bar, its text in the help panel; cross shows its area on
-+ * the map screen (STSTATUS_runScreens), then comes back. Its texts are the
++ * The list is the panel's left half; the right half is the chosen entry's:
++ * its place's picture (for now a frame and a cross, drawJournalCanvas), the
++ * place (the field banner's name), its title, its kind and what it needs.
++ * Its text goes in the help panel; cross shows its area on the map screen
++ * (STSTATUS_runScreens), then comes back. Its texts are the
 + * port's own (native_packs_text) but the side quests' titles, their reward's
 + * item name
 + */
@@ -44,7 +46,13 @@
 +#define TEXT_SIDE 111
 +#define TEXT_DONE 112
 +#define TEXT_SIDE_QUEST(quest) (113 + (quest)) /* its text */
-+#define TEXT_NEEDS 148 /* "NEEDS", in the bar where the kind is, then the item */
++#define TEXT_NEEDS 148 /* "NEEDS", above the item */
++/* the chosen entry's half of the panel: the picture's frame, then a row each */
++#define DETAIL_X 0xAC
++#define CANVAS_Y 0x27
++#define CANVAS_W 0x7C
++#define CANVAS_H 0x2C
++#define DETAIL_ROW(row) (0x56 + (row) * 14)
 +#define TAB_ACTIVE 0
 +#define TAB_DONE 1
 +s32 STSTATUS_objectiveModeAt(s32 progress); /* map_screen.c */
@@ -129,7 +137,7 @@
 +    s32 hasNext;
 +    s32 arrowFrame;
 +    s32 time;
-+    PanelAnim fades[3]; /* the list, its title, the bar and the help */
++    PanelAnim fades[3]; /* the list, its title and the help */
 +} Journal;
 +
 +typedef struct JournalWindows {
@@ -140,9 +148,11 @@
 +    TextWindow *pageCount;
 +    TextWindow *prev;
 +    TextWindow *next;
-+    TextWindow *area;
-+    TextWindow *state;
-+    TextWindow *need; /* the item the entry needs, after "NEEDS" in state */
++    TextWindow *area; /* the chosen entry's place, under its picture */
++    TextWindow *questTitle;
++    TextWindow *state; /* MAIN, SIDE or DONE */
++    TextWindow *needLabel; /* "NEEDS" */
++    TextWindow *need; /* the item the entry needs */
 +    TextWindow *help;
 +    Cursor *cursor;
 +} JournalWindows;
@@ -223,7 +233,9 @@
 +
 +    if (journal->count == 0) {
 +        windows->area->setVisible(windows->area, 0);
++        windows->questTitle->setVisible(windows->questTitle, 0);
 +        windows->state->setVisible(windows->state, 0);
++        windows->needLabel->setVisible(windows->needLabel, 0);
 +        windows->need->setVisible(windows->need, 0);
 +        windows->help->setVisible(windows->help, 0);
 +        return;
@@ -236,11 +248,19 @@
 +    } else {
 +        windows->area->setVisible(windows->area, 0);
 +    }
++    if (entry >= 0) {
++        windows->questTitle->setString(windows->questTitle, journalTexts(), TEXT_STEP(entry));
++    } else {
++        windows->questTitle->setString(windows->questTitle, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_NAMES)), SIDE_QUESTS[-1 - entry].item);
++    }
 +    windows->state->setString(windows->state, journalTexts(),
-+                              need != 0 ? TEXT_NEEDS : journal->tab == TAB_DONE ? TEXT_DONE : entry >= 0 ? TEXT_MAIN : TEXT_SIDE);
++                              journal->tab == TAB_DONE ? TEXT_DONE : entry >= 0 ? TEXT_MAIN : TEXT_SIDE);
++    windows->state->setPalette(windows->state, journal->tab == TAB_DONE ? PALETTE_GREEN : PALETTE_WHITE);
 +    if (need != 0) {
++        windows->needLabel->setString(windows->needLabel, journalTexts(), TEXT_NEEDS);
 +        windows->need->setString(windows->need, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_NAMES)), need);
 +    } else {
++        windows->needLabel->setVisible(windows->needLabel, 0);
 +        windows->need->setVisible(windows->need, 0);
 +    }
 +    windows->help->setString(windows->help, journalTexts(), entry >= 0 ? TEXT_STEP(entry) + 1 : TEXT_SIDE_QUEST(-1 - entry));
@@ -305,7 +325,9 @@
 +    windows->prev->setVisible(windows->prev, 0);
 +    windows->next->setVisible(windows->next, 0);
 +    windows->area->setVisible(windows->area, 0);
++    windows->questTitle->setVisible(windows->questTitle, 0);
 +    windows->state->setVisible(windows->state, 0);
++    windows->needLabel->setVisible(windows->needLabel, 0);
 +    windows->need->setVisible(windows->need, 0);
 +    windows->help->setVisible(windows->help, 0);
 +    windows->cursor->setVisible(windows->cursor, 0);
@@ -313,8 +335,31 @@
 +    journal->hasNext = 0;
 +}
 +
-+/* The item list's title, panel and page arrows, the chosen item's bar and
-+   the help panel */
++/* The chosen entry's picture: until there is one for each place, its frame
++   and a cross, as lines over the panel */
++static void drawJournalCanvas(Journal *journal) {
++    static const u8 LINES[6][4] = {
++        { 0, 0, 1, 0 }, { 1, 0, 1, 1 }, { 1, 1, 0, 1 }, { 0, 1, 0, 0 }, { 0, 0, 1, 1 }, { 0, 1, 1, 0 },
++    };
++    Layer *layer = GFX.funcs.getLayer(journal->layer);
++    u_long *ot = layer->getOtEntry(layer, journal->depth - 1);
++    LINE_F2 *line = GFX.funcs.getPrim();
++    s32 i;
++
++    for (i = 0; i < 6; i++, line++) {
++        setLineF2(line);
++        setRGB0(line, 0x71, 0x69, 0xCE);
++        line->x0 = DETAIL_X + LINES[i][0] * CANVAS_W;
++        line->y0 = CANVAS_Y + LINES[i][1] * CANVAS_H;
++        line->x1 = DETAIL_X + LINES[i][2] * CANVAS_W;
++        line->y1 = CANVAS_Y + LINES[i][3] * CANVAS_H;
++        addPrim(ot, line);
++    }
++    GFX.funcs.setPrim(line);
++}
++
++/* The item list's title, panel and page arrows, the picture and the help
++   panel */
 +static void drawJournal(Journal *journal) {
 +    SpriteDrawer sprite;
 +
@@ -345,10 +390,11 @@
 +        sprite.setPivot(0xA0, 0x60);
 +        sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x2E, 0, 0x1E);
 +    }
++    if (journal->substate == 2 && journal->count != 0) {
++        drawJournalCanvas(journal);
++    }
 +    if (journal->fades[2].level != 0) {
 +        sprite.setScale(journal->fades[2].level, ONE, ONE);
-+        sprite.setPivot(0x140, 0xB2);
-+        sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x2F, 0xF, 0xA5);
 +        sprite.setPivot(0, 0xD3);
 +        sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x20, 0, 0xC2);
 +    }
@@ -467,9 +513,12 @@
 +        windows->pageCount = createTextWindow(journal->layer, 1, 0xB2, 0x9C);
 +        windows->prev = createTextWindow(journal->layer, 1, 0x2D, 0x97);
 +        windows->next = createTextWindow(journal->layer, 1, 0x102, 0x97);
-+        windows->area = createTextWindow(journal->layer, 1, 0x25, 0xAE);
-+        windows->state = createTextWindow(journal->layer, 1, 0xA1, 0xAF);
-+        windows->need = createTextWindow(journal->layer, 1, 0xE4, 0xAF);
++        windows->area = createTextWindow(journal->layer, 1, DETAIL_X, DETAIL_ROW(0));
++        windows->questTitle = createTextWindow(journal->layer, 1, DETAIL_X, DETAIL_ROW(1));
++        windows->state = createTextWindow(journal->layer, 1, DETAIL_X, DETAIL_ROW(2));
++        windows->needLabel = createTextWindow(journal->layer, 1, DETAIL_X, DETAIL_ROW(3));
++        windows->needLabel->setPalette(windows->needLabel, PALETTE_YELLOW);
++        windows->need = createTextWindow(journal->layer, 1, DETAIL_X, DETAIL_ROW(4));
 +        windows->help = createTextWindow(journal->layer, 1, 20, 198);
 +        windows->help->setLines(windows->help, 2);
 +        windows->cursor = createCursor(journal->layer, journal->depth - 1, 0x1E, 0x25);
