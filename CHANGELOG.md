@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.19.2 (beta)
 
 - The Digilog follows the steps within a quest: its description, its place's picture and the map's objective show what it asks for now, by the game's own flags. For now the Tree Boots (Hide's card, Debbie, Veemon's hide and seek), Sepikmon's mask and the bomb for Bios Swamp's wall. The Tree Boots show up once Plug Cape has been visited.
 
