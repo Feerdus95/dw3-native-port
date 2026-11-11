@@ -1,6 +1,6 @@
 --- a/src/menus/field_menu/map_screen.c
 +++ b/src/menus/field_menu/map_screen.c
-@@ -130,8 +130,303 @@
+@@ -130,8 +130,304 @@
      }
  }
  
@@ -124,12 +124,13 @@
 +}
 +
 +extern s32 STSTATUS_journalMap; /* item_list.c */
++s32 STSTATUS_objectiveModeNow(void); /* the step's, or what it asks for now */
 +extern s32 STSTATUS_journalGoal;
 +
 +/* The spot of the objective's area on this half's map, or 0: the story's
 +   next step, or the journal's step it was opened from */
 +static s32 objectiveSpot(StatusMapScreen *screen) {
-+    s32 mode = STSTATUS_journalMap == 2 ? STSTATUS_journalGoal : STSTATUS_objectiveModeAt(GAME.progress);
++    s32 mode = STSTATUS_journalMap == 2 ? STSTATUS_journalGoal : STSTATUS_objectiveModeNow();
 +
 +    if ((!g_map_objective && STSTATUS_journalMap != 2) || mode < 0x200 || mode > 0x2D6 || screen->gameHalf != (mode >= 0x270)) {
 +        return 0;
@@ -304,7 +305,7 @@
      if (PAD_HELD(PAD_LEFT) || PAD_HELD(PAD_RIGHT)) {
          if (PAD_PRESSED(PAD_LEFT) || PAD_PRESSED(PAD_RIGHT)) {
              screen->speedX = 2;
-@@ -169,7 +464,30 @@
+@@ -169,7 +465,30 @@
      if (PAD_PRESSED(PAD_TRIANGLE)) {
          SOUND.playSound(SOUND_MENU_CANCEL);
          screen->state = TASK_KILL;
@@ -335,7 +336,7 @@
  }
  
  /* Draws the map, the visited areas, the towns and the cursor */
-@@ -181,6 +499,9 @@
+@@ -181,6 +500,9 @@
  #endif
      s32 frame;
      s32 i;
@@ -345,7 +346,7 @@
  
      if (screen->hovering) {
          initSpriteDrawer(&sprite);
-@@ -191,6 +512,11 @@
+@@ -191,6 +513,11 @@
          } else {
              sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x3B, 0, 0x14);
          }
@@ -357,7 +358,7 @@
      }
      initSpriteDrawer(&sprite);
      if (screen->ready) {
-@@ -231,14 +557,25 @@
+@@ -231,14 +558,25 @@
  #else
          frame = 0x35;
  #endif
@@ -383,7 +384,7 @@
                  sprite.draw(FILE_CACHE.getEntry(screen->archive2), STSTATUS_data.spots[i].sprite,
                              STSTATUS_data.spots[i].x + screen->scrollX,
                              STSTATUS_data.spots[i].y + screen->scrollY + screen->top);
-@@ -272,6 +609,10 @@
+@@ -272,6 +610,10 @@
  /* The map screen's update */
  void STSTATUS_updateMapScreen(StatusMapScreen *screen, TextWindow **windows) {
      s32 area;
@@ -394,7 +395,7 @@
  
      switch (screen->state) {
      case TASK_INIT:
-@@ -293,12 +634,28 @@
+@@ -293,12 +635,28 @@
              screen->homeY = STSTATUS_data.spots[area].y + 0xC;
              screen->speedX = 1;
              screen->speedY = 1;
@@ -423,7 +424,7 @@
              screen->speedX = 0;
              screen->speedY = 0;
              screen->ready = 1;
-@@ -320,7 +677,19 @@
+@@ -320,7 +678,19 @@
  /* Creates the map screen (task): the map of the first half of the game or, in the
     late game, of the second (FILE_STATUS_BG + 2), and requests its area names */
  Task *STSTATUS_createMapScreen(FieldMenuScreen *menu, s32 extra) {

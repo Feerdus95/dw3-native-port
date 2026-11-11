@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,725 @@
+@@ -367,3 +373,801 @@
      panel->list = list;
      return panel;
  }
@@ -124,6 +124,7 @@
 +    u16 done; /* a flag code (FLAG) */
 +    u16 last; /* the last story step it can be done at */
 +    u16 req; /* an item it needs first (0 for none), shown while the player lacks it */
++    u16 from; /* the field it is found at, when not its own */
 +} SideQuest;
 +#define ANY_STEP 0xFF
 +
@@ -147,7 +148,7 @@
 +    { 0x033, 0x2D3, FLAG(0x40, 0x85) }, /* Mind Chip, Fire Master */
 +    { 0x141, 0x2D4, FLAG(0x40, 0x87) }, /* EXP Adapter, Dark Master */
 +    { 0x18C, 0x293, FLAG(0x40, 0x1D) }, /* Crony ID, Kenny */
-+    { 0x004, 0x229, FLAG(0x1A, 0x28), 0, 0x192 }, /* Tree Boots, Veemon (Hide's event needs the Folder Bag) */
++    { 0x004, 0x229, FLAG(0x1A, 0x28), 0, 0x192, 0x220 }, /* Tree Boots, Veemon (Hide's event, at Plug Cape, needs the Folder Bag) */
 +    { 0x192, 0x211, FLAG(0x40, 0xA1) }, /* Folder Bag, the tamers */
 +    { 0x02A, 0x28B, FLAG(0x40, 0x77) }, /* Platinum ID, BK WarGreymon */
 +    { 0x0F2, 0x295, FLAG(0x40, 0x79) }, /* Wild Helmet, BK MegaGargomon */
@@ -161,6 +162,68 @@
 +    { 0x0F0, 0x2DC, FLAG(0x40, 0x46), 0x20 }, /* Wing Helmet */
 +};
 +#define SIDE_QUEST_COUNT (s32)(sizeof SIDE_QUESTS / sizeof SIDE_QUESTS[0])
++
++/*
++ * The steps within an entry: what the story's step or the side quest asks
++ * for now, by the flags and items its events test (dw3_decomp's story.h).
++ * An entry's first rule whose condition holds gives its field and its text
++ * (code 0 always holds); without one, the entry's own. Only for what is
++ * still to do
++ */
++typedef struct JournalRule {
++    s16 entry; /* a story step, or minus a side quest's item */
++    u16 code; /* a condition's (FLAGS_00.checkCondition) */
++    u16 value;
++    u16 mode; /* its field */
++    u16 text;
++} JournalRule;
++#define TEXT_RULE(n) (163 + (n))
++
++static const JournalRule JOURNAL_RULES[] = {
++    /* the Tree Boots: Hide's card, Debbie, then Veemon's hide and seek (given up, back to Debbie) */
++    { -0x004, FLAG(0x1A, 0x22), 0, 0x220, TEXT_RULE(0) }, /* Hide, Plug Cape (with the Folder Bag) */
++    { -0x004, FLAG(0x1A, 0x23), 0, 0x20A, TEXT_RULE(1) }, /* the Gabumon card, Asuka Inn */
++    { -0x004, FLAG(0x1A, 0x24), 0, 0x220, TEXT_RULE(2) }, /* back to Hide */
++    { -0x004, FLAG(0x1A, 0x27), 1, 0x229, TEXT_RULE(6) }, /* found: Veemon, Wind Prairie */
++    { -0x004, FLAG(0x1A, 0x26), 1, 0x22A, TEXT_RULE(5) }, /* hiding in Kicking Forest */
++    { -0x004, FLAG(0x1A, 0x25), 1, 0x229, TEXT_RULE(4) }, /* Veemon, Wind Prairie */
++    { -0x004, 0, 0, 0x20F, TEXT_RULE(3) }, /* Debbie, Lamb Chop */
++    /* Sepikmon's mask (step 8) */
++    { 0x08, FLAG(0x1C, 0x43), 0, 0x238, TEXT_RULE(7) }, /* Gatomon's hint, Swamp Inn */
++    { 0x08, FLAG(0x1A, 0x17), 0, 0x239, TEXT_RULE(8) }, /* Sepikmon, Shaman House */
++    { 0x08, FLAG(0x1A, 0x18), 0, 0x226, TEXT_RULE(9) }, /* Baronmon, Protocol Ruins */
++    { 0x08, FLAG(0x1A, 0x19), 0, 0x202, TEXT_RULE(10) }, /* the false Sepikmon, Asuka Bridge */
++    { 0x08, FLAG(0x1A, 0x1A), 0, 0x201, TEXT_RULE(11) }, /* Etemon */
++    { 0x08, 0, 0, 0x227, TEXT_RULE(12) }, /* Divermon's Lake */
++    /* the bomb for Bios Swamp's wall (step 0xE), until the Digi-Egg behind it is found */
++    { 0x0E, FLAG(0x40, 0x07), 1, 0, 0 },
++    { 0x0E, ITEM(0, 0xE), 1, 0x235, TEXT_RULE(18) }, /* the TNT Chip: the wall */
++    { 0x0E, FLAG(0x1A, 0x2A), 0, 0x235, TEXT_RULE(13) }, /* the symbol behind the wall */
++    { 0x0E, FLAG(0x1A, 0x2B), 0, 0x239, TEXT_RULE(14) }, /* Sepikmon's hint, Shaman House */
++    { 0x0E, FLAG(0x1C, 0x4F), 0, 0x226, TEXT_RULE(15) }, /* Baronmon, Protocol Ruins */
++    { 0x0E, ITEM(1, 0x5A), 0, 0x226, TEXT_RULE(16) }, /* the TNT Ball, Triceramon's */
++    { 0x0E, 0, 0, 0x226, TEXT_RULE(17) }, /* the ball to Baronmon */
++};
++
++static s32 sideQuestDone(s32 quest);
++
++/* An entry's rule now, or NULL: none, or one without a text (the entry's own) */
++static const JournalRule *journalRule(s32 entry) {
++    s32 key = entry >= 0 ? entry : -SIDE_QUESTS[-1 - entry].item;
++    s32 i;
++
++    if (entry >= 0 ? entry != GAME.progress : sideQuestDone(-1 - entry)) {
++        return NULL;
++    }
++    for (i = 0; i < (s32)(sizeof JOURNAL_RULES / sizeof JOURNAL_RULES[0]); i++) {
++        const JournalRule *rule = &JOURNAL_RULES[i];
++
++        if (rule->entry == key && (rule->code == 0 || FLAGS_00.checkCondition(rule->code, rule->value) != 0)) {
++            return rule->text != 0 ? rule : NULL;
++        }
++    }
++    return NULL;
++}
 +#define JOURNAL_MAX (JOURNAL_LAST_STEP + 1 + SIDE_QUEST_COUNT)
 +
 +/* 1: the map screen opens once the journal closes, 2: it is open, 3: the
@@ -223,7 +286,7 @@
 +static s32 sideQuestFound(s32 quest) {
 +    const SideQuest *q = &SIDE_QUESTS[quest];
 +
-+    return FLAGS_00.checkCondition((q->mode & 0xFF) | 0x2000, 1) == 1 && GAME.progress <= (q->last ? q->last : ANY_STEP);
++    return FLAGS_00.checkCondition(((q->from ? q->from : q->mode) & 0xFF) | 0x2000, 1) == 1 && GAME.progress <= (q->last ? q->last : ANY_STEP);
 +}
 +
 +/* The item an entry needs and the player lacks, or 0 */
@@ -264,7 +327,17 @@
 +
 +/* An entry's field */
 +static s32 journalMode(s32 entry) {
++    const JournalRule *rule = journalRule(entry);
++
++    if (rule != NULL) {
++        return rule->mode;
++    }
 +    return entry >= 0 ? STSTATUS_objectiveModeAt(entry) : SIDE_QUESTS[-1 - entry].mode;
++}
++
++/* The field of the story's objective now (the map's too) */
++s32 STSTATUS_objectiveModeNow(void) {
++    return journalMode(GAME.progress);
 +}
 +
 +/* A field's place name, as its banner's, or 0 */
@@ -355,7 +428,10 @@
 +        windows->reward->setString(windows->reward, items, journalReward(entry));
 +        windows->reward->setPalette(windows->reward, PALETTE_GREEN);
 +    }
-+    windows->help->setString(windows->help, journalTexts(), entry >= 0 ? TEXT_STEP(entry) + 1 : TEXT_SIDE_QUEST(-1 - entry));
++    windows->help->setString(windows->help, journalTexts(),
++                             journalRule(entry) != NULL ? journalRule(entry)->text
++                             : entry >= 0               ? TEXT_STEP(entry) + 1
++                                                        : TEXT_SIDE_QUEST(-1 - entry));
 +}
 +
 +/* The page's titles, the story's highlighted; its number */
