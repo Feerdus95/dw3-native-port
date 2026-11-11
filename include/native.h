@@ -209,6 +209,7 @@ void native_effect_scroll(int id, int x, int y);
 void native_vram_roll(int x, int y, int w, int h, int dx);
 extern int g_give_form; /* --give ID: the form is given to every partner on a load (a development aid) */
 /* listPartnerEntries into room for max ids, BladeGarurumon included when there is */
+void controls_shoulder_text(int bit, char *out, int size); /* the label of L1 (10) / R1 (11) for the keys or pad in use, as the game's text */
 int native_list_partner_entries(int partner, unsigned short *out, int max);
 
 /* Fast travel (fast_travel, the options menu): X on a visited area of the

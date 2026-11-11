@@ -254,6 +254,7 @@ int controls_event(const union SDL_Event *e); /* 1: a binding changed */
 void controls_draw(struct SDL_Renderer *r, float x, float y, float w, int rows);
 float controls_hint(struct SDL_Renderer *r, float x, float y, int draw); /* the help line; its width */
 void controls_tab_icons(struct SDL_Renderer *r, float left, float right, float y); /* L1 / R1, or Q / E */
+void controls_shoulder_text(int bit, char *out, int size); /* L1 (10) / R1 (11) as the game's full-width letters, for the keys or pad in use */
 int controls_glyph(int tx, int ty, int depth, int u, int v, int w, int h); /* a text sprite's face button, or -1 */
 int controls_game_icon(int bit, struct SDL_Surface **img, unsigned **tex); /* 1: drawn as img instead */
 extern int g_fast_text;     /* fast_text = 0: X held doesn't advance the texts (mods.c) */

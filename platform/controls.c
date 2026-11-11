@@ -276,6 +276,48 @@ void controls_tab_icons(SDL_Renderer *r, float left, float right, float y) {
     }
 }
 
+/* The label of the game's L1 (bit 10) or R1 (bit 11) for its own text, as full-width Shift-JIS letters
+   (the font's): the key when the keyboard is in use, else the pad's name for that button */
+void controls_shoulder_text(int bit, char *out, int size) {
+    char txt[16] = "";
+    const char *n;
+    int sc, src, fam, i, o = 0;
+
+    if (keyboard_hints()) {
+        sc = pad_keys(bit)[0] ? pad_keys(bit)[0] : pad_keys(bit)[1];
+        n = sc > 0 && sc < SDL_SCANCODE_COUNT ? SDL_GetScancodeName((SDL_Scancode)sc) : NULL;
+        SDL_snprintf(txt, sizeof txt, "%s", n != NULL ? n : "");
+    } else {
+        src = *pad_source(bit);
+        fam = family();
+        if (src == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER || src == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER) {
+            const int left = src == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER;
+            const char *const NAMES[FAMS_COUNT][2] = {{"L1", "R1"}, {"L1", "R1"}, {"L1", "R1"}, {"LB", "RB"}, {"LB", "RB"}, {"LB", "RB"}, {"L", "R"}};
+
+            SDL_snprintf(txt, sizeof txt, "%s", NAMES[fam][!left]);
+        } else if (src == PAD_LT || src == PAD_RT) {
+            const char *const NAMES[FAMS_COUNT][2] = {{"L2", "R2"}, {"L2", "R2"}, {"L2", "R2"}, {"LT", "RT"}, {"LT", "RT"}, {"LT", "RT"}, {"ZL", "ZR"}};
+
+            SDL_snprintf(txt, sizeof txt, "%s", NAMES[fam][src == PAD_RT]);
+        } else if (src != PAD_NONE && pad_source_name(src) != NULL) {
+            SDL_snprintf(txt, sizeof txt, "%s", pad_source_name(src));
+        }
+    }
+    if (txt[0] == 0) { /* nothing bound */
+        SDL_snprintf(txt, sizeof txt, "%s", bit == 10 ? "L1" : "R1");
+    }
+    for (i = 0; txt[i] && i < 4 && o + 3 < size; i++) { /* A-Z, 0-9 (a-z in capitals); anything else is dropped */
+        int c = SDL_toupper((unsigned char)txt[i]);
+
+        if (c >= 'A' && c <= 'Z') {
+            out[o++] = (char)0x82, out[o++] = (char)(0x60 + c - 'A');
+        } else if (c >= '0' && c <= '9') {
+            out[o++] = (char)0x82, out[o++] = (char)(0x4F + c - '0');
+        }
+    }
+    out[o] = 0;
+}
+
 void controls_open(void) {
     s_open = 1;
     s_line = 1; /* on the first button */

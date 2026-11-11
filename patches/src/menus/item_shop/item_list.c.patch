@@ -1,6 +1,34 @@
 --- a/src/menus/item_shop/item_list.c
 +++ b/src/menus/item_shop/item_list.c
-@@ -227,11 +227,17 @@
+@@ -49,12 +49,27 @@
+         win->pages->setRightAlign(win->pages, 1);
+         if (list->pages >= 2) {
+             if (list->page != 0) {
++#ifdef NATIVE
++                /* the key or button that turns the page, not the PlayStation's "L1" */
++                char label[16];
++
++                controls_shoulder_text(10, label, sizeof label);
++                win->l1Label->setText(win->l1Label, label);
++#else
+                 win->l1Label->setString(win->l1Label, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_SHOP)), 0x19);
++#endif
+             } else {
+                 win->l1Label->setVisible(win->l1Label, 0);
+             }
+             if (list->page < list->pages - 1) {
++#ifdef NATIVE
++                char label[16];
++
++                controls_shoulder_text(11, label, sizeof label);
++                win->r1Label->setText(win->r1Label, label);
++#else
+                 win->r1Label->setString(win->r1Label, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_SHOP)), 0x1A);
++#endif
+                 return;
+             }
+             win->r1Label->setVisible(win->r1Label, 0);
+@@ -227,11 +242,17 @@
                      if (list->selection < first) {
                          list->selection = first;
                      }
