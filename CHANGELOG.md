@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.18.10 (beta)
 
 - The Digilog has a layout of its own, in the menus' colours: a title and the tab at the top, the list on the left with its count and page, the chosen entry on the right (its field's picture with the place's name on it, the title and its kind's badge, how it stands, and a side quest's reward), its description below and the keys at the foot.
 - The Digilog's pictures of the fields come from your own disc: `python tools/postcards.py <dw3fe.exe>` draws each field with the field editor into `build/data/postcards` (a build from source; they are the game's art, so the release has none). Without them the frame shows a cross.
