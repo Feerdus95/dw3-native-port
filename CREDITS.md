@@ -19,6 +19,8 @@ The native port of Digimon World 2003 builds on the work of others:
   is in `licenses/`.
 - **[SDL 3](https://libsdl.org)** (zlib License, Copyright (C) 1997-2026 Sam Lantinga). The window, input and audio.
   `SDL3.dll` ships as it comes.
+- **[stb](https://github.com/nothings/stb)** (public domain / MIT, by Sean Barrett and its contributors). `stb_image`
+  and `stb_image_write`, in `platform/stb/`: the JPEG of the Digilog's pictures of the fields.
 - **[Xelu's free controller prompts](https://thoseawesomeguys.com/prompts/)** (CC0, by Nicolae "Xelu" Berbece, in
   the SVG edition by [haaldor](https://github.com/haaldor/Xelu_prompts_SVG)). The button and key icons of the options
   menu and of the game's texts, scaled down by `tools/prompts.py`, in `prompts/` by the exe with their license.

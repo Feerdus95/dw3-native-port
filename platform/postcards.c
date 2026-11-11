@@ -1,4 +1,4 @@
-/* The journal's pictures of the fields (native.h): <data>/postcards/XXX.png, a
+/* The journal's pictures of the fields (native.h): <data>/postcards/XXX.jpg, a
    field's map seen from afar, XXX its mode in hexadecimal. They are the
    game's art, so none ship: the game makes them from the player's own files
    the first time it starts, in a process of its own (dw2003 --postcards),
@@ -10,10 +10,23 @@
 #include <SDL3/SDL.h>
 #include "platform.h"
 #include "stage_tables.h"
+/* JPEG, which SDL has not: a field's picture is a quarter of its PNG */
+#define STB_IMAGE_STATIC
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_JPEG
+#define STBI_WINDOWS_UTF8
+#define STB_IMAGE_WRITE_STATIC
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STBIW_WINDOWS_UTF8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function" /* the formats left out */
+#include "stb/stb_image.h"
+#include "stb/stb_image_write.h"
+#pragma GCC diagnostic pop
 
 #define FIRST 0x200 /* the fields' modes */
 #define COUNT 0x100
-#define MADE "made1" /* the file that says they are all made; another name makes them anew */
+#define MADE "made2" /* the file that says they are all made; another name makes them anew */
 #define PIC_W 624 /* the frame's inside (156 x 50), four times over */
 #define PIC_H 200
 #define TILE 128
@@ -29,17 +42,23 @@ static void picture_path(char *path, size_t size, int mode, const char *ext) {
 static SDL_Surface *postcard(int mode) {
     char path[1200];
     SDL_Surface *s;
-    int i = mode - FIRST;
+    uint8_t *px;
+    int i = mode - FIRST, w, h, n;
 
     if (i < 0 || i >= COUNT) {
         return NULL;
     }
     if (s_img[i] == NULL && SDL_GetTicks() >= s_next[i]) {
         s_next[i] = SDL_GetTicks() + 1000;
-        picture_path(path, sizeof path, mode, "png");
-        if ((s = SDL_LoadPNG(path)) != NULL) {
-            s_img[i] = SDL_ConvertSurface(s, SDL_PIXELFORMAT_RGBA32);
-            SDL_DestroySurface(s);
+        picture_path(path, sizeof path, mode, "jpg");
+        if ((px = stbi_load(path, &w, &h, &n, 4)) != NULL) {
+            if ((s = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32)) != NULL) {
+                for (n = 0; n < h; n++) {
+                    memcpy((uint8_t *)s->pixels + n * s->pitch, px + n * w * 4, (size_t)w * 4);
+                }
+            }
+            s_img[i] = s;
+            stbi_image_free(px);
         }
     }
     return s_img[i];
@@ -403,7 +422,7 @@ static void shrink(const uint32_t *px, int w, int h, uint32_t *out) {
 
 /* The modes a table's stage runs that have no picture yet: counted, or (s)
    each one's written whole, then named */
-static int save(SDL_Surface *s, const StageEntry *e, const StageEntry *end, void *start, uint8_t *made) {
+static int save(const uint32_t *s, const StageEntry *e, const StageEntry *end, void *start, uint8_t *made) {
     char path[1200], tmp[1200];
     const StageEntry *table = e, *first;
     int n = 0;
@@ -413,9 +432,9 @@ static int save(SDL_Surface *s, const StageEntry *e, const StageEntry *end, void
         }
         if (first == e && e->init == start && e->mode >= FIRST && e->mode < FIRST + COUNT && !made[e->mode - FIRST]) {
             n++;
-            picture_path(path, sizeof path, e->mode, "png");
+            picture_path(path, sizeof path, e->mode, "jpg");
             picture_path(tmp, sizeof tmp, e->mode, "tmp");
-            if (s != NULL && SDL_SavePNG(s, tmp)) {
+            if (s != NULL && stbi_write_jpg(tmp, PIC_W, PIC_H, 4, s, 80)) {
                 SDL_RemovePath(path);
                 SDL_RenamePath(tmp, path);
                 made[e->mode - FIRST] = 1;
@@ -432,14 +451,19 @@ int postcards_make(void) {
     static uint32_t out[PIC_W * PIC_H];
     static uint8_t made[COUNT];
     FieldState *st = &FIELDSTG_state;
-    SDL_Surface *s = SDL_CreateSurfaceFrom(PIC_W, PIC_H, SDL_PIXELFORMAT_RGBA32, out, PIC_W * 4);
     char path[1200];
     const StageFuncs *stage;
     int n = 0, extra, w, h;
 
     SDL_snprintf(path, sizeof path, "%s/postcards", data_dir());
     SDL_CreateDirectory(path);
-    for (extra = 0; extra < 2 && s != NULL; extra++) {
+    for (w = FIRST; w < FIRST + COUNT; w++) { /* the PNGs they were at first */
+        picture_path(path, sizeof path, w, "png");
+        SDL_RemovePath(path);
+    }
+    SDL_snprintf(path, sizeof path, "%s/postcards/made1", data_dir());
+    SDL_RemovePath(path);
+    for (extra = 0; extra < 2; extra++) {
         const StageEntry *table = extra ? FIELDSTG_extraStages : FIELDSTG_stages, *end = extra ? FIELDSTG_stages : NULL;
 
         for (stage = native_stage_list; stage->name != NULL; stage++) {
@@ -456,10 +480,9 @@ int postcards_make(void) {
             }
             shrink(px, w, h, out);
             free(px);
-            n += save(s, table, end, stage->start, made);
+            n += save(out, table, end, stage->start, made);
         }
     }
-    SDL_DestroySurface(s);
     native_reset_overlays(1);
     SDL_snprintf(path, sizeof path, "%s/postcards/" MADE, data_dir());
     SDL_SaveFile(path, "", 0);
