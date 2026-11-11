@@ -159,7 +159,7 @@ strings = [
 	"LOGRO",
 	"DESCRIPCIÓN",
 	"[arrow-up] [arrow-down] ELEGIR",
-	"[arrow-left] [arrow-right] ACTIVAS / HECHAS",
+	"[arrow-left] [arrow-right] LISTA",
 	"[triangle] VOLVER",
 	"[cross] MAPA",
 ]

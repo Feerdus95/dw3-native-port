@@ -159,7 +159,7 @@ strings = [
 	"SUCCÈS",
 	"DESCRIPTION",
 	"[arrow-up] [arrow-down] CHOISIR",
-	"[arrow-left] [arrow-right] EN COURS / FINIES",
+	"[arrow-left] [arrow-right] LISTE",
 	"[triangle] RETOUR",
 	"[cross] CARTE",
 ]

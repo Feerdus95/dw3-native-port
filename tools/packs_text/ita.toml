@@ -159,7 +159,7 @@ strings = [
 	"TRAGUARDO",
 	"DESCRIZIONE",
 	"[arrow-up] [arrow-down] SCEGLI",
-	"[arrow-left] [arrow-right] ATTIVE / FINITE",
+	"[arrow-left] [arrow-right] LISTA",
 	"[triangle] INDIETRO",
 	"[cross] MAPPA",
 ]
