@@ -158,8 +158,8 @@ strings = [
 	"RECOMPENSA",
 	"LOGRO",
 	"DESCRIPCIÓN",
-	"[arrow-up][arrow-down] ELEGIR",
-	"[arrow-left][arrow-right] ACTIVAS / HECHAS",
+	"[arrow-up] [arrow-down] ELEGIR",
+	"[arrow-left] [arrow-right] ACTIVAS / HECHAS",
 	"[triangle] VOLVER",
 	"[cross] MAPA",
 ]

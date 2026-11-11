@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,720 @@
+@@ -367,3 +373,725 @@
      panel->list = list;
      return panel;
  }
@@ -182,6 +182,7 @@
 +    s32 cursor;
 +    s32 page;
 +    s32 pageCount;
++    s32 placeWidth; /* the chosen entry's place name's */
 +    s32 hasPrev;
 +    s32 hasNext;
 +    s32 arrowFrame;
@@ -325,6 +326,9 @@
 +    place = journalPlace(journalMode(entry));
 +    if (place != 0) {
 +        windows->area->setString(windows->area, FILE_CACHE.load(TEXT_FILE(TEXT_STAGE_NAMES)), place);
++        windows->area->setRightAlign(windows->area, 1);
++        journal->placeWidth = windows->area->alignWidth;
++        windows->area->setRightAlign(windows->area, 0);
 +    }
 +    if (entry >= 0) {
 +        windows->questTitle->setString(windows->questTitle, journalTexts(), TEXT_STEP(entry));
@@ -511,7 +515,8 @@
 +        journalLine(journal, OVER_LINES, INNER_X, bottom, right, CANVAS_Y, COLOR_RULE);
 +    }
 +    if (journalPlace(journalMode(entry)) != 0) {
-+        journalBox(journal, OVER_BOXES, INNER_X + 1, bottom - 14, 100, 14, COLOR_FILL);
++        /* as wide as the name */
++        journalBox(journal, OVER_BOXES, INNER_X + 1, bottom - 14, journal->placeWidth + 8 < INNER_W - 2 ? journal->placeWidth + 8 : INNER_W - 2, 14, COLOR_FILL);
 +        journalBox(journal, OVER_TEXT, INNER_X + 1, bottom - 14, 2, 14, COLOR_MARK);
 +    }
 +    journalBox(journal, OVER_BOXES, right + 1 - BADGE_W, TITLE_Y - 1, BADGE_W, 14, done ? COLOR_DONE_FILL : COLOR_BOX_FILL);

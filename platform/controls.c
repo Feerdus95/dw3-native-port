@@ -13,14 +13,15 @@ enum { FAM_PS3, FAM_PS4, FAM_PS5, FAM_XBOX360, FAM_XBOXONE, FAM_XBOXSERIES, FAM_
 static const char *FAMS[FAMS_COUNT] = {"ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch"};
 #define DPAD 102 /* the whole D-pad's icon, for the help line */
 
-/* The game's text draws the face buttons as icons of its font (text code 1
-   then 0x1B, 0x2F, 0x32 or 0x34: glyph one less), in its three sizes, each
+/* The game's text draws the face buttons and the D-pad's arrows as icons of
+   its font (text code 1 then 0x1B, 0x2F, 0x32, 0x34 or 0x37-0x3A: glyph one less), in its three sizes, each
    Glyph 11 bytes (page, u, v, clutX, clutY, w, h...); the font's pages are
    at 0x140 and 0x180, y 0, in VRAM (loadFont) */
 extern uint8_t FONT_ICONS_1[], FONT_ICONS_2[], FONT_ICONS_3[];
 static const struct {
     int glyph, bit;
-} GAME_BUTTONS[4] = {{0x1A, 14}, {0x2E, 13}, {0x31, 15}, {0x33, 12}}; /* cross, circle, square, triangle */
+} GAME_BUTTONS[8] = {{0x1A, 14}, {0x2E, 13}, {0x31, 15}, {0x33, 12}, /* cross, circle, square, triangle */
+                     {0x36, 5},  {0x37, 7},  {0x38, 4},  {0x39, 6}}; /* right, left, up, down */
 
 /* The page's lines: the swap of Triangle and Circle, the buttons (face ones first), then Reset */
 #define LINES 18
@@ -216,7 +217,7 @@ int controls_glyph(int tx, int ty, int depth, int u, int v, int w, int h) {
         return -1;
     }
     for (s = 0; s < 3; s++) {
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 8; i++) {
             const uint8_t *gl = STYLES[s] + GAME_BUTTONS[i].glyph * 11;
 
             if (tx == 0x140 + gl[0] * 64 && u == gl[1] && v == gl[2] && w == gl[5] && h == gl[6]) {

@@ -158,8 +158,8 @@ strings = [
 	"RICOMPENSA",
 	"TRAGUARDO",
 	"DESCRIZIONE",
-	"[arrow-up][arrow-down] SCEGLI",
-	"[arrow-left][arrow-right] ATTIVE / FINITE",
+	"[arrow-up] [arrow-down] SCEGLI",
+	"[arrow-left] [arrow-right] ATTIVE / FINITE",
 	"[triangle] INDIETRO",
 	"[cross] MAPPA",
 ]

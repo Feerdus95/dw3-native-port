@@ -158,8 +158,8 @@ strings = [
 	"REWARD",
 	"ACHIEVEMENT",
 	"QUEST DESCRIPTION",
-	"[arrow-up][arrow-down] SELECT",
-	"[arrow-left][arrow-right] ACTIVE / DONE",
+	"[arrow-up] [arrow-down] SELECT",
+	"[arrow-left] [arrow-right] ACTIVE / DONE",
 	"[triangle] BACK",
 	"[cross] MAP",
 ]
