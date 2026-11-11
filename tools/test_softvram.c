@@ -34,6 +34,7 @@ void gl_depth_models(void) {}
 void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {}
 void gl_battle_fog(int r, int g, int b) {}
 void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int cy1, int cx2, int cy2) {}
+void postcard_draw(int mode, float x, float y, float w, float h, int cx1, int cy1, int cx2, int cy2) {}
 int gte_precise(const uint32_t *word, float *x, float *y, float *z) { return 0; }
 int gte_widescreen(void) { return 0; }
 int gte_in_battle(void) { return 0; }

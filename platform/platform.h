@@ -143,6 +143,7 @@ void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, 
    their widths times xs (effects.c) */
 void native_effects_warm(void); /* once a frame from the start: the mod's effects read and put on the card, one picture a frame */
 int gl_image_prepare(const struct SDL_Surface *img, unsigned *tex);
+void postcard_draw(int mode, float x, float y, float w, float h, int cx1, int cy1, int cx2, int cy2); /* postcards.c */
 void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int cy1, int cx2, int cy2);
 void gl_present(const struct SDL_Surface *menu, struct SDL_Surface **shot);
 int gte_precise(const uint32_t *word, float *x, float *y, float *z);

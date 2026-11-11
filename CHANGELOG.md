@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- The Digilog has a layout of its own, in the menus' colours: a title and the tab at the top, the list on the left with its count and page, the chosen entry on the right (a frame for its place's picture, a cross for now, with the place's name on it, the title and its kind's badge, how it stands, and a side quest's reward), its description below and the keys at the foot.
+- The Digilog has a layout of its own, in the menus' colours: a title and the tab at the top, the list on the left with its count and page, the chosen entry on the right (its field's picture with the place's name on it, the title and its kind's badge, how it stands, and a side quest's reward), its description below and the keys at the foot.
+- The Digilog's pictures of the fields come from your own disc: `python tools/postcards.py <dw3fe.exe>` draws each field with the field editor into `build/data/postcards`. Without them the frame shows a cross.
 - The Digilog marks a side quest that needs an item first: while you lack it, its status shows NEEDS and the item's name. Tree Boots (Veemon) asks for the Folder Bag.
 - Cancel on B shows On when either the swapped keys or the swapped gamepad buttons are in place, so a custom binding on the other half no longer leaves it showing Off.
 

@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,697 @@
+@@ -367,3 +373,720 @@
      panel->list = list;
      return panel;
  }
@@ -30,7 +30,7 @@
 + * the story's current step (main, highlighted), then the side quests found
 + * and not done; Done: the story's steps behind, then the side quests done.
 + * The list is the left panel; the right one is the chosen entry's: its
-+ * place's picture (for now a frame and a cross, drawJournalEntry), the
++ * place's picture (its field from afar, drawJournalPicture), the
 + * place (the field banner's name), its title and kind, how it stands or
 + * what it needs, and a side quest's reward.
 + * Its text goes in the panel below; cross shows its area on the map screen
@@ -98,9 +98,10 @@
 +#define COLOR_BOX_BORDER JRGB(0x35, 0x37, 0x67)
 +/* what is drawn over what, from the journal's depth to the front */
 +#define OVER_FILL 0
-+#define OVER_LINES 1
-+#define OVER_BOXES 2
-+#define OVER_TEXT 3
++#define OVER_MAP 1
++#define OVER_LINES 2
++#define OVER_BOXES 3
++#define OVER_TEXT 4
 +#define TAB_ACTIVE 0
 +#define TAB_DONE 1
 +s32 STSTATUS_objectiveModeAt(s32 progress); /* map_screen.c */
@@ -334,8 +335,10 @@
 +    windows->state->setPalette(windows->state, done ? PALETTE_GREEN : PALETTE_WHITE);
 +    centerJournalText(windows->state, INNER_X + INNER_W - BADGE_W / 2, TITLE_Y);
 +    if (journalOnMap(journalMode(entry))) {
++        /* left of "back", whatever its width */
 +        setJournalLabel(windows->keys[3], TEXT_KEY(3));
 +        windows->keys[3]->setRightAlign(windows->keys[3], 1);
++        windows->keys[3]->setPos(windows->keys[3], windows->keys[2]->x - windows->keys[2]->alignWidth - 8, FOOT_Y + 1);
 +    }
 +    windows->record->setString(windows->record, journalTexts(), need != 0 ? TEXT_NEEDS : TEXT_RECORD(journal->tab));
 +    windows->record->setPalette(windows->record, need != 0 ? PALETTE_YELLOW : PALETTE_WHITE);
@@ -399,6 +402,10 @@
 +            setJournalLabel(windows->keys[i], TEXT_KEY(i));
 +        }
 +        windows->keys[2]->setRightAlign(windows->keys[2], 1);
++        /* the tabs' after "select", whatever its width */
++        windows->keys[0]->setRightAlign(windows->keys[0], 1);
++        windows->keys[1]->setPos(windows->keys[1], windows->keys[0]->x + windows->keys[0]->alignWidth + 8, FOOT_Y + 1);
++        windows->keys[0]->setRightAlign(windows->keys[0], 0);
 +        showJournalPage(journal, windows);
 +        showJournalEntry(journal, windows);
 +        return;
@@ -472,8 +479,20 @@
 +    journalBox(journal, OVER_TEXT, x, y, 2, h, mark);
 +}
 +
-+/* The chosen entry's parts: its row's bar, its picture (until there is one
-+   for each place, a frame and a cross), its place's tag, its kind's badge,
++/* A field's picture (native_postcard), inside the frame */
++static void drawJournalPicture(Journal *journal, s32 mode) {
++    u_long *prim = GFX.funcs.getPrim();
++
++    setlen(prim, 3);
++    prim[1] = 0x1B000000 | mode;
++    prim[2] = (CANVAS_Y + 1) << 16 | (INNER_X + 1);
++    prim[3] = (CANVAS_H - 2) << 16 | (INNER_W - 2);
++    addPrim(journalOt(journal, OVER_MAP), prim);
++    GFX.funcs.setPrim(prim + 4);
++}
++
++/* The chosen entry's parts: its row's bar, its picture (its field's, or a
++   cross for one without), its place's tag, its kind's badge,
 +   a done one's tick and a side quest's reward box */
 +static void drawJournalEntry(Journal *journal) {
 +    s32 entry = journal->entries[journal->cursor];
@@ -485,11 +504,15 @@
 +    journalBox(journal, OVER_BOXES, LIST_X + 2, y, LIST_W - 4, 14, COLOR_CHOSEN);
 +    journalBox(journal, OVER_TEXT, LIST_X + 2, y, 2, 14, COLOR_MARK);
 +    journalFrame(journal, OVER_LINES, INNER_X, CANVAS_Y, INNER_W, CANVAS_H, 0, COLOR_BORDER);
-+    journalLine(journal, OVER_LINES, INNER_X, CANVAS_Y, right, bottom, COLOR_RULE);
-+    journalLine(journal, OVER_LINES, INNER_X, bottom, right, CANVAS_Y, COLOR_RULE);
++    if (native_postcard(journalMode(entry))) {
++        drawJournalPicture(journal, journalMode(entry));
++    } else {
++        journalLine(journal, OVER_LINES, INNER_X, CANVAS_Y, right, bottom, COLOR_RULE);
++        journalLine(journal, OVER_LINES, INNER_X, bottom, right, CANVAS_Y, COLOR_RULE);
++    }
 +    if (journalPlace(journalMode(entry)) != 0) {
-+        journalBox(journal, OVER_BOXES, INNER_X + 1, bottom - 13, 100, 13, COLOR_FILL);
-+        journalBox(journal, OVER_TEXT, INNER_X + 1, bottom - 13, 2, 13, COLOR_MARK);
++        journalBox(journal, OVER_BOXES, INNER_X + 1, bottom - 14, 100, 14, COLOR_FILL);
++        journalBox(journal, OVER_TEXT, INNER_X + 1, bottom - 14, 2, 14, COLOR_MARK);
 +    }
 +    journalBox(journal, OVER_BOXES, right + 1 - BADGE_W, TITLE_Y - 1, BADGE_W, 14, done ? COLOR_DONE_FILL : COLOR_BOX_FILL);
 +    journalFrame(journal, OVER_TEXT, right + 1 - BADGE_W, TITLE_Y - 1, BADGE_W, 14, 0, done ? COLOR_DONE_BORDER : COLOR_BOX_BORDER);
@@ -661,7 +684,7 @@
 +        windows->pageSeparator = createTextWindow(journal->layer, 1, LIST_X + LIST_W / 2 - 1, LIST_FOOT_Y);
 +        windows->pageCount = createTextWindow(journal->layer, 1, LIST_X + LIST_W / 2 + 19, LIST_FOOT_Y);
 +        windows->placeLabel = createTextWindow(journal->layer, 1, INNER_X, PANELS_Y + 3);
-+        windows->area = createTextWindow(journal->layer, 1, INNER_X + 5, CANVAS_Y + CANVAS_H - 13);
++        windows->area = createTextWindow(journal->layer, 1, INNER_X + 5, CANVAS_Y + CANVAS_H - 15);
 +        windows->questTitle = createTextWindow(journal->layer, 1, INNER_X, TITLE_Y);
 +        windows->state = createTextWindow(journal->layer, 1, INNER_X + INNER_W - 5, TITLE_Y);
 +        windows->recordLabel = createTextWindow(journal->layer, 1, INNER_X, RECORD_Y);
@@ -699,7 +722,7 @@
 +    Journal *journal = createTask(updateJournal, sizeof(Journal), sizeof(JournalWindows));
 +
 +    journal->layer = SCREEN_LAYER;
-+    journal->depth = 5; /* under it, the menu's background at 7 */
++    journal->depth = 6; /* under it, the menu's background at 7 */
 +    journal->menu = menu;
 +    journal->current = GAME.progress < 0 ? 0 : GAME.progress > JOURNAL_LAST_STEP ? JOURNAL_LAST_STEP : GAME.progress;
 +    if (STSTATUS_journalMap == 3) {
