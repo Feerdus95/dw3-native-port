@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,682 @@
+@@ -367,3 +373,697 @@
      panel->list = list;
      return panel;
  }
@@ -55,7 +55,8 @@
 +#define TEXT_RECORD(tab) (154 + (tab)) /* "In progress.", "Completed." */
 +#define TEXT_REWARD_LABEL(tab) (156 + (tab)) /* "REWARD", "ACHIEVEMENT" */
 +#define TEXT_HELP_LABEL 158
-+#define TEXT_KEY(key) (159 + (key)) /* the foot's: select, the tabs, back */
++#define TEXT_KEY(key) (159 + (key)) /* the foot's: select, the tabs, back, the map; their buttons are the
++                                       font's icons, which the port draws as the keys' or the pad's */
 +
 +/*
 + * The screen's layout: panels of its own, drawn as flat boxes and lines in
@@ -66,23 +67,24 @@
 + */
 +#define HEAD_Y 6
 +#define PANELS_Y 30
-+#define PANELS_H 150
++#define PANELS_H 148
 +#define LIST_X 8
 +#define LIST_W 128
 +#define LIST_ROW(row) (PANELS_Y + 19 + (row) * 14)
-+#define LIST_FOOT_Y (PANELS_Y + 136) /* the page number's */
++#define LIST_FOOT_Y (PANELS_Y + 134) /* the page number's */
 +#define DETAIL_X 142
 +#define DETAIL_W 170
 +#define INNER_X (DETAIL_X + 6) /* what is inside the detail's panel */
 +#define INNER_W (DETAIL_W - 12)
 +#define CANVAS_Y (PANELS_Y + 17)
-+#define CANVAS_H 56
++#define CANVAS_H 52
 +#define TITLE_Y (CANVAS_Y + CANVAS_H + 4)
 +#define BADGE_W 60
 +#define RECORD_Y (TITLE_Y + 18) /* its label's, then its row */
 +#define REWARD_Y (RECORD_Y + 27) /* its box's */
-+#define HELP_Y 184
-+#define FOOT_Y 228
++#define HELP_Y 182
++#define HELP_H 42
++#define FOOT_Y 226
 +#define JRGB(r, g, b) ((r) | (g) << 8 | (b) << 16)
 +#define COLOR_FILL JRGB(0x00, 0x00, 0x21) /* the game's panels' */
 +#define COLOR_BORDER JRGB(0x6B, 0x6B, 0xD6)
@@ -207,7 +209,7 @@
 +    TextWindow *reward; /* a side quest's item */
 +    TextWindow *helpLabel;
 +    TextWindow *help;
-+    TextWindow *keys[3];
++    TextWindow *keys[4]; /* the last, the map's, on an entry with an area */
 +    Cursor *cursor;
 +} JournalWindows;
 +#define JOURNAL_WINDOW_COUNT (s32)(__builtin_offsetof(JournalWindows, cursor) / sizeof(TextWindow *))
@@ -285,6 +287,12 @@
 +    return entry < 0 ? SIDE_QUESTS[-1 - entry].item : 0;
 +}
 +
++/* Centres a window's text on x */
++static void centerJournalText(TextWindow *window, s32 x, s32 y) {
++    window->setRightAlign(window, 1);
++    window->setPos(window, x + window->alignWidth / 2, y);
++}
++
 +static void setJournalLabel(TextWindow *window, s32 text) {
 +    window->setString(window, journalTexts(), text);
 +    window->setPalette(window, PALETTE_PURPLE);
@@ -301,6 +309,7 @@
 +
 +    windows->area->setVisible(windows->area, 0);
 +    windows->need->setVisible(windows->need, 0);
++    windows->keys[3]->setVisible(windows->keys[3], 0);
 +    windows->rewardLabel->setVisible(windows->rewardLabel, 0);
 +    windows->reward->setVisible(windows->reward, 0);
 +    if (journal->count == 0) {
@@ -323,7 +332,11 @@
 +    }
 +    windows->state->setString(windows->state, journalTexts(), done ? TEXT_DONE : entry >= 0 ? TEXT_MAIN : TEXT_SIDE);
 +    windows->state->setPalette(windows->state, done ? PALETTE_GREEN : PALETTE_WHITE);
-+    windows->state->setRightAlign(windows->state, 1);
++    centerJournalText(windows->state, INNER_X + INNER_W - BADGE_W / 2, TITLE_Y);
++    if (journalOnMap(journalMode(entry))) {
++        setJournalLabel(windows->keys[3], TEXT_KEY(3));
++        windows->keys[3]->setRightAlign(windows->keys[3], 1);
++    }
 +    windows->record->setString(windows->record, journalTexts(), need != 0 ? TEXT_NEEDS : TEXT_RECORD(journal->tab));
 +    windows->record->setPalette(windows->record, need != 0 ? PALETTE_YELLOW : PALETTE_WHITE);
 +    windows->record->setPos(windows->record, done ? INNER_X + 12 : INNER_X, RECORD_Y + 13);
@@ -374,6 +387,7 @@
 +    if (show) {
 +        windows->title->setString(windows->title, journalTexts(), TEXT_DIGILOG);
 +        windows->tab->setString(windows->tab, journalTexts(), TEXT_TAB(journal->tab));
++        centerJournalText(windows->tab, DETAIL_X + DETAIL_W - 45, HEAD_Y + 2);
 +        setJournalLabel(windows->listLabel, TEXT_LIST_LABEL(journal->tab));
 +        windows->count->setNumber(windows->count, 0, journal->count);
 +        windows->count->setPalette(windows->count, PALETTE_PURPLE);
@@ -474,8 +488,8 @@
 +    journalLine(journal, OVER_LINES, INNER_X, CANVAS_Y, right, bottom, COLOR_RULE);
 +    journalLine(journal, OVER_LINES, INNER_X, bottom, right, CANVAS_Y, COLOR_RULE);
 +    if (journalPlace(journalMode(entry)) != 0) {
-+        journalBox(journal, OVER_BOXES, INNER_X, bottom - 13, 100, 14, COLOR_FILL);
-+        journalBox(journal, OVER_TEXT, INNER_X, bottom - 13, 2, 14, COLOR_MARK);
++        journalBox(journal, OVER_BOXES, INNER_X + 1, bottom - 13, 100, 13, COLOR_FILL);
++        journalBox(journal, OVER_TEXT, INNER_X + 1, bottom - 13, 2, 13, COLOR_MARK);
 +    }
 +    journalBox(journal, OVER_BOXES, right + 1 - BADGE_W, TITLE_Y - 1, BADGE_W, 14, done ? COLOR_DONE_FILL : COLOR_BOX_FILL);
 +    journalFrame(journal, OVER_TEXT, right + 1 - BADGE_W, TITLE_Y - 1, BADGE_W, 14, 0, done ? COLOR_DONE_BORDER : COLOR_BOX_BORDER);
@@ -502,7 +516,7 @@
 +    journalLine(journal, OVER_LINES, 0, HEAD_Y + 20, 319, HEAD_Y + 20, COLOR_RULE);
 +    journalPanel(journal, LIST_X, PANELS_Y, LIST_W, PANELS_H);
 +    journalPanel(journal, DETAIL_X, PANELS_Y, DETAIL_W, PANELS_H);
-+    journalPanel(journal, LIST_X, HELP_Y, DETAIL_X + DETAIL_W - LIST_X, 40);
++    journalPanel(journal, LIST_X, HELP_Y, DETAIL_X + DETAIL_W - LIST_X, HELP_H);
 +    journalBox(journal, OVER_FILL, 0, FOOT_Y, 320, 240 - FOOT_Y, COLOR_FILL);
 +    journalLine(journal, OVER_LINES, 0, FOOT_Y, 319, FOOT_Y, COLOR_BORDER);
 +    if (journal->substate != 2) {
@@ -655,12 +669,13 @@
 +        windows->need = createTextWindow(journal->layer, 1, INNER_X + 58, RECORD_Y + 13);
 +        windows->rewardLabel = createTextWindow(journal->layer, 1, INNER_X + 6, REWARD_Y + 1);
 +        windows->reward = createTextWindow(journal->layer, 1, INNER_X + 6, REWARD_Y + 13);
-+        windows->helpLabel = createTextWindow(journal->layer, 1, LIST_X + 6, HELP_Y + 2);
-+        windows->help = createTextWindow(journal->layer, 1, LIST_X + 6, HELP_Y + 14);
++        windows->helpLabel = createTextWindow(journal->layer, 1, LIST_X + 6, HELP_Y + 1);
++        windows->help = createTextWindow(journal->layer, 1, LIST_X + 6, HELP_Y + 12);
 +        windows->help->setLines(windows->help, 2);
 +        windows->keys[0] = createTextWindow(journal->layer, 1, LIST_X + 2, FOOT_Y + 1);
-+        windows->keys[1] = createTextWindow(journal->layer, 1, 112, FOOT_Y + 1);
++        windows->keys[1] = createTextWindow(journal->layer, 1, 78, FOOT_Y + 1);
 +        windows->keys[2] = createTextWindow(journal->layer, 1, DETAIL_X + DETAIL_W - 2, FOOT_Y + 1);
++        windows->keys[3] = createTextWindow(journal->layer, 1, DETAIL_X + DETAIL_W - 62, FOOT_Y + 1);
 +        for (i = 0; i < JOURNAL_WINDOW_COUNT; i++) {
 +            ((TextWindow **)windows)[i]->setDepth(((TextWindow **)windows)[i], journal->depth - OVER_TEXT);
 +        }
