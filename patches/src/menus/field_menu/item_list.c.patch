@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,842 @@
+@@ -367,3 +373,862 @@
      panel->list = list;
      return panel;
  }
@@ -127,18 +127,31 @@
 +    u16 from; /* the field it is found at, when not its own */
 +    u16 since; /* the story step it is found at, whatever the fields visited */
 +    u16 owned; /* a condition (SPECIAL_*_UNLOCKED) that also completes it: the partner is already had */
++    u16 ask; /* a flag code: the DRI agent's request is made, so the Digimon is there whatever the story step */
++    u16 gate; /* 1 + the DRI_WINDOWS entry that finds it while the agent is there (0 for none) */
 +} SideQuest;
 +#define ANY_STEP 0xFF
 +
++/* The story steps a DRI agent stands in his field at (his actors'), as two
++   ranges: before and after the movie battles' step */
++static const struct {
++    u8 first, last, first2, last2;
++} DRI_WINDOWS[] = {
++    { 0x05, 0x26, 0x2B, 0x2B }, /* Johann, Jimmy */
++    { 0x0E, 0x26, 0x2B, 0x2B }, /* Kazuki, Michael */
++    { 0x11, 0x26, 0x2B, 0x2B }, /* Bob */
++    { 0x0F, 0x26, 0x29, 0x63 }, /* Ken, Yuji, Yang (and the entrance they are at) */
++};
++
 +static const SideQuest SIDE_QUESTS[] = {
-+    { 0x006, 0x233, FLAG(0x40, 0x24), 0, 0, 0x22B, 0, SPECIAL_AGUMON_UNLOCKED }, /* Agumon DDNA, MetalGreymon */
-+    { 0x022, 0x23C, FLAG(0x40, 0x26), 0, 0, 0x22E, 0, SPECIAL_GUILMON_UNLOCKED }, /* Guilmon DDNA, WarGrowlmon */
-+    { 0x027, 0x247, FLAG(0x40, 0x28), 0, 0, 0x21D, 0, SPECIAL_PATAMON_UNLOCKED }, /* Patamon DDNA, MagnaAngemon */
-+    { 0x026, 0x24A, FLAG(0x40, 0x2A), 0, 0, 0x21D, 0, SPECIAL_RENAMON_UNLOCKED }, /* Renamon DDNA, Taomon */
-+    { 0x013, 0x241, FLAG(0x40, 0x2C), 0, 0, 0x258, 0, SPECIAL_KOTEMON_UNLOCKED }, /* Kotemon DDNA, Kyukimon */
-+    { 0x168, 0x228, FLAG(0x40, 0x2E), 0, 0, 0x258, 0, SPECIAL_MONMON_UNLOCKED }, /* Monmon DDNA, Armormon */
-+    { 0x18B, 0x23C, FLAG(0x40, 0x30), 0, 0, 0x258, 0, SPECIAL_KUMAMON_UNLOCKED }, /* Kumamon DDNA, GrapLeomon */
-+    { 0x023, 0x234, FLAG(0x40, 0x32), 0, 0, 0x226, 0, SPECIAL_VEEMON_UNLOCKED }, /* Veemon DDNA, Paildramon */
++    { 0x006, 0x233, FLAG(0x40, 0x24), 0, 0, 0, 0, SPECIAL_AGUMON_UNLOCKED, FLAG(6, 0), 1 }, /* Agumon DDNA, MetalGreymon */
++    { 0x022, 0x23C, FLAG(0x40, 0x26), 0, 0, 0, 0, SPECIAL_GUILMON_UNLOCKED, FLAG(6, 1), 1 }, /* Guilmon DDNA, WarGrowlmon */
++    { 0x027, 0x247, FLAG(0x40, 0x28), 0, 0, 0, 0, SPECIAL_PATAMON_UNLOCKED, FLAG(6, 2), 2 }, /* Patamon DDNA, MagnaAngemon */
++    { 0x026, 0x24A, FLAG(0x40, 0x2A), 0, 0, 0, 0, SPECIAL_RENAMON_UNLOCKED, FLAG(6, 3), 2 }, /* Renamon DDNA, Taomon */
++    { 0x013, 0x241, FLAG(0x40, 0x2C), 0, 0, 0, 0, SPECIAL_KOTEMON_UNLOCKED, FLAG(6, 4), 4 }, /* Kotemon DDNA, Kyukimon */
++    { 0x168, 0x228, FLAG(0x40, 0x2E), 0, 0, 0, 0, SPECIAL_MONMON_UNLOCKED, FLAG(6, 6), 4 }, /* Monmon DDNA, Armormon */
++    { 0x18B, 0x23C, FLAG(0x40, 0x30), 0, 0, 0, 0, SPECIAL_KUMAMON_UNLOCKED, FLAG(6, 5), 4 }, /* Kumamon DDNA, GrapLeomon */
++    { 0x023, 0x234, FLAG(0x40, 0x32), 0, 0, 0, 0, SPECIAL_VEEMON_UNLOCKED, FLAG(6, 7), 3 }, /* Veemon DDNA, Paildramon */
 +    { 0x066, 0x243, FLAG(0x40, 0x56) }, /* Rusty Katana, Zanbamon */
 +    { 0x074, 0x21C, FLAG(0x40, 0x09) }, /* Rusty Glove, Datamon */
 +    { 0x099, 0x22B, FLAG(0x40, 0x10) }, /* Old Claw, MasterTyranno */
@@ -325,6 +338,13 @@
 +static s32 sideQuestFound(s32 quest) {
 +    const SideQuest *q = &SIDE_QUESTS[quest];
 +
++    if (q->gate != 0) {
++        /* found while his agent is there, or once he has made his request */
++        u8 p = GAME.progress;
++        const typeof(DRI_WINDOWS[0]) *w = &DRI_WINDOWS[q->gate - 1];
++
++        return (p >= w->first && p <= w->last) || (p >= w->first2 && p <= w->last2) || FLAGS_00.checkCondition(q->ask, 1) == 1;
++    }
 +    return (q->since ? GAME.progress >= q->since : FLAGS_00.checkCondition(((q->from ? q->from : q->mode) & 0xFF) | 0x2000, 1) == 1) && GAME.progress <= (q->last ? q->last : ANY_STEP);
 +}
 +
