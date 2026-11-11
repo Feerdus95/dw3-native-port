@@ -1,6 +1,6 @@
 --- a/src/menus/field_menu/map_screen.c
 +++ b/src/menus/field_menu/map_screen.c
-@@ -130,8 +130,245 @@
+@@ -130,8 +130,253 @@
      }
  }
  
@@ -98,6 +98,8 @@
 +static s32 fastTravelChoice;
 +static s32 fastTravelY; /* the banner's */
 +static s32 fastTravelHomeLate; /* the home mark is on Amaterasu's map */
++static ScreenFade *fastTravelFade; /* yes: the fade to black, then the field */
++static s32 fastTravelGone; /* the field is asked for */
 +
 +static void showFastTravelQuestion(StatusMapScreen *screen, TextWindow **windows, s32 show) {
 +    Cursor *cursor;
@@ -136,6 +138,13 @@
 +static s32 askFastTravel(StatusMapScreen *screen, TextWindow **windows) {
 +    s32 choice = fastTravelChoice;
 +
++    if (fastTravelFade != NULL) { /* leaving: nothing else until the field */
++        if (fastTravelFade->state == TASK_DONE && !fastTravelGone) {
++            GAME.funcs.requestMode(GAME.fieldMode, 0);
++            fastTravelGone = 1;
++        }
++        return 1;
++    }
 +    if (!fastTravelAsking) {
 +        return 0;
 +    }
@@ -149,12 +158,11 @@
 +        fastTravelChoice = choice;
 +        ((Cursor *)windows[4])->setPos((Cursor *)windows[4], 0xBB, fastTravelY + 5 + choice * 14);
 +    } else if (PAD_PRESSED(PAD_CROSS)) {
-+        /* yes: the home mark moves there, where the menu will go back to */
++        /* yes: the screen fades and the field loads, as when the menu closes */
 +        if (choice == 0 && fastTravel(screen->spot - 1, screen->gameHalf)) {
 +            SOUND.playSound(SOUND_SELECT);
-+            screen->homeX = STSTATUS_data.spots[screen->spot].x + 0xC;
-+            screen->homeY = STSTATUS_data.spots[screen->spot].y + 0xC;
-+            fastTravelHomeLate = screen->gameHalf != 0;
++            fastTravelFade = createScreenFade(screen->layer);
++            fastTravelFade->start(fastTravelFade, 0, 0x14);
 +        } else {
 +            SOUND.playSound(SOUND_MENU_CANCEL);
 +        }
@@ -246,7 +254,7 @@
      if (PAD_HELD(PAD_LEFT) || PAD_HELD(PAD_RIGHT)) {
          if (PAD_PRESSED(PAD_LEFT) || PAD_PRESSED(PAD_RIGHT)) {
              screen->speedX = 2;
-@@ -169,7 +406,26 @@
+@@ -169,7 +414,26 @@
      if (PAD_PRESSED(PAD_TRIANGLE)) {
          SOUND.playSound(SOUND_MENU_CANCEL);
          screen->state = TASK_KILL;
@@ -256,7 +264,7 @@
 +            loadServerMapImages(screen->menu->gameHalf != 0);
 +        }
 +#endif
-     }
++    }
 +#ifdef NATIVE
 +    /* square: the other server's map */
 +    if (g_fast_travel && PAD_PRESSED(PAD_SQUARE) && screen->state != TASK_KILL && amaterasuVisited() &&
@@ -265,16 +273,16 @@
 +        showServerMap(screen, screen->gameHalf == 0);
 +    }
 +    /* X on an area asks whether to travel there */
-+    if (g_fast_travel && screen->hovering && PAD_PRESSED(PAD_CROSS)) {
++    if (g_fast_travel && screen->hovering && PAD_PRESSED(PAD_CROSS) && screen->state != TASK_KILL) {
 +        SOUND.playSound(SOUND_MENU_CONFIRM);
 +        showFastTravelQuestion(screen, windows, 1);
-+    }
+     }
 +#endif
  }
  
  /* Draws the map, the visited areas, the towns and the cursor */
-@@ -179,6 +435,9 @@
-     s32 x;
+@@ -181,6 +445,9 @@
+ #endif
      s32 frame;
      s32 i;
 +#ifdef NATIVE
@@ -283,7 +291,7 @@
  
      if (screen->hovering) {
          initSpriteDrawer(&sprite);
-@@ -189,6 +448,11 @@
+@@ -191,6 +458,11 @@
          } else {
              sprite.draw(FILE_CACHE.getEntry(FILE_STATUS_SPRITES << 16), 0x3B, 0, 0x14);
          }
@@ -295,7 +303,7 @@
      }
      initSpriteDrawer(&sprite);
      if (screen->ready) {
-@@ -229,14 +493,25 @@
+@@ -231,14 +503,25 @@
  #else
          frame = 0x35;
  #endif
@@ -321,7 +329,7 @@
                  sprite.draw(FILE_CACHE.getEntry(screen->archive2), STSTATUS_data.spots[i].sprite,
                              STSTATUS_data.spots[i].x + screen->scrollX,
                              STSTATUS_data.spots[i].y + screen->scrollY + screen->top);
-@@ -270,6 +545,10 @@
+@@ -272,6 +555,10 @@
  /* The map screen's update */
  void STSTATUS_updateMapScreen(StatusMapScreen *screen, TextWindow **windows) {
      s32 area;
@@ -332,7 +340,7 @@
  
      switch (screen->state) {
      case TASK_INIT:
-@@ -291,12 +570,28 @@
+@@ -293,12 +580,28 @@
              screen->homeY = STSTATUS_data.spots[area].y + 0xC;
              screen->speedX = 1;
              screen->speedY = 1;
@@ -361,7 +369,7 @@
              screen->speedX = 0;
              screen->speedY = 0;
              screen->ready = 1;
-@@ -318,7 +613,18 @@
+@@ -320,7 +623,20 @@
  /* Creates the map screen (task): the map of the first half of the game or, in the
     late game, of the second (FILE_STATUS_BG + 2), and requests its area names */
  Task *STSTATUS_createMapScreen(FieldMenuScreen *menu, s32 extra) {
@@ -370,6 +378,8 @@
 +    StatusMapScreen *screen = createTask(STSTATUS_updateMapScreen, sizeof(StatusMapScreen), 5 * 4);
 +
 +    fastTravelAsking = 0;
++    fastTravelFade = NULL;
++    fastTravelGone = 0;
 +    fastTravelHomeLate = STSTATUS_areaFuncs.getGameHalf() != 0;
 +    if (g_fast_travel && amaterasuVisited()) {
 +        requestServerMaps();

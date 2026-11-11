@@ -81,7 +81,7 @@ fps = 50
 # confirms commands). Tab or R3 cycles fast forward (x2, x3, x5), not saved
 fast_text = 1
 
-# 1: on the map screen, X on a visited area takes you there as the menu closes
+# 1: on the map screen, X on a visited area asks, and Yes takes you there
 # (through a door into it that is open at that point of the story)
 fast_travel = 0
 

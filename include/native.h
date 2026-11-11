@@ -213,8 +213,8 @@ void controls_shoulder_text(int bit, char *out, int size); /* the label of L1 (1
 int native_list_partner_entries(int partner, unsigned short *out, int max);
 
 /* Fast travel (fast_travel, the options menu): X on a visited area of the
-   map screen (ststatus/map_screen.c) takes the player there as the menu
-   closes, through one of the game's doors into it. The doors: every exit
+   map screen (ststatus/map_screen.c) asks, and yes fades to its field,
+   through one of the game's doors into it. The doors: every exit
    (SLOT_EXIT) of the European stages, with the mode it is in, read before
    the game runs (platform/mods.c) */
 typedef struct NativeExit {
