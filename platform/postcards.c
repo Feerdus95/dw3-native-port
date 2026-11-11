@@ -26,7 +26,7 @@
 
 #define FIRST 0x200 /* the fields' modes */
 #define COUNT 0x100
-#define MADE "made2" /* the file that says they are all made; another name makes them anew */
+#define MADE "complete-v2" /* the file that says they are all made; another version makes them anew */
 #define PIC_W 624 /* the frame's inside (156 x 50), four times over */
 #define PIC_H 200
 #define TILE 128
@@ -461,7 +461,7 @@ int postcards_make(void) {
         picture_path(path, sizeof path, w, "png");
         SDL_RemovePath(path);
     }
-    SDL_snprintf(path, sizeof path, "%s/postcards/made1", data_dir());
+    SDL_snprintf(path, sizeof path, "%s/postcards/made1", data_dir()); /* and their marker */
     SDL_RemovePath(path);
     for (extra = 0; extra < 2; extra++) {
         const StageEntry *table = extra ? FIELDSTG_extraStages : FIELDSTG_stages, *end = extra ? FIELDSTG_stages : NULL;
