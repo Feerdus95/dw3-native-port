@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,839 @@
+@@ -367,3 +373,842 @@
      panel->list = list;
      return panel;
  }
@@ -126,18 +126,19 @@
 +    u16 req; /* an item it needs first (0 for none), shown while the player lacks it */
 +    u16 from; /* the field it is found at, when not its own */
 +    u16 since; /* the story step it is found at, whatever the fields visited */
++    u16 owned; /* a condition (SPECIAL_*_UNLOCKED) that also completes it: the partner is already had */
 +} SideQuest;
 +#define ANY_STEP 0xFF
 +
 +static const SideQuest SIDE_QUESTS[] = {
-+    { 0x006, 0x233, FLAG(0x40, 0x24), 0, 0, 0x22B }, /* Agumon DDNA, MetalGreymon */
-+    { 0x022, 0x23C, FLAG(0x40, 0x26), 0, 0, 0x22E }, /* Guilmon DDNA, WarGrowlmon */
-+    { 0x027, 0x247, FLAG(0x40, 0x28), 0, 0, 0x21D }, /* Patamon DDNA, MagnaAngemon */
-+    { 0x026, 0x24A, FLAG(0x40, 0x2A), 0, 0, 0x21D }, /* Renamon DDNA, Taomon */
-+    { 0x013, 0x241, FLAG(0x40, 0x2C), 0, 0, 0x258 }, /* Kotemon DDNA, Kyukimon */
-+    { 0x168, 0x228, FLAG(0x40, 0x2E), 0, 0, 0x258 }, /* Monmon DDNA, Armormon */
-+    { 0x18B, 0x23C, FLAG(0x40, 0x30), 0, 0, 0x258 }, /* Kumamon DDNA, GrapLeomon */
-+    { 0x023, 0x234, FLAG(0x40, 0x32), 0, 0, 0x226 }, /* Veemon DDNA, Paildramon */
++    { 0x006, 0x233, FLAG(0x40, 0x24), 0, 0, 0x22B, 0, SPECIAL_AGUMON_UNLOCKED }, /* Agumon DDNA, MetalGreymon */
++    { 0x022, 0x23C, FLAG(0x40, 0x26), 0, 0, 0x22E, 0, SPECIAL_GUILMON_UNLOCKED }, /* Guilmon DDNA, WarGrowlmon */
++    { 0x027, 0x247, FLAG(0x40, 0x28), 0, 0, 0x21D, 0, SPECIAL_PATAMON_UNLOCKED }, /* Patamon DDNA, MagnaAngemon */
++    { 0x026, 0x24A, FLAG(0x40, 0x2A), 0, 0, 0x21D, 0, SPECIAL_RENAMON_UNLOCKED }, /* Renamon DDNA, Taomon */
++    { 0x013, 0x241, FLAG(0x40, 0x2C), 0, 0, 0x258, 0, SPECIAL_KOTEMON_UNLOCKED }, /* Kotemon DDNA, Kyukimon */
++    { 0x168, 0x228, FLAG(0x40, 0x2E), 0, 0, 0x258, 0, SPECIAL_MONMON_UNLOCKED }, /* Monmon DDNA, Armormon */
++    { 0x18B, 0x23C, FLAG(0x40, 0x30), 0, 0, 0x258, 0, SPECIAL_KUMAMON_UNLOCKED }, /* Kumamon DDNA, GrapLeomon */
++    { 0x023, 0x234, FLAG(0x40, 0x32), 0, 0, 0x226, 0, SPECIAL_VEEMON_UNLOCKED }, /* Veemon DDNA, Paildramon */
 +    { 0x066, 0x243, FLAG(0x40, 0x56) }, /* Rusty Katana, Zanbamon */
 +    { 0x074, 0x21C, FLAG(0x40, 0x09) }, /* Rusty Glove, Datamon */
 +    { 0x099, 0x22B, FLAG(0x40, 0x10) }, /* Old Claw, MasterTyranno */
@@ -335,7 +336,9 @@
 +}
 +
 +static s32 sideQuestDone(s32 quest) {
-+    return FLAGS_00.checkCondition(SIDE_QUESTS[quest].done, 1) == 1;
++    const SideQuest *q = &SIDE_QUESTS[quest];
++
++    return FLAGS_00.checkCondition(q->done, 1) == 1 || (q->owned != 0 && FLAGS_00.checkCondition(q->owned, 1) == 1);
 +}
 +
 +/* The tab's entries */
