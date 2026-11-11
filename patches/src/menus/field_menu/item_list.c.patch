@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,801 @@
+@@ -367,3 +373,815 @@
      panel->list = list;
      return panel;
  }
@@ -195,9 +195,23 @@
 +    { 0x08, FLAG(0x1A, 0x19), 0, 0x202, TEXT_RULE(10) }, /* the false Sepikmon, Asuka Bridge */
 +    { 0x08, FLAG(0x1A, 0x1A), 0, 0x201, TEXT_RULE(11) }, /* Etemon */
 +    { 0x08, 0, 0, 0x227, TEXT_RULE(12) }, /* Divermon's Lake */
++    /* the Seiryu Leader (step 4): he trains away, and wants MasterTyranno beaten first */
++    { 0x04, FLAG(0x1C, 0x11), 1, 0, 0 }, /* back in Seiryu City */
++    { 0x04, FLAG(0x1C, 0x10), 1, 0x22B, TEXT_RULE(21) }, /* MasterTyranno, Tyranno Valley */
++    { 0x04, FLAG(0x1C, 0x0F), 1, 0x226, TEXT_RULE(20) }, /* the Leader, Protocol Ruins */
++    { 0x04, 0, 0, 0x230, TEXT_RULE(19) }, /* Tom, Seiryu Tower */
++    /* the Blue Card (step 6): the Guilmons' fake, then the real one */
++    { 0x06, ITEM(0, 0x18E), 1, 0, 0 }, /* the Blue Card */
++    { 0x06, FLAG(0x1C, 0x47), 1, 0x224, TEXT_RULE(27) }, /* the Trickster, under Forest Inn */
++    { 0x06, FLAG(0x1C, 0x46), 1, 0x22E, TEXT_RULE(26) }, /* the fake tried: a Guilmon, Seiryu City */
++    { 0x06, ITEM(0, 0x18F), 1, 0x22C, TEXT_RULE(25) }, /* the fake: East Station */
++    { 0x06, FLAG(0x1C, 0x45), 1, 0x22F, TEXT_RULE(24) }, /* Tricky Guilmon, Seiryu City's inn */
++    { 0x06, FLAG(0x1C, 0x44), 1, 0x223, TEXT_RULE(23) }, /* a Guilmon, Forest Inn */
++    { 0x06, 0, 0, 0x20C, TEXT_RULE(22) }, /* a Guilmon, Asuka Inn 2F */
 +    /* the bomb for Bios Swamp's wall (step 0xE), until the Digi-Egg behind it is found */
 +    { 0x0E, FLAG(0x40, 0x07), 1, 0, 0 },
 +    { 0x0E, ITEM(0, 0xE), 1, 0x235, TEXT_RULE(18) }, /* the TNT Chip: the wall */
++    { 0x0E, FLAG(0x1A, 0x02), 0, 0x23B, TEXT_RULE(28) }, /* Nami saw it, Phoenix Bay */
 +    { 0x0E, FLAG(0x1A, 0x2A), 0, 0x235, TEXT_RULE(13) }, /* the symbol behind the wall */
 +    { 0x0E, FLAG(0x1A, 0x2B), 0, 0x239, TEXT_RULE(14) }, /* Sepikmon's hint, Shaman House */
 +    { 0x0E, FLAG(0x1C, 0x4F), 0, 0x226, TEXT_RULE(15) }, /* Baronmon, Protocol Ruins */
