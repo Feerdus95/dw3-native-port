@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,815 @@
+@@ -367,3 +373,825 @@
      panel->list = list;
      return panel;
  }
@@ -208,6 +208,13 @@
 +    { 0x06, FLAG(0x1C, 0x45), 1, 0x22F, TEXT_RULE(24) }, /* Tricky Guilmon, Seiryu City's inn */
 +    { 0x06, FLAG(0x1C, 0x44), 1, 0x223, TEXT_RULE(23) }, /* a Guilmon, Forest Inn */
 +    { 0x06, 0, 0, 0x20C, TEXT_RULE(22) }, /* a Guilmon, Asuka Inn 2F */
++    /* the Agumon Suits (step 0xC): how to get into the Admin Center */
++    { 0x0C, ITEM(0, 0xF), 1, 0, 0 }, /* the suit */
++    { 0x0C, FLAG(0x1A, 0x16), 1, 0x21B, TEXT_RULE(33) }, /* the Mischievous Mat again, Asuka Sewers */
++    { 0x0C, FLAG(0x1A, 0x15), 1, 0x203, TEXT_RULE(32) }, /* Kail, Main Lobby */
++    { 0x0C, FLAG(0x1A, 0x14), 1, 0x21B, TEXT_RULE(31) }, /* Etemon's place, Asuka Sewers */
++    { 0x0C, FLAG(0x1A, 0x0C), 1, 0x201, TEXT_RULE(30) }, /* Jake and Grandma Beth */
++    { 0x0C, 0, 0, 0x20F, TEXT_RULE(29) }, /* Master John, Lamb Chop */
 +    /* the bomb for Bios Swamp's wall (step 0xE), until the Digi-Egg behind it is found */
 +    { 0x0E, FLAG(0x40, 0x07), 1, 0, 0 },
 +    { 0x0E, ITEM(0, 0xE), 1, 0x235, TEXT_RULE(18) }, /* the TNT Chip: the wall */
@@ -217,6 +224,9 @@
 +    { 0x0E, FLAG(0x1C, 0x4F), 0, 0x226, TEXT_RULE(15) }, /* Baronmon, Protocol Ruins */
 +    { 0x0E, ITEM(1, 0x5A), 0, 0x226, TEXT_RULE(16) }, /* the TNT Ball, Triceramon's */
 +    { 0x0E, 0, 0, 0x226, TEXT_RULE(17) }, /* the ball to Baronmon */
++    /* the Staff Pass (step 0x14): Keith and Nick, then the hideout */
++    { 0x14, FLAG(0x40, 0x03), 1, 0x255, TEXT_RULE(35) }, /* the security hole seen */
++    { 0x14, FLAG(0x1C, 0x1C), 1, 0x241, TEXT_RULE(34) }, /* Suzaku UG Lake */
 +};
 +
 +static s32 sideQuestDone(s32 quest);

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- The Digilog follows more of the story's steps within a step: the Seiryu Leader (Tom's word, the Protocol Ruins, MasterTyranno), the Blue Card (the Guilmons, the fake, the Trickster) and Nami's word on the Symbol of Sincerity.
+- The Digilog follows more of the story's steps within a step: the Seiryu Leader (Tom's word, the Protocol Ruins, MasterTyranno), the Blue Card (the Guilmons, the fake, the Trickster) Nami's word on the Symbol of Sincerity, the Agumon Suits (Master John, the couple, the man in the sewers, Kail) and the Staff Pass (Keith and Nick, then the hideout).
 
 ## v0.19.2 (beta)
 
