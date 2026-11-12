@@ -61,9 +61,9 @@ class Buckets:
         return self.ts.index(t) < k
 
 
-def variables(entry, techs):
+def variables(entry, techs, maxmp=None):
     """(v, bk): v = name -> list of (label, value) for the state variables this entry's conditions (and the MP of its targets 2/3) test;
-    bk = name -> Buckets for the numeric ones."""
+    bk = name -> Buckets for the numeric ones. maxmp (context mode): MP buckets above it are dropped and turn residues are for n >= 1."""
     acts = entry_actions(entry)
     thr, moduli, allies, vals, flags = {"hp": [], "php": [], "mp": []}, [], [], {"elem": [], "battle": [], "kind": []}, set()
     for t, c, a in acts[:3]:
@@ -88,9 +88,11 @@ def variables(entry, techs):
         if ts:
             bk[name] = Buckets(ts, "" if name == "mp" else "%")
             v[name] = bk[name].options()
+            if name == "mp" and maxmp is not None:
+                v[name] = [o for o in v[name] if o[1] == 0 or bk[name].ts[o[1] - 1] <= maxmp]
     if moduli:
         L = math.lcm(*moduli)
-        v["turn"] = [("turn%%%d==%d" % (L, r), r) for r in range(L)]
+        v["turn"] = [("turn%%%d==%d%s" % (L, r, "" if maxmp is None else " (n>=1)"), r) for r in range(L)]
     for a in sorted(set(allies)):
         v["ally%d" % a] = [("no", False), ("yes", True)]
     for k, xs in vals.items():
@@ -160,11 +162,11 @@ def evaluate(entry, techs, asg, bk):
     return dist
 
 
-def analyze(entry, techs, state=None):
+def analyze(entry, techs, state=None, maxmp=None):
     """List of (distribution, [scenario dict]) of the entry for a (partial) state; several items = the answer depends on unknowns.
     state keys: hp, php (% of max HP), mp, turn, base, asleep, allies (list of ids, [] none), battle, kind, elem, charge, atk_down, def_down, spd_down."""
     state = state or {}
-    v, bk = variables(entry, techs)
+    v, bk = variables(entry, techs, maxmp)
     fixed = {}
     for name, opts in v.items():
         given = _given(name, state, bk, opts)
@@ -239,28 +241,145 @@ def classify(btab, techs):
     return det, rng, state
 
 
+def print_groups(entry, groups, indent="  "):
+    if len(groups) > 1:
+        print(indent + "%d distinct distributions: the answer depends on the unknown variables below" % len(groups))
+    for i, (d, scs) in enumerate(groups, 1):
+        print(indent + "[%d] %s" % (i, ", ".join("%s: %s (%.4f)" % (k, p, float(p)) for k, p in sorted(d.items(), key=lambda kv: -kv[1]))))
+        keys = list(scs[0])
+        if not keys:
+            print(indent + "    no state variable involved")
+        elif len(scs) <= 6:
+            for sc in scs:
+                print(indent + "    when " + ", ".join("%s %s" % (k, sc[k]) for k in keys))
+        else:
+            print(indent + "    %d scenarios; values present per variable (a union, not a product): %s" %
+                  (len(scs), "; ".join("%s {%s}" % (k, ", ".join(dict.fromkeys(sc[k] for sc in scs))) for k in keys)))
+    if any(c == 1 for t, c, a in entry_actions(entry)[:3]):
+        print(indent + "[H] chance conditions assume each reached RANDOM.next() % 128 draw is conditionally uniform given the previous ones")
+
+
 def show(entry, techs, state):
     groups = analyze(entry, techs, state)
     print("fighter %d  techs %s  actions %s  (target, condition, arg)" % (entry["id"], entry["techs"], entry_actions(entry)))
-    if len(groups) > 1:
-        print("  %d distinct distributions: the answer depends on the unknown variables below" % len(groups))
-    for i, (d, scs) in enumerate(groups, 1):
-        print("  [%d] %s" % (i, ", ".join("%s: %s (%.4f)" % (k, p, float(p)) for k, p in sorted(d.items(), key=lambda kv: -kv[1]))))
-        keys = list(scs[0])
-        if not keys:
-            print("      no state variable involved")
-        elif len(scs) <= 6:
-            for sc in scs:
-                print("      when " + ", ".join("%s %s" % (k, sc[k]) for k in keys))
-        else:
-            print("      %d scenarios; values present per variable (a union, not a product): %s" %
-                  (len(scs), "; ".join("%s {%s}" % (k, ", ".join(dict.fromkeys(sc[k] for sc in scs))) for k in keys)))
-    if any(c == 1 for t, c, a in entry_actions(entry)[:3]):
-        print("  [H] chance conditions assume each reached RANDOM.next() % 128 draw is conditionally uniform given the previous ones")
+    print_groups(entry, groups)
     return groups
 
 
-def selftest():
+# ---- v2: the battle context (encounter, position, kind, other occupants, initial MP) comes from the data ----
+CONTEXT_NOTES = {
+    "random": "",
+    "area3-unresolved": "no identified appearance in the random lists of areas 0-2; it is NOT asserted that it cannot appear in random battles",
+    "unreferenced": "the encounter has no slot in any list; kept, another way to reach it is unknown [?]",
+}
+
+
+def fighter_contexts(tb, fid, cover):
+    """Every (encounter, position) where fighter `fid` stands, with what the data says about it. cover: encounter -> label (battle_lists)."""
+    out = []
+    for e in tb["encounters"]:
+        occ = [tb["enemies"][x]["fighter"] if x else 0 for x in e["enemies"]]
+        for pos, x in enumerate(e["enemies"]):
+            if x and occ[pos] == fid:
+                out.append(dict(encounter=e["id"], position=pos, kind=e["kind"], occupants=occ, mp=tb["enemies"][x]["mp"],
+                                cover=cover.get(e["id"], "unreferenced")))
+    return out
+
+
+def ctx_allies(ctx):
+    """Ids of the OTHER occupants (the own slot never counts: enemy_turn.c:373-390 skips the active slot)."""
+    return [f for p, f in enumerate(ctx["occupants"]) if p != ctx["position"] and f]
+
+
+def resolve_context(ctxs, fid, encounter, position=None):
+    """The one context named by --encounter / --position. A fighter standing in the same encounter more than once needs --position."""
+    here = [c for c in ctxs if c["encounter"] == encounter]
+    if not here:
+        raise ValueError("fighter %d does not appear in encounter %d (encounters: %s)" % (fid, encounter, ", ".join(str(c["encounter"]) for c in ctxs)))
+    if position is not None:
+        hit = [c for c in here if c["position"] == position]
+        if not hit:
+            raise ValueError("position %d of encounter %d does not hold fighter %d (positions: %s)" % (position, encounter, fid, ", ".join(str(c["position"]) for c in here)))
+        return hit[0]
+    if len(here) > 1:
+        raise ValueError("fighter %d stands %d times in encounter %d (positions %s): --position is required" % (fid, len(here), encounter, ", ".join(str(c["position"]) for c in here)))
+    return here[0]
+
+
+def ctx_state(ctx, over=None, mp_any=False, turn_any=False):
+    over = over or {}
+    if mp_any and "mp" in over:
+        raise ValueError("--mp-any (any compatible MP) contradicts --mp: give one of them")
+    if turn_any and "turn" in over:
+        raise ValueError("--turn-any (any n >= 1) contradicts --turn: give one of them")
+    if "turn" in over and over["turn"] < 1:
+        raise ValueError("--turn %d: with a context the turn counter is >= 1 (the first decision sees 1)" % over["turn"])
+    if "mp" in over and not 0 <= over["mp"] <= ctx["mp"]:
+        raise ValueError("--mp %d is outside 0..maxMp = %d of %s: it is not a compatible state" % (over["mp"], ctx["mp"], ctx_label(ctx)))
+    st = {"battle": ctx["encounter"], "kind": ctx["kind"], "allies": ctx_allies(ctx), "mp": ctx["mp"], "turn": 1}
+    if mp_any:
+        del st["mp"]
+    if turn_any:
+        del st["turn"]
+    st.update(over)
+    return st
+
+
+def ctx_groups(entry, techs, ctx, over=None, mp_any=False, turn_any=False):
+    return analyze(entry, techs, ctx_state(ctx, over, mp_any, turn_any), maxmp=ctx["mp"])
+
+
+def initial_uses(entry, techs, mp):
+    """[(tech id, cost, mp // cost)] for the techs of targets 2 / 3 that cost MP: uses the INITIAL MP funds with no replenishment."""
+    out = []
+    for t, c, a in entry_actions(entry):
+        tid = entry["techs"][t - 1] if t in (2, 3) else 0
+        if tid > 0 and techs[tid - 1]["mp"] > 0 and (tid, techs[tid - 1]["mp"], mp // techs[tid - 1]["mp"]) not in out:
+            out.append((tid, techs[tid - 1]["mp"], mp // techs[tid - 1]["mp"]))
+    return out
+
+
+def ctx_label(c):
+    return "encounter %d position %d" % (c["encounter"], c["position"])
+
+
+def show_contexts(entry, techs, ctxs, over=None, mp_any=False, turn_any=False):
+    """One section per context; contexts are never merged or averaged (an identical result is only pointed out)."""
+    print("fighter %d  techs %s  actions %s  (target, condition, arg)" % (entry["id"], entry["techs"], entry_actions(entry)))
+    print("contexts: %d. Deduced from the data [D] (tables + stage lists), not observed in the running game." % len(ctxs))
+    seen, sections = {}, []
+    for c in ctxs:
+        groups = ctx_groups(entry, techs, c, over, mp_any, turn_any)
+        print("context: %s  coverage %s  kind %d  other occupants %s  initial MP %d" % (ctx_label(c), c["cover"], c["kind"], ctx_allies(c), c["mp"]))
+        if CONTEXT_NOTES[c["cover"]]:
+            print("  note: " + CONTEXT_NOTES[c["cover"]])
+        print("  state: turn %s, MP %s; other variables as given or unknown" % ("any n>=1" if turn_any else (over or {}).get("turn", 1),
+              "any value <= maxMp (compatible coverage)" if mp_any else (over or {}).get("mp", "= initial")))
+        if "mp" in variables(entry, techs)[0]:
+            print("  MP: bound MP <= maxMp = %d [C]; the buckets are compatible coverage, not assumed reachable states" % c["mp"])
+        for tid, cost, n in initial_uses(entry, techs, c["mp"]):
+            print("  initial uses without replenishment (initial MP // cost): tech %d costs %d -> %d; funds only the initial MP, not a maximum "
+                  "(player MP drains may replenish; no upper bound is declared)" % (tid, cost, n))
+        sig = tuple((tuple(sorted((k, str(p)) for k, p in d.items())), tuple(tuple(sc.items()) for sc in scs)) for d, scs in groups)
+        if sig in seen:
+            print("  identical to the result of context %s (not merged)" % ctx_label(seen[sig]))
+        seen.setdefault(sig, c)
+        print_groups(entry, groups)
+        sections.append((c, groups))
+    return sections
+
+
+def load_cover(stages_dir, tb):
+    """encounter -> coverage label, read from the stages directory (imported only when a context is asked for)."""
+    import battle_lists as bl
+    try:
+        ap = bl.appearances(bl.scan(stages_dir, len(tb["encounters"])))
+    except bl.BattleListError as e:
+        sys.exit("enemy_actions: %s" % e)
+    return {e["id"]: bl.coverage(ap.get(e["id"], [])) for e in tb["encounters"]}
+
+
+def selftest(stages_dir=None):
     items, tb, btab = em.load()
     techs = tb["techs"]
     big = {"mp": 10 ** 6}
@@ -322,13 +441,235 @@ def selftest():
     for e in btab.values():
         for t, c, a in entry_actions(e):
             assert t not in (2, 3) or e["techs"][t - 1] > 0, e["id"]
+    context_selftest(stages_dir, tb, btab, techs)
+
+
+def _captured(fn, *a, **k):
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        fn(*a, **k)
+    return buf.getvalue()
+
+
+def context_selftest(stages_dir, tb, btab, techs):
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    # --no-context keeps the v1 path and never imports the extractor (checked in a clean process)
+    code = ("import sys; sys.argv=['x']; import enemy_actions as ea; ea.main(['206','--no-context','--hp','1','--allies','none','--kind','3']); "
+            "assert 'battle_lists' not in sys.modules")
+    out = subprocess.run([sys.executable, "-c", code], cwd=here, capture_output=True, text=True)
+    assert out.returncode == 0 and "tech" in out.stdout, out.stderr
+    for bad in (["206"], ["206", "--no-context", "--encounter", "35"], ["206", "--stages-dir", os.path.join(here, "no-such-dir"), "--contexts"]):
+        r = subprocess.run([sys.executable, os.path.join(here, "enemy_actions.py")] + bad, capture_output=True, text=True)
+        assert r.returncode != 0 and ("--stages-dir" in r.stderr or "--no-context" in r.stderr), (bad, r.stderr)
+    dummy = os.path.join(here, "no-such-dir")  # these refusals happen before the directory is read
+    for bad, frag in ((["170", "--mp-any", "--mp", "96"], "contradicts --mp"), (["170", "--turn-any", "--turn", "1"], "contradicts --turn"),
+                      (["170", "--encounter", "35", "--turn", "0"], ">= 1"), (["170", "--turn", "-2"], ">= 1"),
+                      (["170", "--contexts", "--encounter", "35"], "only lists"), (["170", "--contexts", "--position", "0"], "--position needs --encounter"),
+                      (["170", "--contexts", "--hp", "10"], "only lists"), (["170", "--contexts", "--mp-any"], "only lists"),
+                      (["170", "--position", "0"], "--position needs --encounter"), (["170", "--battle", "3"], "come from the encounter")):
+        r = subprocess.run([sys.executable, os.path.join(here, "enemy_actions.py")] + bad[:1] + ["--stages-dir", dummy] + bad[1:], capture_output=True, text=True)
+        assert r.returncode != 0 and frag in r.stderr and "Traceback" not in r.stderr, (bad, r.stderr)
+    r = subprocess.run([sys.executable, os.path.join(here, "enemy_actions.py"), "206", "--no-context", "--turn", "0"], capture_output=True, text=True)
+    assert r.returncode == 0 and "fighter 206" in r.stdout, r.stderr  # v1 keeps accepting turn 0 without a context
+    if not stages_dir:
+        print("selftest ok (context tests SKIPPED: pass --stages-dir to run them)")
+        return
+    cover = load_cover(stages_dir, tb)
+    ctxs = {fid: fighter_contexts(tb, fid, cover) for fid in btab}
+    assert sum(len(v) for v in ctxs.values()) == 522 and all(ctxs.values())
+    # 1. fighter 206: 'flee' only in encounter 35, never in the kind 3 encounters
+    assert len(ctxs[206]) == 8
+    for c in ctxs[206]:
+        outs = {o for d, _ in ctx_groups(btab[206], techs, c) for o in d}
+        assert ("flee" in outs) == (c["encounter"] == 35), (c, outs)
+        assert (c["kind"] == 3) == (c["encounter"] != 35)
+    # 2. 178 and 436: every real context, all area3-unresolved, none dropped, nothing called 'event'
+    for fid, encs in ((178, [30, 198]), (436, [12, 262, 315, 323])):
+        assert sorted(c["encounter"] for c in ctxs[fid]) == encs and {c["cover"] for c in ctxs[fid]} == {"area3-unresolved"}
+        txt = _captured(show_contexts, btab[fid], techs, ctxs[fid])
+        assert txt.count("context: encounter") == len(encs) and "NOT asserted" in txt and "event" not in txt.lower()
+    # 2b. anti-false-classification
+    only3 = [f for f, v in ctxs.items() if all(c["cover"] == "area3-unresolved" for c in v)]
+    anyrnd = [f for f, v in ctxs.items() if any(c["cover"] == "random" for c in v)]
+    assert len(only3) == 44 and len(anyrnd) == 149 and not set(only3) & set(anyrnd), (len(only3), len(anyrnd))
+    assert {c["cover"] for v in ctxs.values() for c in v} <= {"random", "area3-unresolved", "unreferenced"}
+    # 3. conditions 12 / 13 are true exactly in the context whose encounter / kind they name
+    n12 = n13 = 0
+    for fid, e in btab.items():
+        for t, cnd, arg in entry_actions(e)[:3]:
+            if cnd in (12, 13):
+                for c in ctxs[fid]:
+                    v, bk = variables(e, techs, c["mp"])
+                    name = VALUE_VARS[cnd]
+                    got = _given(name, ctx_state(c), bk, v[name])
+                    truth = (c["encounter"] if cnd == 12 else c["kind"]) == arg
+                    assert (got == arg) == truth, (fid, c, cnd, arg)
+                    n12 += cnd == 12
+                    n13 += cnd == 13
+    assert n12 and n13
+    # 4. allies: the own slot never counts; fighter 76 with arg 76 needs a second copy
+    e76 = btab[76]
+    assert any(cnd == 10 and arg == 76 for t, cnd, arg in entry_actions(e76)[:3])
+    for c in ctxs[76]:
+        assert (76 in ctx_allies(c)) == (c["occupants"].count(76) >= 2), c
+    assert any(c["occupants"].count(76) >= 2 for c in ctxs[76]) and any(c["occupants"].count(76) == 1 for c in ctxs[76])
+    # position strictness
+    dup = [(f, c["encounter"]) for f, v in ctxs.items() for c in v if sum(x["encounter"] == c["encounter"] for x in v) > 1]
+    assert dup, "no fighter stands twice in one encounter"
+    f, enc = dup[0]
+    for kw, frag in (({}, "--position is required"), ({"position": 9}, "does not hold")):
+        try:
+            resolve_context(ctxs[f], f, enc, **kw)
+        except ValueError as ex:
+            assert frag in str(ex)
+        else:
+            raise AssertionError("no error for " + frag)
+    assert resolve_context(ctxs[f], f, enc, position=[c["position"] for c in ctxs[f] if c["encounter"] == enc][0])["encounter"] == enc
+    try:
+        resolve_context(ctxs[f], f, 99999)
+    except ValueError as ex:
+        assert "does not appear" in str(ex)
+    # 5. MP: initial uses are not a maximum, nothing above maxMp, buckets are 'compatible coverage'
+    e170 = btab[170]
+    assert [x[2] for x in initial_uses(e170, techs, 96)] == [2] and initial_uses(e170, techs, 96)[0][1] == 48
+    for c in ctxs[170]:
+        v, bk = variables(e170, techs, c["mp"])
+        assert all(o[1] == 0 or bk["mp"].ts[o[1] - 1] <= c["mp"] for o in v["mp"])
+        txt = _captured(show_contexts, e170, techs, [c], mp_any=True)
+        assert "without replenishment" in txt and "compatible coverage" in txt and "not a maximum" in txt and "no upper bound is declared" in txt
+        assert "reachable states" in txt and "MP <= maxMp" in txt
+    # 5b. an explicit --mp must lie in 0..maxMp of the context: inside is resolved, outside is an error (never approximated to a bucket)
+    for fid in (170, 217, 206):
+        for c in ctxs[fid]:
+            for ok_mp in (0, c["mp"] // 2, c["mp"]):
+                g = ctx_groups(btab[fid], techs, c, {"mp": ok_mp})
+                assert g and all(sum(d.values()) == 1 for d, _ in g)
+            for bad_mp in (c["mp"] + 1, c["mp"] * 2 + 7, -1):
+                try:
+                    ctx_groups(btab[fid], techs, c, {"mp": bad_mp})
+                except ValueError as ex:
+                    assert "not a compatible state" in str(ex), ex
+                else:
+                    raise AssertionError("mp %d accepted above maxMp %d (fighter %d)" % (bad_mp, c["mp"], fid))
+    e170 = btab[170]
+    c = ctxs[170][0]
+    for m, lab in ((47, "[0, 48)"), (48, "[48, inf)"), (96, "[48, inf)")):  # fighter 170: one threshold at its tech cost 48
+        assert {sc["mp"] for d, scs in ctx_groups(e170, techs, c, {"mp": m}) for sc in scs} == {lab}, m
+    # 6. turns: n >= 1 only, checked with concrete values of n against the residue the entry really tests
+    tested = 0
+    for fid, e in btab.items():
+        mods = [a for t, cnd, a in entry_actions(e)[:3] if cnd == 18 and a > 0]
+        if not mods:
+            continue
+        L = math.lcm(*mods)
+        c = ctxs[fid][0]
+        free = ctx_groups(e, techs, c, turn_any=True)
+        labels = {sc["turn"] for d, scs in free for sc in scs}
+        assert labels == {"turn%%%d==%d (n>=1)" % (L, r) for r in range(L)}, (fid, labels)  # all L residues, none missing, none for n = 0
+        for n in range(1, 2 * L + 2):  # n = 1 .. 2L+1: n = L is residue 0 (a real, positive turn), no scenario stands for n = 0
+            got = ctx_groups(e, techs, c, {"turn": n})
+            want = [g for g in free if any(sc["turn"].startswith("turn%%%d==%d " % (L, n % L)) for sc in g[1])]
+            key = lambda gs: sorted(sorted((k, str(p)) for k, p in d.items()) for d, _ in gs)  # noqa: E731
+            assert want and got and key(got) == key(want), (fid, n)  # the distributions of turn n are those of the free scenarios with n's residue
+        for bad_n in (0, -1):
+            try:
+                ctx_groups(e, techs, c, {"turn": bad_n})
+            except ValueError as ex:
+                assert ">= 1" in str(ex)
+            else:
+                raise AssertionError("turn %d accepted in a context" % bad_n)
+        tested += 1
+    assert tested >= 5, tested
+    for bad_over, frag in (({"mp": 96}, "contradicts --mp"), ({"turn": 1}, "contradicts --turn")):
+        try:
+            ctx_state(ctxs[170][0], bad_over, mp_any="mp" in bad_over, turn_any="turn" in bad_over)
+        except ValueError as ex:
+            assert frag in str(ex)
+        else:
+            raise AssertionError("contradictory state accepted: " + frag)
+    # --contexts keeps the area-3 note for a fighter with no random appearance, and starts nothing else
+    import io, contextlib
+    for fid in (178, 436):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            main([str(fid), "--stages-dir", stages_dir, "--contexts"])
+        assert buf.getvalue().count("NOT asserted") == len(ctxs[fid]) and "event" not in buf.getvalue().lower()
+    # 7. v1 classification (the CLI regression against the v1 file is done by hand, see the commit notes)
+    det, rng, state = classify(btab, techs)
+    assert (len(det), len(rng), len(state)) == (77, 16, 100)
+    # 8. probabilities sum to 1 in every context and nothing is merged: one section per context
+    for fid, v in ctxs.items():
+        for c in v:
+            assert all(sum(d.values()) == 1 for d, _ in ctx_groups(btab[fid], techs, c)), (fid, c)
+            assert all(sum(d.values()) == 1 for d, _ in ctx_groups(btab[fid], techs, c, mp_any=True, turn_any=True)), (fid, c)
+    sec = show_contexts_count(btab[206], techs, ctxs[206])
+    assert sec == len(ctxs[206])
+    full, still = context_summary(btab, techs, tb, cover)
+    assert len(full) + len(still) == 193
     print("selftest ok")
 
 
-def main():
-    cmd = sys.argv[1] if len(sys.argv) > 1 else "selftest"
+def show_contexts_count(entry, techs, ctxs):
+    return len(_captured_sections(entry, techs, ctxs))
+
+
+def _captured_sections(entry, techs, ctxs):
+    import contextlib
+    import io
+    with contextlib.redirect_stdout(io.StringIO()):
+        return show_contexts(entry, techs, ctxs)
+
+
+def parse_args(args):
+    """-> (state, switches, values). state: variables given by the user; switches: --contexts --no-context --mp-any --turn-any;
+    values: --stages-dir --encounter --position."""
+    opts = {"--hp": "hp", "--php": "php", "--mp": "mp", "--turn": "turn", "--battle": "battle", "--kind": "kind", "--elem": "elem",
+            "--base": "base", "--asleep": "asleep", "--charge": "charge", "--atk-down": "atk_down", "--def-down": "def_down", "--spd-down": "spd_down"}
+    state, switches, values, i = {}, set(), {}, 0
+    while i < len(args):
+        a = args[i]
+        if a in ("--contexts", "--no-context", "--mp-any", "--turn-any"):
+            switches.add(a)
+            i += 1
+            continue
+        if i + 1 >= len(args):
+            sys.exit(__doc__)
+        v = args[i + 1]
+        if a == "--allies":
+            state["allies"] = [] if v == "none" else [0] if v == "any" else [int(x) for x in v.split(",")]
+        elif a == "--stages-dir":
+            values["stages_dir"] = v
+        elif a in ("--encounter", "--position"):
+            values[a[2:]] = int(v)
+        elif a in opts:
+            state[opts[a]] = int(v)
+        else:
+            sys.exit(__doc__)
+        i += 2
+    return state, switches, values
+
+
+def context_summary(btab, techs, tb, cover):
+    """Entries whose answer is one single distribution in EVERY one of their contexts (turn 1, MP = initial; HP, player and boosts free)
+    against those that still depend on the unknowns of R6."""
+    full, still = [], []
+    for fid, e in btab.items():
+        if all(len(ctx_groups(e, techs, c)) == 1 for c in fighter_contexts(tb, fid, cover)):
+            full.append(fid)
+        else:
+            still.append(fid)
+    return full, still
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    cmd = argv[0] if argv else "selftest"
+    rest = argv[1:]
     if cmd == "selftest":
-        return selftest()
+        return selftest(parse_args(rest)[2].get("stages_dir"))
     items, tb, btab = em.load()
     techs = tb["techs"]
     if cmd == "summary":
@@ -340,22 +681,52 @@ def main():
             for t, c, a in entry_actions(e)[:3]:
                 slots[c] = slots.get(c, 0) + 1
         print("slots actions[0..2] by condition: " + ", ".join("%s %d" % (COND_NAMES.get(c, c), n) for c, n in sorted(slots.items())))
+        sd = parse_args(rest)[2].get("stages_dir")
+        if sd:
+            full, still = context_summary(btab, techs, tb, load_cover(sd, tb))
+            print("by context (turn 1, MP = initial; HP, player state and boosts unknown): %d entries fully determined by the context "
+                  "(one distribution in every context), %d still need HP / player / boosts" % (len(full), len(still)))
     elif cmd == "rng-only":
         _, rng, _ = classify(btab, techs)
         for fid in rng:
             show(btab[fid], techs, {"mp": 10 ** 6})
     else:
-        opts = {"--hp": "hp", "--php": "php", "--mp": "mp", "--turn": "turn", "--battle": "battle", "--kind": "kind", "--elem": "elem",
-                "--base": "base", "--asleep": "asleep", "--charge": "charge", "--atk-down": "atk_down", "--def-down": "def_down", "--spd-down": "spd_down"}
-        args, state = sys.argv[2:], {}
-        for i in range(0, len(args) - 1, 2):
-            if args[i] == "--allies":
-                state["allies"] = [] if args[i + 1] == "none" else [0] if args[i + 1] == "any" else [int(x) for x in args[i + 1].split(",")]
-            elif args[i] in opts:
-                state[opts[args[i]]] = int(args[i + 1])
-            else:
-                sys.exit(__doc__)
-        show(btab[int(cmd)], techs, state)
+        state, switches, values = parse_args(rest)
+        fid = int(cmd)
+        if "--no-context" in switches:
+            if set(values) or switches & {"--contexts", "--mp-any", "--turn-any"}:
+                sys.exit("--no-context takes none of --stages-dir --encounter --position --contexts --mp-any --turn-any")
+            show(btab[fid], techs, state)
+            return
+        if "stages_dir" not in values:
+            sys.exit("enemy_actions: the battle context needs --stages-dir (dw3_decomp/src/field/stages); use --no-context for the free-variable analysis")
+        if set(state) & {"battle", "kind", "allies"}:
+            sys.exit("enemy_actions: with a context battle, kind and allies come from the encounter; use --no-context to give them by hand")
+        if "position" in values and "encounter" not in values:
+            sys.exit("enemy_actions: --position needs --encounter")
+        if "--contexts" in switches and (set(state) or set(values) - {"stages_dir"} or switches & {"--mp-any", "--turn-any"}):
+            sys.exit("enemy_actions: --contexts only lists the contexts; it takes no --encounter, --position, state or --mp-any / --turn-any argument")
+        try:
+            ctx_state(dict(encounter=0, kind=0, occupants=[], position=0, mp=10 ** 9), state, "--mp-any" in switches, "--turn-any" in switches)
+        except ValueError as e:
+            sys.exit("enemy_actions: %s" % e)
+        ctxs = fighter_contexts(tb, fid, load_cover(values["stages_dir"], tb))
+        if "--contexts" in switches:
+            print("fighter %d: %d contexts (deduced from the data [D])" % (fid, len(ctxs)))
+            for c in ctxs:
+                print("  %s  coverage %s  kind %d  other occupants %s  initial MP %d" % (ctx_label(c), c["cover"], c["kind"], ctx_allies(c), c["mp"]))
+                if CONTEXT_NOTES[c["cover"]]:
+                    print("    note: " + CONTEXT_NOTES[c["cover"]])
+            return
+        if "encounter" in values:
+            try:
+                ctxs = [resolve_context(ctxs, fid, values["encounter"], values.get("position"))]
+            except ValueError as e:
+                sys.exit("enemy_actions: %s" % e)
+        try:
+            show_contexts(btab[fid], techs, ctxs, state, "--mp-any" in switches, "--turn-any" in switches)
+        except ValueError as e:
+            sys.exit("enemy_actions: %s" % e)
 
 
 if __name__ == "__main__":
