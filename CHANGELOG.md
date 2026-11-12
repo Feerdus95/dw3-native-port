@@ -3,6 +3,7 @@
 ## Unreleased
 
 - **Crest fix** (Mods, off by default; `fix_equip_stacking`). The game switches off Search Crest and Counter Crest when the partner wears a weapon that poisons, paralyses, confuses, knocks out, drains or hits critically. With the option they work beside such a weapon, except Search beside a critical weapon, which sets the same bonus. Triple Crest is unchanged: a triple hit skips the weapon's effect.
+- The options menu (Esc / Select) scrolls a tab with more rows than fit, with a white thumb like the game's own scroll bars.
 
 ## v0.19.4 (beta)
 
