@@ -9,23 +9,23 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, MOVIES, VSYNC, FULLSCREEN, WINDOW, INACTIVE, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FF_MENUS, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, HEAL_LEVELUP, SAVE_ANYWHERE, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, ICONS, CONTROLS, SKIP_START, MENU_WRAP, QUIT_GAME, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, MOVIES, VSYNC, FULLSCREEN, WINDOW, INACTIVE, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FF_MENUS, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, ICONS, CONTROLS, SKIP_START, MENU_WRAP, QUIT_GAME, ITEMS };
 
 static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Battle sky and fog", "Form name in battle", "Smooth movies", "VSync", "Fullscreen", "Window size", "Inactive window", "Vibration", "Stick deadzone",
-    "Fast text (hold X)", "Fast forward (Tab/R3)", "Menus in fast forward", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon", "Full EXP Share", "Heal on level up", "Save anywhere", "Custom effects", "Custom sounds", "Custom scripts",
+    "Fast text (hold X)", "Fast forward (Tab/R3)", "Menus in fast forward", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon", "Full EXP Share", "Heal on level up", "Save anywhere", "Crest fix", "Custom effects", "Custom sounds", "Custom scripts",
     "Button icons", "Controls", "Skip PRESS START", "Menu cursor wraps", "Quit game",
 };
 
 /* the tabs and their options, each list ending with -1 */
 #define TABS 4
-#define ROWS 12 /* the longest tab's: the box stays the same size */
+#define ROWS 13 /* the longest tab's: the box stays the same size */
 static const char *TAB_NAMES[TABS] = {"Display", "Graphics", "Input", "Mods"};
 static const int TAB_ITEMS[TABS][ROWS + 1] = {
     {FPS, FULLSCREEN, WINDOW, WIDESCREEN, VSYNC, MOVIES, INACTIVE, QUIT_GAME, -1},
     {SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, -1},
     {ICONS, CONTROLS, FAST_FORWARD, FF_MENUS, SKIP_START, MENU_WRAP, RUMBLE, DEADZONE, -1},
-    {FAST_TEXT, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, HEAL_LEVELUP, SAVE_ANYWHERE, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, -1},
+    {FAST_TEXT, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, -1},
 };
 
 static int s_open, s_tab, s_cursor[TABS], s_changed;
@@ -105,6 +105,7 @@ static void value(int item, char *out, size_t size) {
     case MENU_WRAP: on = g_menu_wrap; break;
     case BATTLE_FORM_NAME: on = g_battle_form_name; break;
     case SAVE_ANYWHERE: on = g_save_anywhere; break;
+    case FIX_EQUIP: on = g_fix_equip_stacking; break;
     case CUSTOM_EFFECTS: on = g_custom_effects; break;
     case CUSTOM_SOUNDS: on = g_custom_sounds; break;
     case CUSTOM_SCRIPTS: on = g_custom_scripts; break;
@@ -152,6 +153,7 @@ static void change(int item, int dir) {
     case MENU_WRAP: g_menu_wrap = !g_menu_wrap; break;
     case BATTLE_FORM_NAME: g_battle_form_name = !g_battle_form_name; break;
     case SAVE_ANYWHERE: g_save_anywhere = !g_save_anywhere; break;
+    case FIX_EQUIP: g_fix_equip_stacking = !g_fix_equip_stacking; break;
     case CUSTOM_EFFECTS: g_custom_effects = !g_custom_effects; break;
     case CUSTOM_SOUNDS: g_custom_sounds = !g_custom_sounds; break;
     case CUSTOM_SCRIPTS: g_custom_scripts = !g_custom_scripts; break;
@@ -185,7 +187,7 @@ static void change(int item, int dir) {
 /* native.ini's "key = value" lines get the new values; missing keys are
    added, the bindings' only when not the default */
 static void save(void) {
-    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons", "battle_sky", "full_exp_share", "save_anywhere", "custom_effects", "custom_sounds", "custom_scripts", "inactive_window", "heal_on_levelup", "skip_press_start", "ff_menu_speed", "menu_wrap", "battle_form_name"};
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons", "battle_sky", "full_exp_share", "save_anywhere", "custom_effects", "custom_sounds", "custom_scripts", "inactive_window", "heal_on_levelup", "skip_press_start", "ff_menu_speed", "menu_wrap", "battle_form_name", "fix_equip_stacking"};
     enum { FIXED = SDL_arraysize(KEYS), ALL = FIXED + 32 };
     char path[1100], line[1200], key[32], names[ALL][32], vals[ALL][64];
     int done[ALL] = {0}, i, n = ALL;
@@ -227,6 +229,7 @@ static void save(void) {
     SDL_snprintf(vals[31], 16, "%d", g_ff_menu_speed);
     SDL_snprintf(vals[32], 16, "%d", g_menu_wrap);
     SDL_snprintf(vals[33], 16, "%d", g_battle_form_name);
+    SDL_snprintf(vals[34], 16, "%d", g_fix_equip_stacking);
     for (i = 0; i < ALL; i++) {
         if (i < FIXED) {
             SDL_strlcpy(names[i], KEYS[i], sizeof names[i]);

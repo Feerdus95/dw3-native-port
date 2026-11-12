@@ -135,6 +135,12 @@ heal_on_levelup = 0
 # save has the same format, so it loads with the option off too.
 save_anywhere = 0
 
+# 1: Search Crest and Counter Crest keep working with a weapon that poisons,
+# paralyses, confuses, knocks out or drains (Search not with a critical
+# weapon, which sets the same bonus). The game switches them off then. Triple
+# Crest is unchanged: a triple hit skips the weapon's effect.
+fix_equip_stacking = 0
+
 # 0: the battle effects' own images (data/mods/effects/<id>/*.png) are left
 # out and the game's play. Switches in game, from the Mods tab.
 custom_effects = 1

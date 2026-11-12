@@ -202,6 +202,7 @@ button can be changed in the options menu's Input tab, **Controls**.
     bladegarurumon = 1   ; 0: partners don't learn BladeGarurumon
     full_exp_share = 0   ; 1: full EXP and Digimon EXP for non-KO party members
     save_anywhere = 0    ; 1: a SAVE row in the field menu, to save anywhere
+    fix_equip_stacking = 0 ; 1: Search and Counter Crest also work with special weapons
     custom_effects = 1   ; 0: the game's own effect images, not data/mods/effects'
     custom_sounds = 1    ; 0: no effect sounds from data/mods/effects
                          ; F12 in game saves the picture to screenshots/ by the exe

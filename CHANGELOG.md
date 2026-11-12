@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Crest fix** (Mods, off by default; `fix_equip_stacking`). The game switches off Search Crest and Counter Crest when the partner wears a weapon that poisons, paralyses, confuses, knocks out, drains or hits critically. With the option they work beside such a weapon, except Search beside a critical weapon, which sets the same bonus. Triple Crest is unchanged: a triple hit skips the weapon's effect.
+
 ## v0.19.4 (beta)
 
 - The Digilog's DDNA quests send you to the DRI agent first (Johann, Jimmy, Kazuki, Michael, Ken, Yuji, Yang, Bob) with the party level total the agent asks for, and to the Digimon once the agent has made the request. They show up when the agent's field has been visited.
