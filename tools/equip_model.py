@@ -4,13 +4,20 @@ Reads docs/data/equip.json and docs/data/tables.json (tools/dump_equip.py, tools
 the battle table of the player's own disc (native/data/files/0463.bin, FILE_BATTLE_TABLE EU). Nothing is written.
 Usage:  python tools/equip_model.py selftest | report [partner] | tech <partner> <level> <enemy#> <item ids...> [--form N] [--tech N]
         --form N: active Digimon = evolution N (DIGIMON_DATA[N-1]); --tech N: a physical technique id (default: its skills[0])
-Model version: 2 (2 adds --form: the form's battleStats and basic attack, and --tech). Formulas: dw3_decomp/src/battle/battle_mode/{damage,rolls,stats}.c and engine/game/stats.c, documented in
+Model version: 3 (2 added --form: the form's battleStats and basic attack, and --tech; 3 adds the player's magic techniques with
+effect < 2: damage only, no status / multi-hit effects). The enemy table reader also exposes `actions` and `counter` (tools/enemy_actions.py). Formulas: dw3_decomp/src/battle/battle_mode/{damage,rolls,stats}.c and engine/game/stats.c, documented in
 docs/equipment-balance-baseline.md. It is an ESTIMATE under stated assumptions, not the game's real time-to-kill.
 
 What it models: a partner's expected stats at a level (initial + mean level-up gains, no training), equipment totals
 (computeStats), the partner's basic attack against one enemy: hit chance, critical chance, exact damage over every critical
 roll, Triple (3 hits of 0.4x), element / family / damage-cut terms, and the enemy's first technique against the partner.
-What it does NOT model: turn order and speed ties, the enemy's AI, the player's magic techniques, MP, statuses and weapon effects
+Magic (icon 3, v3): power scaled by the SPI ratio (x0.5..x2), element resistance by ranges, family +50 %, critical (mean over the 65
+rolls of rand % 65), hit by WIS and level; weapon / accessory attack terms do not apply (docs/enemy-ai-and-magic-design.md 2). Results carry
+`magic: True` and `crit_source`: "resist" (element >= 2) or "negative-index" [H]: for element 0/1 the game reads resist[-2]/[-1] = the
+target's WIS / SPEED fields (layout of BattleStats in the decomp headers, not checked in the running game), so every number that depends
+on it is flagged (`crit_hypothesis: True`).
+What it does NOT model: turn order and speed ties, the enemy's AI (see tools/enemy_actions.py), magic techniques with effects (status, drain,
+multi-hit), the battle's element boost, MP, statuses and weapon effects
 (poison, drain, KO...), charge (damageBonus), the battle's element boost, boosts/lowered stats, `special` fighters, the form's
 resistances and family, learning (which techniques a form has at which level), training, multi-enemy battles, the final
 battle's fixed odds. A fighter's `special` flag is taken as 0. Which technique the player or the AI picks is NOT modelled:
@@ -50,7 +57,8 @@ def load():
             break
         btab[id_] = dict(id=id_, itemChance=struct.unpack_from("<h", e, 4)[0], techs=list(struct.unpack_from("<3h", e, 8)),
                          stats=list(struct.unpack_from("<5h", e, 0x0E)), resist=list(struct.unpack_from("<12h", e, 0x18)),
-                         family=e[0x30])
+                         family=e[0x30], actions=[struct.unpack_from("<BBh", e, 0x32 + 4 * k) for k in range(4)],
+                         counter=struct.unpack_from("<BBh", e, 0x42))
     return items, tb, btab
 
 
@@ -188,6 +196,54 @@ def player_attack(tech, atk, atk_f, atk_lvl, enemy, enemy_lvl):
     return dict(p_hit=p_hit, p_crit=p_crit, plain=plain, crit=crit, per_use=per_hit * hits, hits=hits)
 
 
+def magic_crit_chance(tech, enemy):
+    """rolls.c FIGHTSTG_rollMagicCritical (EU), the target's statuses taken as none. enemy: stats (scaled), resist (raw), family.
+    Returns (chance out of 128, source). element < 2 reads resist[element - 2] with a negative index: resist[-2] / resist[-1] are the
+    s16 fields before `resist` in BattleStats, stats[3] (WIS) and stats[4] (SPD) [H on the layout]."""
+    idx = tech["element"] - 2
+    negative = idx < 0
+    r = enemy["stats"][5 + idx] if negative else enemy["resist"][idx]
+    if r == 0:
+        raise ValueError("division by zero in rollMagicCritical (technique %d)" % tech["id"])
+    value = min(cdiv(tech["elementPower"] * 100, r), 0x40)
+    chance = value + 4
+    if tech["family"] >= 2 and tech["family"] == enemy["family"]:
+        chance = value + 0x40
+    return chance, ("negative-index" if negative else "resist")
+
+
+def magic_damage(tech, spi_u, enemy, crit_roll=None):
+    """damage.c FIGHTSTG_computeMagicDamage (EU, player side) without the battle's element boost. crit_roll: None or RANDOM % 65."""
+    base = tech["power"]
+    power = base * (spi_u * 50 // enemy["stats"][2] + 50) // 100
+    power = max(min(power, base * 2), base // 2)
+    r = power
+    if tech["element"] >= 2:
+        res = enemy["resist"][tech["element"] - 2]
+        r = r * (400 - res * 3) // 100 if res < 100 else r * (65 - res // 20) // 100 if res >= 300 else r * (125 - res // 4) // 100
+    if tech["family"] >= 2 and tech["family"] == enemy["family"]:
+        r += r // 2
+    if crit_roll is not None:
+        r += r * (crit_roll + 0x20) // 64
+    r = min(r, power * 5)
+    return 9999 if r >= 10000 else r
+
+
+def player_magic(tech, atk, atk_lvl, enemy, enemy_lvl):
+    """Expected damage of one use of a magic technique with no own effect (effect < 2) by the player (rollMagicHit, computeMagicDamage).
+    Same keys as player_attack plus magic / crit_source / crit_hypothesis. Weapon, accessory and Triple terms do not exist for magic."""
+    if tech["effect"] >= 2:
+        raise ValueError("technique %d has an effect (%d): magic with status / multi-hit effects is not modelled" % (tech["id"], tech["effect"]))
+    chance = tech["accuracy"] + cdiv(tech["accuracy"] * (cdiv(atk[3] - enemy["stats"][3], 8) + atk_lvl - enemy_lvl), 128)
+    cc, src = magic_crit_chance(tech, enemy)
+    p_hit, p_crit = prob(chance), prob(cc)
+    plain = magic_damage(tech, atk[2], enemy)
+    crit = sum(magic_damage(tech, atk[2], enemy, r) for r in range(65)) / 65.0
+    per_use = p_hit * ((1 - p_crit) * plain + p_crit * crit)
+    return dict(p_hit=p_hit, p_crit=p_crit, plain=plain, crit=crit, per_use=per_use, hits=1, magic=True,
+                crit_source=src, crit_hypothesis=(src == "negative-index"))
+
+
 def enemy_attack(tech, enemy, enemy_lvl, strength, dfn, dfn_f, lvl):
     """Expected damage of the enemy's technique against the partner (rollHit side 1, computeDamage / computeMagicDamage)."""
     es = [cdiv(s * strength, 16) for s in enemy["stats"]]
@@ -206,7 +262,7 @@ def enemy_attack(tech, enemy, enemy_lvl, strength, dfn, dfn_f, lvl):
 def scenario(items, tb, btab, partner, level, enemy_idx, equip, form=None, tech_id=None):
     """form: evolution index+1 (DIGIMON_DATA[form-1]) of the active Digimon, None for the partner itself. Its battleStats[0..4]
     are added to the partner's totals (battle_mode/stats.c:72-76). The technique is tech_id, else the active Digimon's skills[0]
-    (first_tech.c:13). Only physical player techniques are modelled."""
+    (first_tech.c:13). Physical techniques and magic with effect < 2 are modelled."""
     e = tb["enemies"][enemy_idx]
     bt = btab[e["fighter"]]
     base = partner_base(tb, partner, level)
@@ -216,11 +272,14 @@ def scenario(items, tb, btab, partner, level, enemy_idx, equip, form=None, tech_
     f = battle_fields(items, equip)
     owner = tb["digimon"][form - 1] if form is not None else tb["digimon"][partner]
     tech = tb["techs"][(tech_id or owner["skills"][0]) - 1]
-    if tech["icon"] != 2:
-        raise ValueError("technique %d is not physical: the player's magic damage is not modelled" % tech["id"])
+    if tech["icon"] not in (2, 3):
+        raise ValueError("technique %d is neither physical nor magic (icon %d): not modelled" % (tech["id"], tech["icon"]))
     en = dict(stats=[cdiv(s * e["strength"], 16) for s in bt["stats"]], family=bt["family"], resist=bt["resist"][:7])
     enemy_raw = dict(stats=bt["stats"], family=bt["family"], resist=bt["resist"][:7])
-    out = player_attack(tech, atk, f, level, dict(en, stats=en["stats"]), e["level"])
+    if tech["icon"] == 3:
+        out = player_magic(tech, atk, level, en, e["level"])
+    else:
+        out = player_attack(tech, atk, f, level, dict(en, stats=en["stats"]), e["level"])
     out["ttk_turns"] = math.ceil(e["hp"] / out["per_use"]) if out["per_use"] > 0 else None
     et = tb["techs"][bt["techs"][0] - 1] if bt["techs"][0] > 0 else None
     out["stats"], out["enemy_hp"], out["enemy_level"] = atk, e["hp"], e["level"]
@@ -250,6 +309,50 @@ def selftest():
     cand = next(i for i, x in enumerate(tb["enemies"]) if x["fighter"] in btab and x["strength"] == 16 and x["hp"] > 0)
     a, b = scenario(items, tb, btab, 0, 12, cand, [0] * 6), scenario(items, tb, btab, 0, 12, cand, [0] * 6, form=9)
     assert [y - x for x, y in zip(a["stats"], b["stats"])][:5] == tb["digimon"][8]["battleStats"][:5]
+    # physical regression (v2 results; partner 0, level 12, enemy #1, no equipment)
+    r0 = scenario(items, tb, btab, 0, 12, 1, [0] * 6)
+    assert round(r0["p_hit"], 2) == 0.84 and round(r0["per_use"], 2) == 46.09 and "magic" not in r0
+    assert [round(scenario(items, tb, btab, 0, 12, 1, [0] * 6, **k)["per_use"], 2) for k in
+            (dict(form=9), dict(form=9, tech_id=105), dict(form=20))] == [93.93, 173.81, 159.47]
+    # magic (v3), hand-computed with C integer arithmetic
+    mt = dict(id=0, power=100, accuracy=127, element=0, elementPower=1, family=0, effect=0, icon=3)
+    en = dict(stats=[100, 100, 100, 100, 136], resist=[100] * 7, family=1)
+    assert magic_damage(mt, 100, en) == 100 and magic_damage(mt, 300, en) == 200 and magic_damage(mt, 1, dict(en, stats=[1, 1, 1000, 1, 1])) == 50
+    for res, want in ((60, 220), (100, 100), (200, 75), (299, 51), (300, 50), (505, 40)):  # resistance table (x100)
+        assert magic_damage(dict(mt, element=2), 100, dict(en, resist=[res] * 7)) == want, res
+    assert magic_damage(dict(mt, family=3), 100, dict(en, family=3)) == 150 and magic_damage(dict(mt, family=3), 100, en) == 100 and magic_damage(dict(mt, family=1), 100, en) == 100  # family: +50 % only if equal
+    assert sum((r + 0x20) / 64 for r in range(65)) / 65 == 1.0  # mean critical bonus of rand % 65 is exactly +1.0x
+    assert magic_damage(mt, 100, en, 32) == 200 and magic_damage(mt, 100, en, 0) == 150
+    assert magic_damage(mt, 100, dict(en, stats=[1, 1, 1, 1, 1])) == 200 and magic_damage(dict(mt, power=12000), 100, en) == 9999
+    assert 5 * 100 >= magic_damage(dict(mt, element=2), 100, dict(en, resist=[-100] * 7), 64)  # cap 5 * power
+    hit = lambda dw, dl: prob(mt["accuracy"] + cdiv(mt["accuracy"] * (cdiv(dw, 8) + dl), 128))
+    assert hit(0, 0) == 127 / 128 and hit(-80, -5) == 113 / 128 and hit(400, 5) == 1 and hit(-4000, -20) == 0
+    assert magic_crit_chance(dict(mt, element=1, elementPower=1, id=1), dict(en, stats=[0, 0, 0, 0, 136])) == (4, "negative-index")
+    assert magic_crit_chance(dict(mt, element=1, elementPower=64, id=1), dict(en, stats=[0, 0, 0, 0, 42])) == (68, "negative-index")
+    assert magic_crit_chance(dict(mt, element=0, elementPower=64, family=2, id=1), dict(en, stats=[0, 0, 0, 200, 42], family=2)) == (0x20 + 0x40, "negative-index")
+    assert magic_crit_chance(dict(mt, element=3, elementPower=10), dict(en, resist=[100, 50, 100])) == (24, "resist")
+    cut = player_magic(mt, [1, 1, 100, 100, 1, 1], 5, en, 5)  # damageCut is 0 for enemies: nothing subtracted
+    assert cut["magic"] and cut["plain"] == 100 and abs(cut["crit"] - 200) < 1 and cut["crit_hypothesis"]
+    mag = [t for t in tb["techs"] if t["icon"] == 3 and t["effect"] < 2]
+    fx = [t for t in tb["techs"] if t["icon"] == 3 and t["effect"] >= 2]
+    other = [t for t in tb["techs"] if t["icon"] not in (2, 3)]
+    for t in (fx[0], other[0]):  # techniques with effects / other kinds raise
+        try:
+            scenario(items, tb, btab, 0, 12, 1, [0] * 6, tech_id=t["id"])
+            raise SystemExit("expected ValueError for technique %d" % t["id"])
+        except ValueError:
+            pass
+    # invariance: weapon / accessory attack terms do not change magic; SPI from the form does
+    t = next(x for x in mag if x["element"] >= 2)
+    plain_bonus = lambda i: items[i]["cls"] != "weapons" or (items[i]["stat0"] not in (3, 4, 7) and items[i]["stat1"] not in (3, 4, 7))
+    ws = [w["id"] for w in items.values() if w["cls"] == "weapons" and w["partners"] & 1 and plain_bonus(w["id"])]
+    base_m = scenario(items, tb, btab, 0, 12, 1, [0] * 6, tech_id=t["id"])
+    for w in (ws[0], ws[-1], ws[len(ws) // 2]):
+        assert scenario(items, tb, btab, 0, 12, 1, [0, 0, w, 0, 0, 0], tech_id=t["id"])["per_use"] == base_m["per_use"]
+    assert scenario(items, tb, btab, 0, 12, 1, [0, 0, 0, 0, 0x13C, 0], tech_id=t["id"])["per_use"] == base_m["per_use"]  # Triple
+    assert scenario(items, tb, btab, 0, 12, 1, [0, 0, 0, 0, 0x153, 0], tech_id=t["id"])["per_use"] == base_m["per_use"]  # element accessory
+    spi = lambda f: scenario(items, tb, btab, 0, 12, 1, [0] * 6, form=f)["stats"][2]
+    assert spi(9) - spi(None) == tb["digimon"][8]["battleStats"][2]
     print("selftest ok")
 
 
@@ -299,4 +402,5 @@ def main():
         sys.exit(__doc__)
 
 
-main()
+if __name__ == "__main__":
+    main()
