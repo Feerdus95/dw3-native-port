@@ -5,7 +5,7 @@ field/field_mode/data/fieldstg.c (FIELDSTG_enemies, FIELDSTG_encounters), battle
 Also reads engine/game/stats.c (EQUIP_SETS, EQUIP_SET_BONUSES).
 Usage:  python tools/dump_tables.py [out.json] [src_dir]
         out.json defaults to <workspace>/docs/data/tables.json, src_dir to <workspace>/dw3_decomp/src
-Extractor version: 1
+Extractor version: 2 (2 adds `evolutions`: STFGTREP_evolutionLists, the Digimon each partner can learn and their needs)
 
 `#if VERSION_US` branches are dropped and the EU/JP ones kept (the port builds the EU game). Each array is parsed as a C
 initializer (nested braces of numbers); a layout it does not understand raises. Field names follow include/engine/game_state.h
@@ -114,8 +114,11 @@ def main():
               "resistGains": parse_init(grow, "STFGTREP_resistGains")}
     stats_c = eu_only(read("engine/game/stats.c"))
     sets = {"items": [s[0] for s in parse_init(stats_c, "EQUIP_SETS")], "bonuses": parse_init(stats_c, "EQUIP_SET_BONUSES")}
+    # one list of 44 per partner: {digimon (DIGIMON_DATA index + 1), needs [[digimon, level] x2], stat, value}
+    evolutions = [[dict(digimon=e[0], needs=e[1], stat=e[2], value=e[3]) for e in lst]
+                  for lst in parse_init(grow, "STFGTREP_evolutionLists")]
     out = {"techs": techs, "digimon": digimon, "enemies": enemies, "encounters": encounters, "growth": growth,
-           "equipSets": sets}
+           "equipSets": sets, "evolutions": evolutions}
     os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
     tmp = OUT + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:

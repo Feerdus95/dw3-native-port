@@ -2,16 +2,19 @@
 
 Reads docs/data/equip.json and docs/data/tables.json (tools/dump_equip.py, tools/dump_tables.py) and, for enemy stats,
 the battle table of the player's own disc (native/data/files/0463.bin, FILE_BATTLE_TABLE EU). Nothing is written.
-Usage:  python tools/equip_model.py selftest | report [partner] | tech <partner> <level> <enemy#> <item ids...>
-Model version: 1. Formulas: dw3_decomp/src/battle/battle_mode/{damage,rolls,stats}.c and engine/game/stats.c, documented in
+Usage:  python tools/equip_model.py selftest | report [partner] | tech <partner> <level> <enemy#> <item ids...> [--form N] [--tech N]
+        --form N: active Digimon = evolution N (DIGIMON_DATA[N-1]); --tech N: a physical technique id (default: its skills[0])
+Model version: 2 (2 adds --form: the form's battleStats and basic attack, and --tech). Formulas: dw3_decomp/src/battle/battle_mode/{damage,rolls,stats}.c and engine/game/stats.c, documented in
 docs/equipment-balance-baseline.md. It is an ESTIMATE under stated assumptions, not the game's real time-to-kill.
 
 What it models: a partner's expected stats at a level (initial + mean level-up gains, no training), equipment totals
 (computeStats), the partner's basic attack against one enemy: hit chance, critical chance, exact damage over every critical
 roll, Triple (3 hits of 0.4x), element / family / damage-cut terms, and the enemy's first technique against the partner.
-What it does NOT model: turn order and speed ties, the enemy's AI, other techniques, MP, statuses and weapon effects (poison,
-drain, KO...), charge (damageBonus), the battle's element boost, boosts/lowered stats, `special` fighters, Digimon forms,
-training, multi-enemy battles, the final battle's fixed odds. A fighter's `special` flag is taken as 0.
+What it does NOT model: turn order and speed ties, the enemy's AI, the player's magic techniques, MP, statuses and weapon effects
+(poison, drain, KO...), charge (damageBonus), the battle's element boost, boosts/lowered stats, `special` fighters, the form's
+resistances and family, learning (which techniques a form has at which level), training, multi-enemy battles, the final
+battle's fixed odds. A fighter's `special` flag is taken as 0. Which technique the player or the AI picks is NOT modelled:
+the caller names it (--tech) or gets the active Digimon's basic attack.
 """
 import json
 import math
@@ -200,13 +203,21 @@ def enemy_attack(tech, enemy, enemy_lvl, strength, dfn, dfn_f, lvl):
     return dmg, prob(chance)
 
 
-def scenario(items, tb, btab, partner, level, enemy_idx, equip):
+def scenario(items, tb, btab, partner, level, enemy_idx, equip, form=None, tech_id=None):
+    """form: evolution index+1 (DIGIMON_DATA[form-1]) of the active Digimon, None for the partner itself. Its battleStats[0..4]
+    are added to the partner's totals (battle_mode/stats.c:72-76). The technique is tech_id, else the active Digimon's skills[0]
+    (first_tech.c:13). Only physical player techniques are modelled."""
     e = tb["enemies"][enemy_idx]
     bt = btab[e["fighter"]]
     base = partner_base(tb, partner, level)
     atk = equip_totals(items, tb, partner, base, equip)
+    if form is not None:  # added after computeStats' clamp to >= 1: the same unless a total was below 1
+        atk = [max(a + b, 1) for a, b in zip(atk, tb["digimon"][form - 1]["battleStats"][:5])] + atk[5:]
     f = battle_fields(items, equip)
-    tech = tb["techs"][tb["digimon"][partner]["skills"][0] - 1]
+    owner = tb["digimon"][form - 1] if form is not None else tb["digimon"][partner]
+    tech = tb["techs"][(tech_id or owner["skills"][0]) - 1]
+    if tech["icon"] != 2:
+        raise ValueError("technique %d is not physical: the player's magic damage is not modelled" % tech["id"])
     en = dict(stats=[cdiv(s * e["strength"], 16) for s in bt["stats"]], family=bt["family"], resist=bt["resist"][:7])
     enemy_raw = dict(stats=bt["stats"], family=bt["family"], resist=bt["resist"][:7])
     out = player_attack(tech, atk, f, level, dict(en, stats=en["stats"]), e["level"])
@@ -233,6 +244,12 @@ def selftest():
     assert adjust(100, t, dict(noeq, families=[3]), dict(tgt, family=3)) == 150
     items, tb, btab = load()
     assert len(tb["techs"]) == 443 and len(items) == 268 and len(btab) == 193
+    assert len(tb["evolutions"]) == 8 and all(len(x) == 44 for x in tb["evolutions"])
+    # forms (v2): evo 9 = DIGIMON_DATA[8], basic attack technique 9 (power 100), stats added to the partner's
+    assert tb["digimon"][8]["skills"][0] == 9 and tb["techs"][8]["power"] == 100 and tb["digimon"][0]["skills"][0] == 1
+    cand = next(i for i, x in enumerate(tb["enemies"]) if x["fighter"] in btab and x["strength"] == 16 and x["hp"] > 0)
+    a, b = scenario(items, tb, btab, 0, 12, cand, [0] * 6), scenario(items, tb, btab, 0, 12, cand, [0] * 6, form=9)
+    assert [y - x for x, y in zip(a["stats"], b["stats"])][:5] == tb["digimon"][8]["battleStats"][:5]
     print("selftest ok")
 
 
@@ -268,10 +285,16 @@ def main():
     elif cmd == "report":
         report(int(sys.argv[2]) if len(sys.argv) > 2 else 0)
     elif cmd == "tech":
-        p, lv, en = int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
-        ids = [int(x, 0) for x in sys.argv[5:]] + [0] * 6
+        args, opt = sys.argv[2:], {"--form": None, "--tech": None}
+        for k in opt:
+            if k in args:
+                i = args.index(k)
+                opt[k] = int(args[i + 1])
+                del args[i:i + 2]
+        p, lv, en = int(args[0]), int(args[1]), int(args[2])
+        ids = [int(x, 0) for x in args[3:]] + [0] * 6
         items, tb, btab = load()
-        print(json.dumps(scenario(items, tb, btab, p, lv, en, ids[:6]), indent=1))
+        print(json.dumps(scenario(items, tb, btab, p, lv, en, ids[:6], opt["--form"], opt["--tech"]), indent=1))
     else:
         sys.exit(__doc__)
 
