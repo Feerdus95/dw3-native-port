@@ -1,11 +1,11 @@
 --- a/src/battle/battle_mode/hud.c
 +++ b/src/battle/battle_mode/hud.c
-@@ -61,15 +61,66 @@
+@@ -61,15 +61,67 @@
      }
  }
  
 +#ifdef NATIVE
-+#define FORM_NAME_WIDTH 88 /* the name box: from the name (x 0xAE) to the HP label (x 0x10C), less a margin (battle_form_name) */
++#define FORM_NAME_WIDTH 56 /* the name box, by trial (battle_form_name) */
 +
 +/* The active partner's form by its fighter, or -1 (battle_form_name, native.h) */
 +static s32 currentFormId(void) {
@@ -22,15 +22,16 @@
 +    return models != NULL ? models->getFighter(models, 0) : 0;
 +}
 +
-+/* Names the form in the window, and squeezes a name wider than the box to a fixed advance that fits */
++/* Names the form in the window, and shrinks a name wider than the box */
 +static void showFormName(TextWindow *win, s32 form) {
-+    s32 count;
++    s32 width;
 +
 +    win->setString(win, FILE_CACHE.load(TEXT_FILE(TEXT_DIGIMON_NAMES)), GET_DIGIMON(form)->nameId);
-+    win->setSpacing(win, 0, 0);
-+    if (measureText(&win->text[0], win->style, 0) > FORM_NAME_WIDTH) {
-+        count = win->text[0].sjis != 0 ? win->text[0].len / 2 : win->text[0].len;
-+        win->setSpacing(win, count > 0 ? FORM_NAME_WIDTH / count : 1, 0);
++    win->setScale(win, ONE, ONE);
++    width = measureText(&win->text[0], win->style, 0);
++    if (width > FORM_NAME_WIDTH) {
++        win->setPivot(win, 0xAE, 0x1B);
++        win->setScale(win, ONE * FORM_NAME_WIDTH / width, ONE * FORM_NAME_WIDTH / width);
 +    }
 +}
 +static s32 shownModel;
