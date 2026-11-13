@@ -74,11 +74,11 @@ GAME_CFLAGS = [
     f"-I{DECOMP / 'external/psyq_headers/psyq_lib47/include'}", f"-I{DECOMP / 'src/field/stages'}", f"-I{DECOMP / 'src'}",
     "-DVERSION_EU", "-D_LANGUAGE_C", "-DLANGUAGE_C", "-DSKIP_ASM", '-DASM_DIR="asm/eu"', *SAN_FLAGS,
 ]
-PLATFORM_CFLAGS = ["-std=c11", "-c", "-O2", "-g", "-Wall", "-Wno-unused-parameter", f"-I{SDL / 'include'}", *SAN_FLAGS]
+PLATFORM_CFLAGS = ["-std=c11", "-c", "-O2", "-g", "-Wall", "-Wno-unused-parameter", f"-I{SDL / 'include'}", f"-I{OUT}", *SAN_FLAGS]
 # fixed image base (no ASLR): the GPU tags keep 24-bit addresses, so the
 # game's memory has to stay below 16 MB (main.c checks it at startup)
 LDFLAGS = ["-g", "-Wl,--no-dynamicbase",
-           f"-L{SDL / 'lib'}", "-lSDL3", *SAN_FLAGS]
+           f"-L{SDL / 'lib'}", "-lSDL3", "-lbcrypt", *SAN_FLAGS]
 
 
 def run(cmd, **kw):
@@ -309,6 +309,10 @@ def main():
     if clean and OUT.exists():
         shutil.rmtree(OUT, ignore_errors=True)
     OUT.mkdir(parents=True, exist_ok=True)
+    manifest = OUT / "launch_manifest.h"
+    r = run([sys.executable, NATIVE / "tools/generate_launch_manifest.py", manifest])
+    if r.returncode != 0:
+        sys.exit(f"launch inventory failed:\n{r.stdout}{r.stderr}")
     apply_patches()
 
     srcs = game_sources()
@@ -336,7 +340,10 @@ def main():
     for src in sorted((NATIVE / "platform").glob("*.c")):
         obj = OUT / "platform" / src.with_suffix(".o").name
         obj.parent.mkdir(parents=True, exist_ok=True)
-        if clean or not obj.exists() or obj.stat().st_mtime < max(src.stat().st_mtime, *(h.stat().st_mtime for h in (NATIVE / "platform").glob("*.h"))):
+        deps = [src, *(NATIVE / "platform").glob("*.h")]
+        if src.name == "launch_slots.c":
+            deps.append(manifest)
+        if clean or not obj.exists() or obj.stat().st_mtime < max(h.stat().st_mtime for h in deps):
             r = run([CC, *PLATFORM_CFLAGS, src, "-o", obj])
             if r.returncode != 0:
                 sys.exit(f"FAILED {src.name}\n{r.stderr}")
@@ -366,7 +373,9 @@ def main():
         defined |= d
         for s in u:
             undefined[s] += 1
-    host = set(run([NM, "--format=just-symbols", "--defined-only", "--extern-only", *TC.parent.glob("i686-w64-mingw32/lib/libmsvcrt.a")]).stdout.split())
+    host_libs = [TC.parent / "i686-w64-mingw32/lib" / f"lib{name}.a"
+                 for name in ("msvcrt", "bcrypt")]
+    host = set(run([NM, "--format=just-symbols", "--defined-only", "--extern-only", *host_libs]).stdout.split())
     host = {cname(s) for s in host}
     missing = sorted(s for s in undefined if s not in defined and s not in host
                      and not s.startswith(("SDL_", "_")))  # _x: the C runtime's and compiler's

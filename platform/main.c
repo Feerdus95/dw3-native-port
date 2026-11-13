@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include "platform.h"
+#include "launch_slots.h"
 #include "../include/native.h"
 
 int psx_main(void);
@@ -306,6 +307,10 @@ int main(int argc, char **argv) {
                                  "The game's data doesn't match this version of the port. Delete the data folder "
                                  "and start the game again to read your disc anew.", NULL);
         return 1;
+    }
+    int technique_archives_ready = native_prepare_launch_archives();
+    if (argc == 2 && SDL_strcmp(argv[1], "--prepare-techniques") == 0) {
+        return technique_archives_ready ? 0 : 1;
     }
     native_bladegarurumon_setup(); /* the game's tables as read, then its own */
     native_mods_load(); /* data/mods/digimon/<name>/digimon.json, before the tables take them */
