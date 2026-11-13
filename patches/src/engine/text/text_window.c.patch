@@ -1,6 +1,65 @@
 --- a/src/engine/text/text_window.c
 +++ b/src/engine/text/text_window.c
-@@ -790,7 +790,11 @@
+@@ -167,6 +167,9 @@
+     u8 v;
+     s32 i;
+     s32 j;
++#ifdef NATIVE
++    s32 glyphW;
++#endif
+ 
+     prevTpage = 0;
+     tpage = 0;
+@@ -229,6 +232,26 @@
+             } else {
+                 tpage = getTPage(0, obj->blend & 3, obj->texX + (draw.glyph->page << 6), obj->texY);
+             }
++#ifdef NATIVE
++            glyphW = draw.glyph->w;
++            if (!rotated && obj->clipR > obj->clipL) {
++                /* cut the glyph to [clipL, clipR): a glyph out of it is not drawn, one on its edge is trimmed */
++                if (x + glyphW <= obj->clipL || x >= obj->clipR) {
++                    if (i == 0) {
++                        prevTpage = tpage;
++                    }
++                    goto glyphAdvance;
++                }
++                if (x < obj->clipL) {
++                    u += obj->clipL - x;
++                    glyphW -= obj->clipL - x;
++                    x = obj->clipL;
++                }
++                if (x + glyphW > obj->clipR) {
++                    glyphW = obj->clipR - x;
++                }
++            }
++#endif
+             if (!rotated) {
+                 if (i == 0) {
+                     prevTpage = tpage;
+@@ -249,7 +272,11 @@
+                 draw.prim.sprt->y0 = y;
+                 draw.prim.sprt->u0 = u;
+                 draw.prim.sprt->v0 = v;
++#ifdef NATIVE
++                draw.prim.sprt->w = glyphW;
++#else
+                 draw.prim.sprt->w = draw.glyph->w;
++#endif
+                 draw.prim.sprt->h = draw.glyph->h;
+                 draw.prim.sprt->clut = clut;
+                 addPrim(draw.ot, draw.prim.any);
+@@ -283,6 +310,9 @@
+                 addPrim(draw.ot, draw.prim.any);
+                 draw.prim.ft4++;
+             }
++#ifdef NATIVE
++        glyphAdvance:
++#endif
+             if (obj->fixedSpacing != 0) {
+                 obj->cursorX += obj->spacingX;
+             } else {
+@@ -811,7 +841,11 @@
              }
              break;
          case 1:
@@ -12,3 +71,13 @@
                  obj->text[0].data[obj->counter] = 5;
                  obj->typeTimer = obj->typeDelay;
                  obj->setState(obj, TASK_RUN);
+@@ -873,6 +907,9 @@
+     ret->lines = 1;
+     ret->blend = ret->style->blend;
+     ret->scale.vx = ret->scale.vy = ret->scale.vz = ONE;
++#ifdef NATIVE
++    ret->clipL = ret->clipR = 0;
++#endif
+     return ret;
+ }
+ 

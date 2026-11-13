@@ -18,7 +18,7 @@
      }
      if (PAD_PRESSED(PAD_LEFT) || PAD_REPEATED(PAD_LEFT)) {
          if (!PAD_HELD(PAD_DOWN)) {
-@@ -367,3 +373,866 @@
+@@ -367,3 +373,928 @@
      panel->list = list;
      return panel;
  }
@@ -96,6 +96,14 @@
 +#define COLOR_DONE_BORDER JRGB(0x56, 0x8F, 0x80)
 +#define COLOR_BOX_FILL JRGB(0x10, 0x13, 0x2E)
 +#define COLOR_BOX_BORDER JRGB(0x35, 0x37, 0x67)
++/* A title wider than its box is cut at the box's edge and scrolls left, as a
++   marquee: it waits, scrolls a pixel every MARQUEE_FRAMES until its end
++   shows, waits again and starts over */
++#define ROW_LEFT (LIST_X + 20) /* a list row's box */
++#define ROW_RIGHT (LIST_X + LIST_W - 6)
++#define TITLE_RIGHT (INNER_X + INNER_W - BADGE_W - 4) /* the detail's title's, short of the kind's badge */
++#define MARQUEE_WAIT 60
++#define MARQUEE_FRAMES 2
 +/* what is drawn over what, from the journal's depth to the front */
 +#define OVER_FILL 0
 +#define OVER_MAP 1
@@ -306,6 +314,9 @@
 +    s32 hasNext;
 +    s32 arrowFrame;
 +    s32 time;
++    s32 tick; /* the titles' marquee, from the entry or page shown */
++    s32 rowWidth[JOURNAL_ROWS]; /* the list rows' text widths, and the detail title's */
++    s32 titleWidth;
 +    PanelAnim fades[3]; /* [0] opens the panels; the item list's other two run with it */
 +} Journal;
 +
@@ -438,6 +449,46 @@
 +    window->setPalette(window, PALETTE_PURPLE);
 +}
 +
++/* A text's width in pixels */
++static s32 journalTextWidth(TextWindow *window) {
++    s32 width;
++
++    window->setRightAlign(window, 1);
++    width = window->alignWidth;
++    window->setRightAlign(window, 0);
++    return width;
++}
++
++/* How far a text of `width` has scrolled at `tick` in a box of `room` pixels */
++static s32 journalScroll(s32 tick, s32 width, s32 room) {
++    s32 over = width - room;
++    s32 t;
++
++    if (over <= 0) {
++        return 0;
++    }
++    t = tick % (MARQUEE_WAIT * 2 + over * MARQUEE_FRAMES);
++    if (t < MARQUEE_WAIT) {
++        return 0;
++    }
++    t = (t - MARQUEE_WAIT) / MARQUEE_FRAMES;
++    return t < over ? t : over;
++}
++
++/* The chosen row's title and the detail's, one frame on */
++static void scrollJournal(Journal *journal, JournalWindows *windows) {
++    s32 i;
++    s32 scroll;
++
++    journal->tick++;
++    for (i = 0; i < JOURNAL_ROWS; i++) {
++        scroll = i == journal->cursor % JOURNAL_ROWS ? journalScroll(journal->tick, journal->rowWidth[i], ROW_RIGHT - ROW_LEFT) : 0;
++        windows->entries[i]->setPos(windows->entries[i], ROW_LEFT - scroll, LIST_ROW(i));
++    }
++    scroll = journalScroll(journal->tick, journal->titleWidth, TITLE_RIGHT - INNER_X);
++    windows->questTitle->setPos(windows->questTitle, INNER_X - scroll, TITLE_Y);
++}
++
 +/* The chosen entry: its place, its title and kind, its record, its reward
 +   and its text */
 +static void showJournalEntry(Journal *journal, JournalWindows *windows) {
@@ -473,6 +524,8 @@
 +    } else {
 +        windows->questTitle->setString(windows->questTitle, items, journalReward(entry));
 +    }
++    journal->titleWidth = journalTextWidth(windows->questTitle);
++    journal->tick = 0;
 +    windows->state->setString(windows->state, journalTexts(), done ? TEXT_DONE : entry >= 0 ? TEXT_MAIN : TEXT_SIDE);
 +    windows->state->setPalette(windows->state, done ? PALETTE_GREEN : PALETTE_WHITE);
 +    centerJournalText(windows->state, INNER_X + INNER_W - BADGE_W / 2, TITLE_Y);
@@ -517,7 +570,9 @@
 +            window->setString(window, FILE_CACHE.load(TEXT_FILE(TEXT_ITEM_NAMES)), journalReward(journal->entries[n]));
 +            window->setPalette(window, PALETTE_WHITE);
 +        }
++        journal->rowWidth[i] = n < journal->count ? journalTextWidth(window) : 0;
 +    }
++    journal->tick = 0;
 +    journal->hasPrev = journal->page != 0;
 +    journal->hasNext = journal->page != journal->pageCount - 1;
 +    windows->page->setNumber(windows->page, 0, journal->page + 1);
@@ -832,6 +887,12 @@
 +        windows->placeLabel = createTextWindow(journal->layer, 1, INNER_X, PANELS_Y + 3);
 +        windows->area = createTextWindow(journal->layer, 1, INNER_X + 5, CANVAS_Y + CANVAS_H - 15);
 +        windows->questTitle = createTextWindow(journal->layer, 1, INNER_X, TITLE_Y);
++        for (i = 0; i < JOURNAL_ROWS; i++) {
++            windows->entries[i]->clipL = ROW_LEFT;
++            windows->entries[i]->clipR = ROW_RIGHT;
++        }
++        windows->questTitle->clipL = INNER_X;
++        windows->questTitle->clipR = TITLE_RIGHT;
 +        windows->state = createTextWindow(journal->layer, 1, INNER_X + INNER_W - 5, TITLE_Y);
 +        windows->recordLabel = createTextWindow(journal->layer, 1, INNER_X, RECORD_Y);
 +        windows->record = createTextWindow(journal->layer, 1, INNER_X, RECORD_Y + 13);
@@ -854,6 +915,7 @@
 +        break;
 +    case TASK_RUN:
 +        runJournal(journal, windows);
++        scrollJournal(journal, windows);
 +        drawJournal(journal);
 +        break;
 +    case TASK_DONE:

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - The Digilog no longer gives away the Qing Long Chief while the Digi-Egg of Sincerity is still being looked for: the step is titled after the egg, and once the swamp's wall is down it only says to go through it.
+- The Digilog's titles that are wider than their box (the list's rows, the entry's title) are cut at the box's edge and scroll left, then start over: the chosen row's, and the entry's.
 
 ## v0.19.6 (beta)
 

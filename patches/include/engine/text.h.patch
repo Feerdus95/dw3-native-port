@@ -1,0 +1,14 @@
+--- a/include/engine/text.h
++++ b/include/engine/text.h
+@@ -186,6 +186,11 @@
+     /* 0x168 */ s32 (*isFinished)(); /* s32: callers don't truncate the result to a byte */
+     /* 0x16C */ s32 (*isVisible)(); /* s32: callers don't truncate the result to a byte */
+     /* 0x170 */ s32 (*isWaitingForButton)();
++#ifdef NATIVE
++    /* the port's: when clipR > clipL the glyphs are cut to the screen columns [clipL, clipR) (the Digilog's long titles) */
++    s16 clipL;
++    s16 clipR;
++#endif
+ } TextWindow;
+ 
+ /* Where the parts of a TalkBox go, for each of its four types */
