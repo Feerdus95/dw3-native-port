@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Tech visual upgrade** (Options, Mods; on by default; `technique_visuals`). The players' magic techniques that use the scripts 9 and 13 take their projectile, launch sprite and sound, impact and stage from `technique_visuals.ini`, next to the exe, instead of the generic light ball. Off plays the game's own, and it switches in game for the next technique. The scripts are prepared at start from your own disc into `data/generated/`; your `data/mods` files win over them. Thanks to Zaw Htet Naing (#21).
+
 ## v0.19.5 (beta)
 
 - **Crest fix** (Mods, off by default; `fix_equip_stacking`). The game switches off Search Crest and Counter Crest when the partner wears a weapon that poisons, paralyses, confuses, knocks out, drains or hits critically. With the option they work beside such a weapon, except Search beside a critical weapon, which sets the same bonus. Triple Crest is unchanged: a triple hit skips the weapon's effect.

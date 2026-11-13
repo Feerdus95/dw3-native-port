@@ -27,6 +27,7 @@ The native port of Digimon World 2003 builds on the work of others:
 - **[psx-spx](https://psx-spx.consoledev.net)** (the PlayStation specifications, after Martin Korth's nocash docs).
   The hardware behaviour the platform layer reproduces, including two data tables of the chips: the SPU's Gaussian
   interpolation weights and its reverb resampling filter.
+- **Zaw Htet Naing** (PR #21). Tech visual upgrade: the technique visuals map, the prepared launch slots of the players' scripts 9 and 13, and their option.
 
 PlayStation is a trademark of Sony Interactive Entertainment, Xbox of Microsoft and Nintendo Switch of Nintendo; the
 icons only show which button to press, and the project has no relation to them.
