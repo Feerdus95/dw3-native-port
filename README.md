@@ -189,6 +189,8 @@ button can be changed in the options menu's Input tab, **Controls**.
     dither = 1           ; 0 turns off the PlayStation's dithering
     sharpen = 0          ; 1-10: contrast-adaptive sharpening of the picture
     brightness = 0       ; -10 to 10; gamma and saturation the same
+    scanlines = 0        ; 1-10: dark lines between the game's rows
+    integer_scale = 0    ; 1: the picture a whole multiple of 240 rows
     battle_shadows = 1   ; 0: no shadows in battle
     battle_sky = 0       ; 1: a sky behind battles, the stage's far side fading into it
     battle_form_name = 0 ; 1: the battle HUD names the partner's current form

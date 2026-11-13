@@ -79,7 +79,7 @@ static int load_boot_image(void) {
    render_scale = 1-8, fast_text = 0/1, fast_travel = 0/1, map_objective = 0/1, journal = 0/1, extra_packs = 0/1,
    bladegarurumon = 0/1, full_exp_share = 0/1, technique_visuals = 0/1, heal_on_levelup = 0/1, skip_press_start = 0/1, ff_menu_speed = 0/1, menu_wrap = 0/1, battle_form_name = 0/1, fix_equip_stacking = 0/1, save_anywhere = 0/1, soft_shadows = 0/1, true_color = 0/1, perspective = 0/1,
    smooth_3d = 0/1, battle_shadows = 0/1, battle_sky = 0/1, widescreen = 0/1,
-   sharpen = 0-10, brightness, gamma, saturation = -10 to 10,
+   sharpen = 0-10, brightness, gamma, saturation = -10 to 10, scanlines = 0-10, integer_scale = 0/1,
    vsync = 0/1, inactive_window = 0 nothing / 1 mute / 2 pause;
    the options menu (menu.c) writes them back */
 static int s_fullscreen, s_scale, s_fps60, s_res_set; /* s_scale 0: from the screen */
@@ -146,6 +146,10 @@ static void read_ini(int data_only) {
             g_soft_shadows = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "sharpen") == 0) {
             g_sharpen = SDL_clamp(atoi(value), 0, 10);
+        } else if (SDL_strcasecmp(key, "scanlines") == 0) {
+            g_scanlines = SDL_clamp(atoi(value), 0, 10);
+        } else if (SDL_strcasecmp(key, "integer_scale") == 0) {
+            g_integer_scale = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "brightness") == 0) {
             g_brightness = SDL_clamp(atoi(value), -10, 10);
         } else if (SDL_strcasecmp(key, "gamma") == 0) {

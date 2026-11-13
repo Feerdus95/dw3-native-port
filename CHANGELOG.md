@@ -3,6 +3,8 @@
 ## Unreleased
 
 - **Sharpen, Brightness, Gamma, Saturation** (Options, Graphics; `sharpen` 0 to 10, `brightness`, `gamma`, `saturation` -10 to 10; all 0 by default, the game's own picture). A post-process pass over the game's picture on its way to the window, not over the movies or the options menu. The sharpening is contrast-adaptive, after AMD's FidelityFX CAS.
+- **Scanlines** (Options, Graphics; `scanlines` 0 to 10, off by default). Dark lines between the game's rows, in the same pass.
+- **Integer scaling** (Options, Display; `integer_scale`, off by default). The picture is a whole multiple of the game's 240 rows, with bars around it, so that every pixel of the game's is the same size on screen.
 
 ## v0.19.7 (beta)
 

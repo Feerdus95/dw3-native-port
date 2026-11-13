@@ -35,6 +35,14 @@ brightness = 0
 gamma = 0
 saturation = 0
 
+# 1 to 10: dark lines between the game's rows, as a tube television's
+# (best with integer_scale, or they beat against the screen's rows)
+scanlines = 0
+
+# 1: the picture a whole multiple of the game's 240 rows, with bars
+# around it, so that every pixel of the game's is the same size
+integer_scale = 0
+
 # 0: no dithering (the PlayStation's, on shaded and blended polygons)
 dither = 1
 

@@ -179,6 +179,7 @@ static const char *POST_FS =
     "uniform sampler2D tex;\n"
     "uniform vec4 post;\n" /* sharpen 0-1, brightness added, gamma's exponent, saturation's factor */
     "uniform vec2 px;\n" /* a screen pixel, in uv */
+    "uniform vec2 scan;\n" /* the scanlines' strength 0-1, and the rows of the texture */
     "in vec2 uv;\n"
     "out vec4 frag;\n"
     "void main() {\n"
@@ -191,6 +192,8 @@ static const char *POST_FS =
     "        c = clamp((c + (n + s + w + e) * k) / (1.0 + 4.0 * k), 0.0, 1.0);\n"
     "    }\n"
     "    c = mix(vec3(dot(c, vec3(0.299, 0.587, 0.114))), c, post.w);\n"
+    /* each of the game's rows brightest at its middle, dark between it and the next */
+    "    c *= 1.0 - scan.x * 0.6 * (0.5 + 0.5 * cos(6.2831853 * uv.y * scan.y));\n"
     "    frag = vec4(pow(clamp(c + post.y, 0.0, 1.0), vec3(post.z)), 1.0);\n"
     "}\n";
 
@@ -424,6 +427,7 @@ static GLuint s_fbo_depth;           /* its depth buffer, for the 3D models (g_d
 int g_depth = 1;
 int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1; /* true_color, perspective, smooth_3d, the menu */
 int g_sharpen, g_brightness, g_gamma, g_saturation; /* sharpen 0 to 10; the others -10 to 10, 0 as the game's */
+int g_scanlines, g_integer_scale; /* scanlines 0 to 10; integer_scale = 1: the picture a whole multiple of 240 rows */
 int g_soft_shadows;
 int g_vsync = 1; /* vsync, the menu */
 int g_battle_shadows = 1; /* battle_shadows, the menu (native.h) */ /* soft_shadows = 1, the menu (native.h) */
@@ -1374,12 +1378,13 @@ static void quad(GLuint tex, const int vp[4], float u0, float v0, float u1, floa
     float q[16] = {-1, 1, u0, v0, 1, 1, u1, v0, -1, -1, u0, v1, 1, -1, u1, v1};
 
     GL(glViewport)(vp[0], vp[1], vp[2], vp[3]);
-    if (post && (g_sharpen | g_brightness | g_gamma | g_saturation) != 0) {
+    if (post && (g_sharpen | g_brightness | g_gamma | g_saturation | g_scanlines) != 0) {
         GL(glUseProgram)(s_post);
         /* gamma 10 halves the exponent (brighter middles), -10 doubles it */
         GL(glUniform4f)(GL(glGetUniformLocation)(s_post, "post"), g_sharpen / 10.0f, g_brightness * 0.02f,
                         SDL_powf(2.0f, -g_gamma / 10.0f), 1.0f + g_saturation / 10.0f);
         GL(glUniform2f)(GL(glGetUniformLocation)(s_post, "px"), (u1 - u0) / vp[2], (v1 - v0) / vp[3]);
+        GL(glUniform2f)(GL(glGetUniformLocation)(s_post, "scan"), g_scanlines / 10.0f, (float)VRAM_H);
     } else {
         GL(glUseProgram)(s_blit);
     }
@@ -1430,6 +1435,10 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     SDL_GetWindowSizeInPixels(s_window, &w, &h);
     vp[2] = w * ah > h * aw ? h * aw / ah : w;
     vp[3] = w * ah > h * aw ? h : w * ah / aw;
+    if (g_integer_scale && vp[3] >= 240) { /* every row of the game's as many of the screen's */
+        vp[3] = vp[3] / 240 * 240;
+        vp[2] = vp[3] * aw / ah;
+    }
     vp[0] = (w - vp[2]) / 2;
     vp[1] = (h - vp[3]) / 2;
     menu_vp[2] = w * 3 > h * 4 ? h * 4 / 3 : w;
