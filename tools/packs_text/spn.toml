@@ -45,8 +45,8 @@ strings = [
 	"Ponte los Trajes Agumon para colarte\ndisfrazado de Digimon.",
 	"Disfrazado",
 	"Sigue buscando a Teddy mientras Kail\ninvestiga por su cuenta.",
-	"Jefe Qing Long",
-	"MAGAMI es parte de la A.o.A. Enfréntate\nal Jefe Qing Long por los Digihuevos.",
+	"Huevo Sinceridad",
+	"Encuentra el Digihuevo de la\nSinceridad. Pregunta a Nami.",
 	"Numemon",
 	"Ciudad Byakko es peligrosa. Busca un\npaso subterráneo; Numemon te ayudará.",
 	"HiAndromon",
@@ -213,4 +213,5 @@ strings = [
 	"Etemon, en Asuka, sabe dónde está\nla máscara. Habla con él.",
 	"Comprar",
 	"Vender",
+	"El muro ha caído. Cruza y busca\nel Digihuevo de la Sinceridad.",
 ]

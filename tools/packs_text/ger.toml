@@ -45,8 +45,8 @@ strings = [
 	"Zieh die Agumon-Anzüge an, um dich\nals Digimon einzuschleichen.",
 	"Verkleidet",
 	"Such weiter nach Teddy, während Kail\nauf eigene Faust ermittelt.",
-	"Qing Long Chief",
-	"MAGAMI gehört zur A.o.A. Stell den Qing\nLong Chief wegen der Digi-Eier zur Rede.",
+	"Aufrichtigkeits-Ei",
+	"Finde das Digi-Ei der Aufrichtigkeit.\nFrag Nami, wie du anfängst.",
 	"Numemon",
 	"Byakko City ist gefährlich. Finde\neinen Weg nach unten; Numemon hilft.",
 	"HiAndromon",
@@ -213,4 +213,5 @@ strings = [
 	"Etemon in Asuka City weiβ, wo die\nMaske ist. Sprich mit ihm.",
 	"Kaufen",
 	"Verkaufen",
+	"Die Wand ist weg. Geh hindurch und\nfinde das Digi-Ei der Aufrichtigkeit.",
 ]

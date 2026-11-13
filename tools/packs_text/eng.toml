@@ -45,8 +45,8 @@ strings = [
 	"Put on the Agumon Suits to slip in\ndisguised as a Digimon.",
 	"Disguised",
 	"Keep searching for Teddy while Kail\nlooks into something on her own.",
-	"Qing Long Chief",
-	"MAGAMI is part of the A.o.A. Confront\nthe Qing Long Chief about the Digi-Eggs.",
+	"Sincerity Egg",
+	"Find the Digi-Egg of Sincerity.\nAsk Nami how to start.",
 	"Numemon",
 	"Byakko City is dangerous. Find a way\nunderground; Numemon will help.",
 	"HiAndromon",
@@ -213,4 +213,5 @@ strings = [
 	"Etemon, in Asuka City, can say where\nthe mask is. Talk to him.",
 	"Buy",
 	"Sell",
+	"The wall is down. Go through it and\nfind the Digi-Egg of Sincerity.",
 ]

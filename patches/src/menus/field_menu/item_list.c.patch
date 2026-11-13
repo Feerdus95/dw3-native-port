@@ -238,8 +238,8 @@
 +    { 0x0D, FLAG(0x1C, 0x0D), 1, 0, 0 }, /* the Game Master met */
 +    { 0x0D, FLAG(0x1C, 0x0C), 1, 0x218, TEXT_RULE(37) }, /* Kail gone: the Master Room */
 +    { 0x0D, 0, 0, 0x214, TEXT_RULE(36) }, /* Admin Center 1F */
-+    /* the bomb for Bios Swamp's wall (step 0xE), until the Digi-Egg behind it is found */
-+    { 0x0E, FLAG(0x40, 0x07), 1, 0, 0 },
++    /* the bomb for Bios Swamp's wall (step 0xE), until the Reliability Spot behind it is reached */
++    { 0x0E, FLAG(0x40, 0x07), 1, 0x236, TEXT_RULE(51) }, /* the wall is down: the Reliability Spot */
 +    { 0x0E, ITEM(0, 0xE), 1, 0x235, TEXT_RULE(18) }, /* the TNT Chip: the wall */
 +    { 0x0E, FLAG(0x1A, 0x02), 0, 0x23B, TEXT_RULE(28) }, /* Nami saw it, Phoenix Bay */
 +    { 0x0E, FLAG(0x1A, 0x2A), 0, 0x235, TEXT_RULE(13) }, /* the symbol behind the wall */

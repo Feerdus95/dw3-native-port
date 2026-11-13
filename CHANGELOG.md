@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The Digilog no longer gives away the Qing Long Chief while the Digi-Egg of Sincerity is still being looked for: the step is titled after the egg, and once the swamp's wall is down it only says to go through it.
+
 ## v0.19.6 (beta)
 
 - **Tech visual upgrade** (Options, Mods; on by default; `technique_visuals`). The players' magic techniques that use the scripts 9 and 13 take their projectile, launch sprite and sound, impact and stage from `technique_visuals.ini`, next to the exe, instead of the generic light ball. Off plays the game's own, and it switches in game for the next technique. Also in the launcher's Mods tab. The scripts are prepared at start from your own disc into `data/generated/`; your `data/mods` files win over them. Thanks to Zaw Htet Naing (#21).

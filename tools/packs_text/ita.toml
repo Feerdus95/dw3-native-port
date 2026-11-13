@@ -45,8 +45,8 @@ strings = [
 	"Indossa i costumi Agumon per entrare\ntravestito da Digimon.",
 	"Travestito",
 	"Continua a cercare Teddy mentre Kail\nindaga per conto suo.",
-	"Capo di Qing Long",
-	"MAGAMI fa parte dell'A.o.A. Affronta\nil capo di Qing Long sulle digi-uova.",
+	"Uovo Sincerità",
+	"Trova il Digi-uovo della Sincerità.\nChiedi a Nami da dove iniziare.",
 	"Numemon",
 	"Byakko è pericolosa. Trova un passaggio\nsotterraneo: Numemon ti aiuterà.",
 	"HiAndromon",
@@ -213,4 +213,5 @@ strings = [
 	"Etemon, ad Asuka, sa dov'è la\nmaschera. Parlagli.",
 	"Compra",
 	"Vendi",
+	"Il muro è crollato. Entra e trova\nil Digi-uovo della Sincerità.",
 ]

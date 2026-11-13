@@ -45,8 +45,8 @@ strings = [
 	"Enfile les costumes Agumon pour te\nfaufiler déguisé en Digimon.",
 	"Déguisé",
 	"Continue à chercher Teddy pendant\nque Kail enquête de son côté.",
-	"Chef de Qing Long",
-	"MAGAMI fait partie de l'AoA. Interroge\nle chef de Qing Long sur les Digi-Oeufs.",
+	"Oeuf Sincérité",
+	"Trouve le Digi-Oeuf de la Sincérité.\nDemande à Nami par où commencer.",
 	"Numemon",
 	"Byakko City est dangereuse. Trouve un\npassage souterrain ; Numemon t'aidera.",
 	"HiAndromon",
@@ -213,4 +213,5 @@ strings = [
 	"Etemon, à Asuka, sait où est le\nmasque. Parle-lui.",
 	"Acheter",
 	"Vendre",
+	"Le mur est tombé. Passe et trouve\nle Digi-Oeuf de la Sincérité.",
 ]
