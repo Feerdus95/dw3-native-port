@@ -27,14 +27,20 @@ TESTS = {
     "memcard_forms": ["platform/memcard.c", "platform/forms.c"],
     "gte": [],
     "softvram": ["platform/gpu_draw.c", "platform/gpu.c"],
+    "technique_visuals": ["platform/technique_visuals.c"],
+    "launch_slots": [],  # the test includes platform/launch_slots.c, to reach its static editor
 }
 
 
 def run_one(name, work):
     exe = work / f"test_{name}.exe"
+    if name == "launch_slots":  # the manifest the build makes, found by the -I work below
+        r = build.run([sys.executable, NATIVE / "tools/generate_launch_manifest.py", work / "launch_manifest.h"])
+        if r.returncode != 0:
+            return False, "no manifest:\n" +r.stderr[-1500:]
     cmd = [build.CC, "-std=gnu11", "-Wno-everything", "-I", NATIVE / "platform", "-I", NATIVE / "include", "-I", build.SDL / "include",
-           "-include", "stdint.h", NATIVE / f"tools/test_{name}.c", *(NATIVE / s for s in TESTS[name]),
-           f"-L{build.SDL / 'lib'}", "-lSDL3", "-o", exe]
+           "-include", "stdint.h", "-I", work, NATIVE / f"tools/test_{name}.c", *(NATIVE / s for s in TESTS[name]),
+           f"-L{build.SDL / 'lib'}", "-lSDL3", "-lbcrypt", "-o", exe]
     r = build.run(cmd)
     if r.returncode != 0:
         return False, "does not build:\n" + r.stderr[-1500:]
@@ -52,6 +58,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
         shutil.copy2(build.SDL / "bin/SDL3.dll", work)
+        shutil.copy2(NATIVE / "config/technique_visuals.ini", work / "shipped_technique_visuals.ini")
         for n in names:
             ok, what = run_one(n, work)
             failed += not ok
