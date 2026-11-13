@@ -1,5 +1,6 @@
 build/
 build-san/
+build-x64/
 dist/
 data/
 saves/

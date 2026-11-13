@@ -330,8 +330,14 @@ int main(int argc, char **argv) {
     if (getenv("DW3_LOG") != NULL) {
         g_log = log_bits(getenv("DW3_LOG"));
     }
+#ifdef _WIN64
+    /* x64 experiment: the 64-bit image is bigger and the overlay areas land past 16 MB; they hold files' data, which
+       no ordering table points at: only the heap (the primitives) has to be reachable by a 24-bit tag */
+    if ((uintptr_t)HEAP_BASE + NATIVE_HEAP_SIZE > 0x01000000) {
+#else
     if ((uintptr_t)STAGE_VRAM + 512 * 1024 > 0x01000000 || (uintptr_t)OVERLAY_VRAM + 512 * 1024 > 0x01000000 ||
         (uintptr_t)HEAP_BASE + NATIVE_HEAP_SIZE > 0x01000000) {
+#endif
         LOG("the game's memory is above 16 MB: the GPU's 24-bit tags can't reach it");
         return 1;
     }

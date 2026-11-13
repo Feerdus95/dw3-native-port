@@ -6,16 +6,23 @@
 /* A crash prints the faulting address and the frame-pointer chain (the game
    is built -O0); `llvm-addr2line -fe dw2003.exe <addr>...` names them. The
    same goes to crash.txt next to the exe, for a bug report */
+#ifdef _WIN64
+#define CRASH_FP Rbp
+#define CRASH_IP Rip
+#else
+#define CRASH_FP Ebp
+#define CRASH_IP Eip
+#endif
 static LONG WINAPI on_crash(EXCEPTION_POINTERS *e) {
-    uint32_t *fp = (uint32_t *)e->ContextRecord->Ebp;
+    uintptr_t *fp = (uintptr_t *)e->ContextRecord->CRASH_FP;
     char report[512], path[MAX_PATH + 16];
     int n, i;
     FILE *f;
 
-    n = snprintf(report, sizeof report, "CRASH %08lx at %08lx (access %08lx)\nstack:", e->ExceptionRecord->ExceptionCode,
-                 (unsigned long)e->ContextRecord->Eip, (unsigned long)e->ExceptionRecord->ExceptionInformation[1]);
-    for (i = 0; i < 24 && fp != NULL && !IsBadReadPtr(fp, 8); i++, fp = (uint32_t *)fp[0]) {
-        n += snprintf(report + n, sizeof report - n, " %08x", fp[1]);
+    n = snprintf(report, sizeof report, "CRASH %08lx at %08llx (access %08llx)\nstack:", e->ExceptionRecord->ExceptionCode,
+                 (unsigned long long)e->ContextRecord->CRASH_IP, (unsigned long long)e->ExceptionRecord->ExceptionInformation[1]);
+    for (i = 0; i < 24 && fp != NULL && !IsBadReadPtr(fp, 2 * sizeof *fp); i++, fp = (uintptr_t *)fp[0]) {
+        n += snprintf(report + n, sizeof report - n, " %08llx", (unsigned long long)fp[1]);
     }
     fprintf(stderr, "%s\n", report);
     fflush(stderr);
