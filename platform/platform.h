@@ -51,78 +51,14 @@ int menu_event(const union SDL_Event *e); /* 1: the menu's */
 void menu_draw(struct SDL_Renderer *r);
 void set_fps(int sixty); /* the game's 60 Hz mode on or off */
 
-/* The drawing on the graphics card (gl.c), render_scale times finer than
-   VRAM; the GTE keeps each vertex's fraction for it (gte.c) */
-extern int g_res_scale;  /* render_scale = 1-8 */
-typedef struct {
-    float x, y, u, v;  /* VRAM pixels (fractions kept), texels */
-    uint8_t r, g, b, a;
-    uint16_t clut_x, clut_y, tx, ty;
-    uint16_t umin, vmin, umax, vmax;
-    uint16_t twmx, twmy, twox, twoy; /* texture window: mask, offset */
-    uint32_t mode;     /* gl.c's MAIN_FS */
-    float z;           /* the GTE's view depth, 0 for none: drawn in order, not by the depth buffer */
-    float w;           /* the same, for the textures in perspective, 0 for none */
-} GVtx;
-struct SDL_Surface;
-extern uint16_t g_vram_dirty[8]; /* 64x64 blocks the CPU wrote, a bit each */
-int gl_init(struct SDL_Window *window);
-void gl_sync(int force);         /* follows render_scale; force: VRAM was replaced */
-int gl_scale(void);              /* the render scale in use, at least 1 */
-void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi);
-void gl_vram_dirty(int x, int y, int w, int h);
+#include "renderer.h" /* the drawing on the graphics card (gl.c) */
 /* The primitives' drawing into the 1x VRAM, queued until read (gpu_draw.c) */
 void soft_all(void);                          /* everything queued, drawn now */
 void soft_discard(void);                      /* VRAM was replaced (a loaded state) */
 void soft_age(void);                          /* at each vsync: what is three frames old is drawn */
 void soft_read(int x, int y, int w, int h);   /* this rect is about to be read */
 void soft_write(int x, int y, int w, int h);  /* this rect is about to be overwritten */
-void gl_shadows_resolve(void); /* an ordering table drawn: its battle shadows onto the copy */
-void gl_depth_clear(void); /* a new ordering table: its 3D drawn over what came before */
-void gl_refresh(int x, int y, int w, int h); /* the copy from VRAM, after the CPU wrote it */
-void gl_copy(int sx, int sy, int w, int h, int dx, int dy);
-void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw);
 #include "json.h" /* the JSON reader (json.c) */
-/* an RGBA image over the copy, from (x0, y0) to (x1, y1), blended by its
-   alpha (or added, ADD) inside the drawing area; its texture made in *tex on first use */
-typedef struct {
-    float x, y, z, u, v; /* VRAM pixels, view depth, texels 0-1 */
-    uint8_t r, g, b, a;
-} PropVtx;
-/* The props drawn from tables (gl.c's PINST_VS): the camera as gte_camera_project has it, the clock and wind */
-typedef struct {
-    float row[3][4];         /* view = row . (x, y, z, 1) */
-    float h, ofx, ofy, wide; /* focal length, screen offset, 0.75 on the wide screen else 1 */
-    float t, bright, ox, oy; /* the frame clock, the stage's brightness, the drawing offset */
-    float wind[2];           /* the billboards' */
-} PCam;
-typedef struct {
-    float pos[3];                  /* the ground point, y up */
-    float w, h, sway, rot, fixed;  /* size, sway, turn (degrees), 1: flat in the world */
-    uint8_t c[4];                  /* tint, fog */
-} PInst;
-typedef struct {
-    float center[3], radius, top, fall, wind, above, size[2], floor, tint[3], fog;
-    int count, leaf;
-} PPart;
-/* The 3D models from tables too: a mesh kept on the card (8 floats a vertex: x y z u v nx ny nz), and per instance
-   its place, scale, turn, sway, fog and tint (gl.c's PINST_VS, mode 3) */
-typedef struct {
-    float pos[3], scale;     /* the foot, y up; the size factor */
-    float rot, sway, fog, pad; /* turn (degrees), wind sway, fog share 0-1 */
-    float tint[4];           /* 0-1 */
-} PModel;
-typedef struct {
-    unsigned vao, vbo;
-    int n; /* vertices, a multiple of 3 */
-} GMesh;
-void gl_mesh_make(GMesh *g, const float *v, int n); /* g->n stays 0 when it can't */
-void gl_props_model(const struct SDL_Surface *img, unsigned *tex, const GMesh *g, float miny, float h, unsigned inst, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
-unsigned gl_inst_make(const PInst *v, int n);
-unsigned gl_buf_make(const void *p, unsigned long bytes);
-void gl_inst_free(unsigned b);
-void gl_props_inst(const struct SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
-void gl_props_part(const struct SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo);
 int gte_camera_get(PCam *c); /* the battle camera (gte.c); 0 when no stage was drawn lately */
 /* The battle's performance meter (perf.c): CPU sections timed with perf_begin / perf_end, the card's times from gl.c's queries */
 enum { PF_DRAW, PF_PROPS, PF_PRESENT, PF_WAIT, PF_GPU, PF_GPU_PROPS, PF_PLOAD, PF_PGL, PF_PFLUSH, PF_PTEX, PF_SPOLY, PF_BRIGHT, PF_PDRAW, PF_SOFT, PF_SOFT_N, PF_N };
@@ -135,17 +71,11 @@ void perf_note(const char *fmt, ...); /* a comment line in the fight's csv, with
 void perf_enter(double budget_ms); /* at each vsync */
 void perf_reset(void);
 void perf_draw(struct SDL_Renderer *r);
-void gl_depth_save(void); /* the stage's depth, kept for the props (gl.c) */
-void gl_depth_models(void); /* the fighters' depth, kept for the props: the grass under a fighter is trodden down */
-void gl_props(const struct SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo);
-void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2);
 /* GP0 1D (native.h): images KEY >> 12 at tick KEY & 0xFFF around (x, y),
    their widths times xs (effects.c) */
 void native_effects_warm(void); /* once a frame from the start: the mod's effects read and put on the card, one picture a frame */
-int gl_image_prepare(const struct SDL_Surface *img, unsigned *tex);
 void postcard_draw(int mode, float x, float y, float w, float h, int cx1, int cy1, int cx2, int cy2); /* postcards.c */
 void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int cy1, int cx2, int cy2);
-void gl_present(const struct SDL_Surface *menu, struct SDL_Surface **shot);
 int gte_precise(const uint32_t *word, float *x, float *y, float *z);
 void gte_precise_copy(void *dst, const void *src); /* the game's own code calls it too */
 void gte_precise_frame(void);
@@ -221,7 +151,6 @@ int gte_camera_wide(void);
 const StageFx *stagefx_current(float *bright); /* the stage shown's, NULL for none (stagefx.c) */
 void stagefx_stage_drawn(int polygons);       /* the stage layer's ordering table drew this many (stagefx.c) */
 void stagefx_frame(void);                     /* a frame drawn */
-void gl_battle_fog(int r, int g, int b); /* a battle's sky drawn, its horizon's colour (gl.c) */
 extern int g_battle_shadows; /* battle_shadows = 0: the fighters cast none (gl.c, native.h) */  /* soft_shadows = 1: the field's shadows see-through and smooth (gl.c, native.h) */
 extern int g_smooth_movies; /* smooth_movies = 0: movies scaled by nearest pixel (video.c) */
 extern int g_deadzone;      /* deadzone = <0..32767>: the sticks' and triggers' (pad.c) */

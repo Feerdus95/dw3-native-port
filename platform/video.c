@@ -35,17 +35,13 @@ int video_init(int scale, int fullscreen) {
         LOG("SDL_Init: %s", SDL_GetError());
         return 0;
     }
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     s_window = SDL_CreateWindow("Digimon World 2003", video_window_width(scale), 240 * scale,
-                                SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0) | (g_render_sounds ? SDL_WINDOW_HIDDEN : 0));
+                                gfx_window_flags() | SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0) | (g_render_sounds ? SDL_WINDOW_HIDDEN : 0));
     if (s_window == NULL) {
         LOG("window: %s", SDL_GetError());
         return 0;
     }
-    if (!gl_init(s_window)) {
+    if (!gfx_init(s_window)) {
         LOG("this needs OpenGL 3.3");
         return 0;
     }
@@ -162,7 +158,7 @@ void present_frame(void) {
 
     int ff = !menu_active() && g_ff_speed > 1, pf = !menu_active() && perf_on();
 
-    gl_sync(0);
+    gfx_sync(0);
     if (menu_active() || ff || pf) {
         SDL_SetRenderDrawColor(s_menu_renderer, 0, 0, 0, 0);
         SDL_RenderClear(s_menu_renderer);
@@ -185,13 +181,13 @@ void present_frame(void) {
     }
     if (screenshot) {
         s_screenshot = 0;
-        gl_present(NULL, &shot); /* without the fast forward's corner */
+        gfx_present(NULL, &shot); /* without the fast forward's corner */
         if (shot != NULL) {
             save_screenshot(shot);
         }
         shot = NULL;
     }
-    gl_present(menu_active() || ff || pf ? s_menu : NULL, n ? &shot : NULL);
+    gfx_present(menu_active() || ff || pf ? s_menu : NULL, n ? &shot : NULL);
     if (n) {
         dump_vram(n, shot);
     }

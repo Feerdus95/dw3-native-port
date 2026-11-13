@@ -326,7 +326,7 @@ static void gl_tri(GVtx a, GVtx b, GVtx c) {
     for (i = 0; i < 3; i++) {
         t[i].umin = (uint16_t)umin, t[i].vmin = (uint16_t)vmin, t[i].umax = (uint16_t)umax, t[i].vmax = (uint16_t)vmax;
     }
-    gl_triangles(t, 3, CLIP, g.semi);
+    gfx_triangles(t, 3, CLIP, g.semi);
 }
 
 /* A rectangle for the card: the texels from (u0, v0), one per VRAM pixel */
@@ -341,7 +341,7 @@ static void gl_rect(int x, int y, int w, int h, int r, int gg, int b, int flags,
         q[i].umin = (uint16_t)u0, q[i].vmin = (uint16_t)v0;
         q[i].umax = (uint16_t)(u0 + w - 1), q[i].vmax = (uint16_t)(v0 + h - 1);
     }
-    gl_triangles(q, 6, CLIP, flags & 512 ? 4 : g.semi); /* a soft shadow darkens by multiplying */
+    gfx_triangles(q, 6, CLIP, flags & 512 ? 4 : g.semi); /* a soft shadow darkens by multiplying */
 }
 
 /* A vertex word where the card puts it: with the GTE's fraction, when it
@@ -472,7 +472,7 @@ static void copy_px(int sx0, int sy0, int dx, int dy, int w, int h) {
     for (j = 0; j < h; j++)
         for (i = 0; i < w; i++)
             g_vram[((dy + j) & 511) * VRAM_W + ((dx + i) & 1023)] = tmp[j * w + i];
-    gl_vram_dirty(dx, dy, w, h);
+    gfx_vram_dirty(dx, dy, w, h);
 }
 
 #define SOFT_MAX 16384 /* about four frames; when full, drawn */
@@ -787,7 +787,7 @@ static void rect(int x, int y, int w, int h, int col, int textured, int raw, int
         controls_game_icon(bit, &img, &tex)) {
         float c = s_map_a + (x + w / 2.0f - s_map_a) * s_map_s + s_map_d;
 
-        gl_image(img, tex, c - h / 2.0f, (float)y, c + h / 2.0f, (float)(y + h), 0, CLIP);
+        gfx_image(img, tex, c - h / 2.0f, (float)y, c + h / 2.0f, (float)(y + h), 0, CLIP);
     } else if (w > 0 && h > 0) {
         gl_rect(x, y, w, h, col & 255, col >> 8 & 255, col >> 16 & 255,
                 (textured ? 2 : 0) | (textured && raw ? 4 : 0) | (semi ? 8 : 0) | (soft ? 512 : 0), u0, v0, clut);
@@ -807,7 +807,7 @@ static void rect(int x, int y, int w, int h, int col, int textured, int raw, int
 #define LINE_3D_WIDTH 0.4f
 
 static void line_3d(float x0, float y0, int c0, float x1, float y1, int c1, int semi) {
-    float dx = x1 - x0, dy = y1 - y0, len = sqrtf(dx * dx + dy * dy), half = SDL_max(LINE_3D_WIDTH, 1.0f / gl_scale()) / 2;
+    float dx = x1 - x0, dy = y1 - y0, len = sqrtf(dx * dx + dy * dy), half = SDL_max(LINE_3D_WIDTH, 1.0f / gfx_scale()) / 2;
     float px[4], py[4];
     GVtx q[6];
     int i;
@@ -831,7 +831,7 @@ static void line_3d(float x0, float y0, int c0, float x1, float y1, int c1, int 
 
         q[i] = gvtx(px[k], py[k], c & 255, c >> 8 & 255, c >> 16 & 255, 0, 0, 0, semi ? 8 : 0, 0);
     }
-    gl_triangles(q, 6, CLIP, g.semi);
+    gfx_triangles(q, 6, CLIP, g.semi);
 }
 
 /* The line for the 1x VRAM; the card's is the caller's */
@@ -924,7 +924,7 @@ void gpu_gp0(const uint32_t *p, int n) {
             gv[k] = gvtx(fx, fy, 0, 0, 0, 0, 0, 0, 8 | 1024, 0);
             gv[k].z = gv[k].w = fz;
         }
-        gl_triangles(gv, 3, CLIP, 5);
+        gfx_triangles(gv, 3, CLIP, 5);
     } else if (cmd == 0x1B) { /* the journal's picture of a field (native.h): the card alone */
         postcard_draw(p[0] & 0xFFFF, (float)(sx(p[1]) + g.ox), (float)(sy(p[1]) + g.oy), (float)(p[2] & 0x3FF), (float)(p[2] >> 16 & 0x1FF),
                       CLIP);
@@ -955,10 +955,10 @@ void gpu_gp0(const uint32_t *p, int n) {
 
                 q[k] = gvtx((float)(x + CX[k] * w), (float)(y + CY[k] * h), t[0], t[1], t[2], 0, 0, 0, 0, g_dither_on);
             }
-            gl_triangles(q, 6, CLIP, g.semi);
+            gfx_triangles(q, 6, CLIP, g.semi);
         }
         if (fx != NULL) {
-            gl_battle_fog(c[0], c[1], c[2]);
+            gfx_battle_fog(c[0], c[1], c[2]);
         }
     } else if (cmd >= 0x60 && cmd < 0x80) {
         int size = cmd >> 3 & 3, tex = cmd & 4, semi = cmd & 2, raw = cmd & 1;
@@ -1024,8 +1024,8 @@ void gpu_gp0(const uint32_t *p, int n) {
                 g_vram[((y + j) & 511) * VRAM_W + ((x + i) & 1023)] = (uint16_t)c;
             }
         }
-        gl_vram_dirty(x, y, w, h);
-        gl_refresh(x, y, w, h);
+        gfx_vram_dirty(x, y, w, h);
+        gfx_refresh(x, y, w, h);
     } else if (cmd >= 0x80 && cmd < 0xA0) { /* VRAM to VRAM */
         int sx0 = p[1] & 1023, sy0 = p[1] >> 16 & 511, dx = p[2] & 1023, dy = p[2] >> 16 & 511;
         int w = p[3] & 0xFFFF, h = p[3] >> 16;
@@ -1050,7 +1050,7 @@ void gpu_gp0(const uint32_t *p, int n) {
             e.read[1][0] = 1, e.read[1][2] = 0;
             soft_push(&e, 0);
         }
-        gl_copy_to(sx0, sy0, w, h, s_map_a + (dx - s_map_a) * s_map_s, dy, w * s_map_s); /* a menu's highlight, placed with it */
+        gfx_copy_to(sx0, sy0, w, h, s_map_a + (dx - s_map_a) * s_map_s, dy, w * s_map_s); /* a menu's highlight, placed with it */
     } else if (cmd >= 0xE1 && cmd <= 0xE6) {
         gp0_env(p[0]);
     } else if (cmd > 0x02) {
@@ -1241,8 +1241,8 @@ void DrawOTag(uint32_t *p) {
     int guard = 0, wide = gte_widescreen() && g_draw_layer == WIDE_MENUS_LAYER, k = 0, drawn = 0;
 
     perf_begin(PF_DRAW);
-    gl_sync(0);
-    gl_depth_clear();
+    gfx_sync(0);
+    gfx_depth_clear();
     if (wide) {
         wide_plan(p);
     }
@@ -1273,14 +1273,14 @@ void DrawOTag(uint32_t *p) {
     }
     s_map_a = 0, s_map_s = 1, s_map_d = 0;
     s_clip_a = 0, s_clip_s = 1;
-    gl_shadows_resolve();
+    gfx_shadows_resolve();
     if (gte_in_battle() && g_draw_layer == 0x1002) { /* BATTLE_LAYER_STAGE: its depth, for the props (stagefx.c) */
         stagefx_stage_drawn(drawn);
-        gl_depth_save();
+        gfx_depth_save();
     }
     if (gte_in_battle() && g_draw_layer == 0x1004) { /* fightstg/types.h's BATTLE_LAYER_MODELS */
         perf_begin(PF_PROPS);
-        gl_depth_models();
+        gfx_depth_models();
         stagefx_draw(g.ox, g.oy, CLIP);
         perf_end(PF_PROPS);
     }

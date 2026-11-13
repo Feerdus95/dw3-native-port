@@ -20,8 +20,8 @@ int g_log;
 int g_render_sounds;
 void native_log(const char *fmt, ...) {}
 int gte_widescreen(void) { return 0; }
-int gl_image_prepare(const struct SDL_Surface *s, unsigned *tex) { *tex = 1; return 1; }
-void gl_image(const struct SDL_Surface *s, unsigned *tex, float x1, float y1, float x2, float y2, int add, int cx1, int cy1, int cx2, int cy2) {}
+int gfx_image_prepare(const struct SDL_Surface *s, unsigned *tex) { *tex = 1; return 1; }
+void gfx_image(const struct SDL_Surface *s, unsigned *tex, float x1, float y1, float x2, float y2, int add, int cx1, int cy1, int cx2, int cy2) {}
 
 /* the port's JSON reader is linked in (platform/json.c) */
 

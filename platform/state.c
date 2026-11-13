@@ -144,7 +144,7 @@ static void load_state(void) {
     fclose(f);
     spu_cd_clear();
     soft_discard();
-    gl_sync(1);
+    gfx_sync(1);
     LOG("state: loaded %s", path);
 }
 

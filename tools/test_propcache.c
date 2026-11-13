@@ -16,12 +16,12 @@ int gte_camera_project(const float p[3], float out[3]) { return 0; }
 int gte_camera_get(PCam *c) { return 0; }
 float gte_camera_scale(float z) { return 1; }
 int gte_camera_wide(void) { return 0; }
-void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {}
-unsigned gl_inst_make(const PInst *v, int n) { return 1; }
-void gl_inst_free(unsigned b) {}
-void gl_props_inst(const SDL_Surface *i, unsigned *t, unsigned b, int f, int n, const PCam *c, int x1, int y1, int x2, int y2, const float *fo) {}
-void gl_props_part(const SDL_Surface *i, unsigned *t, const PPart *p, const PCam *c, int x1, int y1, int x2, int y2, const float *fo) {}
-void gl_props(const SDL_Surface *i, unsigned *t, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fo) {}
+void gfx_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {}
+unsigned gfx_inst_make(const PInst *v, int n) { return 1; }
+void gfx_inst_free(unsigned b) {}
+void gfx_props_inst(const SDL_Surface *i, unsigned *t, unsigned b, int f, int n, const PCam *c, int x1, int y1, int x2, int y2, const float *fo) {}
+void gfx_props_part(const SDL_Surface *i, unsigned *t, const PPart *p, const PCam *c, int x1, int y1, int x2, int y2, const float *fo) {}
+void gfx_props(const SDL_Surface *i, unsigned *t, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fo) {}
 int perf_on(void) { return 0; }
 void perf_begin(int s) {}
 void perf_end(int s) {}

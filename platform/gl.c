@@ -103,7 +103,7 @@ static const char *MAIN_FS =
     "    bool semi = (md & 8u) != 0u;\n"
     "    vec3 c8 = col, c5;\n"
     "    float cover = 1.0;\n"
-    "    if ((md & 1024u) != 0u) {\n" /* a battle shadow: into the mask (gl_shadows_resolve) */
+    "    if ((md & 1024u) != 0u) {\n" /* a battle shadow: into the mask (gfx_shadows_resolve) */
     "        if (pass == 1) discard;\n"
     "        frag = vec4(1.0);\n"
     "        return;\n"
@@ -177,7 +177,7 @@ static const char *BLIT_FS =
 /* The world's props (stagefx.c): a textured billboard or mesh with its own RGBA
    image, drawn over the models. Cut out by alpha, and hidden by the stage where
    the stage is nearer (the stage's depth, saved before the models' table clears
-   the depth buffer: gl_depth_save) and by the fighters (the depth buffer) */
+   the depth buffer: gfx_depth_save) and by the fighters (the depth buffer) */
 static const char *PROP_VS =
     "#version 330 core\n"
     "layout(location = 0) in vec3 p;\n" /* VRAM pixels, view depth */
@@ -371,7 +371,7 @@ static const char *PINST_VS =
     "}\n";
 
 /* Battle shadows: the mask blurred one way into another, then the other way
-   as it darkens the copy (gl_shadows_resolve) */
+   as it darkens the copy (gfx_shadows_resolve) */
 static const char *SOFT_FS =
     "#version 330 core\n"
     "uniform sampler2D src;\n"
@@ -483,7 +483,7 @@ static GLuint s_movie_tex, s_menu_tex;
 int g_res_scale = 1; /* native.ini, the menu */
 static int s_scale, s_max_scale = 8;
 
-int gl_scale(void) {
+int gfx_scale(void) {
     return SDL_max(s_scale, 1);
 }
 uint16_t g_vram_dirty[8]; /* 64x64 blocks of VRAM written since they were uploaded */
@@ -591,7 +591,7 @@ static void need_rect(uint16_t need[8], int x, int y, int w, int h) {
     }
 }
 
-void gl_vram_dirty(int x, int y, int w, int h) {
+void gfx_vram_dirty(int x, int y, int w, int h) {
     need_rect(g_vram_dirty, x, y, w, h);
 }
 
@@ -682,7 +682,7 @@ static void flush(void) {
 
 /* Triangles (n a multiple of 3) for the copy, with gpu_draw.c's state: the
    drawing area, the semi-transparency mode (4: a soft shadow's) */
-void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {
+void gfx_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {
     int semi_prim = (v[0].mode & 8) != 0, deep = v[0].z > 0;
 
     if (s_scale == 0) {
@@ -736,7 +736,7 @@ void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi
 
 /* An ordering table drawn: the battle shadows in the mask, blurred, darken
    the copy, and the mask is emptied */
-void gl_shadows_resolve(void) {
+void gfx_shadows_resolve(void) {
     static const float QUAD[16] = {-1, -1, 0, 0, 1, -1, 0, 0, -1, 1, 0, 0, 1, 1, 0, 0};
     int s = s_scale, step = SDL_max(1, s * 3 / 4), pad = 5 * step, r[4];
 
@@ -787,7 +787,7 @@ void gl_shadows_resolve(void) {
 
 /* The depth buffer emptied: an ordering table's 3D models are drawn by their
    depth among themselves, over what earlier tables drew */
-void gl_depth_clear(void) {
+void gfx_depth_clear(void) {
     if (s_scale == 0 || !s_fbo_depth) {
         return;
     }
@@ -801,7 +801,7 @@ void gl_depth_clear(void) {
 
 /* A quad of the copy that shows the 1x VRAM under it: after the CPU wrote
    VRAM (an image, a fill) */
-void gl_refresh(int x, int y, int w, int h) {
+void gfx_refresh(int x, int y, int w, int h) {
     GVtx q[6];
     int i;
 
@@ -833,18 +833,18 @@ void gl_refresh(int x, int y, int w, int h) {
    ponytail: the fog spans the farthest opaque 3D of the last frames (the
    stage's edge), as the stages' sizes are not known; a per-stage range
    when one looks wrong */
-void gl_battle_fog(int r, int gg, int b) {
+void gfx_battle_fog(int r, int gg, int b) {
     s_bg[0] = r / 8.0f, s_bg[1] = gg / 8.0f, s_bg[2] = b / 8.0f;
     s_fog_on = 1;
 }
 
 /* VRAM to VRAM, in the copy */
-void gl_copy(int sx, int sy, int w, int h, int dx, int dy) {
-    gl_copy_to(sx, sy, w, h, (float)dx, dy, (float)w);
+void gfx_copy(int sx, int sy, int w, int h, int dx, int dy) {
+    gfx_copy_to(sx, sy, w, h, (float)dx, dy, (float)w);
 }
 
 /* The same, to dw pixels across from dx (a widescreen battle's menus) */
-void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
+void gfx_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
     int s = s_scale;
 
     if (s == 0 || w <= 0 || h <= 0) {
@@ -888,12 +888,12 @@ static int image_tex(const SDL_Surface *img, unsigned *tex) {
 }
 
 /* An image's texture made ahead of its first use (effects.c's warm-up), not in the frame it first shows */
-int gl_image_prepare(const SDL_Surface *img, unsigned *tex) {
+int gfx_image_prepare(const SDL_Surface *img, unsigned *tex) {
     return s_scale != 0 && img != NULL && image_tex(img, tex); /* 0: the card isn't up yet */
 }
 
 /* An image of the port's own over the copy (platform.h) */
-void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
+void gfx_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
     int s = s_scale;
     float q[16] = {x0, y0, 0, 0, x1, y0, 1, 0, x0, y1, 0, 1, x1, y1, 1, 1};
     int i;
@@ -930,7 +930,7 @@ void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x
 
 /* The depth buffer as the stage's table left it, before the models' table
    empties it: what the props are hidden by (stagefx.c) */
-void gl_depth_save(void) {
+void gfx_depth_save(void) {
     int s = s_scale;
 
     s_sd_valid = 0;
@@ -946,7 +946,7 @@ void gl_depth_save(void) {
 }
 
 /* The depth buffer as the fighters' table left it (it started empty): the grass is trodden down where a fighter is */
-void gl_depth_models(void) {
+void gfx_depth_models(void) {
     int s = s_scale;
 
     s_fd_valid = 0;
@@ -1020,7 +1020,7 @@ static void props_end(void) {
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
 }
 
-void gl_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo) {
+void gfx_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo) {
     if (n <= 0 || !props_begin(s_prop, img, tex, x1, y1, x2, y2, fogo)) {
         return;
     }
@@ -1032,7 +1032,7 @@ void gl_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, in
 }
 
 /* A table of billboards, uploaded once (the card keeps it); 0 when it can't */
-unsigned gl_inst_make(const PInst *v, int n) {
+unsigned gfx_inst_make(const PInst *v, int n) {
     GLuint b = 0;
 
     if (s_scale == 0 || n <= 0) {
@@ -1044,7 +1044,7 @@ unsigned gl_inst_make(const PInst *v, int n) {
     return b;
 }
 
-void gl_inst_free(unsigned b) {
+void gfx_inst_free(unsigned b) {
     if (b != 0) {
         GL(glDeleteBuffers)(1, &b);
     }
@@ -1060,7 +1060,7 @@ static void props_cam(const PCam *c) {
 }
 
 /* N billboards of the table B from FIRST, with image IMG, by the camera */
-void gl_props_inst(const SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+void gfx_props_inst(const SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
     const size_t st = sizeof(PInst);
 
     if (n <= 0 || b == 0 || !props_begin(s_pinst, img, tex, x1, y1, x2, y2, fogo)) {
@@ -1086,7 +1086,7 @@ void gl_props_inst(const SDL_Surface *img, unsigned *tex, unsigned b, int first,
 }
 
 /* A table (PInst, PModel...) uploaded once; 0 when it can't */
-unsigned gl_buf_make(const void *p, unsigned long bytes) {
+unsigned gfx_buf_make(const void *p, unsigned long bytes) {
     GLuint b = 0;
 
     if (s_scale == 0 || bytes == 0) {
@@ -1099,7 +1099,7 @@ unsigned gl_buf_make(const void *p, unsigned long bytes) {
 }
 
 /* A mesh kept on the card: position, texture coordinate, normal */
-void gl_mesh_make(GMesh *g, const float *v, int n) {
+void gfx_mesh_make(GMesh *g, const float *v, int n) {
     const GLsizei st = 8 * sizeof(float);
 
     g->n = 0;
@@ -1121,7 +1121,7 @@ void gl_mesh_make(GMesh *g, const float *v, int n) {
 }
 
 /* N instances of the mesh G, from FIRST of the table INST (PModel), with image IMG: one draw */
-void gl_props_model(const SDL_Surface *img, unsigned *tex, const GMesh *g, float miny, float h, unsigned inst, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+void gfx_props_model(const SDL_Surface *img, unsigned *tex, const GMesh *g, float miny, float h, unsigned inst, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
     const size_t st = sizeof(PModel);
 
     if (n <= 0 || g->n <= 0 || inst == 0 || !props_begin(s_pinst, img, tex, x1, y1, x2, y2, fogo)) {
@@ -1146,7 +1146,7 @@ void gl_props_model(const SDL_Surface *img, unsigned *tex, const GMesh *g, float
 }
 
 /* An emitter's particles, or the stage's leaves (P->leaf): no data at all, each one's place is worked out from its number */
-void gl_props_part(const SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+void gfx_props_part(const SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
     GLint loc;
 
     if (p->count <= 0 || !props_begin(s_pinst, img, tex, x1, y1, x2, y2, fogo)) {
@@ -1166,7 +1166,7 @@ void gl_props_part(const SDL_Surface *img, unsigned *tex, const PPart *p, const 
 
 /* Follows render_scale: a new copy, made from the 1x VRAM; force: VRAM
    changed under it (a loaded state) */
-void gl_sync(int force) {
+void gfx_sync(int force) {
     int want = SDL_clamp(g_res_scale, 1, s_max_scale);
 
     if (s_main == 0 || g_vram == NULL) { /* VRAM comes with ResetGraph */
@@ -1222,10 +1222,18 @@ void gl_sync(int force) {
         return;
     }
     soft_all();
-    gl_refresh(0, 0, VRAM_W, VRAM_H);
+    gfx_refresh(0, 0, VRAM_W, VRAM_H);
 }
 
-int gl_init(SDL_Window *window) {
+uint64_t gfx_window_flags(void) {
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    return SDL_WINDOW_OPENGL;
+}
+
+int gfx_init(SDL_Window *window) {
     GLint max = 0;
 
     s_window = window;
@@ -1350,7 +1358,7 @@ static void quad(GLuint tex, const int vp[4], float u0, float v0, float u1, floa
 
 /* The frame: the display area of the copy (or the 1x VRAM's 24-bit movie)
    letterboxed to 4:3, then the menu (a 1280x960 RGBA surface, or NULL) */
-void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
+void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     PSX_RECT d = g_disp.disp;
     int w, h, vp[4], menu_vp[4];
     int aw = gte_widescreen() ? 16 : 4, ah = gte_widescreen() ? 9 : 3; /* the picture's aspect */
