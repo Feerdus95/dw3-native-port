@@ -43,6 +43,14 @@ scanlines = 0
 # around it, so that every pixel of the game's is the same size
 integer_scale = 0
 
+# 1: the picture's jagged edges smoothed (SMAA), the rest left sharp
+smaa = 0
+
+# 1: with render_scale below the window's size, the 3D (the battles) is
+# enlarged to the window by AMD's FSR 1 rather than plainly smoothed;
+# for slow graphics cards. Best with some sharpen
+fsr = 0
+
 # 0: no dithering (the PlayStation's, on shaded and blended polygons)
 dither = 1
 

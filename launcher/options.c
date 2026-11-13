@@ -23,6 +23,8 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_GAMMA] = {"gamma", K_NUMBER, 0, -10, 10, 1},
     [O_SATURATION] = {"saturation", K_NUMBER, 0, -10, 10, 1},
     [O_SCANLINES] = {"scanlines", K_NUMBER, 0, 0, 10, 1},
+    [O_SMAA] = {"smaa", K_BOOL, 0},
+    [O_FSR] = {"fsr", K_BOOL, 0},
     [O_INTEGER] = {"integer_scale", K_BOOL, 0},
     [O_INACTIVE] = {"inactive_window", K_FOCUS, 0, 0, 2, 1},
     [O_FF_MENUS] = {"ff_menu_speed", K_BOOL, 0},

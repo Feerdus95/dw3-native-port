@@ -10,23 +10,23 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, MOVIES, VSYNC, FULLSCREEN, WINDOW, INACTIVE, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FF_MENUS, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, TECHNIQUE_VISUALS, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, ICONS, CONTROLS, SKIP_START, MENU_WRAP, QUIT_GAME, SHARPEN, BRIGHTNESS, GAMMA, SATURATION, SCANLINES, INTEGER_SCALE, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, MOVIES, VSYNC, FULLSCREEN, WINDOW, INACTIVE, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FF_MENUS, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, TECHNIQUE_VISUALS, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, ICONS, CONTROLS, SKIP_START, MENU_WRAP, QUIT_GAME, SHARPEN, BRIGHTNESS, GAMMA, SATURATION, SCANLINES, INTEGER_SCALE, SMAA, FSR, PRESET, ITEMS };
 
 static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Battle sky and fog", "Form name in battle", "Smooth movies", "VSync", "Fullscreen", "Window size", "Inactive window", "Vibration", "Stick deadzone",
     "Fast text (hold X)", "Fast forward (Tab/R3)", "Menus in fast forward", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon", "Full EXP Share", "Tech visual upgrade", "Heal on level up", "Save anywhere", "Crest fix", "Custom effects", "Custom sounds", "Custom scripts",
     "Button icons", "Controls", "Skip PRESS START", "Menu cursor wraps", "Quit game",
-    "Sharpen", "Brightness", "Gamma", "Saturation", "Scanlines", "Integer scaling",
+    "Sharpen", "Brightness", "Gamma", "Saturation", "Scanlines", "Integer scaling", "SMAA anti-aliasing", "FSR 1 upscaling", "Preset",
 };
 
 /* the tabs and their options, each list ending with -1 */
 #define TABS 4
 #define ROWS 12 /* the rows shown: the box stays the same size, a longer tab scrolls */
-#define MAX_ITEMS 16
+#define MAX_ITEMS 20
 static const char *TAB_NAMES[TABS] = {"Display", "Graphics", "Input", "Mods"};
 static const int TAB_ITEMS[TABS][MAX_ITEMS + 1] = {
     {FPS, FULLSCREEN, WINDOW, INTEGER_SCALE, WIDESCREEN, VSYNC, MOVIES, INACTIVE, QUIT_GAME, -1},
-    {SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, SHARPEN, BRIGHTNESS, GAMMA, SATURATION, SCANLINES, -1},
+    {PRESET, SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, SMAA, FSR, SHARPEN, BRIGHTNESS, GAMMA, SATURATION, SCANLINES, -1},
     {ICONS, CONTROLS, FAST_FORWARD, FF_MENUS, SKIP_START, MENU_WRAP, RUMBLE, DEADZONE, -1},
     {FAST_TEXT, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, TECHNIQUE_VISUALS, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, -1},
 };
@@ -63,6 +63,37 @@ static int window_scale(void) {
     return SDL_clamp((h + 120) / 240, 1, 8);
 }
 
+/* The Graphics tab as a whole: the PlayStation's picture, the port's own defaults, and those with every extra on.
+   Brightness, gamma and saturation are the screen's, and stay as they are, as do Sub-pixel 3D and the Depth buffer */
+static int *const PRESET_VARS[] = {&g_perspective, &g_smooth_3d, &g_true_color, &g_dither_on, &g_soft_shadows,
+                                   &g_battle_shadows, &g_battle_sky, &g_smaa, &g_fsr, &g_sharpen, &g_scanlines};
+enum { PRESET_N = SDL_arraysize(PRESET_VARS), PRESETS = 3 };
+static const char *PRESET_NAMES[PRESETS + 1] = {"Original", "Enhanced", "Remaster", "Custom"};
+static const signed char PRESET_VALUES[PRESETS][PRESET_N] = {
+    {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1, 0, 3, 0},
+};
+
+/* The resolution a preset goes with: the PlayStation's, or a finer one (the one set, else the window's) */
+static int preset_scale(int p) {
+    return p == 0 ? 1 : g_res_scale > 1 ? g_res_scale : SDL_max(window_scale(), 2);
+}
+
+/* The preset the options are at, PRESETS when at none */
+static int preset(void) {
+    int p, i;
+
+    for (p = 0; p < PRESETS; p++) {
+        for (i = 0; i < PRESET_N && *PRESET_VARS[i] == PRESET_VALUES[p][i]; i++) {
+        }
+        if (i == PRESET_N && g_res_scale == preset_scale(p)) {
+            return p;
+        }
+    }
+    return PRESETS;
+}
+
 static void value(int item, char *out, size_t size) {
     int on = 0;
 
@@ -81,6 +112,9 @@ static void value(int item, char *out, size_t size) {
     case INACTIVE: SDL_snprintf(out, size, "%s", g_inactive_window == 2 ? "Pause" : g_inactive_window == 1 ? "Mute" : "Off"); return;
     case CONTROLS: SDL_snprintf(out, size, ">"); return;
     case SHARPEN: SDL_snprintf(out, size, g_sharpen ? "%d" : "Off", g_sharpen); return;
+    case PRESET: SDL_snprintf(out, size, "%s", PRESET_NAMES[preset()]); return;
+    case SMAA: on = g_smaa; break;
+    case FSR: on = g_fsr; break;
     case SCANLINES: SDL_snprintf(out, size, g_scanlines ? "%d" : "Off", g_scanlines); return;
     case INTEGER_SCALE: on = g_integer_scale; break;
     case BRIGHTNESS: SDL_snprintf(out, size, g_brightness ? "%+d" : "0", g_brightness); return;
@@ -169,6 +203,18 @@ static void change(int item, int dir) {
     case CUSTOM_SOUNDS: g_custom_sounds = !g_custom_sounds; break;
     case CUSTOM_SCRIPTS: g_custom_scripts = !g_custom_scripts; break;
     case SHARPEN: g_sharpen = SDL_clamp(g_sharpen + (dir < 0 ? -1 : 1), 0, 10); break;
+    case PRESET: { /* from Custom: right to the first, left to the last */
+        int p = preset(), i;
+
+        p = dir < 0 ? (p + PRESETS - 1) % PRESETS : (p + 1) % (p == PRESETS ? PRESETS + 1 : PRESETS);
+        for (i = 0; i < PRESET_N; i++) {
+            *PRESET_VARS[i] = PRESET_VALUES[p][i];
+        }
+        g_res_scale = preset_scale(p);
+        break;
+    }
+    case SMAA: g_smaa = !g_smaa; break;
+    case FSR: g_fsr = !g_fsr; break;
     case SCANLINES: g_scanlines = SDL_clamp(g_scanlines + (dir < 0 ? -1 : 1), 0, 10); break;
     case INTEGER_SCALE: g_integer_scale = !g_integer_scale; break;
     case BRIGHTNESS: g_brightness = SDL_clamp(g_brightness + (dir < 0 ? -1 : 1), -10, 10); break;
@@ -204,7 +250,7 @@ static void change(int item, int dir) {
 /* native.ini's "key = value" lines get the new values; missing keys are
    added, the bindings' only when not the default */
 static void save(void) {
-    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons", "battle_sky", "full_exp_share", "save_anywhere", "custom_effects", "custom_sounds", "custom_scripts", "inactive_window", "heal_on_levelup", "skip_press_start", "ff_menu_speed", "menu_wrap", "battle_form_name", "fix_equip_stacking", "technique_visuals", "sharpen", "brightness", "gamma", "saturation", "scanlines", "integer_scale"};
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons", "battle_sky", "full_exp_share", "save_anywhere", "custom_effects", "custom_sounds", "custom_scripts", "inactive_window", "heal_on_levelup", "skip_press_start", "ff_menu_speed", "menu_wrap", "battle_form_name", "fix_equip_stacking", "technique_visuals", "sharpen", "brightness", "gamma", "saturation", "scanlines", "integer_scale", "smaa", "fsr"};
     enum { FIXED = SDL_arraysize(KEYS), ALL = FIXED + 32 };
     char path[1100], line[1200], key[32], names[ALL][32], vals[ALL][64];
     int done[ALL] = {0}, i, n = ALL;
@@ -254,6 +300,8 @@ static void save(void) {
     SDL_snprintf(vals[39], 16, "%d", g_saturation);
     SDL_snprintf(vals[40], 16, "%d", g_scanlines);
     SDL_snprintf(vals[41], 16, "%d", g_integer_scale);
+    SDL_snprintf(vals[42], 16, "%d", g_smaa);
+    SDL_snprintf(vals[43], 16, "%d", g_fsr);
     for (i = 0; i < ALL; i++) {
         if (i < FIXED) {
             SDL_strlcpy(names[i], KEYS[i], sizeof names[i]);

@@ -139,6 +139,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | | |
 |---|---|
 | Frame rate | 50 (the European original) or 60 (the game's own 60 Hz mode; walking speed follows at the next area) |
+| Preset | the Graphics tab at once: Original (the PlayStation's picture), Enhanced (the port's defaults) or Remaster (those, with soft shadows, the battle sky, SMAA and some sharpening); Custom when the options are at none of them. Brightness, gamma and saturation stay as set |
 | Resolution | the 3D drawn 1 to 8 times finer than the PlayStation's 320x240, on the graphics card |
 | Sub-pixel 3D | the 3D's points at their exact place at higher resolutions, without the PlayStation's wobble |
 | Depth buffer | the battle models' polygons in the right order at higher resolutions |
@@ -191,6 +192,8 @@ button can be changed in the options menu's Input tab, **Controls**.
     brightness = 0       ; -10 to 10; gamma and saturation the same
     scanlines = 0        ; 1-10: dark lines between the game's rows
     integer_scale = 0    ; 1: the picture a whole multiple of 240 rows
+    smaa = 0             ; 1: the picture's jagged edges smoothed (SMAA)
+    fsr = 0              ; 1: the 3D enlarged to the window by FSR 1, when render_scale is below it
     battle_shadows = 1   ; 0: no shadows in battle
     battle_sky = 0       ; 1: a sky behind battles, the stage's far side fading into it
     battle_form_name = 0 ; 1: the battle HUD names the partner's current form

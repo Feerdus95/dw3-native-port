@@ -5,6 +5,9 @@
 - **Sharpen, Brightness, Gamma, Saturation** (Options, Graphics; `sharpen` 0 to 10, `brightness`, `gamma`, `saturation` -10 to 10; all 0 by default, the game's own picture). A post-process pass over the game's picture on its way to the window, not over the movies or the options menu. The sharpening is contrast-adaptive, after AMD's FidelityFX CAS.
 - **Scanlines** (Options, Graphics; `scanlines` 0 to 10, off by default). Dark lines between the game's rows, in the same pass.
 - **Integer scaling** (Options, Display; `integer_scale`, off by default). The picture is a whole multiple of the game's 240 rows, with bars around it, so that every pixel of the game's is the same size on screen.
+- **SMAA anti-aliasing** (Options, Graphics; `smaa`, off by default). The picture's jagged edges are smoothed and the rest is left sharp. Jimenez, Echevarria, Masia, Navarro and Gutierrez's SMAA 1x, as they publish it.
+- **FSR 1 upscaling** (Options, Graphics; `fsr`, off by default). With the Resolution below the window's size, the frames with 3D in them (the battles) are enlarged to the window by the upscaling pass of AMD's FidelityFX Super Resolution 1.0 instead of plain smoothing; Sharpen does the rest. For slow graphics cards: at a Resolution that matches the window it has nothing to do.
+- **Preset** (Options, Graphics, first row). Original, Enhanced or Remaster set the tab's options at once; it reads Custom when they are at none of the three.
 
 ## v0.19.7 (beta)
 

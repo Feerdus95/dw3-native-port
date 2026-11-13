@@ -197,6 +197,113 @@ static const char *POST_FS =
     "    frag = vec4(pow(clamp(c + post.y, 0.0, 1.0), vec3(post.z)), 1.0);\n"
     "}\n";
 
+/* FSR 1's upscaling pass (EASU, of AMD's FidelityFX Super Resolution 1.0, MIT: CREDITS.md), written out for this
+   renderer: the twelve texels around the output pixel, in a kernel turned along the edge found there and narrowed
+   by how sharp it is, the result kept within the four nearest's range so that it does not ring */
+static const char *EASU_FS =
+    "#version 330 core\n"
+    "uniform sampler2D tex;\n"
+    "uniform vec2 ratio;\n" /* the picture's pixels to one of the output's */
+    "out vec4 frag;\n"
+    "ivec2 at, top;\n"
+    "vec3 T(int x, int y) { return texelFetch(tex, clamp(at + ivec2(x, y), ivec2(0), top), 0).rgb; }\n"
+    "float L(vec3 c) { return c.b * 0.5 + (c.r * 0.5 + c.g); }\n"
+    /* one of the four nearest (c) and those above, left, right and below it: which way the edge runs, how sharp */
+    "void edge(inout vec2 dir, inout float len, float w, float a, float b, float c, float d, float e) {\n"
+    "    float dx = d - b, dy = e - a;\n"
+    "    float lx = clamp(abs(dx) / max(max(abs(d - c), abs(c - b)), 1e-5), 0.0, 1.0);\n"
+    "    float ly = clamp(abs(dy) / max(max(abs(e - c), abs(c - a)), 1e-5), 0.0, 1.0);\n"
+    "    dir += vec2(dx, dy) * w;\n"
+    "    len += (lx * lx + ly * ly) * w;\n"
+    "}\n"
+    "void tap(inout vec3 sum, inout float ws, vec2 off, vec2 dir, vec2 len, float lob, float clp, vec3 c) {\n"
+    "    vec2 v = vec2(off.x * dir.x + off.y * dir.y, off.y * dir.x - off.x * dir.y) * len;\n"
+    "    float d2 = min(dot(v, v), clp), wb = 0.4 * d2 - 1.0, wa = lob * d2 - 1.0;\n"
+    "    wa = wa * wa * (1.5625 * wb * wb - 0.5625);\n"
+    "    sum += c * wa;\n"
+    "    ws += wa;\n"
+    "}\n"
+    "void main() {\n"
+    "    vec2 p = gl_FragCoord.xy * ratio - 0.5, pp = fract(p);\n"
+    "    at = ivec2(floor(p));\n"
+    "    top = textureSize(tex, 0) - 1;\n"
+    /*   b c
+       e f g h
+       i j k l
+         n o   */
+    "    vec3 b = T(0, -1), c = T(1, -1), e = T(-1, 0), f = T(0, 0), g = T(1, 0), h = T(2, 0);\n"
+    "    vec3 i = T(-1, 1), j = T(0, 1), k = T(1, 1), l = T(2, 1), n = T(0, 2), o = T(1, 2);\n"
+    "    float lb = L(b), lc = L(c), le = L(e), lf = L(f), lg = L(g), lh = L(h);\n"
+    "    float li = L(i), lj = L(j), lk = L(k), ll = L(l), ln = L(n), lo = L(o);\n"
+    "    vec2 dir = vec2(0.0);\n"
+    "    float len = 0.0;\n"
+    "    edge(dir, len, (1.0 - pp.x) * (1.0 - pp.y), lb, le, lf, lg, lj);\n"
+    "    edge(dir, len, pp.x * (1.0 - pp.y), lc, lf, lg, lh, lk);\n"
+    "    edge(dir, len, (1.0 - pp.x) * pp.y, lf, li, lj, lk, ln);\n"
+    "    edge(dir, len, pp.x * pp.y, lg, lj, lk, ll, lo);\n"
+    "    float r = dot(dir, dir);\n"
+    "    dir = r < 1.0 / 32768.0 ? vec2(1.0, 0.0) : dir * inversesqrt(r);\n"
+    "    len = len * 0.5;\n"
+    "    len *= len;\n"
+    "    float stretch = dot(dir, dir) / max(abs(dir.x), abs(dir.y));\n"
+    "    vec2 len2 = vec2(1.0 + (stretch - 1.0) * len, 1.0 - 0.5 * len);\n"
+    "    float lob = 0.5 - 0.29 * len, clp = 1.0 / lob, ws = 0.0;\n"
+    "    vec3 sum = vec3(0.0);\n"
+    "    tap(sum, ws, vec2(0.0, -1.0) - pp, dir, len2, lob, clp, b);\n"
+    "    tap(sum, ws, vec2(1.0, -1.0) - pp, dir, len2, lob, clp, c);\n"
+    "    tap(sum, ws, vec2(-1.0, 0.0) - pp, dir, len2, lob, clp, e);\n"
+    "    tap(sum, ws, vec2(0.0, 0.0) - pp, dir, len2, lob, clp, f);\n"
+    "    tap(sum, ws, vec2(1.0, 0.0) - pp, dir, len2, lob, clp, g);\n"
+    "    tap(sum, ws, vec2(2.0, 0.0) - pp, dir, len2, lob, clp, h);\n"
+    "    tap(sum, ws, vec2(-1.0, 1.0) - pp, dir, len2, lob, clp, i);\n"
+    "    tap(sum, ws, vec2(0.0, 1.0) - pp, dir, len2, lob, clp, j);\n"
+    "    tap(sum, ws, vec2(1.0, 1.0) - pp, dir, len2, lob, clp, k);\n"
+    "    tap(sum, ws, vec2(2.0, 1.0) - pp, dir, len2, lob, clp, l);\n"
+    "    tap(sum, ws, vec2(0.0, 2.0) - pp, dir, len2, lob, clp, n);\n"
+    "    tap(sum, ws, vec2(1.0, 2.0) - pp, dir, len2, lob, clp, o);\n"
+    "    frag = vec4(min(max(max(f, g), max(j, k)), max(min(min(f, g), min(j, k)), sum / ws)), 1.0);\n"
+    "}\n";
+
+/* SMAA 1x (Jimenez, Echevarria, Masia, Navarro and Gutierrez; MIT): their shader as they publish it, in smaa/ with
+   its licence and its two tables, between a head that sets it up and the three passes (stage 0: the edges, 1: how
+   much each blends, 2: the picture blended). Its rows run down, as the copy's do */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc23-extensions"
+static char SMAA_SRC[] = {
+#embed "smaa/SMAA.hlsl"
+    , 0};
+#pragma clang diagnostic pop
+#include "smaa/AreaTex.h"
+#include "smaa/SearchTex.h"
+#define SMAA_HEAD(vs, ps)                                                                                    \
+    "#version 330 core\nuniform vec4 rt;\n#define SMAA_RT_METRICS rt\n#define SMAA_GLSL_3\n#define SMAA_PRESET_HIGH\n" \
+    "#define SMAA_INCLUDE_VS " #vs "\n#define SMAA_INCLUDE_PS " #ps "\n"
+static const char *SMAA_VS =
+    "\nlayout(location = 0) in vec4 pos_uv;\n"
+    "uniform int stage;\n"
+    "out vec2 uv, pix;\n"
+    "out vec4 off[3];\n"
+    "void main() {\n"
+    "    gl_Position = vec4(pos_uv.xy, 0.0, 1.0);\n"
+    "    uv = pos_uv.zw;\n"
+    "    pix = vec2(0.0);\n"
+    "    off[0] = off[1] = off[2] = vec4(0.0);\n"
+    "    if (stage == 0) SMAAEdgeDetectionVS(uv, off);\n"
+    "    else if (stage == 1) SMAABlendingWeightCalculationVS(uv, pix, off);\n"
+    "    else SMAANeighborhoodBlendingVS(uv, off[0]);\n"
+    "}\n";
+static const char *SMAA_FS =
+    "\nuniform sampler2D t0, t1, t2;\n"
+    "uniform int stage;\n"
+    "in vec2 uv, pix;\n"
+    "in vec4 off[3];\n"
+    "out vec4 frag;\n"
+    "void main() {\n"
+    "    if (stage == 0) frag = vec4(SMAAColorEdgeDetectionPS(uv, off, t0), 0.0, 0.0);\n"
+    "    else if (stage == 1) frag = SMAABlendingWeightCalculationPS(uv, pix, off, t0, t1, t2, vec4(0.0));\n"
+    "    else frag = SMAANeighborhoodBlendingPS(uv, off[0], t0, t1);\n"
+    "}\n";
+
 /* A fighter treads the grass under it: a blade whose foot is this close (the game's units, in depth) to the fighter's
    surface is flattened, fully by 40% of it */
 #define PROP_CLEAR 600.0f
@@ -428,6 +535,10 @@ int g_depth = 1;
 int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1; /* true_color, perspective, smooth_3d, the menu */
 int g_sharpen, g_brightness, g_gamma, g_saturation; /* sharpen 0 to 10; the others -10 to 10, 0 as the game's */
 int g_scanlines, g_integer_scale; /* scanlines 0 to 10; integer_scale = 1: the picture a whole multiple of 240 rows */
+int g_smaa, g_fsr;                   /* smaa, fsr = 1: the picture's edges smoothed; upscaled to the window by FSR 1 */
+static GLuint s_smaa, s_easu, s_area_tex, s_search_tex; /* their programs (0: not on this card) and SMAA's tables */
+static GLuint s_pic_tex[3], s_pic_fbo[3], s_up_tex, s_up_fbo; /* the display area copied and SMAA's two; FSR's output */
+static int s_pic_w, s_pic_h, s_up_w, s_up_h, s_frame_3d; /* s_frame_3d: the frame has 3D in it */
 int g_soft_shadows;
 int g_vsync = 1; /* vsync, the menu */
 int g_battle_shadows = 1; /* battle_shadows, the menu (native.h) */ /* soft_shadows = 1, the menu (native.h) */
@@ -523,12 +634,12 @@ static int s_count;
 static int s_semi = -1;        /* the batch's semi-transparency mode, -1: none in it yet */
 static int s_clip[4] = {0, 0, 1023, 511}; /* the drawing area the batch was made with */
 
-static GLuint shader(GLenum type, const char *src) {
+static GLuint shader(GLenum type, const char *const *src, int n) {
     GLuint s = GL(glCreateShader)(type);
     GLint ok;
     char log[1024];
 
-    GL(glShaderSource)(s, 1, &src, NULL);
+    GL(glShaderSource)(s, n, src, NULL);
     GL(glCompileShader)(s);
     GL(glGetShaderiv)(s, GL_COMPILE_STATUS, &ok);
     if (!ok) {
@@ -538,13 +649,14 @@ static GLuint shader(GLenum type, const char *src) {
     return s;
 }
 
-static GLuint program(const char *vs, const char *fs) {
+/* A program of a vertex and a fragment shader, each in N parts */
+static GLuint program_of(const char *const *vs, const char *const *fs, int n) {
     GLuint p = GL(glCreateProgram)();
     GLint ok;
     char log[1024];
 
-    GL(glAttachShader)(p, shader(GL_VERTEX_SHADER, vs));
-    GL(glAttachShader)(p, shader(GL_FRAGMENT_SHADER, fs));
+    GL(glAttachShader)(p, shader(GL_VERTEX_SHADER, vs, n));
+    GL(glAttachShader)(p, shader(GL_FRAGMENT_SHADER, fs, n));
     GL(glLinkProgram)(p);
     GL(glGetProgramiv)(p, GL_LINK_STATUS, &ok);
     if (!ok) {
@@ -553,6 +665,10 @@ static GLuint program(const char *vs, const char *fs) {
         return 0;
     }
     return p;
+}
+
+static GLuint program(const char *vs, const char *fs) {
+    return program_of(&vs, &fs, 1);
 }
 
 static GLuint texture(GLint internal, int w, int h, GLenum format, GLenum type, GLint filter) {
@@ -1304,6 +1420,26 @@ int gfx_init(SDL_Window *window) {
     GL(glUniform1i)(GL(glGetUniformLocation)(s_blit, "tex"), 0);
     GL(glUseProgram)(s_post);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_post, "tex"), 0);
+    { /* the picture's optional passes: where one doesn't build, its option does nothing */
+        const char *vs[3] = {SMAA_HEAD(1, 0), SMAA_SRC, SMAA_VS}, *fs[3] = {SMAA_HEAD(0, 1), SMAA_SRC, SMAA_FS};
+        char *c;
+
+        for (c = SMAA_SRC; *c != 0; c++) { /* its comments have a letter or two that aren't ASCII */
+            if ((unsigned char)*c > 126) {
+                *c = ' ';
+            }
+        }
+        if ((s_smaa = program_of(vs, fs, 3)) != 0) {
+            GL(glUseProgram)(s_smaa);
+            GL(glUniform1i)(GL(glGetUniformLocation)(s_smaa, "t0"), 0);
+            GL(glUniform1i)(GL(glGetUniformLocation)(s_smaa, "t1"), 1);
+            GL(glUniform1i)(GL(glGetUniformLocation)(s_smaa, "t2"), 2);
+        }
+        if ((s_easu = program(BLIT_VS, EASU_FS)) != 0) {
+            GL(glUseProgram)(s_easu);
+            GL(glUniform1i)(GL(glGetUniformLocation)(s_easu, "tex"), 0);
+        }
+    }
     GL(glUseProgram)(s_prop);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_prop, "tex"), 0);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_prop, "sdepth"), 1);
@@ -1363,6 +1499,11 @@ int gfx_init(SDL_Window *window) {
     s_vram_tex = texture(GL_R16UI, VRAM_W, VRAM_H, GL_RED_INTEGER, GL_UNSIGNED_SHORT, GL_NEAREST);
     s_movie_tex = texture(GL_RGBA8, VRAM_W, VRAM_H, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
     s_menu_tex = texture(GL_RGBA8, 1280, 960, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
+    GL(glPixelStorei)(GL_UNPACK_ALIGNMENT, 1);
+    s_area_tex = texture(GL_RG8, AREATEX_WIDTH, AREATEX_HEIGHT, GL_RG, GL_UNSIGNED_BYTE, GL_LINEAR);
+    GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, AREATEX_WIDTH, AREATEX_HEIGHT, GL_RG, GL_UNSIGNED_BYTE, areaTexBytes);
+    s_search_tex = texture(GL_R8, SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, GL_NEAREST);
+    GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, searchTexBytes);
     GL(glGetIntegerv)(GL_MAX_TEXTURE_SIZE, &max);
     s_max_scale = SDL_clamp(max / VRAM_W, 1, 8);
     if (GL(glGetError)() != GL_NO_ERROR) {
@@ -1373,18 +1514,19 @@ int gfx_init(SDL_Window *window) {
 }
 
 /* A texture onto the window's 4:3 area: uv from (u0, v0) top left to (u1, v1) */
-/* post: through the post-process pass, when one of its options is set (the game's picture; not the movies or the menu) */
-static void quad(GLuint tex, const int vp[4], float u0, float v0, float u1, float v1, int linear, int post) {
+/* rows: the game's rows shown, for the post-process pass when one of its options is set (the game's picture);
+   0 without it (the movies, the menu) */
+static void quad(GLuint tex, const int vp[4], float u0, float v0, float u1, float v1, int linear, int rows) {
     float q[16] = {-1, 1, u0, v0, 1, 1, u1, v0, -1, -1, u0, v1, 1, -1, u1, v1};
 
     GL(glViewport)(vp[0], vp[1], vp[2], vp[3]);
-    if (post && (g_sharpen | g_brightness | g_gamma | g_saturation | g_scanlines) != 0) {
+    if (rows && (g_sharpen | g_brightness | g_gamma | g_saturation | g_scanlines) != 0) {
         GL(glUseProgram)(s_post);
         /* gamma 10 halves the exponent (brighter middles), -10 doubles it */
         GL(glUniform4f)(GL(glGetUniformLocation)(s_post, "post"), g_sharpen / 10.0f, g_brightness * 0.02f,
                         SDL_powf(2.0f, -g_gamma / 10.0f), 1.0f + g_saturation / 10.0f);
         GL(glUniform2f)(GL(glGetUniformLocation)(s_post, "px"), (u1 - u0) / vp[2], (v1 - v0) / vp[3]);
-        GL(glUniform2f)(GL(glGetUniformLocation)(s_post, "scan"), g_scanlines / 10.0f, (float)VRAM_H);
+        GL(glUniform2f)(GL(glGetUniformLocation)(s_post, "scan"), g_scanlines / 10.0f, rows / (v1 - v0));
     } else {
         GL(glUseProgram)(s_blit);
     }
@@ -1398,11 +1540,101 @@ static void quad(GLuint tex, const int vp[4], float u0, float v0, float u1, floa
     GL(glDrawArrays)(GL_TRIANGLE_STRIP, 0, 4);
 }
 
+static void target(GLuint *tex, GLuint *fbo, int w, int h) {
+    if (*tex != 0) {
+        GL(glDeleteFramebuffers)(1, fbo);
+        GL(glDeleteTextures)(1, tex);
+    }
+    *tex = texture(GL_RGBA8, w, h, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR);
+    *fbo = framebuffer(*tex);
+}
+
+/* The whole of a target drawn with the program in use, its rows in the order of the textures' */
+static void pass(GLuint fbo, int w, int h, int clear) {
+    static const float Q[16] = {-1, -1, 0, 0, 1, -1, 1, 0, -1, 1, 0, 1, 1, 1, 1, 1};
+
+    GL(glBindFramebuffer)(GL_FRAMEBUFFER, fbo);
+    GL(glViewport)(0, 0, w, h);
+    if (clear) { /* SMAA leaves out what has no edge */
+        GL(glClearColor)(0, 0, 0, 0);
+        GL(glClear)(GL_COLOR_BUFFER_BIT);
+    }
+    GL(glBindVertexArray)(s_quad_vao);
+    GL(glBindBuffer)(GL_ARRAY_BUFFER, s_quad_vbo);
+    GL(glBufferData)(GL_ARRAY_BUFFER, sizeof Q, Q, GL_STREAM_DRAW);
+    GL(glDrawArrays)(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+static void bind(int unit, GLuint tex) {
+    GL(glActiveTexture)(GL_TEXTURE0 + unit);
+    GL(glBindTexture)(GL_TEXTURE_2D, tex);
+    GL(glActiveTexture)(GL_TEXTURE0);
+}
+
+/* The game's picture before the window: the display area D of the copy, through SMAA and through FSR 1's upscaling
+   to the W x H it is shown at, when they are on. FSR only where it has something to do: a frame with 3D in it shown
+   bigger (the 2D is the PlayStation's pixels enlarged, which it would tangle). The texture to show and, in uv, its
+   corners */
+static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
+    int s = s_scale, pw = d->w * s, ph = d->h * s, smaa = g_smaa && s_smaa != 0, fsr = g_fsr && s_easu != 0 && h > ph && s_frame_3d, i;
+    GLuint tex = s_pic_tex[0];
+
+    uv[0] = d->x / (float)VRAM_W, uv[1] = d->y / (float)VRAM_H;
+    uv[2] = (d->x + d->w) / (float)VRAM_W, uv[3] = (d->y + d->h) / (float)VRAM_H;
+    if (!smaa && !fsr) {
+        return s_fbo_tex;
+    }
+    if (pw != s_pic_w || ph != s_pic_h) {
+        for (i = 0; i < 3; i++) {
+            target(&s_pic_tex[i], &s_pic_fbo[i], pw, ph);
+        }
+        s_pic_w = pw, s_pic_h = ph;
+        tex = s_pic_tex[0];
+    }
+    GL(glBindFramebuffer)(GL_READ_FRAMEBUFFER, s_fbo);
+    GL(glBindFramebuffer)(GL_DRAW_FRAMEBUFFER, s_pic_fbo[0]);
+    GL(glBlitFramebuffer)(d->x * s, d->y * s, d->x * s + pw, d->y * s + ph, 0, 0, pw, ph, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    if (smaa) {
+        GLint stage = GL(glGetUniformLocation)(s_smaa, "stage");
+
+        GL(glUseProgram)(s_smaa);
+        GL(glUniform4f)(GL(glGetUniformLocation)(s_smaa, "rt"), 1.0f / pw, 1.0f / ph, (float)pw, (float)ph);
+        GL(glUniform1i)(stage, 0);
+        bind(0, s_pic_tex[0]);
+        pass(s_pic_fbo[1], pw, ph, 1);
+        GL(glUniform1i)(stage, 1);
+        bind(0, s_pic_tex[1]);
+        bind(1, s_area_tex);
+        bind(2, s_search_tex);
+        pass(s_pic_fbo[2], pw, ph, 1);
+        GL(glUniform1i)(stage, 2);
+        bind(0, s_pic_tex[0]);
+        bind(1, s_pic_tex[2]);
+        pass(s_pic_fbo[1], pw, ph, 0);
+        tex = s_pic_tex[1];
+    }
+    if (fsr) {
+        if (w != s_up_w || h != s_up_h) {
+            target(&s_up_tex, &s_up_fbo, w, h);
+            s_up_w = w, s_up_h = h;
+        }
+        GL(glUseProgram)(s_easu);
+        GL(glUniform2f)(GL(glGetUniformLocation)(s_easu, "ratio"), (float)pw / w, (float)ph / h);
+        bind(0, tex);
+        pass(s_up_fbo, w, h, 0);
+        tex = s_up_tex;
+    }
+    uv[0] = uv[1] = 0, uv[2] = uv[3] = 1;
+    return tex;
+}
+
 /* The frame: the display area of the copy (or the 1x VRAM's 24-bit movie)
    letterboxed to 4:3, then the menu (a 1280x960 RGBA surface, or NULL) */
 void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     PSX_RECT d = g_disp.disp;
-    int w, h, vp[4], menu_vp[4];
+    int w, h, vp[4], menu_vp[4], game;
+    GLuint tex = 0;
+    float uv[4];
     int aw = gte_widescreen() ? 16 : 4, ah = gte_widescreen() ? 9 : 3; /* the picture's aspect */
 
     static int vsync = -1;
@@ -1425,6 +1657,7 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         stagefx_frame();
     }
     s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
+    s_frame_3d = s_zframe > 0;
     s_fog_on = 0, s_zframe = 0;
     if (vsync != g_vsync) {
         /* the game keeps its own time (etc.c); vsync only holds the swap for
@@ -1445,13 +1678,17 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     menu_vp[3] = w * 3 > h * 4 ? h : w * 3 / 4;
     menu_vp[0] = (w - menu_vp[2]) / 2;
     menu_vp[1] = (h - menu_vp[3]) / 2;
+    if (d.x + d.w > VRAM_W) d.w = VRAM_W - d.x;
+    if (d.y + d.h > VRAM_H) d.h = VRAM_H - d.y;
+    game = g_disp_on && d.w > 0 && d.h > 0 && !g_disp.isrgb24 && s_scale > 0;
+    if (game) {
+        tex = picture(&d, vp[2], vp[3], uv);
+    }
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
     GL(glViewport)(0, 0, w, h);
     GL(glClearColor)(0, 0, 0, 1);
     GL(glClear)(GL_COLOR_BUFFER_BIT);
     GL(glColorMask)(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE); /* the copy's alpha is the mask bit: the window stays opaque */
-    if (d.x + d.w > VRAM_W) d.w = VRAM_W - d.x;
-    if (d.y + d.h > VRAM_H) d.h = VRAM_H - d.y;
     if (g_disp_on && d.w > 0 && d.h > 0 && g_disp.isrgb24) {
         /* 24-bit (the movies): d.w pixels of 3 bytes from d.x on, as RGBA */
         static uint32_t *rgba;
@@ -1472,9 +1709,9 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         GL(glPixelStorei)(GL_UNPACK_ALIGNMENT, 4);
         GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, d.w, d.h, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
         quad(s_movie_tex, vp, 0, 0, d.w / (float)VRAM_W, d.h / (float)VRAM_H, g_smooth_movies, 0);
-    } else if (g_disp_on && d.w > 0 && d.h > 0 && s_scale > 0) {
+    } else if (game) {
         /* the copy's rows go up with VRAM's y: its top row on top */
-        quad(s_fbo_tex, vp, d.x / (float)VRAM_W, d.y / (float)VRAM_H, (d.x + d.w) / (float)VRAM_W, (d.y + d.h) / (float)VRAM_H, 1, 1);
+        quad(tex, vp, uv[0], uv[1], uv[2], uv[3], 1, d.h);
     }
     if (menu != NULL) {
         GL(glBindTexture)(GL_TEXTURE_2D, s_menu_tex);

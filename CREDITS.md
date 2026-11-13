@@ -30,6 +30,11 @@ The native port of Digimon World 2003 builds on the work of others:
 - **Zaw Htet Naing** (PR #21). Tech visual upgrade: the technique visuals map, the prepared launch slots of the players' scripts 9 and 13, and their option.
 - **AMD FidelityFX Contrast Adaptive Sharpening** (CAS, MIT). The idea behind the Sharpen option: a sharpening
   weighted by the local contrast. The shader here is written for this renderer, not AMD's code.
+- **[SMAA](https://github.com/iryoku/smaa)** (Enhanced Subpixel Morphological Antialiasing, MIT; © 2013 Jorge Jimenez,
+  Jose I. Echevarria, Belen Masia, Fernando Navarro, Diego Gutierrez). The SMAA option: their shader and its two
+  tables as published, in `platform/smaa/` with their license.
+- **AMD FidelityFX Super Resolution 1.0** (FSR 1, MIT; © 2021 Advanced Micro Devices, Inc.). The FSR 1 option is
+  its upscaling pass (EASU), written out for this renderer after AMD's.
 
 PlayStation is a trademark of Sony Interactive Entertainment, Xbox of Microsoft and Nintendo Switch of Nintendo; the
 icons only show which button to press, and the project has no relation to them.
