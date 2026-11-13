@@ -1,0 +1,5484 @@
+{
+  "schema_version": 1,
+  "source": "original European disc extraction in data/files; never data/mods",
+  "fighter_table_sha256": "a7f2f4dff4a7a232ac6b8960b16cea86eb7c6c80680b9dd6d20fe950bab5cef2",
+  "name_table_sha256": "1031260b4a3119dfcbf4f0c4ee0d8baddf04b2ff28bff7b76c0cc4222b2791e0",
+  "fighters": [
+    {
+      "kind": 9,
+      "name": "Dinohumon",
+      "fighter_id": 386,
+      "effects_file_id": 1366,
+      "effects_archive_entry": 47,
+      "source_file_sha256": "b0008a09f0fdeec1c4bda5119e2eaeab384a3bc6225fa6409b6b444fe4778873",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 64568,
+          "file_end": 64756,
+          "script_sha256": "d350665ad48c83f6dedcd70876e3d7df055c5a8569ad4c7d0d0d9a7870614897",
+          "original_projectile_model": 201,
+          "model_preload_offset": 64568,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 64574,
+          "spawns": [
+            {
+              "model_spawn_offset": 64620,
+              "sprite_play_offset": 64638,
+              "raw_model_position": [
+                0,
+                1536,
+                4352
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1536,
+                -4352
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 64616,
+                "frames": 30
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 64654,
+            "wait_immediately_before": {
+              "file_offset": 64650,
+              "frames": 50
+            },
+            "wait_immediately_after": {
+              "file_offset": 64660,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 66384,
+          "file_end": 66648,
+          "script_sha256": "13b8f45b4452af8aa5fa109289263517f26811cbb8c403347ab3ca8d88a3f213",
+          "original_projectile_model": 201,
+          "model_preload_offset": 66384,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 66390,
+          "spawns": [
+            {
+              "model_spawn_offset": 66436,
+              "sprite_play_offset": 66454,
+              "raw_model_position": [
+                0,
+                1536,
+                4352
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1536,
+                -4352
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 66432,
+                "frames": 30
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 66470,
+            "wait_immediately_before": {
+              "file_offset": 66466,
+              "frames": 50
+            },
+            "wait_immediately_after": {
+              "file_offset": 66476,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 10,
+      "name": "Hookmon",
+      "fighter_id": 387,
+      "effects_file_id": 1146,
+      "effects_archive_entry": 35,
+      "source_file_sha256": "10c066e8170c127da1d1e55ebf229085f01ba55d4be7dc08c469ba6cda6dc18b",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 48532,
+          "file_end": 48720,
+          "script_sha256": "4e53915bb02fed342282b6670e4ab825dcee9c4112496144c1d01646c34c7f09",
+          "original_projectile_model": 210,
+          "model_preload_offset": 48532,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 48538,
+          "spawns": [
+            {
+              "model_spawn_offset": 48584,
+              "sprite_play_offset": 48602,
+              "raw_model_position": [
+                -256,
+                1344,
+                3904
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -256,
+                -1344,
+                -3904
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 48580,
+                "frames": 0
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 48618,
+            "wait_immediately_before": {
+              "file_offset": 48614,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 48624,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 50300,
+          "file_end": 50564,
+          "script_sha256": "1310cbe83fd14a4ae841f5a0cccf51c320385f36d2a07c391d3cee0b03558d2b",
+          "original_projectile_model": 210,
+          "model_preload_offset": 50300,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 50306,
+          "spawns": [
+            {
+              "model_spawn_offset": 50352,
+              "sprite_play_offset": 50370,
+              "raw_model_position": [
+                -256,
+                1344,
+                3904
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -256,
+                -1344,
+                -3904
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 50348,
+                "frames": 25
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 50386,
+            "wait_immediately_before": {
+              "file_offset": 50382,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 50392,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 11,
+      "name": "Grizzmon",
+      "fighter_id": 388,
+      "effects_file_id": 704,
+      "effects_archive_entry": 20,
+      "source_file_sha256": "7c134187fc4dfdf72dbcebc8276bd7493789107d54bc8cd966563c5c272b2dea",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 25064,
+          "file_end": 25252,
+          "script_sha256": "26f4a14de0a4affa2460fb8a2753883732284fcdb4c92f6926bb3aa051fdcf04",
+          "original_projectile_model": 221,
+          "model_preload_offset": 25064,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 25070,
+          "spawns": [
+            {
+              "model_spawn_offset": 25116,
+              "sprite_play_offset": 25134,
+              "raw_model_position": [
+                0,
+                3456,
+                6528
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -3456,
+                -6528
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 25112,
+                "frames": 77
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 25150,
+            "wait_immediately_before": {
+              "file_offset": 25146,
+              "frames": 25
+            },
+            "wait_immediately_after": {
+              "file_offset": 25156,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 26916,
+          "file_end": 27180,
+          "script_sha256": "cae125f7d7cbd7a9a389dc4b521f98efa0053eabacd0bdc9f30378a971c96e8f",
+          "original_projectile_model": 221,
+          "model_preload_offset": 26916,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 26922,
+          "spawns": [
+            {
+              "model_spawn_offset": 26968,
+              "sprite_play_offset": 26986,
+              "raw_model_position": [
+                0,
+                3456,
+                6528
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -3456,
+                -6528
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 26964,
+                "frames": 77
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 27002,
+            "wait_immediately_before": {
+              "file_offset": 26998,
+              "frames": 25
+            },
+            "wait_immediately_after": {
+              "file_offset": 27008,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 12,
+      "name": "Greymon",
+      "fighter_id": 5,
+      "effects_file_id": 637,
+      "effects_archive_entry": 47,
+      "source_file_sha256": "b660c06d65300419afb129d9c1582a165611df6d1e3493c6d6eddcb6ab74d99a",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 52988,
+          "file_end": 53176,
+          "script_sha256": "b0383aa24ef659f3b19534dea4e8226348d69c127a47d17c777f7f4f05426742",
+          "original_projectile_model": 221,
+          "model_preload_offset": 52988,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 52994,
+          "spawns": [
+            {
+              "model_spawn_offset": 53040,
+              "sprite_play_offset": 53058,
+              "raw_model_position": [
+                0,
+                1664,
+                3968
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1664,
+                -3968
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 53036,
+                "frames": 105
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 53074,
+            "wait_immediately_before": {
+              "file_offset": 53070,
+              "frames": 25
+            },
+            "wait_immediately_after": {
+              "file_offset": 53080,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 54692,
+          "file_end": 54956,
+          "script_sha256": "cc5ffc8e3bd26b8da9655fffab183d9d06a4fb20a6b138027636fb104eaebd1e",
+          "original_projectile_model": 221,
+          "model_preload_offset": 54692,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 54698,
+          "spawns": [
+            {
+              "model_spawn_offset": 54744,
+              "sprite_play_offset": 54762,
+              "raw_model_position": [
+                0,
+                1664,
+                3968
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1664,
+                -3968
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 54740,
+                "frames": 105
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 54778,
+            "wait_immediately_before": {
+              "file_offset": 54774,
+              "frames": 25
+            },
+            "wait_immediately_after": {
+              "file_offset": 54784,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 13,
+      "name": "ExVeemon",
+      "fighter_id": 259,
+      "effects_file_id": 575,
+      "effects_archive_entry": 55,
+      "source_file_sha256": "0d1f5b916692fcf2684ebd695ae059f0517d7f924aac5a341b7e87ce0e20f58a",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 66120,
+          "file_end": 66308,
+          "script_sha256": "8f8e9a661dd5e10711ab162a44768bda760295c943352a0e8665f978a0d31ca3",
+          "original_projectile_model": 201,
+          "model_preload_offset": 66120,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 66126,
+          "spawns": [
+            {
+              "model_spawn_offset": 66172,
+              "sprite_play_offset": 66190,
+              "raw_model_position": [
+                -384,
+                2816,
+                5696
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -384,
+                -2816,
+                -5696
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 66168,
+                "frames": 88
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 66206,
+            "wait_immediately_before": {
+              "file_offset": 66202,
+              "frames": 50
+            },
+            "wait_immediately_after": {
+              "file_offset": 66212,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 67800,
+          "file_end": 68064,
+          "script_sha256": "2525199d31ff4eb128e7e4ffe1279567b8dabc17d475d2b64cb15815835970d9",
+          "original_projectile_model": 201,
+          "model_preload_offset": 67800,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 67806,
+          "spawns": [
+            {
+              "model_spawn_offset": 67852,
+              "sprite_play_offset": 67870,
+              "raw_model_position": [
+                -384,
+                2816,
+                5696
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -384,
+                -2816,
+                -5696
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 67848,
+                "frames": 88
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 67886,
+            "wait_immediately_before": {
+              "file_offset": 67882,
+              "frames": 50
+            },
+            "wait_immediately_after": {
+              "file_offset": 67892,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 14,
+      "name": "Growlmon",
+      "fighter_id": 367,
+      "effects_file_id": 625,
+      "effects_archive_entry": 51,
+      "source_file_sha256": "06b78ea41183e85e068a44846036ea0019702d43390e60618876eae74e036a9b",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 61468,
+          "file_end": 61656,
+          "script_sha256": "7a3f454172999d56cc33b7c5302c595e1120029a2741568c5998a946b5584ff2",
+          "original_projectile_model": 208,
+          "model_preload_offset": 61468,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 61474,
+          "spawns": [
+            {
+              "model_spawn_offset": 61520,
+              "sprite_play_offset": 61538,
+              "raw_model_position": [
+                0,
+                1664,
+                4288
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1664,
+                -4288
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 61516,
+                "frames": 98
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 61554,
+            "wait_immediately_before": {
+              "file_offset": 61550,
+              "frames": 45
+            },
+            "wait_immediately_after": {
+              "file_offset": 61560,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 63372,
+          "file_end": 63636,
+          "script_sha256": "972ea307735686a67f2a7b7dd15ae5f86de1c6d97113155a1076baf681f87dad",
+          "original_projectile_model": 208,
+          "model_preload_offset": 63372,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 63378,
+          "spawns": [
+            {
+              "model_spawn_offset": 63424,
+              "sprite_play_offset": 63442,
+              "raw_model_position": [
+                0,
+                1664,
+                4288
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1664,
+                -4288
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 63420,
+                "frames": 98
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 63458,
+            "wait_immediately_before": {
+              "file_offset": 63454,
+              "frames": 45
+            },
+            "wait_immediately_after": {
+              "file_offset": 63464,
+              "frames": 55
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 15,
+      "name": "Kyubimon",
+      "fighter_id": 374,
+      "effects_file_id": 927,
+      "effects_archive_entry": 91,
+      "source_file_sha256": "4ebb7bbed07f8bb34d243f2b6b3d654f760d00bffb6145de8f78414efe45f3b6",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 76188,
+          "file_end": 76376,
+          "script_sha256": "ebd78d9694f7ba45cd52d22d7e6632650803ae4d6ea5b6f3d70b95d57dd67704",
+          "original_projectile_model": 221,
+          "model_preload_offset": 76188,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 76194,
+          "spawns": [
+            {
+              "model_spawn_offset": 76240,
+              "sprite_play_offset": 76258,
+              "raw_model_position": [
+                0,
+                896,
+                4160
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -896,
+                -4160
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 76236,
+                "frames": 87
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 76274,
+            "wait_immediately_before": {
+              "file_offset": 76270,
+              "frames": 25
+            },
+            "wait_immediately_after": {
+              "file_offset": 76280,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 77884,
+          "file_end": 78148,
+          "script_sha256": "53607d35a0d8ff6ab9b24eb8b086602933770bee1a2df263cdb0f405f73ad89c",
+          "original_projectile_model": 221,
+          "model_preload_offset": 77884,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 77890,
+          "spawns": [
+            {
+              "model_spawn_offset": 77936,
+              "sprite_play_offset": 77954,
+              "raw_model_position": [
+                0,
+                896,
+                4160
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -896,
+                -4160
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 77932,
+                "frames": 87
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 77970,
+            "wait_immediately_before": {
+              "file_offset": 77966,
+              "frames": 25
+            },
+            "wait_immediately_after": {
+              "file_offset": 77976,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 16,
+      "name": "Angemon",
+      "fighter_id": 20,
+      "effects_file_id": 1054,
+      "effects_archive_entry": 35,
+      "source_file_sha256": "422ec918d1a3c47d52932621d9a82ef966095af9fea0ac645bc236e615350901",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 39148,
+          "file_end": 39336,
+          "script_sha256": "5f351715c6a088883c72e88489366fa16c97d4fef7af411bc227cce16d3ca3ca",
+          "original_projectile_model": 218,
+          "model_preload_offset": 39148,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 39154,
+          "spawns": [
+            {
+              "model_spawn_offset": 39200,
+              "sprite_play_offset": 39218,
+              "raw_model_position": [
+                0,
+                1664,
+                4352
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1664,
+                -4352
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 39196,
+                "frames": 46
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 39234,
+            "wait_immediately_before": {
+              "file_offset": 39230,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 39240,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 39924,
+          "file_end": 40188,
+          "script_sha256": "dad5269437b65f37887e77b8b1d9ad59183d397e89a63079c591c0f051135ea5",
+          "original_projectile_model": 218,
+          "model_preload_offset": 39924,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 39930,
+          "spawns": [
+            {
+              "model_spawn_offset": 39976,
+              "sprite_play_offset": 39994,
+              "raw_model_position": [
+                0,
+                1664,
+                4352
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1664,
+                -4352
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 39972,
+                "frames": 46
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 40010,
+            "wait_immediately_before": {
+              "file_offset": 40006,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 40016,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 17,
+      "name": "Devimon",
+      "fighter_id": 6,
+      "effects_file_id": 622,
+      "effects_archive_entry": 22,
+      "source_file_sha256": "11d112ee4657eb7d77c36dec01e73eac74d18bbf5ec17207aadbf9c3f1d5596b",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 31776,
+          "file_end": 31964,
+          "script_sha256": "611878431e85f460ec3c6a90e17b6720c355d7c31c1dce59c3679556d92d7860",
+          "original_projectile_model": 218,
+          "model_preload_offset": 31776,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 31782,
+          "spawns": [
+            {
+              "model_spawn_offset": 31828,
+              "sprite_play_offset": 31846,
+              "raw_model_position": [
+                0,
+                1792,
+                4736
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1792,
+                -4736
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 31824,
+                "frames": 41
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 31862,
+            "wait_immediately_before": {
+              "file_offset": 31858,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 31868,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 32476,
+          "file_end": 32740,
+          "script_sha256": "adb0bbeb81e8e4ded549a6bfc539853e0a57147165013a39e3695098f26e3f93",
+          "original_projectile_model": 218,
+          "model_preload_offset": 32476,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 32482,
+          "spawns": [
+            {
+              "model_spawn_offset": 32528,
+              "sprite_play_offset": 32546,
+              "raw_model_position": [
+                0,
+                1792,
+                4736
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1792,
+                -4736
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 32524,
+                "frames": 41
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 32562,
+            "wait_immediately_before": {
+              "file_offset": 32558,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 32568,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 18,
+      "name": "Stingmon",
+      "fighter_id": 260,
+      "effects_file_id": 576,
+      "effects_archive_entry": 41,
+      "source_file_sha256": "18c50383f00532986d7c56e63252168cd08a40688af2c1558994f0cd02b58356",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 55940,
+          "file_end": 56128,
+          "script_sha256": "e3d0b1ecd48467f77c22e39ca289a0489ee598c50625a6483cf3b918220309ce",
+          "original_projectile_model": 202,
+          "model_preload_offset": 55940,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 55946,
+          "spawns": [
+            {
+              "model_spawn_offset": 55992,
+              "sprite_play_offset": 56010,
+              "raw_model_position": [
+                128,
+                1280,
+                5120
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                128,
+                -1280,
+                -5120
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 55988,
+                "frames": 58
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 56026,
+            "wait_immediately_before": {
+              "file_offset": 56022,
+              "frames": 75
+            },
+            "wait_immediately_after": {
+              "file_offset": 56032,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 57736,
+          "file_end": 58000,
+          "script_sha256": "2b5b5a16aa964085b9c76ad30897fa08bffa9a31ad74a58856590a063c12b8e0",
+          "original_projectile_model": 202,
+          "model_preload_offset": 57736,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 57742,
+          "spawns": [
+            {
+              "model_spawn_offset": 57788,
+              "sprite_play_offset": 57806,
+              "raw_model_position": [
+                128,
+                1280,
+                5120
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                128,
+                -1280,
+                -5120
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 57784,
+                "frames": 58
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 57822,
+            "wait_immediately_before": {
+              "file_offset": 57818,
+              "frames": 75
+            },
+            "wait_immediately_after": {
+              "file_offset": 57828,
+              "frames": 55
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 19,
+      "name": "Angewomon",
+      "fighter_id": 234,
+      "effects_file_id": 691,
+      "effects_archive_entry": 71,
+      "source_file_sha256": "11c3bb9523de8c72ff450f31cd1e08ff40878bb42253ea67d4a23df89cfc52a1",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 81912,
+          "file_end": 82112,
+          "script_sha256": "10e11961575a025d17e23e893847c5e1b09cf3c36e63d28b6aae24ed01e03ca3",
+          "original_projectile_model": 205,
+          "model_preload_offset": 81912,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 81918,
+          "spawns": [
+            {
+              "model_spawn_offset": 81976,
+              "sprite_play_offset": 81994,
+              "raw_model_position": [
+                0,
+                2176,
+                4736
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2176,
+                -4736
+              ],
+              "wait_immediately_before_first_spawn": null
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 82010,
+            "wait_immediately_before": {
+              "file_offset": 82006,
+              "frames": 65
+            },
+            "wait_immediately_after": {
+              "file_offset": 82016,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 82732,
+          "file_end": 83012,
+          "script_sha256": "cc3b705cad991807a2d8b1a60d9e8cba77aa70370fee492b702e93c3a82451ce",
+          "original_projectile_model": 205,
+          "model_preload_offset": 82732,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 82738,
+          "spawns": [
+            {
+              "model_spawn_offset": 82800,
+              "sprite_play_offset": 82818,
+              "raw_model_position": [
+                0,
+                2176,
+                4736
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2176,
+                -4736
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 82796,
+                "frames": 0
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 82834,
+            "wait_immediately_before": {
+              "file_offset": 82830,
+              "frames": 65
+            },
+            "wait_immediately_after": {
+              "file_offset": 82840,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 20,
+      "name": "Kyukimon",
+      "fighter_id": 389,
+      "effects_file_id": 1832,
+      "effects_archive_entry": 55,
+      "source_file_sha256": "c9f50c7a35352504cea6faf12dedcd7db0afe6eae2c8d7d89410c16331e06c7d",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 66452,
+          "file_end": 66640,
+          "script_sha256": "5608ffb10fa778dfdde6762426a6a3faf4cd500c534c681ddaae23999f604d21",
+          "original_projectile_model": 210,
+          "model_preload_offset": 66452,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 66458,
+          "spawns": [
+            {
+              "model_spawn_offset": 66504,
+              "sprite_play_offset": 66522,
+              "raw_model_position": [
+                0,
+                1792,
+                4288
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1792,
+                -4288
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 66500,
+                "frames": 41
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 66538,
+            "wait_immediately_before": {
+              "file_offset": 66534,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 66544,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 67168,
+          "file_end": 67432,
+          "script_sha256": "a2e2b7f637e6fd4a8ebb32cedb99e76021ec775652d6e2346ba223a075661651",
+          "original_projectile_model": 210,
+          "model_preload_offset": 67168,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 67174,
+          "spawns": [
+            {
+              "model_spawn_offset": 67220,
+              "sprite_play_offset": 67238,
+              "raw_model_position": [
+                0,
+                1792,
+                4288
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1792,
+                -4288
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 67216,
+                "frames": 41
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 67254,
+            "wait_immediately_before": {
+              "file_offset": 67250,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 67260,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 21,
+      "name": "Armormon",
+      "fighter_id": 390,
+      "effects_file_id": 1105,
+      "effects_archive_entry": 59,
+      "source_file_sha256": "c44940f39a432638f4b2322543007add5495c6b84e6ab6e0c6b36e48ae47e798",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 64700,
+          "file_end": 64916,
+          "script_sha256": "b55ca53ec74dc67f0c7aed83aa041ad57c8fc677db7060b9c407513b68c099bb",
+          "original_projectile_model": 203,
+          "model_preload_offset": 64700,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 64706,
+          "spawns": [
+            {
+              "model_spawn_offset": 64752,
+              "sprite_play_offset": 64770,
+              "raw_model_position": [
+                -576,
+                3328,
+                4352
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -576,
+                -3328,
+                -4352
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 64748,
+                "frames": 33
+              }
+            },
+            {
+              "model_spawn_offset": 64782,
+              "sprite_play_offset": 64800,
+              "raw_model_position": [
+                576,
+                3328,
+                4352
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                576,
+                -3328,
+                -4352
+              ],
+              "wait_immediately_before_first_spawn": null
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 64816,
+            "wait_immediately_before": {
+              "file_offset": 64812,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 64822,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 65484,
+          "file_end": 65776,
+          "script_sha256": "2126b157a505a04415f6ba835ea7a2ecbf30c841508523614b766511dd22e6ee",
+          "original_projectile_model": 203,
+          "model_preload_offset": 65484,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 65490,
+          "spawns": [
+            {
+              "model_spawn_offset": 65536,
+              "sprite_play_offset": 65554,
+              "raw_model_position": [
+                -576,
+                3328,
+                4352
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -576,
+                -3328,
+                -4352
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 65532,
+                "frames": 33
+              }
+            },
+            {
+              "model_spawn_offset": 65566,
+              "sprite_play_offset": 65584,
+              "raw_model_position": [
+                576,
+                3328,
+                4352
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                576,
+                -3328,
+                -4352
+              ],
+              "wait_immediately_before_first_spawn": null
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 65600,
+            "wait_immediately_before": {
+              "file_offset": 65596,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 65606,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 22,
+      "name": "GrapLeomon",
+      "fighter_id": 391,
+      "effects_file_id": 821,
+      "effects_archive_entry": 59,
+      "source_file_sha256": "06c8becf863826d489f4b6596a79b568b5f45aee5b7a62eeb7f2fbee6a3aabc8",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 72136,
+          "file_end": 72324,
+          "script_sha256": "efc41785e49377506be9a455d1098102b81f47f2acd46fa0370b7a2ec287a124",
+          "original_projectile_model": 211,
+          "model_preload_offset": 72136,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 72142,
+          "spawns": [
+            {
+              "model_spawn_offset": 72188,
+              "sprite_play_offset": 72206,
+              "raw_model_position": [
+                0,
+                1152,
+                4096
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1152,
+                -4096
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 72184,
+                "frames": 66
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 72222,
+            "wait_immediately_before": {
+              "file_offset": 72218,
+              "frames": 55
+            },
+            "wait_immediately_after": {
+              "file_offset": 72228,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 72936,
+          "file_end": 73200,
+          "script_sha256": "c4f1daca9abd158112f085789106e5f4880ae0f05d2ec572675fcebf2fa41b2a",
+          "original_projectile_model": 211,
+          "model_preload_offset": 72936,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 72942,
+          "spawns": [
+            {
+              "model_spawn_offset": 72988,
+              "sprite_play_offset": 73006,
+              "raw_model_position": [
+                0,
+                1152,
+                4096
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1152,
+                -4096
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 72984,
+                "frames": 66
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 73022,
+            "wait_immediately_before": {
+              "file_offset": 73018,
+              "frames": 55
+            },
+            "wait_immediately_after": {
+              "file_offset": 73028,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 23,
+      "name": "MetalGreymon",
+      "fighter_id": 12,
+      "effects_file_id": 597,
+      "effects_archive_entry": 51,
+      "source_file_sha256": "afdb777b46be49322fb1c1b2276414a2db6c48390711f198b0867ff857ab7250",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 60076,
+          "file_end": 60264,
+          "script_sha256": "adbda7556cbc074eb4782ea1215c94c472b2be626164f9d4e82adc8e975927ff",
+          "original_projectile_model": 206,
+          "model_preload_offset": 60076,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 60082,
+          "spawns": [
+            {
+              "model_spawn_offset": 60128,
+              "sprite_play_offset": 60146,
+              "raw_model_position": [
+                0,
+                2688,
+                3392
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2688,
+                -3392
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 60124,
+                "frames": 103
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 60162,
+            "wait_immediately_before": {
+              "file_offset": 60158,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 60168,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 60836,
+          "file_end": 61100,
+          "script_sha256": "e2cb09be104ae9e3620ea2390b7a311fe74dd08f9b43331d8b94780d5edb4343",
+          "original_projectile_model": 206,
+          "model_preload_offset": 60836,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 60842,
+          "spawns": [
+            {
+              "model_spawn_offset": 60888,
+              "sprite_play_offset": 60906,
+              "raw_model_position": [
+                0,
+                2688,
+                3392
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2688,
+                -3392
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 60884,
+                "frames": 103
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 60922,
+            "wait_immediately_before": {
+              "file_offset": 60918,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 60928,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 24,
+      "name": "SkullGreymon",
+      "fighter_id": 26,
+      "effects_file_id": 634,
+      "effects_archive_entry": 47,
+      "source_file_sha256": "a04c32f566ab0cc911dc961f8ac92ccaf64b4fce4e9e4d80e28db05830accdb1",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 56592,
+          "file_end": 56780,
+          "script_sha256": "e37977b0e6fbe30550f4447e711742b9cfde110643032fe53f16ab8814a32fce",
+          "original_projectile_model": 212,
+          "model_preload_offset": 56592,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 56598,
+          "spawns": [
+            {
+              "model_spawn_offset": 56644,
+              "sprite_play_offset": 56662,
+              "raw_model_position": [
+                0,
+                1664,
+                2880
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1664,
+                -2880
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 56640,
+                "frames": 47
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 56678,
+            "wait_immediately_before": {
+              "file_offset": 56674,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 56684,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 57312,
+          "file_end": 57576,
+          "script_sha256": "8bca53e54c32944d4ac9fc3a757be8be486a2334e80f1830af81f8a61e3698fe",
+          "original_projectile_model": 212,
+          "model_preload_offset": 57312,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 57318,
+          "spawns": [
+            {
+              "model_spawn_offset": 57364,
+              "sprite_play_offset": 57382,
+              "raw_model_position": [
+                0,
+                1664,
+                2880
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1664,
+                -2880
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 57360,
+                "frames": 47
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 57398,
+            "wait_immediately_before": {
+              "file_offset": 57394,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 57404,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 25,
+      "name": "Paildramon",
+      "fighter_id": 254,
+      "effects_file_id": 601,
+      "effects_archive_entry": 55,
+      "source_file_sha256": "dd4b34b57aa65d2a6dc82149afe1e10faae9f294d96e754dd0299c319e4ec711",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 76156,
+          "file_end": 76344,
+          "script_sha256": "5af934303b797d1b3297604f4821211caf4fdd8080b218ee9bdb95d0bdb18fa2",
+          "original_projectile_model": 215,
+          "model_preload_offset": 76156,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 76162,
+          "spawns": [
+            {
+              "model_spawn_offset": 76208,
+              "sprite_play_offset": 76226,
+              "raw_model_position": [
+                -64,
+                2560,
+                3200
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -64,
+                -2560,
+                -3200
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 76204,
+                "frames": 48
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 76242,
+            "wait_immediately_before": {
+              "file_offset": 76238,
+              "frames": 50
+            },
+            "wait_immediately_after": {
+              "file_offset": 76248,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 76900,
+          "file_end": 77164,
+          "script_sha256": "b9bc77c35150504a39aeca566c844dbe25ee519c6ab3120a1999fad1cf0bf1a9",
+          "original_projectile_model": 215,
+          "model_preload_offset": 76900,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 76906,
+          "spawns": [
+            {
+              "model_spawn_offset": 76952,
+              "sprite_play_offset": 76970,
+              "raw_model_position": [
+                -64,
+                2560,
+                3200
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -64,
+                -2560,
+                -3200
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 76948,
+                "frames": 48
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 76986,
+            "wait_immediately_before": {
+              "file_offset": 76982,
+              "frames": 50
+            },
+            "wait_immediately_after": {
+              "file_offset": 76992,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 26,
+      "name": "WarGrowlmon",
+      "fighter_id": 368,
+      "effects_file_id": 1103,
+      "effects_archive_entry": 55,
+      "source_file_sha256": "22b90c55fda999ed39f3b59a4849c96faa01fc1b8e4a9d0e3b2f47b898be8dab",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 66448,
+          "file_end": 66636,
+          "script_sha256": "8e2bb8b96cdd746c7ac724a6460a50ca6d3160ad4a7d67f73120cf55b67b3488",
+          "original_projectile_model": 216,
+          "model_preload_offset": 66448,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 66454,
+          "spawns": [
+            {
+              "model_spawn_offset": 66500,
+              "sprite_play_offset": 66518,
+              "raw_model_position": [
+                -64,
+                2048,
+                4096
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -64,
+                -2048,
+                -4096
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 66496,
+                "frames": 43
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 66534,
+            "wait_immediately_before": {
+              "file_offset": 66530,
+              "frames": 80
+            },
+            "wait_immediately_after": {
+              "file_offset": 66540,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 68248,
+          "file_end": 68512,
+          "script_sha256": "e979771d7d1794c669a25ca98617e32bc100d8c98090f8bd348d4876400ff9a7",
+          "original_projectile_model": 216,
+          "model_preload_offset": 68248,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 68254,
+          "spawns": [
+            {
+              "model_spawn_offset": 68300,
+              "sprite_play_offset": 68318,
+              "raw_model_position": [
+                -64,
+                2048,
+                4096
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -64,
+                -2048,
+                -4096
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 68296,
+                "frames": 43
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 68334,
+            "wait_immediately_before": {
+              "file_offset": 68330,
+              "frames": 80
+            },
+            "wait_immediately_after": {
+              "file_offset": 68340,
+              "frames": 55
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 27,
+      "name": "Taomon",
+      "fighter_id": 375,
+      "effects_file_id": 1112,
+      "effects_archive_entry": 2,
+      "source_file_sha256": "2bedd90afb85b2455740335caec1ae1503b4dca3720326180d9e69431a5a1365",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 3356,
+          "file_end": 3544,
+          "script_sha256": "770aa7998fd987a45bb2c92eccf7aa7e1b8d48315c790dfc17eeab5aad00fbda",
+          "original_projectile_model": 210,
+          "model_preload_offset": 3356,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 3362,
+          "spawns": [
+            {
+              "model_spawn_offset": 3408,
+              "sprite_play_offset": 3426,
+              "raw_model_position": [
+                0,
+                1920,
+                4544
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1920,
+                -4544
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 3404,
+                "frames": 21
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 3442,
+            "wait_immediately_before": {
+              "file_offset": 3438,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 3448,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 5084,
+          "file_end": 5348,
+          "script_sha256": "1b0cfd84e518e38643891e7e5dbe0c45bcc94e6ae69ee39beed71174e509ba9b",
+          "original_projectile_model": 210,
+          "model_preload_offset": 5084,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 5090,
+          "spawns": [
+            {
+              "model_spawn_offset": 5136,
+              "sprite_play_offset": 5154,
+              "raw_model_position": [
+                0,
+                1920,
+                4544
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1920,
+                -4544
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 5132,
+                "frames": 21
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 5170,
+            "wait_immediately_before": {
+              "file_offset": 5166,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 5176,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 28,
+      "name": "MagnaAngemon",
+      "fighter_id": 211,
+      "effects_file_id": 724,
+      "effects_archive_entry": 67,
+      "source_file_sha256": "ba55d32c989dccdcf7d02f965abb849572101c5db58c6fb80880d3986c148022",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 83092,
+          "file_end": 83280,
+          "script_sha256": "d87572c05f6870ec2b38b16e66979f0970d7bf3aaa3e9ece7795e657b20962b2",
+          "original_projectile_model": 222,
+          "model_preload_offset": 83092,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 83098,
+          "spawns": [
+            {
+              "model_spawn_offset": 83144,
+              "sprite_play_offset": 83162,
+              "raw_model_position": [
+                0,
+                1664,
+                4544
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1664,
+                -4544
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 83140,
+                "frames": 71
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 83178,
+            "wait_immediately_before": {
+              "file_offset": 83174,
+              "frames": 40
+            },
+            "wait_immediately_after": {
+              "file_offset": 83184,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 84760,
+          "file_end": 85024,
+          "script_sha256": "c0b157a79445cc4aadaba94d37c2f402be82627026d468787e96cbfb3dc9efb5",
+          "original_projectile_model": 222,
+          "model_preload_offset": 84760,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 84766,
+          "spawns": [
+            {
+              "model_spawn_offset": 84812,
+              "sprite_play_offset": 84830,
+              "raw_model_position": [
+                0,
+                1664,
+                4544
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1664,
+                -4544
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 84808,
+                "frames": 71
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 84846,
+            "wait_immediately_before": {
+              "file_offset": 84842,
+              "frames": 40
+            },
+            "wait_immediately_after": {
+              "file_offset": 84852,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 29,
+      "name": "Myotismon",
+      "fighter_id": 66,
+      "effects_file_id": 1148,
+      "effects_archive_entry": 55,
+      "source_file_sha256": "358bd269e8647b603c93b88002539f919d102ed63f0ec7b87415116a17967e17",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 68256,
+          "file_end": 68444,
+          "script_sha256": "85032885510de72d4292c3b89348778a61c78f4b11c5564a0590b75ef7737155",
+          "original_projectile_model": 205,
+          "model_preload_offset": 68256,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 68262,
+          "spawns": [
+            {
+              "model_spawn_offset": 68308,
+              "sprite_play_offset": 68326,
+              "raw_model_position": [
+                0,
+                2048,
+                4224
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2048,
+                -4224
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 68304,
+                "frames": 21
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 68342,
+            "wait_immediately_before": {
+              "file_offset": 68338,
+              "frames": 65
+            },
+            "wait_immediately_after": {
+              "file_offset": 68348,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 68960,
+          "file_end": 69224,
+          "script_sha256": "8d4476cd941e8cd96548cc428b5fc9824053acd2411c34d751638ffdab4a4c34",
+          "original_projectile_model": 205,
+          "model_preload_offset": 68960,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 68966,
+          "spawns": [
+            {
+              "model_spawn_offset": 69012,
+              "sprite_play_offset": 69030,
+              "raw_model_position": [
+                0,
+                2048,
+                4224
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2048,
+                -4224
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 69008,
+                "frames": 21
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 69046,
+            "wait_immediately_before": {
+              "file_offset": 69042,
+              "frames": 65
+            },
+            "wait_immediately_after": {
+              "file_offset": 69052,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 30,
+      "name": "MetalMamemon",
+      "fighter_id": 27,
+      "effects_file_id": 668,
+      "effects_archive_entry": 31,
+      "source_file_sha256": "1771208a860e35f1fb7e5c4881c546ad6061c1ed21ee6fd0058a3104dc5f1686",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 44928,
+          "file_end": 45116,
+          "script_sha256": "5dada6dd97544dffcda9b6205eb873636fb0a8e0acafcf05a5b517a55e4817e9",
+          "original_projectile_model": 225,
+          "model_preload_offset": 44928,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 44934,
+          "spawns": [
+            {
+              "model_spawn_offset": 44980,
+              "sprite_play_offset": 44998,
+              "raw_model_position": [
+                -384,
+                1856,
+                4736
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -384,
+                -1856,
+                -4736
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 44976,
+                "frames": 92
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 45014,
+            "wait_immediately_before": {
+              "file_offset": 45010,
+              "frames": 32
+            },
+            "wait_immediately_after": {
+              "file_offset": 45020,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 45708,
+          "file_end": 45972,
+          "script_sha256": "9907c32c81f846129a1cb5cbc12dc973b3fa473538ea62bf5f1beb682ba4ac7c",
+          "original_projectile_model": 225,
+          "model_preload_offset": 45708,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 45714,
+          "spawns": [
+            {
+              "model_spawn_offset": 45760,
+              "sprite_play_offset": 45778,
+              "raw_model_position": [
+                -384,
+                1856,
+                4736
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -384,
+                -1856,
+                -4736
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 45756,
+                "frames": 92
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 45794,
+            "wait_immediately_before": {
+              "file_offset": 45790,
+              "frames": 32
+            },
+            "wait_immediately_after": {
+              "file_offset": 45800,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 31,
+      "name": "Kabuterimon",
+      "fighter_id": 19,
+      "effects_file_id": 1213,
+      "effects_archive_entry": 59,
+      "source_file_sha256": "2afbebac65335b7765ed853f7af9ef38f63d026d05cd2c0938a64cf62697dd44",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 59156,
+          "file_end": 59344,
+          "script_sha256": "0a2d35f0368dc067855d505f303e7687b7389c7fc9f670f3264043595354bb2a",
+          "original_projectile_model": 208,
+          "model_preload_offset": 59156,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 59162,
+          "spawns": [
+            {
+              "model_spawn_offset": 59208,
+              "sprite_play_offset": 59226,
+              "raw_model_position": [
+                0,
+                2560,
+                4032
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2560,
+                -4032
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 59204,
+                "frames": 25
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 59242,
+            "wait_immediately_before": {
+              "file_offset": 59238,
+              "frames": 45
+            },
+            "wait_immediately_after": {
+              "file_offset": 59248,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 59964,
+          "file_end": 60228,
+          "script_sha256": "d63b6d8f0dec634dadb9855bcaca85b8d2bbc68f06daa2d592ab109dc8a53363",
+          "original_projectile_model": 208,
+          "model_preload_offset": 59964,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 59970,
+          "spawns": [
+            {
+              "model_spawn_offset": 60016,
+              "sprite_play_offset": 60034,
+              "raw_model_position": [
+                0,
+                2560,
+                4032
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2560,
+                -4032
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 60012,
+                "frames": 25
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 60050,
+            "wait_immediately_before": {
+              "file_offset": 60046,
+              "frames": 45
+            },
+            "wait_immediately_after": {
+              "file_offset": 60056,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 32,
+      "name": "Digitamamon",
+      "fighter_id": 56,
+      "effects_file_id": 1147,
+      "effects_archive_entry": 21,
+      "source_file_sha256": "c4247f780ca042f1a871c05f9bd0481de98cfe140b787573f3bfd418f9078c8c",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 35392,
+          "file_end": 35580,
+          "script_sha256": "9352b2ac1c38b2f7f9df1cc567cec840ea47a8840a9cb54381e4e14486ca8f62",
+          "original_projectile_model": 201,
+          "model_preload_offset": 35392,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 35398,
+          "spawns": [
+            {
+              "model_spawn_offset": 35444,
+              "sprite_play_offset": 35462,
+              "raw_model_position": [
+                0,
+                512,
+                4928
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -512,
+                -4928
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 35440,
+                "frames": 28
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 35478,
+            "wait_immediately_before": {
+              "file_offset": 35474,
+              "frames": 50
+            },
+            "wait_immediately_after": {
+              "file_offset": 35484,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 37184,
+          "file_end": 37448,
+          "script_sha256": "a95c714bcc80e0c1372ab65c850fc726b2f9fa38c70cdb2f707094ba2b514fdf",
+          "original_projectile_model": 201,
+          "model_preload_offset": 37184,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 37190,
+          "spawns": [
+            {
+              "model_spawn_offset": 37236,
+              "sprite_play_offset": 37254,
+              "raw_model_position": [
+                0,
+                512,
+                4928
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -512,
+                -4928
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 37232,
+                "frames": 28
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 37270,
+            "wait_immediately_before": {
+              "file_offset": 37266,
+              "frames": 50
+            },
+            "wait_immediately_after": {
+              "file_offset": 37276,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 33,
+      "name": "GuardiAngemon",
+      "fighter_id": 392,
+      "effects_file_id": 1834,
+      "effects_archive_entry": 63,
+      "source_file_sha256": "cb1e8d0046e7659ec4cfaa3b75504b7eda9114a668cd74725ccc0ad6ac0533a5",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 75836,
+          "file_end": 76024,
+          "script_sha256": "60a730ec0d312e445ea7ad5ecef0c24113c0cc1dcbba69ee4bba89e398553d89",
+          "original_projectile_model": 208,
+          "model_preload_offset": 75836,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 75842,
+          "spawns": [
+            {
+              "model_spawn_offset": 75888,
+              "sprite_play_offset": 75906,
+              "raw_model_position": [
+                0,
+                2816,
+                3904
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2816,
+                -3904
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 75884,
+                "frames": 40
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 75922,
+            "wait_immediately_before": {
+              "file_offset": 75918,
+              "frames": 45
+            },
+            "wait_immediately_after": {
+              "file_offset": 75928,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 76512,
+          "file_end": 76776,
+          "script_sha256": "d6bc6e80eedda58c2ff88210dce990d5b0fe06105f4de77da3e08e4fd470bcf0",
+          "original_projectile_model": 211,
+          "model_preload_offset": 76512,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 76518,
+          "spawns": [
+            {
+              "model_spawn_offset": 76564,
+              "sprite_play_offset": 76582,
+              "raw_model_position": [
+                0,
+                2816,
+                3904
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2816,
+                -3904
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 76560,
+                "frames": 30
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 76598,
+            "wait_immediately_before": {
+              "file_offset": 76594,
+              "frames": 45
+            },
+            "wait_immediately_after": {
+              "file_offset": 76604,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 34,
+      "name": "Cannondramon",
+      "fighter_id": 393,
+      "effects_file_id": 1836,
+      "effects_archive_entry": 65,
+      "source_file_sha256": "4f9624036659e2b8906def164e024c53a18292e436c789827f8fab6e852b8cc3",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 71296,
+          "file_end": 71544,
+          "script_sha256": "b1eda9f3d4ae5f26b444ec3189d6a754b57a6b8b76140d3b64dd431fdf8c4bec",
+          "original_projectile_model": 209,
+          "model_preload_offset": 71296,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 71302,
+          "spawns": [
+            {
+              "model_spawn_offset": 71348,
+              "sprite_play_offset": 71366,
+              "raw_model_position": [
+                1600,
+                3904,
+                2304
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                1600,
+                -3904,
+                -2304
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 71344,
+                "frames": 55
+              }
+            },
+            {
+              "model_spawn_offset": 71378,
+              "sprite_play_offset": 71396,
+              "raw_model_position": [
+                -1600,
+                3904,
+                2304
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -1600,
+                -3904,
+                -2304
+              ],
+              "wait_immediately_before_first_spawn": null
+            },
+            {
+              "model_spawn_offset": 71408,
+              "sprite_play_offset": 71426,
+              "raw_model_position": [
+                0,
+                4160,
+                1664
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -4160,
+                -1664
+              ],
+              "wait_immediately_before_first_spawn": null
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 71442,
+            "wait_immediately_before": {
+              "file_offset": 71438,
+              "frames": 35
+            },
+            "wait_immediately_after": {
+              "file_offset": 71448,
+              "frames": 40
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 72104,
+          "file_end": 72428,
+          "script_sha256": "bab2ddc3791edd84099930ede42e9f3ee11c12c71cf67bddb43d819a80c28f62",
+          "original_projectile_model": 209,
+          "model_preload_offset": 72104,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 72110,
+          "spawns": [
+            {
+              "model_spawn_offset": 72156,
+              "sprite_play_offset": 72174,
+              "raw_model_position": [
+                1600,
+                3904,
+                2304
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                1600,
+                -3904,
+                -2304
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 72152,
+                "frames": 55
+              }
+            },
+            {
+              "model_spawn_offset": 72186,
+              "sprite_play_offset": 72204,
+              "raw_model_position": [
+                0,
+                4160,
+                1664
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -4160,
+                -1664
+              ],
+              "wait_immediately_before_first_spawn": null
+            },
+            {
+              "model_spawn_offset": 72216,
+              "sprite_play_offset": 72234,
+              "raw_model_position": [
+                -1600,
+                3904,
+                2304
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -1600,
+                -3904,
+                -2304
+              ],
+              "wait_immediately_before_first_spawn": null
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 72250,
+            "wait_immediately_before": {
+              "file_offset": 72246,
+              "frames": 35
+            },
+            "wait_immediately_after": {
+              "file_offset": 72256,
+              "frames": 40
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 35,
+      "name": "Marsmon",
+      "fighter_id": 394,
+      "effects_file_id": 1214,
+      "effects_archive_entry": 43,
+      "source_file_sha256": "b5860ca6237fc199fed5b70326ca38c37983d30a143094b5d49aefc9941d6a90",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 62516,
+          "file_end": 62704,
+          "script_sha256": "3e46abd1a83efbc0af8d2ad43ea0429bc1ee0ce96d135cd8492413dd29add928",
+          "original_projectile_model": 212,
+          "model_preload_offset": 62516,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 62522,
+          "spawns": [
+            {
+              "model_spawn_offset": 62568,
+              "sprite_play_offset": 62586,
+              "raw_model_position": [
+                640,
+                3712,
+                5376
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                640,
+                -3712,
+                -5376
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 62564,
+                "frames": 18
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 62602,
+            "wait_immediately_before": {
+              "file_offset": 62598,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 62608,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 63176,
+          "file_end": 63440,
+          "script_sha256": "9ca79470d78ddf2a7d363d20836c09e0262fcab118d6099d5116da4aa70a2814",
+          "original_projectile_model": 212,
+          "model_preload_offset": 63176,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 63182,
+          "spawns": [
+            {
+              "model_spawn_offset": 63228,
+              "sprite_play_offset": 63246,
+              "raw_model_position": [
+                640,
+                3712,
+                5376
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                640,
+                -3712,
+                -5376
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 63224,
+                "frames": 18
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 63262,
+            "wait_immediately_before": {
+              "file_offset": 63258,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 63268,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 36,
+      "name": "WarGreymon",
+      "fighter_id": 213,
+      "effects_file_id": 506,
+      "effects_archive_entry": 47,
+      "source_file_sha256": "0faf84c5c5d6f35e5744abe894ea531f6c455105ca1cd01e3076f8e197e0cd72",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 64600,
+          "file_end": 64788,
+          "script_sha256": "d96aab5361caf8f395de23ca4c8b9e56baf00109ac4002e210951c4ba3e3ba95",
+          "original_projectile_model": 221,
+          "model_preload_offset": 64600,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 64606,
+          "spawns": [
+            {
+              "model_spawn_offset": 64652,
+              "sprite_play_offset": 64670,
+              "raw_model_position": [
+                -1920,
+                2048,
+                5760
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -1920,
+                -2048,
+                -5760
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 64648,
+                "frames": 88
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 64686,
+            "wait_immediately_before": {
+              "file_offset": 64682,
+              "frames": 25
+            },
+            "wait_immediately_after": {
+              "file_offset": 64692,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 66272,
+          "file_end": 66536,
+          "script_sha256": "bf0dc1d75f13c86e62e7ed2ee2332a8784f8365f8a207e90315c13c6d9458556",
+          "original_projectile_model": 221,
+          "model_preload_offset": 66272,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 66278,
+          "spawns": [
+            {
+              "model_spawn_offset": 66324,
+              "sprite_play_offset": 66342,
+              "raw_model_position": [
+                -1920,
+                2048,
+                5760
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -1920,
+                -2048,
+                -5760
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 66320,
+                "frames": 88
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 66358,
+            "wait_immediately_before": {
+              "file_offset": 66354,
+              "frames": 25
+            },
+            "wait_immediately_after": {
+              "file_offset": 66364,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 37,
+      "name": "Imperialdramon",
+      "fighter_id": 148,
+      "effects_file_id": 503,
+      "effects_archive_entry": 55,
+      "source_file_sha256": "303f427c2493210b9f0e0718492ceec77f6d5dc7905c84821762914339ff255e",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 66212,
+          "file_end": 66400,
+          "script_sha256": "babaccb972a60fd93e8aa472bda943910fa9e86715cf260f72a305454d10666f",
+          "original_projectile_model": 204,
+          "model_preload_offset": 66212,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 66218,
+          "spawns": [
+            {
+              "model_spawn_offset": 66264,
+              "sprite_play_offset": 66282,
+              "raw_model_position": [
+                0,
+                2432,
+                4608
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2432,
+                -4608
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 66260,
+                "frames": 97
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 66298,
+            "wait_immediately_before": {
+              "file_offset": 66294,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 66304,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 67840,
+          "file_end": 68104,
+          "script_sha256": "19da1b2751e6d6349c5c6afc84a8c9523635105a5797129f5ee6edb2520b8be7",
+          "original_projectile_model": 204,
+          "model_preload_offset": 67840,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 67846,
+          "spawns": [
+            {
+              "model_spawn_offset": 67892,
+              "sprite_play_offset": 67910,
+              "raw_model_position": [
+                0,
+                2432,
+                4608
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2432,
+                -4608
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 67888,
+                "frames": 97
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 67926,
+            "wait_immediately_before": {
+              "file_offset": 67922,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 67932,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 38,
+      "name": "Gallantmon",
+      "fighter_id": 369,
+      "effects_file_id": 1063,
+      "effects_archive_entry": 57,
+      "source_file_sha256": "028124f1fb031c8cb27770166b6dc66e13273244f1b1dca9b72e718c9d945219",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 72032,
+          "file_end": 72220,
+          "script_sha256": "f8e618a93864f923cc893345197994ed531f0f2c932cb64a3e2baea48426e9f5",
+          "original_projectile_model": 214,
+          "model_preload_offset": 72032,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 72038,
+          "spawns": [
+            {
+              "model_spawn_offset": 72084,
+              "sprite_play_offset": 72102,
+              "raw_model_position": [
+                -1024,
+                7424,
+                5248
+              ],
+              "raw_model_rotation": [
+                227,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -1024,
+                -7424,
+                -5248
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 72080,
+                "frames": 18
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 72118,
+            "wait_immediately_before": {
+              "file_offset": 72114,
+              "frames": 70
+            },
+            "wait_immediately_after": {
+              "file_offset": 72124,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 73896,
+          "file_end": 74160,
+          "script_sha256": "881f91358e005aae24891356329ab99a85b4278409d21f7cc0e516f5a37577f2",
+          "original_projectile_model": 214,
+          "model_preload_offset": 73896,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 73902,
+          "spawns": [
+            {
+              "model_spawn_offset": 73948,
+              "sprite_play_offset": 73966,
+              "raw_model_position": [
+                -1024,
+                7424,
+                5248
+              ],
+              "raw_model_rotation": [
+                227,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -1024,
+                -7424,
+                -5248
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 73944,
+                "frames": 18
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 73982,
+            "wait_immediately_before": {
+              "file_offset": 73978,
+              "frames": 70
+            },
+            "wait_immediately_after": {
+              "file_offset": 73988,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 39,
+      "name": "Sakuyamon",
+      "fighter_id": 376,
+      "effects_file_id": 1091,
+      "effects_archive_entry": 55,
+      "source_file_sha256": "b95be072f747d64a1ef48d833062728dcb638c85f9611b45409d5791af6d2d63",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 83712,
+          "file_end": 83900,
+          "script_sha256": "04884ca61924afc5fabe8c9327348fb96ee304612abf3e588fd85eb1d841f9fb",
+          "original_projectile_model": 212,
+          "model_preload_offset": 83712,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 83718,
+          "spawns": [
+            {
+              "model_spawn_offset": 83764,
+              "sprite_play_offset": 83782,
+              "raw_model_position": [
+                64,
+                2752,
+                4352
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                64,
+                -2752,
+                -4352
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 83760,
+                "frames": 31
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 83798,
+            "wait_immediately_before": {
+              "file_offset": 83794,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 83804,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 84420,
+          "file_end": 84684,
+          "script_sha256": "a42c011c68406e577316f34be718f963c68e86b28717cadb641c134c33e5d906",
+          "original_projectile_model": 212,
+          "model_preload_offset": 84420,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 84426,
+          "spawns": [
+            {
+              "model_spawn_offset": 84472,
+              "sprite_play_offset": 84490,
+              "raw_model_position": [
+                64,
+                2752,
+                4352
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                64,
+                -2752,
+                -4352
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 84468,
+                "frames": 31
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 84506,
+            "wait_immediately_before": {
+              "file_offset": 84502,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 84512,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 40,
+      "name": "Seraphimon",
+      "fighter_id": 214,
+      "effects_file_id": 1104,
+      "effects_archive_entry": 63,
+      "source_file_sha256": "81115782976abda05bec34c95e5ab0f84d7f9feb0d0f147346bff3cfaf1c6334",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 70980,
+          "file_end": 71168,
+          "script_sha256": "96fceb06da443a4329c427efb52d8ec865d697c9dc1232b069de3c63a39c4ffa",
+          "original_projectile_model": 219,
+          "model_preload_offset": 70980,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 70986,
+          "spawns": [
+            {
+              "model_spawn_offset": 71032,
+              "sprite_play_offset": 71050,
+              "raw_model_position": [
+                0,
+                4864,
+                2048
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -4864,
+                -2048
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 71028,
+                "frames": 41
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 71066,
+            "wait_immediately_before": {
+              "file_offset": 71062,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 71072,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 72652,
+          "file_end": 72916,
+          "script_sha256": "853de43da473298796acdd44bea96e73fc5802abc6eb456cd243d3556848f9e0",
+          "original_projectile_model": 219,
+          "model_preload_offset": 72652,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 72658,
+          "spawns": [
+            {
+              "model_spawn_offset": 72704,
+              "sprite_play_offset": 72722,
+              "raw_model_position": [
+                0,
+                4864,
+                2048
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -4864,
+                -2048
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 72700,
+                "frames": 41
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 72738,
+            "wait_immediately_before": {
+              "file_offset": 72734,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 72744,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 41,
+      "name": "MetalGarurumon",
+      "fighter_id": 196,
+      "effects_file_id": 550,
+      "effects_archive_entry": 39,
+      "source_file_sha256": "686e8f161620fcae872104d05e16f48f45a4fa35ab16c22a441012944f4569cb",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 60600,
+          "file_end": 60788,
+          "script_sha256": "61990f0fa7ae136a20ed47fee35e222ca58e48f0447c003d0ee51c4d6add796f",
+          "original_projectile_model": 206,
+          "model_preload_offset": 60600,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 60606,
+          "spawns": [
+            {
+              "model_spawn_offset": 60652,
+              "sprite_play_offset": 60670,
+              "raw_model_position": [
+                0,
+                1408,
+                4480
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1408,
+                -4480
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 60648,
+                "frames": 142
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 60686,
+            "wait_immediately_before": {
+              "file_offset": 60682,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 60692,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 62244,
+          "file_end": 62508,
+          "script_sha256": "1236213bf5acb543de0f228153e48eed8839fb8c9da28a669ef617fa01f1a12e",
+          "original_projectile_model": 206,
+          "model_preload_offset": 62244,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 62250,
+          "spawns": [
+            {
+              "model_spawn_offset": 62296,
+              "sprite_play_offset": 62314,
+              "raw_model_position": [
+                0,
+                1408,
+                4480
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1408,
+                -4480
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 62292,
+                "frames": 142
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 62330,
+            "wait_immediately_before": {
+              "file_offset": 62326,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 62336,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 42,
+      "name": "Rosemon",
+      "fighter_id": 144,
+      "effects_file_id": 1739,
+      "effects_archive_entry": 67,
+      "source_file_sha256": "b4f325123f1e755693f99fd7925472a86ce701a0839349921c3439a9338c2aa9",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 78120,
+          "file_end": 78308,
+          "script_sha256": "3680ecf9c4a2f4654e2bf39970a5d8661e47d5d40f92d399f5bed46623216219",
+          "original_projectile_model": 223,
+          "model_preload_offset": 78120,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 78126,
+          "spawns": [
+            {
+              "model_spawn_offset": 78172,
+              "sprite_play_offset": 78190,
+              "raw_model_position": [
+                0,
+                1536,
+                4096
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1536,
+                -4096
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 78168,
+                "frames": 28
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 78206,
+            "wait_immediately_before": {
+              "file_offset": 78202,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 78212,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 78852,
+          "file_end": 79116,
+          "script_sha256": "136cf0530c84394e96743d8386905c9ea61ab49859a0b6b18d1ba021ea6d80da",
+          "original_projectile_model": 223,
+          "model_preload_offset": 78852,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 78858,
+          "spawns": [
+            {
+              "model_spawn_offset": 78904,
+              "sprite_play_offset": 78922,
+              "raw_model_position": [
+                0,
+                1536,
+                4096
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -1536,
+                -4096
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 78900,
+                "frames": 28
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 78938,
+            "wait_immediately_before": {
+              "file_offset": 78934,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 78944,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 43,
+      "name": "BK  WarGreymon",
+      "fighter_id": 267,
+      "effects_file_id": 729,
+      "effects_archive_entry": 47,
+      "source_file_sha256": "93ca9b3af8de7b5031d5edcc91dd4a98b5e8790d9af1c107940061f77713ac7e",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 66940,
+          "file_end": 67128,
+          "script_sha256": "a5458c4d240c29de7ab1a5b1b736e06634cbf233e6d61b2098323bd079bef580",
+          "original_projectile_model": 221,
+          "model_preload_offset": 66940,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 66946,
+          "spawns": [
+            {
+              "model_spawn_offset": 66992,
+              "sprite_play_offset": 67010,
+              "raw_model_position": [
+                2304,
+                1920,
+                6144
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                2304,
+                -1920,
+                -6144
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 66988,
+                "frames": 88
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 67026,
+            "wait_immediately_before": {
+              "file_offset": 67022,
+              "frames": 25
+            },
+            "wait_immediately_after": {
+              "file_offset": 67032,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 68716,
+          "file_end": 68980,
+          "script_sha256": "5575fe6dadb60e20f59134d226820cdc37934e267002c6df030799558793f9d1",
+          "original_projectile_model": 221,
+          "model_preload_offset": 68716,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 68722,
+          "spawns": [
+            {
+              "model_spawn_offset": 68768,
+              "sprite_play_offset": 68786,
+              "raw_model_position": [
+                2304,
+                1920,
+                6144
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                2304,
+                -1920,
+                -6144
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 68764,
+                "frames": 88
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 68802,
+            "wait_immediately_before": {
+              "file_offset": 68798,
+              "frames": 25
+            },
+            "wait_immediately_after": {
+              "file_offset": 68808,
+              "frames": 35
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 44,
+      "name": "Imperialdramon MF",
+      "fighter_id": 359,
+      "effects_file_id": 849,
+      "effects_archive_entry": 55,
+      "source_file_sha256": "75fd36b033437c986c0a20782027c51f2a5ba7f1079eca830857286b0c47975d",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 77956,
+          "file_end": 78144,
+          "script_sha256": "b36510d22e19eacd1b694f7ea8020c0b40e6120fa1ba76f31d1f436c808d202e",
+          "original_projectile_model": 204,
+          "model_preload_offset": 77956,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 77962,
+          "spawns": [
+            {
+              "model_spawn_offset": 78008,
+              "sprite_play_offset": 78026,
+              "raw_model_position": [
+                -704,
+                4480,
+                3200
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -704,
+                -4480,
+                -3200
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 78004,
+                "frames": 33
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 78042,
+            "wait_immediately_before": {
+              "file_offset": 78038,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 78048,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 78672,
+          "file_end": 78936,
+          "script_sha256": "2bb61d5e63690c3ecf6eb0d411ac484d1a30a8a8c766f9ce4232508fb509055d",
+          "original_projectile_model": 204,
+          "model_preload_offset": 78672,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 78678,
+          "spawns": [
+            {
+              "model_spawn_offset": 78724,
+              "sprite_play_offset": 78742,
+              "raw_model_position": [
+                -704,
+                4480,
+                3200
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -704,
+                -4480,
+                -3200
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 78720,
+                "frames": 33
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 78758,
+            "wait_immediately_before": {
+              "file_offset": 78754,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 78764,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 45,
+      "name": "MaloMyotismon",
+      "fighter_id": 378,
+      "effects_file_id": 1766,
+      "effects_archive_entry": 63,
+      "source_file_sha256": "ca7d46bd8dce4c5ae6c6d50dd2691af51ae4a43ac4636b4258c62f7b451b59bb",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 80124,
+          "file_end": 80312,
+          "script_sha256": "39808e328ac9c4a0f08ef1704e748195d675d0114f7128a4ceee9e513fc7f3ea",
+          "original_projectile_model": 224,
+          "model_preload_offset": 80124,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 80130,
+          "spawns": [
+            {
+              "model_spawn_offset": 80176,
+              "sprite_play_offset": 80194,
+              "raw_model_position": [
+                0,
+                3968,
+                3072
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -3968,
+                -3072
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 80172,
+                "frames": 10
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 80210,
+            "wait_immediately_before": {
+              "file_offset": 80206,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 80216,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 81920,
+          "file_end": 82184,
+          "script_sha256": "8780482a7b2ffd51bdc9c7c2b8c00b1ed5b548eb2baee5a1f4c212e32c1e5683",
+          "original_projectile_model": 224,
+          "model_preload_offset": 81920,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 81926,
+          "spawns": [
+            {
+              "model_spawn_offset": 81972,
+              "sprite_play_offset": 81990,
+              "raw_model_position": [
+                0,
+                3968,
+                3072
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -3968,
+                -3072
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 81968,
+                "frames": 10
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 82006,
+            "wait_immediately_before": {
+              "file_offset": 82002,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 82012,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 46,
+      "name": "MegaGargomon",
+      "fighter_id": 372,
+      "effects_file_id": 1618,
+      "effects_archive_entry": 55,
+      "source_file_sha256": "28ebb638739aba8331037f400b1a99090cc582252a5c74ddc1f0082e82ec4943",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 80076,
+          "file_end": 80264,
+          "script_sha256": "1bfd6b0a4eef8e060de3b437671cf0e0d971e2e14a6ea81a83ce5aaa56308bad",
+          "original_projectile_model": 213,
+          "model_preload_offset": 80076,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 80082,
+          "spawns": [
+            {
+              "model_spawn_offset": 80128,
+              "sprite_play_offset": 80146,
+              "raw_model_position": [
+                448,
+                4992,
+                5696
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                448,
+                -4992,
+                -5696
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 80124,
+                "frames": 38
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 80162,
+            "wait_immediately_before": {
+              "file_offset": 80158,
+              "frames": 45
+            },
+            "wait_immediately_after": {
+              "file_offset": 80168,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 80824,
+          "file_end": 81088,
+          "script_sha256": "f77fcd88ef5eb4b0397142652acb0195929b9fceb84d03be204e7ab342265505",
+          "original_projectile_model": 213,
+          "model_preload_offset": 80824,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 80830,
+          "spawns": [
+            {
+              "model_spawn_offset": 80876,
+              "sprite_play_offset": 80894,
+              "raw_model_position": [
+                448,
+                4992,
+                5696
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                448,
+                -4992,
+                -5696
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 80872,
+                "frames": 38
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 80910,
+            "wait_immediately_before": {
+              "file_offset": 80906,
+              "frames": 45
+            },
+            "wait_immediately_after": {
+              "file_offset": 80916,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 47,
+      "name": "GranKuwagamon",
+      "fighter_id": 230,
+      "effects_file_id": 508,
+      "effects_archive_entry": 4,
+      "source_file_sha256": "3ff5c1008e0ec86d21736d58fb1c6e1f8198a7e814e2de2fc1fb3f314a44a596",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 4212,
+          "file_end": 4400,
+          "script_sha256": "053d7d2df511481bbaee1bb27da24c6df55cfe990fd4ec7f348ea43be8d69e7a",
+          "original_projectile_model": 219,
+          "model_preload_offset": 4212,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 4218,
+          "spawns": [
+            {
+              "model_spawn_offset": 4264,
+              "sprite_play_offset": 4282,
+              "raw_model_position": [
+                0,
+                2560,
+                3840
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2560,
+                -3840
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 4260,
+                "frames": 58
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 4298,
+            "wait_immediately_before": {
+              "file_offset": 4294,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 4304,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 5944,
+          "file_end": 6208,
+          "script_sha256": "bd058fdbd14cd19e21f29284acc21ec3c4b616f2a8eabb22f01884c7a5095a7d",
+          "original_projectile_model": 219,
+          "model_preload_offset": 5944,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 5950,
+          "spawns": [
+            {
+              "model_spawn_offset": 5996,
+              "sprite_play_offset": 6014,
+              "raw_model_position": [
+                0,
+                2560,
+                3840
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -2560,
+                -3840
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 5992,
+                "frames": 58
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 6030,
+            "wait_immediately_before": {
+              "file_offset": 6026,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 6036,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 48,
+      "name": "Phoenixmon",
+      "fighter_id": 59,
+      "effects_file_id": 682,
+      "effects_archive_entry": 61,
+      "source_file_sha256": "503eff332a6f7693b9108a711a70a4f948fc22792068b97f10391998776e313c",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 60384,
+          "file_end": 60572,
+          "script_sha256": "17e87b7058268dc57a23e145d832b959d100fcff032196efca7d46bdd83ff5b7",
+          "original_projectile_model": 226,
+          "model_preload_offset": 60384,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 60390,
+          "spawns": [
+            {
+              "model_spawn_offset": 60436,
+              "sprite_play_offset": 60454,
+              "raw_model_position": [
+                0,
+                3712,
+                5632
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -3712,
+                -5632
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 60432,
+                "frames": 43
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 60470,
+            "wait_immediately_before": {
+              "file_offset": 60466,
+              "frames": 40
+            },
+            "wait_immediately_after": {
+              "file_offset": 60476,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 60984,
+          "file_end": 61248,
+          "script_sha256": "f357a1d3b976963d084daf6f79ff4d177b6af3e8efbf36959b78086e0e9eeafe",
+          "original_projectile_model": 226,
+          "model_preload_offset": 60984,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 60990,
+          "spawns": [
+            {
+              "model_spawn_offset": 61036,
+              "sprite_play_offset": 61054,
+              "raw_model_position": [
+                0,
+                3712,
+                5632
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -3712,
+                -5632
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 61032,
+                "frames": 43
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 61070,
+            "wait_immediately_before": {
+              "file_offset": 61066,
+              "frames": 40
+            },
+            "wait_immediately_after": {
+              "file_offset": 61076,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 49,
+      "name": "Omnimon",
+      "fighter_id": 150,
+      "effects_file_id": 604,
+      "effects_archive_entry": 51,
+      "source_file_sha256": "bfff43fb6c8f75485a68a1385a6ce6ebe5abf74e035e1eb2de5f636dce5ecff7",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 64196,
+          "file_end": 64384,
+          "script_sha256": "a42c0f722530585fdf712d43a94a98d060074927103eeb05e01d59f3ff4f04af",
+          "original_projectile_model": 207,
+          "model_preload_offset": 64196,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 64202,
+          "spawns": [
+            {
+              "model_spawn_offset": 64252,
+              "sprite_play_offset": 64270,
+              "raw_model_position": [
+                1024,
+                4032,
+                2816
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                1024,
+                -4032,
+                -2816
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 64248,
+                "frames": 60
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 64282,
+            "wait_immediately_before": null,
+            "wait_immediately_after": {
+              "file_offset": 64288,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 64956,
+          "file_end": 65216,
+          "script_sha256": "d2cd679030f0c423f52f005953e9405a5155366b99d433bbc6af862914a4a494",
+          "original_projectile_model": 207,
+          "model_preload_offset": 64956,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 64962,
+          "spawns": [
+            {
+              "model_spawn_offset": 65008,
+              "sprite_play_offset": 65026,
+              "raw_model_position": [
+                1024,
+                4032,
+                2816
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                1024,
+                -4032,
+                -2816
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 65004,
+                "frames": 158
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 65038,
+            "wait_immediately_before": null,
+            "wait_immediately_after": {
+              "file_offset": 65044,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 50,
+      "name": "Imperialdramon MP",
+      "fighter_id": 381,
+      "effects_file_id": 512,
+      "effects_archive_entry": 55,
+      "source_file_sha256": "1c84a6b6745221f4cb8852a4577c33a00317435f9470572aed1c1e2ec5a9319a",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 80172,
+          "file_end": 80360,
+          "script_sha256": "f12066a71dfdb184eabd9d3c259162b91cfcd97ada17f063271f6e55713b0078",
+          "original_projectile_model": 204,
+          "model_preload_offset": 80172,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 80178,
+          "spawns": [
+            {
+              "model_spawn_offset": 80224,
+              "sprite_play_offset": 80242,
+              "raw_model_position": [
+                -1088,
+                3840,
+                3712
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -1088,
+                -3840,
+                -3712
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 80220,
+                "frames": 52
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 80258,
+            "wait_immediately_before": {
+              "file_offset": 80254,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 80264,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 81972,
+          "file_end": 82236,
+          "script_sha256": "4c24fe8afa00e0a0534115e17c5923fdf16da7728e3d89e541685183f45a15d8",
+          "original_projectile_model": 204,
+          "model_preload_offset": 81972,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 81978,
+          "spawns": [
+            {
+              "model_spawn_offset": 82024,
+              "sprite_play_offset": 82042,
+              "raw_model_position": [
+                -1088,
+                3840,
+                3712
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -1088,
+                -3840,
+                -3712
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 82020,
+                "frames": 52
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 82058,
+            "wait_immediately_before": {
+              "file_offset": 82054,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 82064,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 51,
+      "name": "Beelzemon",
+      "fighter_id": 377,
+      "effects_file_id": 1546,
+      "effects_archive_entry": 65,
+      "source_file_sha256": "755256b9adf496085b10d5dfa04dc19ffad1dd7042fd418b510795f0e1788661",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 90852,
+          "file_end": 91040,
+          "script_sha256": "4463e232a7e665bd7e314af9f5b5f0e620fb208123dd65802f598fd878330203",
+          "original_projectile_model": 217,
+          "model_preload_offset": 90852,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 90858,
+          "spawns": [
+            {
+              "model_spawn_offset": 90904,
+              "sprite_play_offset": 90922,
+              "raw_model_position": [
+                -640,
+                3072,
+                5632
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -640,
+                -3072,
+                -5632
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 90900,
+                "frames": 0
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 90938,
+            "wait_immediately_before": {
+              "file_offset": 90934,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 90944,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 91672,
+          "file_end": 91936,
+          "script_sha256": "77dfc0ea4faf5ae4d90784359b3b66b61d3326396639ea18676134f8a8235919",
+          "original_projectile_model": 217,
+          "model_preload_offset": 91672,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 91678,
+          "spawns": [
+            {
+              "model_spawn_offset": 91724,
+              "sprite_play_offset": 91742,
+              "raw_model_position": [
+                -640,
+                3072,
+                5632
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                -640,
+                -3072,
+                -5632
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 91720,
+                "frames": 25
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 91758,
+            "wait_immediately_before": {
+              "file_offset": 91754,
+              "frames": 60
+            },
+            "wait_immediately_after": {
+              "file_offset": 91764,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    },
+    {
+      "kind": 52,
+      "name": "Diaboromon",
+      "fighter_id": 151,
+      "effects_file_id": 1057,
+      "effects_archive_entry": 49,
+      "source_file_sha256": "ef4dc49579f06f1c865e5c5a88915868871f57fd38d8bd83eda725b9223b357a",
+      "scripts": {
+        "9": {
+          "index": 9,
+          "file_start": 57908,
+          "file_end": 58092,
+          "script_sha256": "eaf2966c6f5ecc65aa7e85249eb9982878bcfa2525945d6c84596ba0df7ab017",
+          "original_projectile_model": 220,
+          "model_preload_offset": 57908,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 57914,
+          "spawns": [
+            {
+              "model_spawn_offset": 57956,
+              "sprite_play_offset": 57974,
+              "raw_model_position": [
+                0,
+                4096,
+                4864
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -4096,
+                -4864
+              ],
+              "wait_immediately_before_first_spawn": null
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 57990,
+            "wait_immediately_before": {
+              "file_offset": 57986,
+              "frames": 95
+            },
+            "wait_immediately_after": {
+              "file_offset": 57996,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 1,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 0,
+            "hit_sound_99": 1
+          }
+        },
+        "13": {
+          "index": 13,
+          "file_start": 59616,
+          "file_end": 59880,
+          "script_sha256": "d42e52fcecbac67e2d5756b96a2a605fc2c20d3b117c8e3baea8f968dcea680e",
+          "original_projectile_model": 220,
+          "model_preload_offset": 59616,
+          "original_launch_sprite": 1012,
+          "sprite_preload_offset": 59622,
+          "spawns": [
+            {
+              "model_spawn_offset": 59668,
+              "sprite_play_offset": 59686,
+              "raw_model_position": [
+                0,
+                4096,
+                4864
+              ],
+              "raw_model_rotation": [
+                0,
+                2048,
+                0
+              ],
+              "sprite_position": [
+                0,
+                -4096,
+                -4864
+              ],
+              "wait_immediately_before_first_spawn": {
+                "file_offset": 59664,
+                "frames": 0
+              }
+            }
+          ],
+          "original_launch_sound": {
+            "id": 23,
+            "duration": 0,
+            "file_offset": 59702,
+            "wait_immediately_before": {
+              "file_offset": 59698,
+              "frames": 95
+            },
+            "wait_immediately_after": {
+              "file_offset": 59708,
+              "frames": 60
+            }
+          },
+          "dynamic_placeholders": {
+            "impact_sprite_preload": 1,
+            "impact_sprite_play": 3,
+            "stage_preload": 1,
+            "stage_change": 1,
+            "hit_sound_98": 2,
+            "hit_sound_99": 1
+          }
+        }
+      }
+    }
+  ]
+}

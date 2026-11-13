@@ -1,6 +1,6 @@
 """Packs the port for players into native/dist/dw2003-native/ and a zip next to
 it: the exe and its .fill, SDL3.dll, the README, credits and license, an
-example native.ini, the menu's button icons. Nothing from the game: it refuses to finish if anything of
+example native.ini, the technique visuals map, the menu's button icons. Nothing from the game: it refuses to finish if anything of
 the disc or a save got in, or if the exe has any of the game's bytes
 (asset_scan.py). Run from anywhere: python native/tools/package.py"""
 import shutil
@@ -21,6 +21,7 @@ FILES = {
     "CREDITS.md": NATIVE / "CREDITS.md",
     "CHANGELOG.md": NATIVE / "CHANGELOG.md",
     "native.ini.example": NATIVE / "native.ini.example",
+    "technique_visuals.ini": NATIVE / "config/technique_visuals.ini",
     "LICENSE": NATIVE / "LICENSE",
 }
 # what the disc or a player brings, never ours to ship

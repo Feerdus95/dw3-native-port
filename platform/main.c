@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include "platform.h"
+#include "launch_slots.h"
 #include "../include/native.h"
 
 int psx_main(void);
@@ -76,7 +77,7 @@ static int load_boot_image(void) {
    scale = <window size in 320x240 steps>, dither = 0/1, smooth_movies = 0/1,
    debug = 0/1, perf = 0/1 (the battle's performance meter; F10), log = <subsystems>, deadzone = <0..32767>, rumble = 0/1, fps = 50/60,
    render_scale = 1-8, fast_text = 0/1, fast_travel = 0/1, map_objective = 0/1, journal = 0/1, extra_packs = 0/1,
-   bladegarurumon = 0/1, full_exp_share = 0/1, heal_on_levelup = 0/1, skip_press_start = 0/1, ff_menu_speed = 0/1, menu_wrap = 0/1, battle_form_name = 0/1, fix_equip_stacking = 0/1, save_anywhere = 0/1, soft_shadows = 0/1, true_color = 0/1, perspective = 0/1,
+   bladegarurumon = 0/1, full_exp_share = 0/1, technique_visuals = 0/1, heal_on_levelup = 0/1, skip_press_start = 0/1, ff_menu_speed = 0/1, menu_wrap = 0/1, battle_form_name = 0/1, fix_equip_stacking = 0/1, save_anywhere = 0/1, soft_shadows = 0/1, true_color = 0/1, perspective = 0/1,
    smooth_3d = 0/1, battle_shadows = 0/1, battle_sky = 0/1, widescreen = 0/1,
    vsync = 0/1, inactive_window = 0 nothing / 1 mute / 2 pause;
    the options menu (menu.c) writes them back */
@@ -173,6 +174,8 @@ static void read_ini(int data_only) {
             g_bladegarurumon = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "full_exp_share") == 0) {
             g_full_exp_share = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "technique_visuals") == 0) {
+            g_technique_visuals = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "battle_form_name") == 0) {
             g_battle_form_name = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "fix_equip_stacking") == 0) {
@@ -309,6 +312,10 @@ int main(int argc, char **argv) {
                                  "and start the game again to read your disc anew.", NULL);
         return 1;
     }
+    int technique_archives_ready = native_prepare_launch_archives();
+    if (argc == 2 && SDL_strcmp(argv[1], "--prepare-techniques") == 0) {
+        return technique_archives_ready ? 0 : 1;
+    }
     native_bladegarurumon_setup(); /* the game's tables as read, then its own */
     native_mods_load(); /* data/mods/digimon/<name>/digimon.json, before the tables take them */
     if (argc == 2 && SDL_strcmp(argv[1], "--check-mods") == 0) {
@@ -318,6 +325,7 @@ int main(int argc, char **argv) {
     native_snapshot_overlays();
     native_fast_travel_setup(); /* the stages' doors, their variables put back */
     read_ini(0);
+    native_visual_load();
     NTSC_MODE = s_fps60; /* the game's own 60 Hz mode, set before it boots */
     if (getenv("DW3_LOG") != NULL) {
         g_log = log_bits(getenv("DW3_LOG"));

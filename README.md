@@ -168,6 +168,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Extra starter packs | three more packs to pick in a new game: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon), Mystic (Kumamon, Renamon, Veemon) |
 | BladeGarurumon | a 45th Digimon every partner can learn, with Growlmon and Grizzmon at level 40: its own model (made at start from your disc's), techniques and signature, Solar Laser. Saves stay standard memory cards: its progress sits in the card file's spare space (see *Extra Digimon and your saves*), and an older save is carried over |
 | Full EXP Share | every party partner still above 0 HP at battle end gets the full partner EXP, even if benched; its selected or used digivolutions get full Digimon EXP. Knocked-out partners get neither. Each partner gets the whole reward, not a share, so with three partners the party earns three times the EXP. Off by default |
+| Tech visual upgrade | player techniques using prepared scripts 9 and 13 take their projectile, launch, impact and stage choices from `technique_visuals.ini`. Off uses the original values. Switches in game from the Mods tab for the next technique; on by default |
 | Heal on level up | a partner that levels up in a battle (not its Digimon) gets its HP and MP back in full, so grinding needs no trips to an inn |
 | Save anywhere | a SAVE row in the field menu (before QUIT): save wherever you stand, not only at save points, and loading puts you back in the same spot. It uses the game's own memory card screen and the same save format, so the save also loads with the option off. |
 | Custom effects | on by default: the battle effects' own images (`data/mods/effects/`, see below) play instead of the game's. Off plays the game's own; it switches in game, from the Mods tab, and shows at the next effect |
@@ -201,6 +202,7 @@ button can be changed in the options menu's Input tab, **Controls**.
     extra_packs = 1      ; 0: only the game's three starter packs
     bladegarurumon = 1   ; 0: partners don't learn BladeGarurumon
     full_exp_share = 0   ; 1: full EXP and Digimon EXP for non-KO party members
+    technique_visuals = 1 ; 0: original player technique visuals
     save_anywhere = 0    ; 1: a SAVE row in the field menu, to save anywhere
     fix_equip_stacking = 0 ; 1: Search and Counter Crest also work with special weapons
     custom_effects = 1   ; 0: the game's own effect images, not data/mods/effects'

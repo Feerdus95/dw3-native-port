@@ -34,6 +34,12 @@
 #define ATK_TO 469
 #define ATK_SHIFT 2000
 
+static int s_launch_ready;
+
+int native_bladegarurumon_launch_ready(void) {
+    return s_launch_ready;
+}
+
 /* BladeGarurumon's node -> MetalGarurumon's, by shape and side */
 static const int NODE_MAP[][2] = {{0, 0},   {2, 7},   {3, 8},   {4, 9},   {6, 1},   {7, 2},   {8, 3},
                                   {11, 4},  {12, 5},  {13, 6},  {16, 10}, {17, 14}, {18, 15}, {19, 16},
@@ -834,9 +840,12 @@ const uint8_t *bladegaru_file(int fid, long *size) {
         tried = 1;
         fighters = build_fighters(f, fsize, &fighters_size, &bg_fid, &mg_fid);
         if (fighters != NULL) {
+            int donor_prepared = native_launch_generated_source(mg_fid);
+
             bgsize = native_read_raw(bg_fid, &bg);
             mgsize = native_read_raw(mg_fid, &mg);
             model = build_model(bg, bgsize, mg, mgsize, &model_size);
+            s_launch_ready = model != NULL && donor_prepared;
             free(bg);
             free(mg);
         }

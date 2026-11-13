@@ -15,21 +15,24 @@
  } SpriteEffect;
  
  /* One animation of a 2D effect (FIGHTSTG_createSpriteAnim), drawn by a layer
-@@ -164,8 +172,17 @@
+@@ -164,7 +172,20 @@
      /* 0xA4 */ s32 effectImages; /* FIGHTSTG_findEffectSheet's */
      /* 0xA8 */ s32 effectSheet;
      /* 0xAC */ Vec2 effectTexPos;
 +#ifdef NATIVE
 +    s32 nativeCritical; /* its hit was a critical one: its sprite effects play those images (native.h) */
 +    s32 nativeStage; /* the images of this stage (native.h): the user's, whose hit scripts have it too; -1 until it is known */
++    s32 nativeTechId; /* player technique; -1 resolves prepared markers to original values */
++    s32 nativeLaunchSoundChanged;
++    s32 nativeDeferredLaunchWait;
++    s32 nativeDeferredWaitStarted;
 +#endif
  };
- 
++
 +#ifdef NATIVE
 +/* a roll since the last script took it (FIGHTSTG_adjustDamage): the next attack's script takes it */
 +extern s32 FIGHTSTG_nativeCritical;
 +#endif
-+
+ 
  /* FIGHTSTG_updateHitEffect's children */
  typedef struct HitEffectChildren {
-     /* 0x0 */ SpriteEffect *effect;

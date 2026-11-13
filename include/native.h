@@ -29,6 +29,7 @@ void native_wait_vblank(void);
 int native_real_vsync(void);
 int native_real_time(void); /* the vsyncs shown, as the game counts time (etc.c) */
 extern int g_fix_equip_stacking; /* fix_equip_stacking = 1: Search and Counter Crest work beside special weapons (mods.c; FIGHTSTG stats.c patch) */
+extern int g_technique_visuals; /* technique_visuals = 1: mapped player technique effects (mods.c; WFIGHTMN techs.c patch) */
 extern int g_battle_form_name; /* battle_form_name = 1: the battle HUD names the partner's current form (mods.c; STFIGHT hud.c patch) */
 extern int g_menu_wrap; /* menu_wrap = 1: a menu's cursor goes round at its ends (mods.c; the menus' patches) */
 /* A list's cursor that went nowhere at its first or last row (old == now: the game's clamp held it)
@@ -287,5 +288,22 @@ unsigned native_frame(void);
 
 /* printf to stderr, for probes (platform/main.c) */
 void native_log(const char *fmt, ...);
+
+/* Player technique visuals. Omitted values retain the original script value. */
+enum {
+    NATIVE_VIS_PROJECTILE,
+    NATIVE_VIS_LAUNCH_SPRITE,
+    NATIVE_VIS_LAUNCH_SOUND,
+    NATIVE_VIS_IMPACT_SPRITE,
+    NATIVE_VIS_IMPACT_SOUND,
+    NATIVE_VIS_STAGE,
+    NATIVE_VIS_LAUNCH_SOUND_DURATION,
+    NATIVE_VIS_LAUNCH_TIMING,
+};
+#define NATIVE_LAUNCH_ORIGINAL 0
+#define NATIVE_LAUNCH_ALIGNED 1
+int native_visual_load(void);
+int native_visual_get(int technique, int field, int original);
+int native_visual_archive_enabled(int archive); /* selected archive contains prepared launch slots */
 
 #endif /* NATIVE_H */
