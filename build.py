@@ -415,7 +415,9 @@ def main():
     sys.path.insert(0, str(NATIVE / "tools"))
     import asset_scan
     stripped = asset_scan.strip(exe)
-    if X64:  # not large-address-aware: the process gets 2 GB, so no pointer of the game's needs more than 31 bits
+    # --2gb: not large-address-aware, so no pointer at all needs more than 31 bits (to tell a truncated host
+    # pointer from another bug). Not by default: the card's driver runs out of memory at render_scale 8
+    if X64 and "--2gb" in sys.argv:
         import struct
         with open(exe, "r+b") as f:
             f.seek(0x3C)

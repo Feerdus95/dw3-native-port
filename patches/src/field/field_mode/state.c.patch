@@ -42,7 +42,20 @@
      return FIELDSTG_actorWidths[index];
  }
  
-@@ -41,6 +71,11 @@
+@@ -30,7 +60,12 @@
+     }
+ #endif
+     mode = GAME.funcs.getMode();
++#ifdef NATIVE
++    /* up to defaultStart, whatever a pointer's size */
++    HEAP.zero(&FIELDSTG_state, (u8 *)&FIELDSTG_state.defaultStart - (u8 *)&FIELDSTG_state);
++#else
+     HEAP.zero(&FIELDSTG_state, 100);
++#endif
+     while (1) {
+         if (entry->mode == mode) {
+             FIELDSTG_state.stageFile = entry->file;
+@@ -42,6 +77,11 @@
          }
      }
      if (entry->mode == 0) {

@@ -1,0 +1,15 @@
+--- a/src/menus/gym/files.c
++++ b/src/menus/gym/files.c
+@@ -24,7 +24,12 @@
+         return 0;
+     }
+     if (index != STGTRAIN_state.fileIndex) {
++#ifdef NATIVE
++        /* data to sets, whatever a pointer's size */
++        HEAP.zero(&STGTRAIN_state.data, (u8 *)&STGTRAIN_state.trainings - (u8 *)&STGTRAIN_state.data);
++#else
+         HEAP.zero(&STGTRAIN_state.data, 0x2D8);
++#endif
+         STGTRAIN_state.fileIndex = index;
+         FILE_CACHE.request(STGTRAIN_files[index].file);
+         STGTRAIN_state.data = NULL;

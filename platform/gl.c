@@ -545,8 +545,9 @@ static GLuint framebuffer(GLuint tex) {
     GL(glGenFramebuffers)(1, &f);
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, f);
     GL(glFramebufferTexture2D)(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
-    if (GL(glCheckFramebufferStatus)(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        LOG("gl: framebuffer incomplete");
+    GLenum status = GL(glCheckFramebufferStatus)(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        LOG("gl: framebuffer incomplete (%x, error %x, scale %d)", status, GL(glGetError)(), s_scale);
     }
     return f;
 }

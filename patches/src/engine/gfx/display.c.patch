@@ -29,3 +29,16 @@
                  GFX.layers[i]->draw(GFX.layers[i]);
              }
          }
+@@ -130,7 +141,12 @@
+                 i--;
+             }
+         }
++#ifdef NATIVE
++        /* prim to buffer, whatever a pointer's size */
++        HEAP.zero(&GFX.prim, (u8 *)&GFX.disp - (u8 *)&GFX.prim);
++#else
+         HEAP.zero(&GFX.prim, 0x18);
++#endif
+     } else {
+         GFX.buffer = 1;
+         GFX.dispBuffer = 0;
