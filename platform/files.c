@@ -4,11 +4,48 @@
 #include <stdlib.h>
 #include <string.h>
 #include "platform.h"
+#include "launch_slots.h"
 
 #define SECTOR 2048
 #define MAX_FILES NATIVE_MAX_FIDS /* the disc's, then the field editor's new ones (3000 on) */
 
 static long s_size[MAX_FILES]; /* bytes; 0 unknown, -1 missing */
+
+/* Check the same priority used by open_file. A known file ID alone does not
+   prove that its bytes are the generated script: user mods always win. */
+int native_launch_generated_source(int fid) {
+    char path[1200];
+    FILE *f;
+    long made_size;
+
+    if (!native_launch_archives_ready() || !native_launch_archive_listed(fid) ||
+        made_file(fid, &made_size) != NULL) return 0;
+    snprintf(path, sizeof path, "%s/mods/%04d.bin", data_dir(), fid);
+    f = fopen(path, "rb");
+    if (f != NULL) {
+        fclose(f);
+        return 0;
+    }
+    snprintf(path, sizeof path, "%s/generated/%04d.bin", data_dir(), fid);
+    f = fopen(path, "rb");
+    if (f == NULL) return 0;
+    fclose(f);
+    return 1;
+}
+
+int native_visual_archive_enabled(int archive) {
+    char path[1200];
+    FILE *f;
+    int fid = (unsigned int)archive >> 16;
+
+    if (fid != 1) return native_launch_archive_matches(archive) && native_launch_generated_source(fid);
+    if (!native_bladegarurumon_launch_ready()) return 0;
+    snprintf(path, sizeof path, "%s/mods/%04d.bin", data_dir(), fid);
+    f = fopen(path, "rb");
+    if (f == NULL) return 1;
+    fclose(f);
+    return 0;
+}
 
 static FILE *open_file(int fid) {
     char path[1200];
@@ -16,6 +53,10 @@ static FILE *open_file(int fid) {
 
     snprintf(path, sizeof path, "%s/mods/%04d.bin", data_dir(), fid);
     f = fopen(path, "rb");
+    if (f == NULL && native_launch_archives_ready() && native_launch_archive_listed(fid)) {
+        snprintf(path, sizeof path, "%s/generated/%04d.bin", data_dir(), fid);
+        f = fopen(path, "rb");
+    }
     if (f == NULL) {
         snprintf(path, sizeof path, "%s/files/%04d.bin", data_dir(), fid);
         f = fopen(path, "rb");

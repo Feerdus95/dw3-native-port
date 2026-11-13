@@ -303,5 +303,6 @@ enum {
 #define NATIVE_LAUNCH_ALIGNED 1
 int native_visual_load(void);
 int native_visual_get(int technique, int field, int original);
+int native_visual_archive_enabled(int archive); /* selected archive contains prepared launch slots */
 
 #endif /* NATIVE_H */

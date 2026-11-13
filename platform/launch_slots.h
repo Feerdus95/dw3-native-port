@@ -21,11 +21,14 @@ typedef struct {
 
 typedef struct {
     uint16_t file_id;
+    uint16_t archive_entry;
     uint8_t source_sha256[32];
     NativeLaunchScript scripts[2]; /* indices 9 and 13 */
 } NativeLaunchArchive;
 
 int native_prepare_launch_archives(void);
 int native_launch_archives_ready(void);
+int native_launch_archive_listed(int file_id);
+int native_launch_archive_matches(int archive);
 
 #endif

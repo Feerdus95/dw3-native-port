@@ -1,6 +1,22 @@
 --- a/src/battle/battle_mode/battle_script.c
 +++ b/src/battle/battle_mode/battle_script.c
-@@ -40,6 +40,10 @@
+@@ -4,6 +4,15 @@
+    USA one has in camera_task.c. */
+ 
+ #include "battle/battle_mode.h"
++
++#ifdef NATIVE
++/* Negative IDs identify only the launch commands in prepared scripts. */
++static s32 nativeLaunchId(BattleScript *script, s32 id, s32 field) {
++    if (id >= 0 || script->nativeTechId == 0 || script->enemy != 0 ||
++        (script->index != 9 && script->index != 13)) return id;
++    return native_visual_get(script->nativeTechId, field, -id);
++}
++#endif
+ 
+ /* The model a script command names by TYPE: 0 the script's own side's, 1-3
+    the partner's slots and 4-6 the enemy's */
+@@ -40,6 +49,10 @@
          children->script = FIGHTSTG_createBattleScript();
          children->script->enemy = script->enemy == 0;
          children->script->index = script->hits[3] + 1;
@@ -11,7 +27,7 @@
          break;
      /* these cases do nothing, but the match depends on them: they shape the
         tree of tests the switch is compiled to */
-@@ -53,6 +57,10 @@
+@@ -53,6 +66,10 @@
              children->script->destroy(children->script);
          }
          children->script = FIGHTSTG_createBattleScript();
@@ -22,7 +38,24 @@
          children->script->enemy = script->enemy == 0;
          switch (script->hitsPlayed) {
          case 0:
-@@ -285,6 +293,10 @@
+@@ -276,6 +293,16 @@
+     if (effect == 9999) {
+         effect = script->effect;
+     }
++#ifdef NATIVE
++    else {
++        effect = nativeLaunchId(script, effect, NATIVE_VIS_LAUNCH_SPRITE);
++    }
++    if (effect < 0 && script->nativeTechId != 0 && script->enemy == 0 &&
++        (script->index == 9 || script->index == 13)) {
++        if (mode == 0) script->pc += 3;
++        return 1;
++    }
++#endif
+     switch (mode) {
+     case 0:
+     default:
+@@ -285,6 +312,10 @@
          for (i = 0; i < 8; i++) {
              if (children->spriteEffects[i] == NULL) {
                  children->spriteEffects[i] = FIGHTSTG_startSpriteEffect(effect, &pos);
@@ -33,11 +66,67 @@
                  break;
              }
          }
-@@ -504,6 +516,22 @@
+@@ -335,6 +366,14 @@
+     s32 file;
+     s32 i;
+ 
++#ifdef NATIVE
++    id = nativeLaunchId(script, id, NATIVE_VIS_PROJECTILE);
++    if (id < 0 && script->nativeTechId != 0 && script->enemy == 0 &&
++        (script->index == 9 || script->index == 13)) {
++        if (mode == 0) script->pc += 6;
++        return 1;
++    }
++#endif
+     switch (mode) {
+     case 0:
+     default:
+@@ -425,6 +464,20 @@
+     switch (script->waiting) {
+     case 0:
+     default:
++#ifdef NATIVE
++        if (*script->pc < 0 && script->nativeTechId != 0 && script->enemy == 0 &&
++            (script->index == 9 || script->index == 13)) {
++            s32 launchWait = -*script->pc;
++            if (native_visual_get(script->nativeTechId, NATIVE_VIS_LAUNCH_TIMING,
++                                  NATIVE_LAUNCH_ORIGINAL) == NATIVE_LAUNCH_ORIGINAL) {
++                script->nativeDeferredLaunchWait = launchWait;
++                script->nativeDeferredWaitStarted = 0;
++                script->pc++;
++                return 1;
++            }
++            script->wait = launchWait;
++        } else
++#endif
+         script->wait = *script->pc;
+         script->waiting = 1;
+         script->pc--;
+@@ -504,6 +557,42 @@
      s32 sound = *script->pc++;
      s32 time = *script->pc++;
  
 +#ifdef NATIVE
++    s32 cue = sound;
++    if (sound < 0 && script->nativeTechId != 0 && script->enemy == 0 &&
++        (script->index == 9 || script->index == 13)) {
++        s32 originalSound = -sound;
++        s32 originalTime = time;
++
++        sound = nativeLaunchId(script, sound, NATIVE_VIS_LAUNCH_SOUND);
++        time = native_visual_get(script->nativeTechId, NATIVE_VIS_LAUNCH_SOUND_DURATION, time);
++        script->nativeLaunchSoundChanged = sound >= 0 &&
++                                           (sound != originalSound || time != originalTime);
++    }
++    if (sound < 0 && script->nativeTechId != 0 && script->enemy == 0 &&
++        (script->index == 9 || script->index == 13)) return;
++    if ((cue == 0x62 || cue == 0x63) && script->nativeLaunchSoundChanged &&
++        script->enemy == 0 && (script->index == 9 || script->index == 13) &&
++        children->sound != NULL) {
++        SOUND.keyOff(children->sound->sound, children->sound->voice);
++        children->sound->destroy(children->sound);
++        children->sound = NULL;
++    }
 +    /* the hit's sound is left out where the effect has a sound of its own (native.h), unless the hit is of result 3 (0x38: the
 +       effect may not play then) */
 +    if ((sound == 0x62 || sound == 0x63) && script->hits[sound == 0x62 ? script->soundsPlayed : 3] != 3 &&
@@ -56,7 +145,7 @@
      if (sound == 0x62) {
          sound = script->hits[script->soundsPlayed] == 3 ? 0x38 : script->sound;
          script->soundsPlayed++;
-@@ -551,10 +579,27 @@
+@@ -551,10 +640,42 @@
              script->model = script->enemy != 0 ? 0x10 : 0;
              script->models = TASK_REGISTRY.funcs.find(BATTLE_TASK_MODELS, -1, -1);
              script->fighter = script->models->get(script->models, script->model)->fighter;
@@ -79,12 +168,54 @@
 +                } else if (script->index == 12 && g_dna_other != 0) {
 +                    script->pc = native_dna_script(script->pc, g_dna_other, RANDOM.next());
 +                }
++                if (script->enemy == 0 && (script->index == 9 || script->index == 13) &&
++                    mod == NULL && native_visual_archive_enabled(script->archive)) {
++                    /* -1 resolves marked commands to their original values
++                       when a prepared script has no selected technique. */
++                    if (script->nativeTechId == 0) script->nativeTechId = -1;
++                    if (script->nativeTechId > 0) {
++                        script->effect = native_visual_get(script->nativeTechId, NATIVE_VIS_IMPACT_SPRITE, script->effect);
++                        script->sound = native_visual_get(script->nativeTechId, NATIVE_VIS_IMPACT_SOUND, script->sound);
++                        if (script->stage > 0) {
++                            script->stage = native_visual_get(script->nativeTechId, NATIVE_VIS_STAGE, script->stage);
++                        }
++                    }
++                } else {
++                    script->nativeTechId = 0;
++                }
 +            }
 +#endif
              if (script->index != 12) {
                  script->nextState(script);
                  break;
-@@ -646,7 +691,15 @@
+@@ -608,6 +729,26 @@
+             case 9:
+                 break;
+             case 10:
++#ifdef NATIVE
++                if (script->nativeDeferredLaunchWait > 0 && script->nativeTechId != 0 &&
++                    script->enemy == 0 && (script->index == 9 || script->index == 13) &&
++                    *script->pc < 0) {
++                    if (!script->nativeDeferredWaitStarted) {
++                        script->nativeDeferredWaitStarted = 1;
++                        script->pc--;
++                        more = 0;
++                        break;
++                    }
++                    script->nativeDeferredLaunchWait -= GFX.funcs.getFrameTime();
++                    if (script->nativeDeferredLaunchWait > 0) {
++                        script->pc--;
++                        more = 0;
++                        break;
++                    }
++                    script->nativeDeferredLaunchWait = 0;
++                    script->nativeDeferredWaitStarted = 0;
++                }
++#endif
+                 FIGHTSTG_runScriptSound(script, children);
+                 break;
+             case 11:
+@@ -646,7 +787,19 @@
  
  /* Creates a battle script, which plays a technique (FIGHTSTG_updateBattleScript) */
  BattleScript *FIGHTSTG_createBattleScript(void) {
@@ -93,6 +224,10 @@
 +
 +    script->nativeCritical = 0;
 +    script->nativeStage = -1;
++    script->nativeTechId = 0;
++    script->nativeLaunchSoundChanged = 0;
++    script->nativeDeferredLaunchWait = 0;
++    script->nativeDeferredWaitStarted = 0;
 +    return script;
 +#else
      return createTask(FIGHTSTG_updateBattleScript, sizeof(BattleScript), 16 * sizeof(Task *));

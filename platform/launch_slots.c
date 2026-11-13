@@ -21,6 +21,24 @@ int native_launch_archives_ready(void) {
     return s_ready;
 }
 
+int native_launch_archive_listed(int file_id) {
+    for (int i = 0; i < NATIVE_LAUNCH_ARCHIVE_COUNT; i++) {
+        if (NATIVE_LAUNCH_ARCHIVES[i].file_id == file_id) return 1;
+    }
+    return 0;
+}
+
+int native_launch_archive_matches(int archive) {
+    unsigned int file_id = (unsigned int)archive >> 16;
+    unsigned int entry = (unsigned int)archive & 0xffff;
+
+    for (int i = 0; i < NATIVE_LAUNCH_ARCHIVE_COUNT; i++) {
+        if (NATIVE_LAUNCH_ARCHIVES[i].file_id == file_id &&
+            NATIVE_LAUNCH_ARCHIVES[i].archive_entry == entry) return 1;
+    }
+    return 0;
+}
+
 static int16_t word(const uint8_t *bytes, uint32_t at) {
     return (int16_t)(bytes[at] | ((uint16_t)bytes[at + 1] << 8));
 }

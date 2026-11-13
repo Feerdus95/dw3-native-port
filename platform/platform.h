@@ -300,6 +300,8 @@ extern int g_full_exp_report; /* the option captured for the current report (mod
 /* a file an option makes anew, whole, or NULL for the game's (mods.c; packs.c, bladegaru.c) */
 const uint8_t *made_file(int fid, long *size);
 void native_bladegarurumon_setup(void);
+int native_bladegarurumon_launch_ready(void); /* model 471 copied marked scripts 9/13 */
+int native_launch_generated_source(int fid); /* exact generated source selected for a disc fighter */
 /* An allocation the game can't go on without (the overlays' first values, BladeGarurumon's and the mods' files, built once): P, or a message box
    saying what ran out and the exit (main.c). What can fall back (an image, a cache) checks its NULL and does */
 void *native_must(void *p, const char *what);

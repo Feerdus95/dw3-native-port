@@ -67,7 +67,9 @@ def generate():
         require(len(digest) == 32, "invalid source SHA-256")
         hash_bytes = ", ".join(f"0x{byte:02x}" for byte in digest)
         scripts = fighter["scripts"]
+        require(0 <= fighter["effects_archive_entry"] <= 65535, "invalid archive entry")
         row = (f"    {{ .file_id = {fighter['effects_file_id']}, "
+               f".archive_entry = {fighter['effects_archive_entry']}, "
                f".source_sha256 = {{{hash_bytes}}},\n"
                f"      .scripts = {{{script_row(scripts['9'])},\n"
                f"                  {script_row(scripts['13'])}}} }},")

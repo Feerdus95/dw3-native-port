@@ -1,7 +1,7 @@
 --- a/src/battle/normal_battle/techs.c
 +++ b/src/battle/normal_battle/techs.c
-@@ -169,6 +169,12 @@
-     other = FIGHTSTG_battleFuncs.computeStats(SIDE_ENEMY - actor, 0, FIGHTSTG_battle.active[1 - side]);
+@@ -163,6 +163,12 @@
+     other = FIGHTSTG_battleFuncs.computeStats(SIDE_ENEMY - actor, 0, FIGHTSTG_battle.state.active[1 - side]);
      task = FIGHTSTG_createBattleScript();
      task->enemy = actor;
 +#ifdef NATIVE
@@ -13,3 +13,13 @@
      if (actor == 0) {
          choosePartnerScript(task, info, own, other);
          if (task->stage <= 0) {
+@@ -194,6 +200,9 @@
+                 }
+             }
+         }
++#ifdef NATIVE
++        if (task->index == 9 || task->index == 13) task->nativeTechId = id;
++#endif
+     } else {
+         chooseEnemyScript(task, info, other);
+     }
