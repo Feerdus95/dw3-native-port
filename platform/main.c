@@ -316,6 +316,7 @@ int main(int argc, char **argv) {
     native_snapshot_overlays();
     native_fast_travel_setup(); /* the stages' doors, their variables put back */
     read_ini(0);
+    native_visual_load();
     NTSC_MODE = s_fps60; /* the game's own 60 Hz mode, set before it boots */
     if (getenv("DW3_LOG") != NULL) {
         g_log = log_bits(getenv("DW3_LOG"));

@@ -287,4 +287,20 @@ unsigned native_frame(void);
 /* printf to stderr, for probes (platform/main.c) */
 void native_log(const char *fmt, ...);
 
+/* Player technique visuals. Omitted values retain the original script value. */
+enum {
+    NATIVE_VIS_PROJECTILE,
+    NATIVE_VIS_LAUNCH_SPRITE,
+    NATIVE_VIS_LAUNCH_SOUND,
+    NATIVE_VIS_IMPACT_SPRITE,
+    NATIVE_VIS_IMPACT_SOUND,
+    NATIVE_VIS_STAGE,
+    NATIVE_VIS_LAUNCH_SOUND_DURATION,
+    NATIVE_VIS_LAUNCH_TIMING,
+};
+#define NATIVE_LAUNCH_ORIGINAL 0
+#define NATIVE_LAUNCH_ALIGNED 1
+int native_visual_load(void);
+int native_visual_get(int technique, int field, int original);
+
 #endif /* NATIVE_H */

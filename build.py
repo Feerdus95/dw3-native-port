@@ -400,6 +400,7 @@ def main():
     dll = OUT / "SDL3.dll"
     if not dll.exists() or dll.read_bytes() != (SDL / "bin/SDL3.dll").read_bytes():  # a running game locks it
         shutil.copy2(SDL / "bin/SDL3.dll", dll)
+    shutil.copy2(NATIVE / "config/technique_visuals.ini", OUT / "technique_visuals.ini")
 
     with open(OUT / "report.md", "w", encoding="utf-8") as f:
         f.write(f"# Native build\n\n{len(srcs)} game files, {len(platform)} platform files, "
