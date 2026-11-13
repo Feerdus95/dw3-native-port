@@ -288,6 +288,7 @@ int native_scripts_check(void); /* --check-mods: lists the script files, returns
 extern int g_custom_scripts; /* custom_scripts = 0: the game's own battle scripts (scriptmod.c) */
 extern int g_save_anywhere; /* save_anywhere = 1: a SAVE row in the field menu (mods.c) */
 extern int g_save_from_menu;
+extern int g_fix_equip_stacking; /* fix_equip_stacking = 1: Search and Counter Crest work beside special weapons (mods.c) */
 extern int g_battle_form_name; /* battle_form_name = 1: the battle HUD names the current form (mods.c) */
 extern int g_menu_wrap;      /* menu_wrap = 1: a menu's cursor goes round at its ends (mods.c) */
 extern int g_ff_menu_speed;  /* ff_menu_speed = 1: menus repeat at their normal pace in fast forward (mods.c) */

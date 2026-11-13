@@ -5,30 +5,32 @@
 #include <SDL3/SDL.h>
 #include <stdlib.h>
 #include "platform.h"
+#include "menu_skin.h"
 
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, MOVIES, VSYNC, FULLSCREEN, WINDOW, INACTIVE, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FF_MENUS, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, HEAL_LEVELUP, SAVE_ANYWHERE, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, ICONS, CONTROLS, SKIP_START, MENU_WRAP, QUIT_GAME, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, MOVIES, VSYNC, FULLSCREEN, WINDOW, INACTIVE, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FF_MENUS, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, ICONS, CONTROLS, SKIP_START, MENU_WRAP, QUIT_GAME, ITEMS };
 
 static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Battle sky and fog", "Form name in battle", "Smooth movies", "VSync", "Fullscreen", "Window size", "Inactive window", "Vibration", "Stick deadzone",
-    "Fast text (hold X)", "Fast forward (Tab/R3)", "Menus in fast forward", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon", "Full EXP Share", "Heal on level up", "Save anywhere", "Custom effects", "Custom sounds", "Custom scripts",
+    "Fast text (hold X)", "Fast forward (Tab/R3)", "Menus in fast forward", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon", "Full EXP Share", "Heal on level up", "Save anywhere", "Crest fix", "Custom effects", "Custom sounds", "Custom scripts",
     "Button icons", "Controls", "Skip PRESS START", "Menu cursor wraps", "Quit game",
 };
 
 /* the tabs and their options, each list ending with -1 */
 #define TABS 4
-#define ROWS 12 /* the longest tab's: the box stays the same size */
+#define ROWS 12 /* the rows shown: the box stays the same size, a longer tab scrolls */
+#define MAX_ITEMS 16
 static const char *TAB_NAMES[TABS] = {"Display", "Graphics", "Input", "Mods"};
-static const int TAB_ITEMS[TABS][ROWS + 1] = {
+static const int TAB_ITEMS[TABS][MAX_ITEMS + 1] = {
     {FPS, FULLSCREEN, WINDOW, WIDESCREEN, VSYNC, MOVIES, INACTIVE, QUIT_GAME, -1},
     {SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, -1},
     {ICONS, CONTROLS, FAST_FORWARD, FF_MENUS, SKIP_START, MENU_WRAP, RUMBLE, DEADZONE, -1},
-    {FAST_TEXT, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, HEAL_LEVELUP, SAVE_ANYWHERE, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, -1},
+    {FAST_TEXT, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, -1},
 };
 
-static int s_open, s_tab, s_cursor[TABS], s_changed;
+static int s_open, s_tab, s_cursor[TABS], s_top[TABS], s_changed; /* s_top: the first row shown */
 static int s_quit_armed, s_quit_was; /* "Quit game" asks for a second press */
 
 static void save(void);
@@ -36,7 +38,7 @@ static void save(void);
 static int tab_count(int tab) {
     int n = 0;
 
-    while (n < ROWS && TAB_ITEMS[tab][n] >= 0) {
+    while (n < MAX_ITEMS && TAB_ITEMS[tab][n] >= 0) {
         n++;
     }
     return n;
@@ -105,6 +107,7 @@ static void value(int item, char *out, size_t size) {
     case MENU_WRAP: on = g_menu_wrap; break;
     case BATTLE_FORM_NAME: on = g_battle_form_name; break;
     case SAVE_ANYWHERE: on = g_save_anywhere; break;
+    case FIX_EQUIP: on = g_fix_equip_stacking; break;
     case CUSTOM_EFFECTS: on = g_custom_effects; break;
     case CUSTOM_SOUNDS: on = g_custom_sounds; break;
     case CUSTOM_SCRIPTS: on = g_custom_scripts; break;
@@ -152,6 +155,7 @@ static void change(int item, int dir) {
     case MENU_WRAP: g_menu_wrap = !g_menu_wrap; break;
     case BATTLE_FORM_NAME: g_battle_form_name = !g_battle_form_name; break;
     case SAVE_ANYWHERE: g_save_anywhere = !g_save_anywhere; break;
+    case FIX_EQUIP: g_fix_equip_stacking = !g_fix_equip_stacking; break;
     case CUSTOM_EFFECTS: g_custom_effects = !g_custom_effects; break;
     case CUSTOM_SOUNDS: g_custom_sounds = !g_custom_sounds; break;
     case CUSTOM_SCRIPTS: g_custom_scripts = !g_custom_scripts; break;
@@ -185,7 +189,7 @@ static void change(int item, int dir) {
 /* native.ini's "key = value" lines get the new values; missing keys are
    added, the bindings' only when not the default */
 static void save(void) {
-    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons", "battle_sky", "full_exp_share", "save_anywhere", "custom_effects", "custom_sounds", "custom_scripts", "inactive_window", "heal_on_levelup", "skip_press_start", "ff_menu_speed", "menu_wrap", "battle_form_name"};
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons", "battle_sky", "full_exp_share", "save_anywhere", "custom_effects", "custom_sounds", "custom_scripts", "inactive_window", "heal_on_levelup", "skip_press_start", "ff_menu_speed", "menu_wrap", "battle_form_name", "fix_equip_stacking"};
     enum { FIXED = SDL_arraysize(KEYS), ALL = FIXED + 32 };
     char path[1100], line[1200], key[32], names[ALL][32], vals[ALL][64];
     int done[ALL] = {0}, i, n = ALL;
@@ -227,6 +231,7 @@ static void save(void) {
     SDL_snprintf(vals[31], 16, "%d", g_ff_menu_speed);
     SDL_snprintf(vals[32], 16, "%d", g_menu_wrap);
     SDL_snprintf(vals[33], 16, "%d", g_battle_form_name);
+    SDL_snprintf(vals[34], 16, "%d", g_fix_equip_stacking);
     for (i = 0; i < ALL; i++) {
         if (i < FIXED) {
             SDL_strlcpy(names[i], KEYS[i], sizeof names[i]);
@@ -419,7 +424,7 @@ static SDL_Texture *game_arrow(SDL_Renderer *r, int frame) {
 
 /* The help line at the box's foot, centred, with the pad's or keys' icons */
 static void hint(SDL_Renderer *r, const SDL_FRect *box) {
-    SDL_SetRenderDrawColor(r, 160, 160, 160, 255);
+    skin_ink(r, INK_DIM);
     controls_hint(r, box->x + (box->w - controls_hint(r, 0, 0, 0)) / 2, box->y + box->h - 13, 1);
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
 }
@@ -430,7 +435,7 @@ void menu_draw(SDL_Renderer *r) {
     static SDL_Texture *arrows[2];
     static int tried;
     SDL_FRect box = {8, 0, 304, 46 + ROWS * 14 + 18};
-    int n = tab_count(s_tab), i, blink = (SDL_GetTicks() / 267) & 1;
+    int n = tab_count(s_tab), i, *top, blink = (SDL_GetTicks() / 267) & 1;
     float x;
     char text[32];
 
@@ -444,8 +449,7 @@ void menu_draw(SDL_Renderer *r) {
         arrows[1] = game_arrow(r, 0x20);
     }
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(r, 0, 0, 0, 235);
-    SDL_RenderFillRect(r, &box);
+    skin_panel(r, &box);
     if (controls_active()) {
         controls_draw(r, box.x, box.y, box.w, ROWS);
         hint(r, &box);
@@ -460,50 +464,65 @@ void menu_draw(SDL_Renderer *r) {
             if (arrows[i] != NULL) {
                 SDL_RenderTexture(r, arrows[i], NULL, &a);
             } else {
-                SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+                skin_ink(r, INK_LABEL);
                 SDL_RenderDebugText(r, a.x, a.y, i ? ">" : "<");
             }
         }
     }
-    SDL_SetRenderDrawColor(r, 150, 170, 220, 255);
+    skin_ink(r, INK_HEAD);
     controls_tab_icons(r, box.x + 18, box.x + box.w - 30, box.y + 8);
     for (i = 0, x = 0; i < TABS; i++) {
-        x += 8.0f * SDL_strlen(TAB_NAMES[i]) + (i ? 8 : 0);
+        x += skin_text_width(TAB_NAMES[i]) + (i ? 8 : 0);
     }
     x = box.x + (box.w - x) / 2; /* centred between L1 and R1 */
     for (i = 0; i < TABS; i++) {
-        float w = 8.0f * SDL_strlen(TAB_NAMES[i]);
+        float w = skin_text_width(TAB_NAMES[i]);
 
         if (i == s_tab) {
             SDL_FRect t = {x - 3, box.y + 5, w + 6, 14};
 
-            SDL_SetRenderDrawColor(r, 60, 90, 160, 255);
-            SDL_RenderFillRect(r, &t);
-            SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+            skin_tab(r, &t);
+            skin_ink(r, INK_LABEL);
         } else {
-            SDL_SetRenderDrawColor(r, 130, 130, 140, 255);
+            skin_ink(r, INK_DIM);
         }
-        SDL_RenderDebugText(r, x, box.y + 8, TAB_NAMES[i]);
+        skin_text(r, x, box.y + 8, TAB_NAMES[i]);
         x += w + 8;
     }
-    SDL_SetRenderDrawColor(r, 60, 90, 160, 255);
-    SDL_RenderLine(r, box.x + 4, box.y + 21, box.x + box.w - 4, box.y + 21);
+    skin_rule(r, box.x + 4, box.x + box.w - 5, box.y + 21);
 
-    /* the options */
-    for (i = 0; i < n; i++) {
+    /* the options: the cursor's row always shown */
+    top = &s_top[s_tab];
+    *top = SDL_clamp(*top, 0, SDL_max(n - ROWS, 0));
+    if (s_cursor[s_tab] < *top) {
+        *top = s_cursor[s_tab];
+    } else if (s_cursor[s_tab] >= *top + ROWS) {
+        *top = s_cursor[s_tab] - ROWS + 1;
+    }
+    for (i = *top; i < n && i < *top + ROWS; i++) {
         int item = TAB_ITEMS[s_tab][i];
-        float y = box.y + 32 + i * 14;
+        float y = box.y + 32 + (i - *top) * 14;
 
         if (i == s_cursor[s_tab]) {
             SDL_FRect bar = {box.x + 4, y - 3, box.w - 8, 14};
 
-            SDL_SetRenderDrawColor(r, 60, 90, 160, 255);
-            SDL_RenderFillRect(r, &bar);
+            skin_row(r, &bar);
         }
-        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
-        SDL_RenderDebugText(r, box.x + 10, y, LABELS[item]);
+        skin_ink(r, INK_LABEL);
+        skin_text(r, box.x + 10, y, LABELS[item]);
         value(item, text, sizeof text);
-        SDL_RenderDebugText(r, box.x + box.w - 10 - 8 * SDL_strlen(text), y, text);
+        skin_ink(r, INK_VALUE);
+        skin_text(r, box.x + box.w - 10 - skin_text_width(text), y, text);
+    }
+    if (n > ROWS) { /* the game's scroll bar (updateScrollBar): a white thumb of the visible share, at the cursor's item */
+        float from = box.y + 29, range = ROWS * 14, size = range * ROWS / n, y = from + range * s_cursor[s_tab] / n;
+        SDL_FRect thumb;
+
+        thumb.x = box.x + box.w - 6;
+        thumb.w = 4;
+        thumb.y = SDL_min(y, from + range - size);
+        thumb.h = size;
+        skin_thumb(r, &thumb);
     }
     hint(r, &box);
 }

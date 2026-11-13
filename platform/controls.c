@@ -4,6 +4,7 @@
    tools/prompts.py), for the pad in use or the one chosen */
 #include <SDL3/SDL.h>
 #include "platform.h"
+#include "menu_skin.h"
 
 int g_icons = ICONS_PS5; /* native.ini; the game's own buttons by default */
 const char *const ICON_NAMES[ICONS_COUNT] = {"auto", "ps1", "ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch", "keyboard"};
@@ -159,9 +160,9 @@ static float icon(SDL_Renderer *r, SDL_Texture *t, const char *name, float x, fl
     }
     SDL_snprintf(text, SDL_min((size_t)chars + 1, sizeof text), "%s", name != NULL ? name : "?");
     if (draw) {
-        SDL_RenderDebugText(r, x, y, text);
+        skin_text(r, x, y, text);
     }
-    return 8.0f * SDL_strlen(text);
+    return skin_text_width(text);
 }
 
 static float key(SDL_Renderer *r, int sc, float x, float y, int chars, int draw) {
@@ -191,17 +192,19 @@ float controls_hint(SDL_Renderer *r, float x, float y, int draw) {
         const char *text = s_slot < 2 ? "Press a key (Esc: cancel)" : "Press a button (Back: cancel)";
 
         if (draw) {
-            SDL_RenderDebugText(r, x, y, text);
+            skin_ink(r, INK_DIM);
+            skin_text(r, x, y, text);
         }
-        return 8.0f * SDL_strlen(text);
+        return skin_text_width(text);
     }
     for (i = 0; i < 6 && (PARTS[set][i].key || PARTS[set][i].src || PARTS[set][i].text); i++) {
         x += PARTS[set][i].key ? key(r, PARTS[set][i].key, x, y, 5, draw) : button(r, fam, PARTS[set][i].src, x, y, 5, draw);
         if (PARTS[set][i].text != NULL) {
             if (draw) {
-                SDL_RenderDebugText(r, x + 3, y, PARTS[set][i].text);
+                skin_ink(r, INK_DIM);
+                skin_text(r, x + 3, y, PARTS[set][i].text);
             }
-            x += 3 + 8.0f * SDL_strlen(PARTS[set][i].text) + 10;
+            x += 3 + skin_text_width(PARTS[set][i].text) + 10;
         }
     }
     return x - x0 - 10;
@@ -448,13 +451,12 @@ void controls_draw(SDL_Renderer *r, float x, float y, float w, int rows) {
     int first = SDL_clamp(s_line - rows / 2, 0, LINES - rows), fam = family(), i, slot;
     int blink = (SDL_GetTicks() / 267) & 1;
 
-    SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
-    SDL_RenderDebugText(r, x + 10, y + 8, "Controls");
-    SDL_SetRenderDrawColor(r, 150, 170, 220, 255);
-    SDL_RenderDebugText(r, x + COL[0] + 14, y + 8, "Keyboard");
-    SDL_RenderDebugText(r, x + COL[2] + 6, y + 8, "Pad");
-    SDL_SetRenderDrawColor(r, 60, 90, 160, 255);
-    SDL_RenderLine(r, x + 4, y + 21, x + w - 4, y + 21);
+    skin_ink(r, INK_LABEL);
+    skin_text(r, x + 10, y + 8, "Controls");
+    skin_ink(r, INK_HEAD);
+    skin_text(r, x + COL[0] + 14, y + 8, "Keyboard");
+    skin_text(r, x + COL[2] + 6, y + 8, "Pad");
+    skin_rule(r, x + 4, x + w - 5, y + 21);
 
     for (i = 0; i < rows && first + i < LINES; i++) {
         int line = first + i, bit = LINE_BIT(line);
@@ -463,22 +465,21 @@ void controls_draw(SDL_Renderer *r, float x, float y, float w, int rows) {
         if (line == s_line) {
             SDL_FRect bar = {x + 4, ly - 3, w - 8, 14};
 
-            SDL_SetRenderDrawColor(r, 60, 90, 160, 255);
-            SDL_RenderFillRect(r, &bar);
+            skin_row(r, &bar);
         }
-        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+        skin_ink(r, INK_LABEL);
         if (bit < 0) {
-            SDL_RenderDebugText(r, x + 26, ly, line == LINE_SWAP ? "Swap Triangle/Circle" : "Reset to defaults");
+            skin_text(r, x + 26, ly, line == LINE_SWAP ? "Swap Triangle/Circle" : "Reset to defaults");
             if (line == LINE_SWAP) { /* on or off, so it shows it took */
                 const char *state = pad_swapped() ? "On" : "Off";
 
-                SDL_SetRenderDrawColor(r, 255, 210, 90, 255);
-                SDL_RenderDebugText(r, x + w - 12 - 8.0f * SDL_strlen(state), ly, state);
+                skin_ink(r, INK_VALUE);
+                skin_text(r, x + w - 12 - skin_text_width(state), ly, state);
             }
             continue;
         }
         button(r, FAM_PS5, PLACE[bit], x + 10, ly, 1, 1);
-        SDL_RenderDebugText(r, x + 26, ly, LABELS[bit]);
+        skin_text(r, x + 26, ly, LABELS[bit]);
         for (slot = 0; slot < 3; slot++) {
             float sx = x + COL[slot];
             int code = slot < 2 ? pad_keys(bit)[slot] : *pad_source(bit);
@@ -486,8 +487,9 @@ void controls_draw(SDL_Renderer *r, float x, float y, float w, int rows) {
             if (line == s_line && slot == s_slot) {
                 SDL_FRect box = {sx - 2, ly - 3, 48, 14};
 
-                SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+                skin_ink(r, INK_NOTE);
                 SDL_RenderRect(r, &box);
+                skin_ink(r, INK_LABEL);
                 if (s_capture) {
                     if (blink) {
                         SDL_RenderDebugText(r, sx + 8, ly, "...");
@@ -496,9 +498,9 @@ void controls_draw(SDL_Renderer *r, float x, float y, float w, int rows) {
                 }
             }
             if (slot < 2 ? code == 0 : code == PAD_NONE) {
-                SDL_SetRenderDrawColor(r, 110, 110, 120, 255);
+                skin_ink(r, INK_DIM);
                 SDL_RenderDebugText(r, sx + 16, ly, "-");
-                SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+                skin_ink(r, INK_LABEL);
             } else if (slot < 2) {
                 key(r, code, sx, ly, 5, 1);
             } else {
@@ -506,11 +508,10 @@ void controls_draw(SDL_Renderer *r, float x, float y, float w, int rows) {
             }
         }
     }
-    SDL_SetRenderDrawColor(r, 150, 170, 220, 255); /* more above or below */
-    if (first > 0) {
-        SDL_RenderDebugText(r, x + w - 14, y + 30, "^");
-    }
-    if (first + rows < LINES) {
-        SDL_RenderDebugText(r, x + w - 14, y + 30 + (rows - 1) * 14, "v");
+    if (LINES > rows) { /* the game's scroll bar: a white thumb at the cursor's line */
+        float from = y + 29, range = rows * 14, size = range * rows / LINES, top = from + range * s_line / LINES;
+        SDL_FRect thumb = {x + w - 6, SDL_min(top, from + range - size), 4, size};
+
+        skin_thumb(r, &thumb);
     }
 }

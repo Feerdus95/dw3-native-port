@@ -28,6 +28,7 @@ void native_wait_vblank(void);
 /* 0 for a vsync fast forward adds (the game's ticks between frames shown) */
 int native_real_vsync(void);
 int native_real_time(void); /* the vsyncs shown, as the game counts time (etc.c) */
+extern int g_fix_equip_stacking; /* fix_equip_stacking = 1: Search and Counter Crest work beside special weapons (mods.c; FIGHTSTG stats.c patch) */
 extern int g_battle_form_name; /* battle_form_name = 1: the battle HUD names the partner's current form (mods.c; STFIGHT hud.c patch) */
 extern int g_menu_wrap; /* menu_wrap = 1: a menu's cursor goes round at its ends (mods.c; the menus' patches) */
 /* A list's cursor that went nowhere at its first or last row (old == now: the game's clamp held it)

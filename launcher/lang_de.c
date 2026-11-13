@@ -169,6 +169,7 @@ const Lang LANG_DE = {
         [O_BLADEGARURUMON] = {"BladeGarurumon", "Ein 45. Digimon, das jeder Partner lernen kann, ab Growlmon und Grizzmon auf Level 40, mit eigenem Modell (aus deiner Disc), Techniken und Signatur, Solar Laser. Spielstände bleiben normale Memory Cards."},
         [O_FULL_EXP_SHARE] = {"Volle EXP für alle", "Jeder Partner, der nach einem Kampf noch steht, erhält die volle EXP, auch ohne gekämpft zu haben, und seine gewählten oder benutzten Digitationen die volle Digimon-EXP. Besiegte Partner erhalten nichts."},
         [O_HEAL_LEVELUP] = {"Heilen bei Levelaufstieg", "Ein Partner, der im Kampf aufsteigt, erhält seine KP und MP zurück."},
+        [O_FIX_EQUIP] = {"Emblem-Korrektur", "Such- und Konter-Emblem wirken weiter mit einer Waffe, die vergiftet, lähmt, verwirrt, K.O. schlägt oder aussaugt (Such nicht mit einer Krit-Waffe). Das Dreifach-Emblem bleibt."},
         [O_SAVE_ANYWHERE] = {"Überall speichern", "Fügt dem Feldmenü eine Zeile SPEICHERN hinzu: speichern, wo du stehst, nicht nur an Speicherpunkten. Beim Laden stehst du wieder dort."},
         [O_CUSTOM_EFFECTS] = {"Eigene Effekte", "Nutzt die eigenen Bilder der 2D-Kampfeffekte (data/mods/effects) statt der des Spiels. Im Spiel umschaltbar."},
         [O_CUSTOM_SOUNDS] = {"Eigene Sounds", "Spielt die Trefferklänge, die Mods Kampfeffekten geben, statt der des Spiels. Im Spiel umschaltbar."},

@@ -16,6 +16,7 @@ int g_dna_other; /* native.h */
 int g_bladegarurumon = 1; /* bladegarurumon = 0: partners don't learn it (stfgtrep's growth.c) */
 int g_save_anywhere = 0; /* save_anywhere = 1: a SAVE row in the field menu (patches: main/menu/field_menu.c) */
 int g_save_from_menu = 0; /* the memory card screen was opened from that row: it goes back to the field */
+int g_fix_equip_stacking = 0; /* fix_equip_stacking = 1: Search and Counter Crest work beside special weapons (patches: battle/battle_mode/stats.c) */
 int g_battle_form_name = 0; /* battle_form_name = 1: the HUD names the partner's current form (patches: battle/battle_mode/hud.c) */
 int g_menu_wrap = 0; /* menu_wrap = 1: a menu's cursor goes round at its ends (patches: native.h helpers) */
 int g_ff_menu_speed = 0; /* ff_menu_speed = 1: menus repeat at their normal pace in fast forward (patches: main/pad/port.c) */
