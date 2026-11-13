@@ -267,14 +267,19 @@ static const char *EASU_FS =
 /* SMAA 1x (Jimenez, Echevarria, Masia, Navarro and Gutierrez; MIT): their shader as they publish it, in smaa/ with
    its licence and its two tables, between a head that sets it up and the three passes (stage 0: the edges, 1: how
    much each blends, 2: the picture blended). Its rows run down, as the copy's do */
+/* in a section of their own, after the game's memory: that has to end below 16 MB (main.c) */
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wc23-extensions"
-static char SMAA_SRC[] = {
+__attribute__((section(".zsmaa"))) static char SMAA_SRC[] = {
 #embed "smaa/SMAA.hlsl"
     , 0};
 #pragma clang diagnostic pop
+#define areaTexBytes __attribute__((section(".zsmaar"))) areaTexBytes
+#define searchTexBytes __attribute__((section(".zsmaar"))) searchTexBytes
 #include "smaa/AreaTex.h"
 #include "smaa/SearchTex.h"
+#undef areaTexBytes
+#undef searchTexBytes
 #define SMAA_HEAD(vs, ps)                                                                                    \
     "#version 330 core\nuniform vec4 rt;\n#define SMAA_RT_METRICS rt\n#define SMAA_GLSL_3\n#define SMAA_PRESET_HIGH\n" \
     "#define SMAA_INCLUDE_VS " #vs "\n#define SMAA_INCLUDE_PS " #ps "\n"
