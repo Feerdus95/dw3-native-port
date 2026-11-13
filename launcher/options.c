@@ -1,7 +1,7 @@
 /* Every option native.ini saves, read from it and written back when changed. Only what changed is written. */
 #include "launcher.h"
 
-enum { K_BOOL, K_FPS, K_TIMES, K_ICONS, K_PERCENT, K_FOCUS };
+enum { K_BOOL, K_FPS, K_TIMES, K_ICONS, K_PERCENT, K_FOCUS, K_NUMBER };
 
 static const struct { const char *key; Uint8 kind; short def, min, max, step; } DEF[O_COUNT] = {
     [O_FPS] = {"fps", K_FPS, 50, 50, 60, 10},
@@ -18,6 +18,10 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_SOFT_SHADOWS] = {"soft_shadows", K_BOOL, 0},
     [O_BATTLE_SHADOWS] = {"battle_shadows", K_BOOL, 1},
     [O_BATTLE_SKY] = {"battle_sky", K_BOOL, 0},
+    [O_SHARPEN] = {"sharpen", K_NUMBER, 0, 0, 10, 1},
+    [O_BRIGHTNESS] = {"brightness", K_NUMBER, 0, -10, 10, 1},
+    [O_GAMMA] = {"gamma", K_NUMBER, 0, -10, 10, 1},
+    [O_SATURATION] = {"saturation", K_NUMBER, 0, -10, 10, 1},
     [O_INACTIVE] = {"inactive_window", K_FOCUS, 0, 0, 2, 1},
     [O_FF_MENUS] = {"ff_menu_speed", K_BOOL, 0},
     [O_BATTLE_FORM_NAME] = {"battle_form_name", K_BOOL, 0},
@@ -62,6 +66,7 @@ void options_load(void)
         case K_FPS: s_value[o] = SDL_atoi(v) == 60 ? 60 : 50; break;
         case K_TIMES: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 8); break;
         case K_FOCUS: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 2); break;
+        case K_NUMBER: s_value[o] = (short)SDL_clamp(SDL_atoi(v), DEF[o].min, DEF[o].max); break;
         case K_PERCENT: s_value[o] = (short)SDL_clamp((SDL_atoi(v) * 100 + 16383) / 32767, 0, 100); break;
         default:
             for (int i = 0; i < (int)SDL_arraysize(ICON_KEYS); i++) {
@@ -141,6 +146,13 @@ void option_value(int o, const Lang *l, char *out, int size)
         break;
     case K_FOCUS: SDL_snprintf(out, size, "%s", l->s[v == 2 ? S_PAUSE : v == 1 ? S_MUTE : S_OFF]); break;
     case K_PERCENT: SDL_snprintf(out, size, "%d%%", v); break;
+    case K_NUMBER: /* from 0: off or a level; around 0: signed */
+        if (v == 0) {
+            SDL_snprintf(out, size, "%s", DEF[o].min == 0 ? l->s[S_OFF] : "0");
+        } else {
+            SDL_snprintf(out, size, DEF[o].min == 0 ? "%d" : "%+d", v);
+        }
+        break;
     default: SDL_snprintf(out, size, "%s", v == 0 ? l->s[S_AUTO] : v == 9 ? l->s[S_KEYBOARD] : ICON_NAMES[v]); break;
     }
 }

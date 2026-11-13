@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Sharpen, Brightness, Gamma, Saturation** (Options, Graphics; `sharpen` 0 to 10, `brightness`, `gamma`, `saturation` -10 to 10; all 0 by default, the game's own picture). A post-process pass over the game's picture on its way to the window, not over the movies or the options menu. The sharpening is contrast-adaptive, after AMD's FidelityFX CAS.
+
 ## v0.19.7 (beta)
 
 - The Digilog no longer gives away the Qing Long Chief while the Digi-Egg of Sincerity is still being looked for: the step is titled after the egg, and once the swamp's wall is down it only says to go through it.

@@ -170,6 +170,30 @@ static const char *BLIT_FS =
     "out vec4 frag;\n"
     "void main() { frag = texture(tex, uv); }\n";
 
+/* The game's picture on its way to the window, when any of sharpen, brightness, gamma or saturation is set.
+   The sharpening is contrast-adaptive, after AMD's FidelityFX CAS (CREDITS.md): a pixel and its four
+   neighbours, a screen pixel apart, weighted less where they already span the whole range, so that edges
+   don't ring and flat areas keep their noise down */
+static const char *POST_FS =
+    "#version 330 core\n"
+    "uniform sampler2D tex;\n"
+    "uniform vec4 post;\n" /* sharpen 0-1, brightness added, gamma's exponent, saturation's factor */
+    "uniform vec2 px;\n" /* a screen pixel, in uv */
+    "in vec2 uv;\n"
+    "out vec4 frag;\n"
+    "void main() {\n"
+    "    vec3 c = texture(tex, uv).rgb;\n"
+    "    if (post.x > 0.0) {\n"
+    "        vec3 n = texture(tex, uv - vec2(0.0, px.y)).rgb, s = texture(tex, uv + vec2(0.0, px.y)).rgb;\n"
+    "        vec3 w = texture(tex, uv - vec2(px.x, 0.0)).rgb, e = texture(tex, uv + vec2(px.x, 0.0)).rgb;\n"
+    "        vec3 lo = min(c, min(min(n, s), min(w, e))), hi = max(c, max(max(n, s), max(w, e)));\n"
+    "        vec3 k = sqrt(clamp(min(lo, 1.0 - hi) / max(hi, vec3(1.0 / 255.0)), 0.0, 1.0)) * mix(-0.125, -0.2, post.x);\n"
+    "        c = clamp((c + (n + s + w + e) * k) / (1.0 + 4.0 * k), 0.0, 1.0);\n"
+    "    }\n"
+    "    c = mix(vec3(dot(c, vec3(0.299, 0.587, 0.114))), c, post.w);\n"
+    "    frag = vec4(pow(clamp(c + post.y, 0.0, 1.0), vec3(post.z)), 1.0);\n"
+    "}\n";
+
 /* A fighter treads the grass under it: a blade whose foot is this close (the game's units, in depth) to the fighter's
    surface is flattened, fully by 40% of it */
 #define PROP_CLEAR 600.0f
@@ -392,13 +416,14 @@ static const char *SOFT_FS =
 
 static SDL_Window *s_window;
 static SDL_GLContext s_ctx;
-static GLuint s_main, s_blit, s_vao, s_vbo, s_quad_vao, s_quad_vbo;
+static GLuint s_main, s_blit, s_post, s_vao, s_vbo, s_quad_vao, s_quad_vbo;
 static GLint s_pass_loc, s_scale_loc, s_size_loc, s_true_loc, s_persp_loc, s_smooth_loc, s_fog_loc, s_fogz_loc;
 static GLuint s_vram_tex;            /* the 1x VRAM, R16UI */
 static GLuint s_fbo, s_fbo_tex;      /* the copy, render_scale times bigger */
 static GLuint s_fbo_depth;           /* its depth buffer, for the 3D models (g_depth) */
 int g_depth = 1;
 int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1; /* true_color, perspective, smooth_3d, the menu */
+int g_sharpen, g_brightness, g_gamma, g_saturation; /* sharpen 0 to 10; the others -10 to 10, 0 as the game's */
 int g_soft_shadows;
 int g_vsync = 1; /* vsync, the menu */
 int g_battle_shadows = 1; /* battle_shadows, the menu (native.h) */ /* soft_shadows = 1, the menu (native.h) */
@@ -1252,7 +1277,7 @@ int gfx_init(SDL_Window *window) {
     }
     GL_FUNCS(X)
 #undef X
-    if ((s_main = program(MAIN_VS, MAIN_FS)) == 0 || (s_blit = program(BLIT_VS, BLIT_FS)) == 0 ||
+    if ((s_main = program(MAIN_VS, MAIN_FS)) == 0 || (s_blit = program(BLIT_VS, BLIT_FS)) == 0 || (s_post = program(BLIT_VS, POST_FS)) == 0 ||
         (s_soft = program(BLIT_VS, SOFT_FS)) == 0 || (s_prop = program(PROP_VS, PROP_FS)) == 0 || (s_pinst = program(PINST_VS, PROP_FS)) == 0) {
         return 0;
     }
@@ -1273,6 +1298,8 @@ int gfx_init(SDL_Window *window) {
     GL(glUniform2f)(s_size_loc, VRAM_W, VRAM_H);
     GL(glUseProgram)(s_blit);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_blit, "tex"), 0);
+    GL(glUseProgram)(s_post);
+    GL(glUniform1i)(GL(glGetUniformLocation)(s_post, "tex"), 0);
     GL(glUseProgram)(s_prop);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_prop, "tex"), 0);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_prop, "sdepth"), 1);
@@ -1342,11 +1369,20 @@ int gfx_init(SDL_Window *window) {
 }
 
 /* A texture onto the window's 4:3 area: uv from (u0, v0) top left to (u1, v1) */
-static void quad(GLuint tex, const int vp[4], float u0, float v0, float u1, float v1, int linear) {
+/* post: through the post-process pass, when one of its options is set (the game's picture; not the movies or the menu) */
+static void quad(GLuint tex, const int vp[4], float u0, float v0, float u1, float v1, int linear, int post) {
     float q[16] = {-1, 1, u0, v0, 1, 1, u1, v0, -1, -1, u0, v1, 1, -1, u1, v1};
 
     GL(glViewport)(vp[0], vp[1], vp[2], vp[3]);
-    GL(glUseProgram)(s_blit);
+    if (post && (g_sharpen | g_brightness | g_gamma | g_saturation) != 0) {
+        GL(glUseProgram)(s_post);
+        /* gamma 10 halves the exponent (brighter middles), -10 doubles it */
+        GL(glUniform4f)(GL(glGetUniformLocation)(s_post, "post"), g_sharpen / 10.0f, g_brightness * 0.02f,
+                        SDL_powf(2.0f, -g_gamma / 10.0f), 1.0f + g_saturation / 10.0f);
+        GL(glUniform2f)(GL(glGetUniformLocation)(s_post, "px"), (u1 - u0) / vp[2], (v1 - v0) / vp[3]);
+    } else {
+        GL(glUseProgram)(s_blit);
+    }
     GL(glBindVertexArray)(s_quad_vao);
     GL(glBindBuffer)(GL_ARRAY_BUFFER, s_quad_vbo);
     GL(glBufferData)(GL_ARRAY_BUFFER, sizeof q, q, GL_STREAM_DRAW);
@@ -1426,10 +1462,10 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         GL(glBindTexture)(GL_TEXTURE_2D, s_movie_tex);
         GL(glPixelStorei)(GL_UNPACK_ALIGNMENT, 4);
         GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, d.w, d.h, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
-        quad(s_movie_tex, vp, 0, 0, d.w / (float)VRAM_W, d.h / (float)VRAM_H, g_smooth_movies);
+        quad(s_movie_tex, vp, 0, 0, d.w / (float)VRAM_W, d.h / (float)VRAM_H, g_smooth_movies, 0);
     } else if (g_disp_on && d.w > 0 && d.h > 0 && s_scale > 0) {
         /* the copy's rows go up with VRAM's y: its top row on top */
-        quad(s_fbo_tex, vp, d.x / (float)VRAM_W, d.y / (float)VRAM_H, (d.x + d.w) / (float)VRAM_W, (d.y + d.h) / (float)VRAM_H, 1);
+        quad(s_fbo_tex, vp, d.x / (float)VRAM_W, d.y / (float)VRAM_H, (d.x + d.w) / (float)VRAM_W, (d.y + d.h) / (float)VRAM_H, 1, 1);
     }
     if (menu != NULL) {
         GL(glBindTexture)(GL_TEXTURE_2D, s_menu_tex);
@@ -1439,7 +1475,7 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         GL(glPixelStorei)(GL_UNPACK_ROW_LENGTH, 0);
         GL(glEnable)(GL_BLEND);
         GL(glBlendFuncSeparate)(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
-        quad(s_menu_tex, menu_vp, 0, 0, 1, 1, 0);
+        quad(s_menu_tex, menu_vp, 0, 0, 1, 1, 0, 0);
         GL(glDisable)(GL_BLEND);
     }
     GL(glColorMask)(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);

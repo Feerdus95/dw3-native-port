@@ -27,6 +27,14 @@ smooth_3d = 1
 # dithering is then left out
 true_color = 1
 
+# the picture on its way to the window, all 0 as the game's own:
+# sharpen 0 to 10 (contrast-adaptive, keeps edges from ringing);
+# brightness, gamma and saturation -10 to 10. Not on the movies
+sharpen = 0
+brightness = 0
+gamma = 0
+saturation = 0
+
 # 0: no dithering (the PlayStation's, on shaded and blended polygons)
 dither = 1
 

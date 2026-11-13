@@ -187,6 +187,8 @@ button can be changed in the options menu's Input tab, **Controls**.
     smooth_3d = 1        ; 0: the 3D's textures in sharp blocks
     true_color = 1       ; 0: the colours at the PlayStation's 5 bits a channel
     dither = 1           ; 0 turns off the PlayStation's dithering
+    sharpen = 0          ; 1-10: contrast-adaptive sharpening of the picture
+    brightness = 0       ; -10 to 10; gamma and saturation the same
     battle_shadows = 1   ; 0: no shadows in battle
     battle_sky = 0       ; 1: a sky behind battles, the stage's far side fading into it
     battle_form_name = 0 ; 1: the battle HUD names the partner's current form
