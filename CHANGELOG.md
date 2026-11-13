@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Tech visual upgrade** (Options, Mods; on by default; `technique_visuals`). The players' magic techniques that use the scripts 9 and 13 take their projectile, launch sprite and sound, impact and stage from `technique_visuals.ini`, next to the exe, instead of the generic light ball. Off plays the game's own, and it switches in game for the next technique. The scripts are prepared at start from your own disc into `data/generated/`; your `data/mods` files win over them. Thanks to Zaw Htet Naing (#21).
+- **Tech visual upgrade** (Options, Mods; on by default; `technique_visuals`). The players' magic techniques that use the scripts 9 and 13 take their projectile, launch sprite and sound, impact and stage from `technique_visuals.ini`, next to the exe, instead of the generic light ball. Off plays the game's own, and it switches in game for the next technique. Also in the launcher's Mods tab. The scripts are prepared at start from your own disc into `data/generated/`; your `data/mods` files win over them. Thanks to Zaw Htet Naing (#21).
 
 ## v0.19.5 (beta)
 

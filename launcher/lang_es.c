@@ -168,6 +168,7 @@ const Lang LANG_ES = {
         [O_PACKS] = {"Packs iniciales extra", "Tres packs más para elegir en partida nueva: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon) y Mystic (Kumamon, Renamon, Veemon)."},
         [O_BLADEGARURUMON] = {"BladeGarurumon", "Un Digimon nº 45 que todo compañero puede aprender, desde Growlmon y Grizzmon a nivel 40, con modelo propio (creado desde tu disco), técnicas y firma, Solar Laser. Las partidas siguen siendo tarjetas estándar."},
         [O_FULL_EXP_SHARE] = {"EXP completa para todos", "Cada compañero que siga en pie al acabar un combate recibe la EXP completa, aunque no haya peleado, y sus digievoluciones elegidas o usadas, la EXP de Digimon completa. Los derrotados no reciben nada."},
+        [O_TECH_VISUALS] = {"Mejora visual de técnicas", "Las técnicas mágicas de tus compañeros usan nuevos proyectiles, lanzamientos e impactos en lugar de la bola de luz genérica. Desactivado usa los del juego."},
         [O_HEAL_LEVELUP] = {"Curar al subir de nivel", "Un compañero que sube de nivel en combate recupera todo su HP y MP."},
         [O_FIX_EQUIP] = {"Arreglo de emblemas", "El Emblema de Búsqueda y el de Contraataque siguen funcionando con un arma que envenena, paraliza, confunde, deja KO o drena (el de Búsqueda no con un arma crítica). El Triple no cambia."},
         [O_SAVE_ANYWHERE] = {"Guardar donde sea", "Añade una fila GUARDAR al menú del campo para guardar donde estés, no solo en los puntos de guardado. Al cargar vuelves al mismo sitio."},

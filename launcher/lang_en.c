@@ -168,6 +168,7 @@ const Lang LANG_EN = {
         [O_PACKS] = {"Extra starter packs", "Three more packs to pick in a new game: Dragon (Agumon, Guilmon, Veemon), Tactical (Kotemon, Monmon, Patamon) and Mystic (Kumamon, Renamon, Veemon)."},
         [O_BLADEGARURUMON] = {"BladeGarurumon", "A 45th Digimon every partner can learn, from Growlmon and Grizzmon at level 40, with its own model (made from your disc), techniques and signature, Solar Laser. Saves stay standard memory cards."},
         [O_FULL_EXP_SHARE] = {"Full EXP Share", "Every partner still standing after a battle gets the full EXP, even if it did not fight, and its selected or used digivolutions the full Digimon EXP. Knocked-out partners get nothing."},
+        [O_TECH_VISUALS] = {"Tech visual upgrade", "Your partners' magic techniques use new projectile, launch and impact visuals instead of the generic light ball. Off plays the game's own."},
         [O_HEAL_LEVELUP] = {"Heal on level up", "A partner that levels up in a battle gets its HP and MP back in full."},
         [O_FIX_EQUIP] = {"Crest fix", "Search and Counter Crest keep working with a weapon that poisons, paralyses, confuses, knocks out or drains (Search not with a critical weapon). Triple Crest is unchanged."},
         [O_SAVE_ANYWHERE] = {"Save anywhere", "Adds a SAVE row to the field menu so you can save wherever you stand, not only at save points. Loading puts you back in the same spot."},

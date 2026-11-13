@@ -33,6 +33,7 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_PACKS] = {"extra_packs", K_BOOL, 1},
     [O_BLADEGARURUMON] = {"bladegarurumon", K_BOOL, 1},
     [O_FULL_EXP_SHARE] = {"full_exp_share", K_BOOL, 0},
+    [O_TECH_VISUALS] = {"technique_visuals", K_BOOL, 1},
     [O_HEAL_LEVELUP] = {"heal_on_levelup", K_BOOL, 0},
     [O_SAVE_ANYWHERE] = {"save_anywhere", K_BOOL, 0},
     [O_FIX_EQUIP] = {"fix_equip_stacking", K_BOOL, 0},
