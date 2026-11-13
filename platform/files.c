@@ -38,6 +38,7 @@ int native_visual_archive_enabled(int archive) {
     FILE *f;
     int fid = (unsigned int)archive >> 16;
 
+    /* file 1 is bladegaru.c's NEW_FID, BladeGarurumon's archive, built from MetalGarurumon's: prepared only if that donor was, and not under a mods/0001.bin */
     if (fid != 1) return native_launch_archive_matches(archive) && native_launch_generated_source(fid);
     if (!native_bladegarurumon_launch_ready()) return 0;
     snprintf(path, sizeof path, "%s/mods/%04d.bin", data_dir(), fid);
