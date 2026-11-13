@@ -18,7 +18,7 @@
              }
          }
 +#ifdef NATIVE
-+        if (task->index == 9 || task->index == 13) task->nativeTechId = id;
++        if (g_technique_visuals && (task->index == 9 || task->index == 13)) task->nativeTechId = id;
 +#endif
      } else {
          chooseEnemyScript(task, info, other);
