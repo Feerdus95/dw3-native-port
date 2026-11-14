@@ -85,6 +85,7 @@ void native_log(const char *fmt, ...);
 bool ini_get(const char *file, const char *key, char *value, int size);
 bool ini_write(const char *file, IniEdit *edits, int count);
 char *ini_apply(const char *in, IniEdit *edits, int count); /* SDL_free it */
+void path_remove_tree(const char *dir); /* DIR with all that it holds */
 bool path_move_tree(const char *from, const char *to); /* FROM's files over TO's; what only TO has stays */
 
 /* options.c */

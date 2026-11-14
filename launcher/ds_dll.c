@@ -71,7 +71,7 @@ static int SDLCALL thread(void *unused)
             result = S_T_FAILED;
         }
     }
-    SDL_RemovePath(tmp);
+    path_remove_tree(tmp);
     SDL_SetAtomicInt(&s_done, 1);
     return result == S_T_READY ? S_DS_DONE : result;
 }

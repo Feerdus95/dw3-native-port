@@ -143,13 +143,8 @@ static int move_tree_selftest(void)
         SDL_free(s);
     }
     bad += SDL_GetPathInfo(PATH(from, "a.txt"), NULL) || SDL_GetPathInfo(PATH(from, "sub"), NULL); /* nothing left behind */
-    for (int i = 0; i < 4; i++) {
-        SDL_RemovePath(PATH(to, WANT[i][0]));
-    }
-    SDL_RemovePath(PATH(to, "sub"));
-    SDL_RemovePath(to);
-    SDL_RemovePath(from);
-    SDL_RemovePath(base);
+    path_remove_tree(base);
+    bad += SDL_GetPathInfo(base, NULL); /* the whole tree went */
 #undef PUT
 #undef PATH
     if (bad) {
