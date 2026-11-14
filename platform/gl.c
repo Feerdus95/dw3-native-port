@@ -176,12 +176,16 @@ static const char *BLIT_FS =
    drawn. view 1: the picture with the depth in grey (near bright) where there is any, to look at */
 static const char *LIN_FS =
     "#version 330 core\n"
-    "uniform sampler2D dep, col;\n"
+    "uniform sampler2D sd, col, fd;\n" /* the stage's depth, the picture, the fighters' (they are drawn over the stage) */
+    "uniform ivec2 valid;\n" /* which of the two the frame has */
+    "uniform vec4 area;\n" /* the picture's corner and size in them */
     "uniform int view;\n"
     "in vec2 uv;\n"
     "out vec4 frag;\n"
     "void main() {\n"
-    "    float d = texture(dep, uv).r;\n"
+    "    vec2 p = area.xy + uv * area.zw;\n"
+    "    float ds = valid.x != 0 ? texture(sd, p).r : 1.0, df = valid.y != 0 ? texture(fd, p).r : 1.0;\n"
+    "    float d = df < 1.0 ? df : ds;\n"
     "    float z = d < 1.0 ? 64.0 / (1.0 - d) : 0.0;\n"
     "    frag = view != 0 ? (z > 0.0 ? vec4(vec3(min(1.0, 512.0 / z)), 1.0) : texture(col, uv)) : vec4(z);\n"
     "}\n";
@@ -553,7 +557,7 @@ static GLint s_pass_loc, s_scale_loc, s_size_loc, s_true_loc, s_persp_loc, s_smo
    "view": until one is built in, to check them): the display area's colour before any pass (s_pic_tex[0]), the 3D's
    view depth z (s_lin_tex, R32F, 0 = none), and this frame's jitter in pixels of the copy (+x right, +y down) */
 static int s_data_depth, s_data_jitter, s_data_view;
-static GLuint s_lin, s_dep_tex, s_dep_fbo, s_lin_tex, s_lin_fbo;
+static GLuint s_lin, s_lin_tex, s_lin_fbo;
 static float s_jit_px[2];
 static unsigned s_jit_n;
 static GLuint s_vram_tex;            /* the 1x VRAM, R16UI */
@@ -1451,8 +1455,9 @@ int gfx_init(SDL_Window *window) {
         s_data_view = e != NULL && SDL_strstr(e, "view") != NULL;
         if ((s_data_depth || s_data_view) && (s_lin = program(BLIT_VS, LIN_FS)) != 0) {
             GL(glUseProgram)(s_lin);
-            GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "dep"), 0);
+            GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "sd"), 0);
             GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "col"), 1);
+            GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "fd"), 2);
         }
     }
     GL(glUseProgram)(s_main);
@@ -1619,7 +1624,7 @@ static void bind(int unit, GLuint tex) {
    corners */
 static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
     int s = s_scale, pw = d->w * s, ph = d->h * s, smaa = g_smaa && s_smaa != 0, fsr = g_fsr && s_easu != 0 && h > ph && s_frame_3d, i;
-    int data = s_lin != 0 && s_frame_3d; /* the 2D fields have none */
+    int data = s_lin != 0 && s_frame_3d && (s_sd_valid || s_fd_valid); /* the 2D fields have none */
     GLuint tex = s_pic_tex[0];
 
     uv[0] = d->x / (float)VRAM_W, uv[1] = d->y / (float)VRAM_H;
@@ -1632,16 +1637,10 @@ static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
             target(&s_pic_tex[i], &s_pic_fbo[i], pw, ph);
         }
         if (s_lin != 0) {
-            if (s_dep_tex != 0) {
-                GL(glDeleteFramebuffers)(1, &s_dep_fbo);
-                GL(glDeleteTextures)(1, &s_dep_tex);
+            if (s_lin_tex != 0) {
                 GL(glDeleteFramebuffers)(1, &s_lin_fbo);
                 GL(glDeleteTextures)(1, &s_lin_tex);
             }
-            s_dep_tex = texture(GL_DEPTH24_STENCIL8, pw, ph, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, GL_NEAREST);
-            GL(glGenFramebuffers)(1, &s_dep_fbo);
-            GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_dep_fbo);
-            GL(glFramebufferTexture2D)(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, s_dep_tex, 0);
             s_lin_tex = texture(GL_R32F, pw, ph, GL_RED, GL_FLOAT, GL_NEAREST);
             s_lin_fbo = framebuffer(s_lin_tex);
         }
@@ -1651,13 +1650,13 @@ static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
     GL(glBindFramebuffer)(GL_READ_FRAMEBUFFER, s_fbo);
     GL(glBindFramebuffer)(GL_DRAW_FRAMEBUFFER, s_pic_fbo[0]);
     GL(glBlitFramebuffer)(d->x * s, d->y * s, d->x * s + pw, d->y * s + ph, 0, 0, pw, ph, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    if (data) { /* the depth of the same area, as view depth */
-        GL(glBindFramebuffer)(GL_READ_FRAMEBUFFER, s_fbo);
-        GL(glBindFramebuffer)(GL_DRAW_FRAMEBUFFER, s_dep_fbo);
-        GL(glBlitFramebuffer)(d->x * s, d->y * s, d->x * s + pw, d->y * s + ph, 0, 0, pw, ph, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    if (data) { /* the depth of the same area, as view depth: the saved ones, the buffer itself is emptied per table */
         GL(glUseProgram)(s_lin);
         GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "view"), 0);
-        bind(0, s_dep_tex);
+        GL(glUniform2i)(GL(glGetUniformLocation)(s_lin, "valid"), s_sd_valid && g_depth, s_fd_valid && g_depth);
+        GL(glUniform4f)(GL(glGetUniformLocation)(s_lin, "area"), uv[0], uv[1], uv[2] - uv[0], uv[3] - uv[1]);
+        bind(0, s_sd_tex);
+        bind(2, s_fd_tex);
         pass(s_lin_fbo, pw, ph, 0);
     }
     if (smaa) {
@@ -1693,8 +1692,9 @@ static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
     if (data && s_data_view) { /* the depth itself on the screen, to see it */
         GL(glUseProgram)(s_lin);
         GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "view"), 1);
-        bind(0, s_dep_tex);
+        bind(0, s_sd_tex);
         bind(1, s_pic_tex[0]);
+        bind(2, s_fd_tex);
         pass(s_pic_fbo[2], pw, ph, 0);
         tex = s_pic_tex[2];
     }
