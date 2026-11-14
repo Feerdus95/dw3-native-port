@@ -1,7 +1,7 @@
 /* Every option native.ini saves, read from it and written back when changed. Only what changed is written. */
 #include "launcher.h"
 
-enum { K_BOOL, K_FPS, K_TIMES, K_ICONS, K_PERCENT, K_FOCUS, K_NUMBER, K_FSR };
+enum { K_BOOL, K_FPS, K_TIMES, K_ICONS, K_PERCENT, K_FOCUS, K_NUMBER, K_FSR, K_DLSS };
 
 static const struct { const char *key; Uint8 kind; short def, min, max, step; } DEF[O_COUNT] = {
     [O_FPS] = {"fps", K_FPS, 50, 50, 60, 10},
@@ -25,6 +25,7 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_SCANLINES] = {"scanlines", K_NUMBER, 0, 0, 10, 1},
     [O_SMAA] = {"smaa", K_BOOL, 0},
     [O_FSR] = {"fsr", K_FSR, 0, 0, 3, 1},
+    [O_DLSS_MODE] = {"dlss_mode", K_DLSS, 1, 0, 3, 1},
     [O_INTEGER] = {"integer_scale", K_BOOL, 0},
     [O_INACTIVE] = {"inactive_window", K_FOCUS, 0, 0, 2, 1},
     [O_FF_MENUS] = {"ff_menu_speed", K_BOOL, 0},
@@ -70,7 +71,7 @@ void options_load(void)
         case K_FPS: s_value[o] = SDL_atoi(v) == 60 ? 60 : 50; break;
         case K_TIMES: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 8); break;
         case K_FOCUS: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 2); break;
-        case K_FSR: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 3); break;
+        case K_DLSS: case K_FSR: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 3); break;
         case K_NUMBER: s_value[o] = (short)SDL_clamp(SDL_atoi(v), DEF[o].min, DEF[o].max); break;
         case K_PERCENT: s_value[o] = (short)SDL_clamp((SDL_atoi(v) * 100 + 16383) / 32767, 0, 100); break;
         default:
@@ -160,6 +161,7 @@ void option_value(int o, const Lang *l, char *out, int size)
         break;
     case K_FOCUS: SDL_snprintf(out, size, "%s", l->s[v == 2 ? S_PAUSE : v == 1 ? S_MUTE : S_OFF]); break;
     case K_PERCENT: SDL_snprintf(out, size, "%d%%", v); break;
+    case K_DLSS: SDL_snprintf(out, size, "%s", v == 0 ? "DLAA" : v == 1 ? "Quality" : v == 2 ? "Balanced" : "Performance"); break;
     case K_FSR: SDL_snprintf(out, size, "%s", v == 3 ? "DLSS" : v == 2 ? "FSR 3.1" : v == 1 ? "FSR 1" : l->s[S_OFF]); break;
     case K_NUMBER: /* from 0: off or a level; around 0: signed */
         if (v == 0) {

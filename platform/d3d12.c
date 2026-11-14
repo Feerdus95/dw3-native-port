@@ -28,7 +28,7 @@ int g_depth = 1;
 int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1;
 int g_sharpen, g_brightness, g_gamma, g_saturation;
 int g_scanlines, g_integer_scale;
-int g_smaa, g_fsr;
+int g_smaa, g_fsr, g_dlss_mode = 1; /* g_dlss_mode: 0 DLAA, 1 Quality, 2 Balanced, 3 Performance */
 int g_dbg[3] = {0, 1, 1};
 static int s_dlss; /* DLSS chosen at the start, its DLLs there and the GPU one it runs on: the device is Streamline's proxy */
 static int g_fsr3; /* FSR 3.1 chosen at the start, and its DLLs there: its data is made */

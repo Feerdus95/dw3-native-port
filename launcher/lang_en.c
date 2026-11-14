@@ -173,6 +173,7 @@ const Lang LANG_EN = {
         [O_SCANLINES] = {"Scanlines", "Dark lines between the game's rows, like a tube television. Best with integer scaling."},
         [O_SMAA] = {"SMAA anti-aliasing", "Smooths the jagged edges of the picture (SMAA), without blurring the rest."},
         [O_FSR] = {"FSR upscaling", "Enlarges the 3D to the window when the resolution is below it: FSR 1, FSR 3.1 or DLSS (x64, extra files; DLSS needs an RTX card). For slow cards."},
+        [O_DLSS_MODE] = {"DLSS mode", "DLAA keeps the render size, the others lower it: Quality, Balanced or Performance. Only with DLSS chosen above."},
         [O_ICONS] = {"Button icons", "The icons in menus and texts, by Xelu. Auto follows the keyboard or gamepad you used last."},
         [O_RUMBLE] = {"Vibration", "The gamepad's vibration."},
         [O_DEADZONE] = {"Stick deadzone", "How far the sticks and triggers move before they count."},

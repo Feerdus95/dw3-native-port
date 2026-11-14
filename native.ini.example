@@ -57,6 +57,9 @@ smaa = 0
 # smaa on those frames. Choosing it in the options needs a restart
 fsr = 0
 
+# With fsr = 3 (DLSS): 0 DLAA, 1 Quality, 2 Balanced, 3 Performance.
+dlss_mode = 1
+
 # 0: no dithering (the PlayStation's, on shaded and blended polygons)
 dither = 1
 

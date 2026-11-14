@@ -129,7 +129,7 @@ static SlSetOptionsFn s_sl_options;
 static SlOptimalFn s_sl_optimal;
 static SlFeatureFnFn s_sl_feature;
 static int s_sl_state; /* 0 not tried, 1 initialised, -1 not there or refused */
-static int s_sl_rw, s_sl_rh, s_sl_uw, s_sl_uh;
+static int s_sl_rw, s_sl_rh, s_sl_uw, s_sl_uh, s_sl_mode = -1;
 
 static SlBase sl_base(const SlGuid *g, size_t ver) {
     SlBase b = {NULL, *g, ver};
@@ -250,11 +250,11 @@ static int sl_factory(IDXGIFactory4 **fac) {
     return 1;
 }
 
-/* The mode the sizes ask for: the output over the render size is 1 for DLAA, 1.5 Quality, 1.7 Balanced, 2 Performance, 3 Ultra performance */
-static uint32_t sl_mode(int rw, int uw) {
-    float k = (float)uw / (float)rw;
+/* The mode the player chose (the menu's DLSS mode: DLAA, Quality, Balanced, Performance). The render size is the Resolution's, as for FSR */
+static uint32_t sl_mode(void) {
+    static const uint32_t MODES[4] = {SL_MODE_DLAA, SL_MODE_QUALITY, SL_MODE_BALANCED, SL_MODE_PERFORMANCE};
 
-    return k < 1.15f ? SL_MODE_DLAA : k < 1.6f ? SL_MODE_QUALITY : k < 1.85f ? SL_MODE_BALANCED : k < 2.5f ? SL_MODE_PERFORMANCE : SL_MODE_ULTRA_PERFORMANCE;
+    return MODES[SDL_clamp(g_dlss_mode, 0, 3)];
 }
 
 static SlRes sl_res(ID3D12Resource *r, uint32_t state) {
@@ -283,11 +283,11 @@ static int sl_run(ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Re
     if (s_sl_state <= 0) {
         return 0;
     }
-    if (rw != s_sl_rw || rh != s_sl_rh || uw != s_sl_uw || uh != s_sl_uh) {
+    if (rw != s_sl_rw || rh != s_sl_rh || uw != s_sl_uw || uh != s_sl_uh || g_dlss_mode != s_sl_mode) {
         SlDlssOptimal best = {0};
 
         o.b = sl_base(&SL_G_DLSS_OPTIONS, 3);
-        o.mode = sl_mode(rw, uw), o.out_w = (uint32_t)uw, o.out_h = (uint32_t)uh;
+        o.mode = sl_mode(), o.out_w = (uint32_t)uw, o.out_h = (uint32_t)uh;
         o.pre_exposure = o.exposure_scale = 1;
         o.auto_exposure = 1; /* the picture has no exposure of its own; it is 8 bits, not HDR */
         best.b = sl_base(&SL_G_DLSS_OPTIMAL, 1);
@@ -299,7 +299,7 @@ static int sl_run(ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Re
             s_sl_state = -1;
             return 0;
         }
-        s_sl_rw = rw, s_sl_rh = rh, s_sl_uw = uw, s_sl_uh = uh;
+        s_sl_rw = rw, s_sl_rh = rh, s_sl_uw = uw, s_sl_uh = uh, s_sl_mode = g_dlss_mode;
     }
     c.b = sl_base(&SL_G_CONSTANTS, 2);
     for (i = 0; i < 4; i++) { /* the game has no camera matrices to give: identity, which the DLSS plugin doesn't use */

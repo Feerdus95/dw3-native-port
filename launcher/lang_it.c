@@ -173,6 +173,7 @@ const Lang LANG_IT = {
         [O_SCANLINES] = {"Scanline", "Linee scure tra le righe del gioco, come su un televisore a tubo. Meglio con la scala intera."},
         [O_SMAA] = {"Antialiasing SMAA", "Ammorbidisce i bordi seghettati dell'immagine (SMAA), senza sfocare il resto."},
         [O_FSR] = {"Upscaling FSR / DLSS", "Ingrandisce il 3D fino alla finestra se la risoluzione è inferiore: FSR 1, FSR 3.1 o DLSS (x64, file extra; DLSS vuole una scheda RTX)."},
+        [O_DLSS_MODE] = {"Modalità DLSS", "DLAA mantiene la dimensione di rendering, gli altri la abbassano: Qualità, Bilanciato o Prestazioni. Solo con DLSS scelto sopra."},
         [O_ICONS] = {"Icone dei pulsanti", "Le icone di menu e testi, di Xelu. Auto segue la tastiera o il controller usati per ultimi."},
         [O_RUMBLE] = {"Vibrazione", "La vibrazione del controller."},
         [O_DEADZONE] = {"Zona morta dello stick", "Quanto si muovono stick e grilletti prima di contare."},
