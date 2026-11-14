@@ -12,6 +12,7 @@
 - **Preset** (Options, Graphics, first row). Original, Enhanced or Remaster set the tab's options at once; it reads Custom when they are at none of the three.
 - **Reads from the disc on their own thread.** The game asks for a file and goes on drawing while a thread reads it, as the console's drive did, instead of waiting for the disk. On a hard disk, the first battle no longer stutters when its files load.
 - **DirectStorage reads** (Windows, x64 build). With Microsoft's `dstorage.dll` and `dstoragecore.dll` next to the exe, the reader thread asks DirectStorage for the files instead of reading them itself; without them, or if it fails, the thread's plain reads stay. Measured on a hard disk, a SATA SSD and an NVMe, the game's small reads take the same either way today; it is there for the larger files mods will bring. The port carries none of Microsoft's binaries, and DirectStorage's usage reports to Microsoft are switched off.
+- **DirectStorage files** (launcher, Tools): downloads Microsoft's two DLLs from the DirectStorage 1.3.0 NuGet package next to the game, each checked by its SHA-256.
 
 ## v0.19.7 (beta)
 

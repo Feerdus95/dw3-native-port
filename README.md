@@ -219,6 +219,8 @@ button can be changed in the options menu's Input tab, **Controls**.
                          ;    F5 / F9 save / load a state (saves/quick.state)
     log =                ; console logs: cd, snd, pad, mc, ovl, gpu or all
 
+**DirectStorage** (x64 build): with Microsoft's `dstorage.dll` and `dstoragecore.dll` next to the exe, the game reads its files through DirectStorage; without them, or if it fails, it reads them as before. There is no option: the launcher's Tools screen, **DirectStorage files**, downloads the two DLLs from Microsoft's NuGet package, each checked by its SHA-256.
+
 ### Effects' own images (mods)
 
 **Digimon mods.** Any folder `data/mods/digimon/<name>/` with a `digimon.json` adds one more Digimon partners can digivolve into, with no

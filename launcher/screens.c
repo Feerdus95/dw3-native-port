@@ -11,7 +11,7 @@ static const Row HOME[] = {ACT(S_PLAY), ACT(S_SETTINGS), ACT(S_SAVES), ACT(S_TOO
 static const Row HOME_NEWS[] = {ACT(S_PLAY), ACT(S_SETTINGS), ACT(S_SAVES), ACT(S_TOOLS), ACT(S_RELEASE), ACT(S_QUIT), {R_LANGUAGE}, {R_END}};
 static const Row SAVES[] = {ACT(S_EXPORT), ACT(S_IMPORT), ACT(S_UNDO), ACT(S_SV_FOLDER), ACT(S_BACK), {R_END}};
 static const Row FIRST_RUN[] = {ACT(S_BROWSE), {R_LANGUAGE}, {R_END}};
-static const Row TOOLS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_LOG), ACT(S_CHECK), ACT(S_FSR_DLL), ACT(S_CREDITS), ACT(S_BACK), {R_END}};
+static const Row TOOLS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_LOG), ACT(S_CHECK), ACT(S_FSR_DLL), ACT(S_DS_DLL), ACT(S_CREDITS), ACT(S_BACK), {R_END}};
 /* the Input tab's buttons in the order of the game's Controls page */
 static const Row TABS[4][27] = {
     {OPT(O_FPS), OPT(O_FULLSCREEN), OPT(O_WINDOW), OPT(O_INTEGER), OPT(O_WIDESCREEN), OPT(O_VSYNC), OPT(O_MOVIES), OPT(O_INACTIVE), ACT(S_RESET), ACT(S_BACK), {R_END}},
@@ -198,6 +198,11 @@ static void draw_list(void)
         if (r[i].kind == R_ACTION && r[i].id == S_FSR_DLL) {
             char value[64];
             fsr_dll_value(value, sizeof value);
+            text_right(a.x + a.w - 12 - list_inset(), y, C_SOFT, value);
+        }
+        if (r[i].kind == R_ACTION && r[i].id == S_DS_DLL) {
+            char value[64];
+            ds_dll_value(value, sizeof value);
             text_right(a.x + a.w - 12 - list_inset(), y, C_SOFT, value);
         }
         if (r[i].kind == R_ACTION && r[i].id == S_SWAP) { /* on or off, so it shows it took */
