@@ -62,3 +62,5 @@ _Static_assert(FX_TEX2D == FFX_API_RESOURCE_TYPE_TEXTURE2D, "tex2d");
 _Static_assert(FX_USAGE_UAV == FFX_API_RESOURCE_USAGE_UAV, "uav");
 _Static_assert(FX_ST_UAV == FFX_API_RESOURCE_STATE_UNORDERED_ACCESS, "st uav");
 _Static_assert(FX_ST_PIXEL == FFX_API_RESOURCE_STATE_PIXEL_READ, "st pixel");
+_Static_assert(FX_R8 == FFX_API_SURFACE_FORMAT_R8_UNORM, "r8");
+AT(FxDispatch, reactive, struct ffxDispatchDescUpscale, reactive);

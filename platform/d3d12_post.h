@@ -187,7 +187,7 @@ static const char *DEPTH_HLSL =
    texels to one of the window's, a.zw: where the picture starts in the copy, b.xy: the window's corner) */
 static const char *MOTION_HLSL =
     "cbuffer C : register(b0) { float4 uv; float4 a; float4 b; };\n"
-    "Texture2D<float2> t0 : register(t0);\n"
+    "Texture2D<float4> t0 : register(t0);\n"
     "struct VO { float4 p : SV_Position; };\n"
     "VO vs(uint id : SV_VertexID) {\n"
     "    float2 c = float2(id & 1, id >> 1);\n"
@@ -196,10 +196,13 @@ static const char *MOTION_HLSL =
     "    return o;\n"
     "}\n"
     "float4 mcopy(VO i) : SV_Target {\n"
-    "    return float4(t0.Load(int3(int2((i.p.xy - b.xy) * a.xy) + int2(a.zw), 0)), 0, 0);\n"
+    "    return float4(t0.Load(int3(int2((i.p.xy - b.xy) * a.xy) + int2(a.zw), 0)).xy, 0, 0);\n"
+    "}\n"
+    "float4 rcopy(VO i) : SV_Target {\n"
+    "    return float4(t0.Load(int3(int2((i.p.xy - b.xy) * a.xy) + int2(a.zw), 0)).z, 0, 0, 0);\n"
     "}\n"
     "float4 mview(VO i) : SV_Target {\n"
-    "    float2 m = t0.Load(int3(int2((i.p.xy - b.xy) * a.xy) + int2(a.zw), 0));\n"
+    "    float2 m = t0.Load(int3(int2((i.p.xy - b.xy) * a.xy) + int2(a.zw), 0)).xy;\n"
     "    float2 c = clamp(m / 0.5, -0.5, 0.5) + 0.5;\n"
     "    return float4(c.x, c.y, 0.5, 1.0);\n"
     "}\n";

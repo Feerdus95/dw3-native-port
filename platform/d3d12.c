@@ -133,12 +133,12 @@ static const char *MAIN_HLSL =
     "    else if (fog.a > 0.0 && deep != 0u && !semi && (md & 2048u) == 0u) c5 = lerp(c5, fog.rgb, fog.a * smoothstep(fogz.x, fogz.y, vw));\n"
     "    return float4(c5 / 31.0, ((md & 256u) != 0u || (pix & 0x8000u) != 0u) ? 1.0 : 0.0);\n"
     "}\n"
-    /* with the motion target (DW3_UPSCALE_DATA=motion): the picture, and in the second target the 3D's motion in pixels of the copy (0 for 2D) */
-    "struct PM { float4 c : SV_Target0; float2 m : SV_Target1; };\n"
+    /* with the motion target (DW3_UPSCALE_DATA=motion): the picture, and in the second target the 3D's motion in pixels of the copy (0 for 2D), and 1 where the upscaler should trust its history less: the 2D, and a small 3D window's (the portrait) */
+    "struct PM { float4 c : SV_Target0; float4 m : SV_Target1; };\n"
     "PM psm(VO i, float4 fc : SV_Position) {\n"
     "    PM o;\n"
     "    o.c = ps(i, fc);\n"
-    "    o.m = i.deep != 0u ? i.mv : float2(0.0, 0.0);\n"
+    "    o.m = float4(i.deep != 0u ? i.mv : float2(0.0, 0.0), (i.deep == 0u || pad != 0) ? 1.0 : 0.0, 0.0);\n"
     "    return o;\n"
     "}\n";
 
@@ -197,9 +197,9 @@ typedef struct {
 
 /* the SRV heap's slots; the picture's passes (post): its copies P0-P2 and FSR's output, SMAA's tables, and for SMAA's three
    passes a table of three views each (t0, t1, t2) */
-enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_P0, S_P1, S_P2, S_FSR, S_AREA, S_SEARCH, S_DSRC, S_SD, S_FD, S_DOUT, S_MV, S_MOUT, S_F3, S_TD, S_T0 = S_TD + 3, S_T1 = S_T0 + 3, S_T2 = S_T1 + 3, S_COUNT = S_T2 + 3 };
+enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_P0, S_P1, S_P2, S_FSR, S_AREA, S_SEARCH, S_DSRC, S_SD, S_FD, S_DOUT, S_MV, S_MOUT, S_REACT, S_F3, S_TD, S_T0 = S_TD + 3, S_T1 = S_T0 + 3, S_T2 = S_T1 + 3, S_COUNT = S_T2 + 3 };
 #define MAX_IMG 1024 /* the port's own images (icons, postcards, effects): their slots follow S_COUNT */
-enum { R_RT = FRAMES, R_MASK, R_BLUR, R_P0, R_P1, R_P2, R_FSR, R_SD, R_FD, R_DOUT, R_MV, R_MOUT, R_COUNT }; /* the RTV heap's, after the back buffers */
+enum { R_RT = FRAMES, R_MASK, R_BLUR, R_P0, R_P1, R_P2, R_FSR, R_SD, R_FD, R_DOUT, R_MV, R_MOUT, R_REACT, R_COUNT }; /* the RTV heap's, after the back buffers */
 
 static SDL_Window *s_window;
 static ID3D12Device *s_dev;
@@ -220,7 +220,8 @@ static int s_data_jitter;
    previous place minus this one; mshow draws it instead of the picture */
 static int s_data_motion, s_data_mshow, s_mv_clear, s_mv_org[2], s_mv_org_set, s_mv_area; /* s_mv_org: where the frame's 3D was drawn (the clip's corner), not always where it is shown */
 static Tex s_mv;
-static ID3D12PipelineState *s_pso_mview, *s_pso_mcopy;
+static ID3D12PipelineState *s_pso_mview, *s_pso_mcopy, *s_pso_rcopy;
+static Tex s_react; /* where the upscaler should trust its history less, at the picture's size (R8) */
 static Tex s_mout; /* the motion at the picture's size (R16G16F, pixels of the picture, previous place minus this one): where the upscalers will read it */
 static int s_mout_w, s_mout_h, s_do_mout;
 static float s_jit_px[2], s_jit_used[2]; /* s_jit_used: the jitter the frame being shown was drawn with */
@@ -524,7 +525,7 @@ static ID3D12PipelineState *main_pso(int semi, int depth) {
     d.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
     d.InputLayout.pInputElementDescs = s_layout, d.InputLayout.NumElements = 9;
     d.SampleMask = 0xFFFFFFFFu, d.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    d.NumRenderTargets = s_data_motion ? 2 : 1, d.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM, d.RTVFormats[1] = DXGI_FORMAT_R16G16_FLOAT;
+    d.NumRenderTargets = s_data_motion ? 2 : 1, d.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM, d.RTVFormats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
     d.DSVFormat = DXGI_FORMAT_D32_FLOAT, d.SampleDesc.Count = 1;
     if (!OK(ID3D12Device_CreateGraphicsPipelineState(s_dev, &d, &IID_ID3D12PipelineState, (void **)&s_pso_main[k]))) {
         SDL_Log("d3d12: pipeline %d", k);
@@ -855,6 +856,7 @@ static void draw_batch(int semi, int depth, int pass, const Consts *k0) {
     static const float half[4] = {0.5f, 0.5f, 0.5f, 0.5f}, quarter[4] = {0.25f, 0.25f, 0.25f, 0.25f};
 
     k.pass = pass;
+    k.pad = s_deep && (s_clip[2] - s_clip[0] + 1) * (s_clip[3] - s_clip[1] + 1) < 38400; /* a small 3D window (the portrait): its pixels are reactive */
     ID3D12GraphicsCommandList_SetPipelineState(s_list, main_pso(semi, depth));
     ID3D12GraphicsCommandList_OMSetBlendFactor(s_list, semi == 0 ? half : quarter);
     ID3D12GraphicsCommandList_SetGraphicsRoot32BitConstants(s_list, 1, 16, &k, 0);
@@ -1269,12 +1271,12 @@ void gfx_sync(int force) {
         }
         ID3D12Device_CreateRenderTargetView(s_dev, s_rt.r, NULL, rtv_at(FRAMES));
         if (s_data_motion) {
-            D3D12_CLEAR_VALUE cm = {DXGI_FORMAT_R16G16_FLOAT, {{0, 0, 0, 0}}};
+            D3D12_CLEAR_VALUE cm = {DXGI_FORMAT_R16G16B16A16_FLOAT, {{0, 0, 0, 0}}};
 
-            s_mv = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R16G16_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cm);
+            s_mv = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R16G16B16A16_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cm);
             if (s_mv.r != NULL) {
                 ID3D12Device_CreateRenderTargetView(s_dev, s_mv.r, NULL, rtv_at(R_MV));
-                srv(&s_mv, S_MV, DXGI_FORMAT_R16G16_FLOAT);
+                srv(&s_mv, S_MV, DXGI_FORMAT_R16G16B16A16_FLOAT);
             } else {
                 SDL_Log("d3d12: the motion target at scale %d", want);
             }
@@ -1522,6 +1524,10 @@ static void post_init(void) {
         if (compile(MOTION_HLSL, "mcopy", "ps_5_0", &pc)) {
             s_pso_mcopy = blit_pso(vs, pc, 1, DXGI_FORMAT_R16G16_FLOAT);
         }
+        pc = NULL;
+        if (compile(MOTION_HLSL, "rcopy", "ps_5_0", &pc)) {
+            s_pso_rcopy = blit_pso(vs, pc, 1, DXGI_FORMAT_R8_UNORM);
+        }
         if (s_data_mshow && compile(MOTION_HLSL, "mview", "ps_5_0", &ps)) {
             s_pso_mview = blit_pso(vs, ps, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
         }
@@ -1654,14 +1660,16 @@ static void post_prepare(const PSX_RECT *d, const int vp[4]) {
         s_dout_w = pw, s_dout_h = ph;
     }
     s_do_depth = s_do_depth && s_dout.r != NULL;
-    s_do_mout = s_data_motion && s_frame_3d && s_pso_mcopy != NULL && s_mv.r != NULL;
+    s_do_mout = s_data_motion && s_frame_3d && s_pso_mcopy != NULL && s_pso_rcopy != NULL && s_mv.r != NULL;
     if (s_do_mout && (pw != s_mout_w || ph != s_mout_h)) {
         submit();
         if (s_mout.r != NULL) ID3D12Resource_Release(s_mout.r);
         s_mout = pass_target(pw, ph, R_MOUT, S_MOUT, DXGI_FORMAT_R16G16_FLOAT);
+        if (s_react.r != NULL) ID3D12Resource_Release(s_react.r);
+        s_react = pass_target(pw, ph, R_REACT, S_REACT, DXGI_FORMAT_R8_UNORM);
         s_mout_w = pw, s_mout_h = ph;
     }
-    s_do_mout = s_do_mout && s_mout.r != NULL;
+    s_do_mout = s_do_mout && s_mout.r != NULL && s_react.r != NULL;
     s_do_f3 = f3 && s_do_depth && s_do_mout && s_p[0].r != NULL;
     if (s_do_f3 && (vp[2] != s_f3_w || vp[3] != s_f3_h)) {
         submit();
@@ -1775,6 +1783,9 @@ static void post_motion(void) {
     rt_pass(&s_mout, R_MOUT, 0);
     draw_k(s_blit_root, s_pso_mcopy, S_MV, full, k);
     trans(&s_mout, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    rt_pass(&s_react, R_REACT, 0);
+    draw_k(s_blit_root, s_pso_rcopy, S_MV, full, k);
+    trans(&s_react, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     mark(C_PRESENT);
 }
 
@@ -1798,7 +1809,7 @@ static int post_f3(const PSX_RECT *d, const int vp[4]) {
     trans(&s_p[0], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     trans(&s_rt, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     trans(&s_f3, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    ok = fx_run(s_dev, s_list, s_p[0].r, s_dout.r, s_mout.r, s_f3.r, pw, ph, vp[2], vp[3], s_jit_used[0], s_jit_used[1], !s_f3_prev, fov, ms);
+    ok = fx_run(s_dev, s_list, s_p[0].r, s_dout.r, s_mout.r, s_react.r, s_f3.r, pw, ph, vp[2], vp[3], s_jit_used[0], s_jit_used[1], !s_f3_prev, fov, ms);
     ID3D12GraphicsCommandList_SetDescriptorHeaps(s_list, 1, heaps); /* (the upscaler set its own) */
     trans(&s_f3, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     mark(C_PRESENT);

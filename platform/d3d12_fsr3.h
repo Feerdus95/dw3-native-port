@@ -59,7 +59,7 @@ enum {
     FX_VERSION_NUMBER = (4 << 22) | (1 << 12) | 2,
     FX_DEPTH_INFINITE = 1 << 4, FX_NON_LINEAR = 1 << 8, FX_AUTO_EXPOSURE = 1 << 5,
     FX_SRGB = 1 << 1,
-    FX_R8G8B8A8 = 10, FX_R16G16F = 18, FX_R32F = 28, FX_TEX2D = 2, FX_USAGE_UAV = 2,
+    FX_R8 = 25, FX_R8G8B8A8 = 10, FX_R16G16F = 18, FX_R32F = 28, FX_TEX2D = 2, FX_USAGE_UAV = 2,
     FX_ST_UAV = 1 << 1, FX_ST_PIXEL = 1 << 3
 };
 
@@ -161,9 +161,9 @@ static FxRes fx_res(ID3D12Resource *r, int w, int h, uint32_t fmt, uint32_t stat
     return f;
 }
 
-/* One frame: color, depth and motion (all the render size, in the state of a pixel shader's view) into out (the output size, a UAV).
+/* One frame: color, depth and motion and reactive mask (all the render size, in the state of a pixel shader's view) into out (the output size, a UAV).
    The command list's heaps and bindings are the caller's to set again after it. 1 when it ran */
-static int fx_run(ID3D12Device *dev, ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Resource *depth, ID3D12Resource *mv, ID3D12Resource *out,
+static int fx_run(ID3D12Device *dev, ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Resource *depth, ID3D12Resource *mv, ID3D12Resource *react, ID3D12Resource *out,
                   int rw, int rh, int uw, int uh, float jx, float jy, int reset, float fov, float ms) {
     FxDispatch d;
     uint32_t r;
@@ -176,6 +176,7 @@ static int fx_run(ID3D12Device *dev, ID3D12GraphicsCommandList *cl, ID3D12Resour
     d.color = fx_res(color, rw, rh, FX_R8G8B8A8, FX_ST_PIXEL, 0);
     d.depth = fx_res(depth, rw, rh, FX_R32F, FX_ST_PIXEL, 0);
     d.mv = fx_res(mv, rw, rh, FX_R16G16F, FX_ST_PIXEL, 0);
+    d.reactive = fx_res(react, rw, rh, FX_R8, FX_ST_PIXEL, 0);
     d.out = fx_res(out, uw, uh, FX_R8G8B8A8, FX_ST_UAV, FX_USAGE_UAV);
     d.jx = jx, d.jy = jy, d.msx = d.msy = 1; /* the motion is in pixels of the render size already */
     d.rw = (uint32_t)rw, d.rh = (uint32_t)rh, d.uw = (uint32_t)uw, d.uh = (uint32_t)uh;
