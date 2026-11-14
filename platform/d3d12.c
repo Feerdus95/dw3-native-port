@@ -200,6 +200,10 @@ static Tex s_pic, s_menu, s_vram, s_rt, s_tmp, s_depth, s_mask, s_blur; /* the m
 static Tex s_p[3], s_fsr, s_area, s_search; /* the picture's passes: the display area copied, SMAA's edges, its weights; FSR's output */
 static ID3D12RootSignature *s_smaa_root;
 static ID3D12PipelineState *s_pso_post, *s_pso_easu, *s_pso_smaa[3];
+/* what an upscaler (DLSS, FSR 3) is given, made only while DW3_UPSCALE_DATA asks (as gl.c's): the 3D shifted by a sub-pixel jitter, in pixels of the copy (+x right, +y down) */
+static int s_data_jitter;
+static float s_jit_px[2];
+static unsigned s_jit_n;
 static int s_p_w, s_p_h, s_fsr_w, s_fsr_h, s_smaa_tried, s_frame_3d; /* s_frame_3d: this frame has 3D in it */
 static ID3D12GraphicsCommandList *s_list;
 static ID3D12RootSignature *s_main_root, *s_blit_root;
@@ -687,6 +691,11 @@ int gfx_init(SDL_Window *window) {
     s_pso_blur = blit_pso(bvs, bpsb, 1, DXGI_FORMAT_R8_UNORM);
     s_pso_dark = blit_pso(bvs, bpsb, 3, DXGI_FORMAT_R8G8B8A8_UNORM);
     post_init();
+    {
+        const char *e = SDL_getenv("DW3_UPSCALE_DATA");
+
+        s_data_jitter = e != NULL && SDL_strstr(e, "jitter") != NULL;
+    }
     s_pso_mask[0] = mask_pso(0);
     s_pso_mask[1] = mask_pso(1);
     s_pic = texture(VRAM_W, VRAM_H, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
@@ -823,6 +832,7 @@ static void flush_batch(void) {
         s_count = 0, s_semi = -1;
         return;
     }
+    k.jit[0] = s_jit_px[0] * 2.0f / (VRAM_W * s), k.jit[1] = -s_jit_px[1] * 2.0f / (VRAM_H * s); /* (clip y runs up) */
     k.fog[0] = s_fog[0], k.fog[1] = s_fog[1], k.fog[2] = s_fog[2], k.fog[3] = s_fog_shown && s_zfar > 0 ? s_fog_amount : 0.0f;
     k.fogz[0] = s_zfar * s_fog_from, k.fogz[1] = s_zfar;
     list();
@@ -1606,6 +1616,20 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     s_frame_3d = s_zframe > 0;
     s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
     s_fog_on = 0, s_zframe = 0;
+    if (s_data_jitter) { /* the next frame's: Halton (2, 3), 8 of them, centred on the pixel */
+        unsigned n = ++s_jit_n % 8 + 1;
+        float f, b;
+        int k;
+
+        for (k = 0; k < 2; k++) {
+            unsigned j = n, base = k == 0 ? 2 : 3;
+
+            for (f = 1, b = 0; j > 0; j /= base) {
+                f /= base, b += f * (j % base);
+            }
+            s_jit_px[k] = b - 0.5f;
+        }
+    }
     SDL_GetWindowSizeInPixels(s_window, &w, &h);
     if (w < 1 || h < 1) {
         return;
