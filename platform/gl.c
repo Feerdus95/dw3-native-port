@@ -173,17 +173,17 @@ static const char *BLIT_FS =
     "void main() { frag = texture(tex, uv); }\n";
 
 /* The 3D's depth as the game gave it (MAIN_VS: depth = 1 - 64 / z) back to its view depth z, 0 where nothing 3D was
-   drawn. view 1: a grey picture of it instead (near bright), to look at */
+   drawn. view 1: the picture with the depth in grey (near bright) where there is any, to look at */
 static const char *LIN_FS =
     "#version 330 core\n"
-    "uniform sampler2D dep;\n"
+    "uniform sampler2D dep, col;\n"
     "uniform int view;\n"
     "in vec2 uv;\n"
     "out vec4 frag;\n"
     "void main() {\n"
     "    float d = texture(dep, uv).r;\n"
     "    float z = d < 1.0 ? 64.0 / (1.0 - d) : 0.0;\n"
-    "    frag = view != 0 ? (z > 0.0 ? vec4(vec3(min(1.0, 512.0 / z)), 1.0) : vec4(0.0, 0.0, 0.3, 1.0)) : vec4(z);\n"
+    "    frag = view != 0 ? (z > 0.0 ? vec4(vec3(min(1.0, 512.0 / z)), 1.0) : texture(col, uv)) : vec4(z);\n"
     "}\n";
 
 /* The game's picture on its way to the window, when any of sharpen, brightness, gamma or saturation is set.
@@ -1452,6 +1452,7 @@ int gfx_init(SDL_Window *window) {
         if ((s_data_depth || s_data_view) && (s_lin = program(BLIT_VS, LIN_FS)) != 0) {
             GL(glUseProgram)(s_lin);
             GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "dep"), 0);
+            GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "col"), 1);
         }
     }
     GL(glUseProgram)(s_main);
@@ -1618,7 +1619,7 @@ static void bind(int unit, GLuint tex) {
    corners */
 static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
     int s = s_scale, pw = d->w * s, ph = d->h * s, smaa = g_smaa && s_smaa != 0, fsr = g_fsr && s_easu != 0 && h > ph && s_frame_3d, i;
-    int data = s_lin != 0 && (s_frame_3d || s_data_view); /* the view: on any frame, to see where there is none */
+    int data = s_lin != 0 && s_frame_3d; /* the 2D fields have none */
     GLuint tex = s_pic_tex[0];
 
     uv[0] = d->x / (float)VRAM_W, uv[1] = d->y / (float)VRAM_H;
@@ -1693,6 +1694,7 @@ static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
         GL(glUseProgram)(s_lin);
         GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "view"), 1);
         bind(0, s_dep_tex);
+        bind(1, s_pic_tex[0]);
         pass(s_pic_fbo[2], pw, ph, 0);
         tex = s_pic_tex[2];
     }
