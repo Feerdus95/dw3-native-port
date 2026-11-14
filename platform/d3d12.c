@@ -166,7 +166,7 @@ static Tex s_pic, s_menu, s_vram, s_rt, s_tmp, s_depth;
 static ID3D12CommandAllocator *s_alloc;
 static ID3D12GraphicsCommandList *s_list;
 static ID3D12RootSignature *s_main_root, *s_blit_root;
-static ID3D12PipelineState *s_pso_present, *s_pso_copy, *s_pso_copyn;
+static ID3D12PipelineState *s_pso_present, *s_pso_copy, *s_pso_copyn, *s_pso_over;
 static ID3D12PipelineState *s_pso_main[6 * 3]; /* made on first use: (blend + 1) * 3 + depth mode */
 static ID3DBlob *s_main_vs, *s_main_ps;
 static D3D12_INPUT_ELEMENT_DESC s_layout[8];
@@ -390,6 +390,11 @@ static ID3D12PipelineState *blit_pso(ID3DBlob *vs, ID3DBlob *ps, int write_alpha
     d.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE, d.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
     /* on screen the window stays opaque: the copy's alpha is the mask bit */
     d.BlendState.RenderTarget[0].RenderTargetWriteMask = write_alpha ? D3D12_COLOR_WRITE_ENABLE_ALL : 7;
+    if (write_alpha == 2) { /* the menu's overlay: its alpha is 0 where it is clear */
+        d.BlendState.RenderTarget[0].BlendEnable = TRUE;
+        d.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA, d.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+        d.BlendState.RenderTarget[0].RenderTargetWriteMask = 7;
+    }
     d.SampleMask = 0xFFFFFFFFu, d.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     d.NumRenderTargets = 1, d.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM, d.SampleDesc.Count = 1;
     ID3D12Device_CreateGraphicsPipelineState(s_dev, &d, &IID_ID3D12PipelineState, (void **)&p);
@@ -498,6 +503,7 @@ int gfx_init(SDL_Window *window) {
     }
     s_pso_present = blit_pso(bvs, bps, 0);
     s_pso_copy = blit_pso(bvs, bps, 1);
+    s_pso_over = blit_pso(bvs, bps, 2);
     s_pso_copyn = blit_pso(bvs, bpsn, 1);
     s_pic = texture(VRAM_W, VRAM_H, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
     s_menu = texture(MENU_W, MENU_H, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
@@ -505,7 +511,7 @@ int gfx_init(SDL_Window *window) {
     s_up_pic = buffer(D3D12_HEAP_TYPE_UPLOAD, (UINT64)VRAM_W * 4 * VRAM_H, D3D12_RESOURCE_STATE_GENERIC_READ, &s_up_pic_ptr);
     s_up_menu = buffer(D3D12_HEAP_TYPE_UPLOAD, (UINT64)((MENU_W * 4 + 255) & ~255) * MENU_H, D3D12_RESOURCE_STATE_GENERIC_READ, &s_up_menu_ptr);
     s_ring_res = buffer(D3D12_HEAP_TYPE_UPLOAD, RING, D3D12_RESOURCE_STATE_GENERIC_READ, &s_ring);
-    if (s_pso_present == NULL || s_pso_copy == NULL || s_pso_copyn == NULL || s_pic.r == NULL || s_menu.r == NULL || s_vram.r == NULL ||
+    if (s_pso_present == NULL || s_pso_copy == NULL || s_pso_copyn == NULL || s_pso_over == NULL || s_pic.r == NULL || s_menu.r == NULL || s_vram.r == NULL ||
         s_up_pic == NULL || s_up_menu == NULL || s_ring_res == NULL) {
         SDL_Log("d3d12: resources");
         return 0;
@@ -948,7 +954,7 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     if (menu != NULL) {
         float uv[4] = {0, 0, 1, 1};
 
-        quad(S_MENU, menu_vp, uv, s_pso_present);
+        quad(S_MENU, menu_vp, uv, s_pso_over);
     }
     if (shot != NULL) {
         D3D12_TEXTURE_COPY_LOCATION dst = {0}, src = {0};
