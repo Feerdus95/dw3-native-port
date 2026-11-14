@@ -25,6 +25,7 @@ typedef struct {
     uint32_t mode;     /* gl.c's MAIN_FS */
     float z;           /* the GTE's view depth, 0 for none: drawn in order, not by the depth buffer */
     float w;           /* the same, for the textures in perspective, 0 for none */
+    float mx, my;      /* DW3_UPSCALE_DATA=motion: where it was last frame minus where it is, in VRAM pixels, 0 for unknown */
 } GVtx;
 extern uint16_t g_vram_dirty[8]; /* 64x64 blocks the CPU wrote, a bit each */
 int gfx_init(struct SDL_Window *window);

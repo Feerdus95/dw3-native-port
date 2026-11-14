@@ -43,10 +43,10 @@ static const char *MAIN_HLSL =
     "    float2 size; float2 jit; float4 fog; float2 fogz; float scale; int persp; int pas; int truecolor; int smooth3d; int pad;\n"
     "};\n"
     "struct VI { float4 pos_uv : POSITION; uint4 colr : COLOR; uint4 tex : TEXCOORD0; uint4 limits : TEXCOORD1;\n"
-    "            uint4 window : TEXCOORD2; uint mode : TEXCOORD3; float z : TEXCOORD4; float w : TEXCOORD5; };\n"
+    "            uint4 window : TEXCOORD2; uint mode : TEXCOORD3; float z : TEXCOORD4; float w : TEXCOORD5; float2 mv : TEXCOORD6; };\n"
     "struct VO { float4 p : SV_Position; float2 uv : TEXCOORD0; float3 col : TEXCOORD1; float vw : TEXCOORD2;\n"
     "            nointerpolation uint4 t : TEXCOORD3; nointerpolation uint4 lim : TEXCOORD4; nointerpolation uint4 tw : TEXCOORD5;\n"
-    "            nointerpolation uint md : TEXCOORD6; nointerpolation uint deep : TEXCOORD7; };\n"
+    "            nointerpolation uint md : TEXCOORD6; nointerpolation uint deep : TEXCOORD7; float2 mv : TEXCOORD8; };\n"
     "VO vs(VI i) {\n"
     "    VO o;\n"
     "    float cz = i.z > 0.0 ? clamp(1.0 - 64.0 / i.z, 0.0, 1.0) : 0.0;\n"
@@ -55,6 +55,7 @@ static const char *MAIN_HLSL =
     "    if (i.w > 0.0) o.p.xy += jit * o.p.w;\n"
     "    o.uv = i.pos_uv.zw; o.col = float3(i.colr.xyz); o.t = i.tex; o.lim = i.limits; o.tw = i.window; o.md = i.mode;\n"
     "    o.deep = i.w > 0.0 ? 1u : 0u; o.vw = i.w;\n"
+    "    o.mv = i.w > 0.0 ? i.mv * scale : float2(0.0, 0.0);\n"
     "    return o;\n"
     "}\n"
     "static const float DITHER[16] = {-4.0, 0.0, -3.0, 1.0, 2.0, -2.0, 3.0, -1.0, -3.0, 1.0, -4.0, 0.0, 3.0, -1.0, 2.0, -2.0};\n"
@@ -130,6 +131,14 @@ static const char *MAIN_HLSL =
     "    if ((md & 512u) != 0u) c5 = float3(18.6 * cover, 18.6 * cover, 18.6 * cover);\n"
     "    else if (fog.a > 0.0 && deep != 0u && !semi && (md & 2048u) == 0u) c5 = lerp(c5, fog.rgb, fog.a * smoothstep(fogz.x, fogz.y, vw));\n"
     "    return float4(c5 / 31.0, ((md & 256u) != 0u || (pix & 0x8000u) != 0u) ? 1.0 : 0.0);\n"
+    "}\n"
+    /* with the motion target (DW3_UPSCALE_DATA=motion): the picture, and in the second target the 3D's motion in pixels of the copy (0 for 2D) */
+    "struct PM { float4 c : SV_Target0; float2 m : SV_Target1; };\n"
+    "PM psm(VO i, float4 fc : SV_Position) {\n"
+    "    PM o;\n"
+    "    o.c = ps(i, fc);\n"
+    "    o.m = i.deep != 0u ? i.mv : float2(0.0, 0.0);\n"
+    "    return o;\n"
     "}\n";
 
 /* A texture on a rectangle: where it goes is the viewport, which part of the texture the constants */
@@ -186,9 +195,9 @@ typedef struct {
 
 /* the SRV heap's slots; the picture's passes (post): its copies P0-P2 and FSR's output, SMAA's tables, and for SMAA's three
    passes a table of three views each (t0, t1, t2) */
-enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_P0, S_P1, S_P2, S_FSR, S_AREA, S_SEARCH, S_DSRC, S_SD, S_FD, S_DOUT, S_TD, S_T0 = S_TD + 3, S_T1 = S_T0 + 3, S_T2 = S_T1 + 3, S_COUNT = S_T2 + 3 };
+enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_P0, S_P1, S_P2, S_FSR, S_AREA, S_SEARCH, S_DSRC, S_SD, S_FD, S_DOUT, S_MV, S_TD, S_T0 = S_TD + 3, S_T1 = S_T0 + 3, S_T2 = S_T1 + 3, S_COUNT = S_T2 + 3 };
 #define MAX_IMG 1024 /* the port's own images (icons, postcards, effects): their slots follow S_COUNT */
-enum { R_RT = FRAMES, R_MASK, R_BLUR, R_P0, R_P1, R_P2, R_FSR, R_SD, R_FD, R_DOUT, R_COUNT }; /* the RTV heap's, after the back buffers */
+enum { R_RT = FRAMES, R_MASK, R_BLUR, R_P0, R_P1, R_P2, R_FSR, R_SD, R_FD, R_DOUT, R_MV, R_COUNT }; /* the RTV heap's, after the back buffers */
 
 static SDL_Window *s_window;
 static ID3D12Device *s_dev;
@@ -205,6 +214,11 @@ static int s_data_depth, s_data_view, s_sd_valid, s_fd_valid, s_sd_org[2], s_fd_
 static ID3D12PipelineState *s_pso_post, *s_pso_easu, *s_pso_smaa[3];
 /* what an upscaler (DLSS, FSR 3) is given, made only while DW3_UPSCALE_DATA asks (as gl.c's): the 3D shifted by a sub-pixel jitter, in pixels of the copy (+x right, +y down) */
 static int s_data_jitter;
+/* and the 3D's motion (gte.c tracks each vertex between frames): a second target of the main draws, R16G16F, in pixels of the copy,
+   previous place minus this one; mshow draws it instead of the picture */
+static int s_data_motion, s_data_mshow, s_mv_clear;
+static Tex s_mv;
+static ID3D12PipelineState *s_pso_mview;
 static float s_jit_px[2];
 static unsigned s_jit_n;
 static int s_p_w, s_p_h, s_fsr_w, s_fsr_h, s_smaa_tried, s_frame_3d; /* s_frame_3d: this frame has 3D in it */
@@ -212,8 +226,8 @@ static ID3D12GraphicsCommandList *s_list;
 static ID3D12RootSignature *s_main_root, *s_blit_root;
 static ID3D12PipelineState *s_pso_present, *s_pso_copy, *s_pso_copyn, *s_pso_over, *s_pso_blur, *s_pso_dark, *s_pso_img, *s_pso_add, *s_pso_mask[2]; /* the mask's: without and with the depth test */
 static ID3D12PipelineState *s_pso_main[6 * 3]; /* made on first use: (blend + 1) * 3 + depth mode */
-static ID3DBlob *s_main_vs, *s_main_ps;
-static D3D12_INPUT_ELEMENT_DESC s_layout[8];
+static ID3DBlob *s_main_vs, *s_main_ps, *s_main_psm;
+static D3D12_INPUT_ELEMENT_DESC s_layout[9];
 static ID3D12Fence *s_fence;
 static HANDLE s_event;
 static UINT64 s_fence_value;
@@ -492,15 +506,20 @@ static ID3D12PipelineState *main_pso(int semi, int depth) {
     }
     d.pRootSignature = s_main_root;
     d.VS.pShaderBytecode = ID3D10Blob_GetBufferPointer(s_main_vs), d.VS.BytecodeLength = ID3D10Blob_GetBufferSize(s_main_vs);
-    d.PS.pShaderBytecode = ID3D10Blob_GetBufferPointer(s_main_ps), d.PS.BytecodeLength = ID3D10Blob_GetBufferSize(s_main_ps);
+    d.PS.pShaderBytecode = ID3D10Blob_GetBufferPointer(s_data_motion ? s_main_psm : s_main_ps), d.PS.BytecodeLength = ID3D10Blob_GetBufferSize(s_data_motion ? s_main_psm : s_main_ps);
     d.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID, d.RasterizerState.CullMode = D3D12_CULL_MODE_NONE, d.RasterizerState.DepthClipEnable = TRUE;
     blend_of(&d.BlendState.RenderTarget[0], semi);
+    if (s_data_motion) { /* the motion is written by the opaque pass alone, over what is there */
+        d.BlendState.IndependentBlendEnable = TRUE;
+        d.BlendState.RenderTarget[1].RenderTargetWriteMask = semi < 0 ? D3D12_COLOR_WRITE_ENABLE_ALL : 0;
+    }
     d.DepthStencilState.DepthEnable = depth != 0;
     d.DepthStencilState.DepthWriteMask = depth == 1 ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
     d.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-    d.InputLayout.pInputElementDescs = s_layout, d.InputLayout.NumElements = 8;
+    d.InputLayout.pInputElementDescs = s_layout, d.InputLayout.NumElements = 9;
     d.SampleMask = 0xFFFFFFFFu, d.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    d.NumRenderTargets = 1, d.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM, d.DSVFormat = DXGI_FORMAT_D32_FLOAT, d.SampleDesc.Count = 1;
+    d.NumRenderTargets = s_data_motion ? 2 : 1, d.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM, d.RTVFormats[1] = DXGI_FORMAT_R16G16_FLOAT;
+    d.DSVFormat = DXGI_FORMAT_D32_FLOAT, d.SampleDesc.Count = 1;
     if (!OK(ID3D12Device_CreateGraphicsPipelineState(s_dev, &d, &IID_ID3D12PipelineState, (void **)&s_pso_main[k]))) {
         SDL_Log("d3d12: pipeline %d", k);
     }
@@ -523,7 +542,7 @@ static ID3D12PipelineState *mask_pso(int depth) {
     d.DepthStencilState.DepthEnable = depth != 0, d.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
     d.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
     d.RasterizerState.DepthBias = -4, d.RasterizerState.SlopeScaledDepthBias = -1.0f;
-    d.InputLayout.pInputElementDescs = s_layout, d.InputLayout.NumElements = 8;
+    d.InputLayout.pInputElementDescs = s_layout, d.InputLayout.NumElements = 9;
     d.SampleMask = 0xFFFFFFFFu, d.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     d.NumRenderTargets = 1, d.RTVFormats[0] = DXGI_FORMAT_R8_UNORM, d.DSVFormat = DXGI_FORMAT_D32_FLOAT, d.SampleDesc.Count = 1;
     ID3D12Device_CreateGraphicsPipelineState(s_dev, &d, &IID_ID3D12PipelineState, (void **)&p);
@@ -609,11 +628,11 @@ int gfx_init(SDL_Window *window) {
     D3D12_STATIC_SAMPLER_DESC ss[2] = {0};
     D3D12_ROOT_SIGNATURE_DESC rsd = {0};
     ID3DBlob *bvs = NULL, *bps = NULL, *bpsn = NULL, *bpsb = NULL;
-    static const struct { const char *name; UINT idx; DXGI_FORMAT fmt; UINT off; } L[8] = {
+    static const struct { const char *name; UINT idx; DXGI_FORMAT fmt; UINT off; } L[9] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0}, {"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UINT, 16},
         {"TEXCOORD", 0, DXGI_FORMAT_R16G16B16A16_UINT, 20}, {"TEXCOORD", 1, DXGI_FORMAT_R16G16B16A16_UINT, 28},
         {"TEXCOORD", 2, DXGI_FORMAT_R16G16B16A16_UINT, 36}, {"TEXCOORD", 3, DXGI_FORMAT_R32_UINT, 44},
-        {"TEXCOORD", 4, DXGI_FORMAT_R32_FLOAT, 48}, {"TEXCOORD", 5, DXGI_FORMAT_R32_FLOAT, 52}};
+        {"TEXCOORD", 4, DXGI_FORMAT_R32_FLOAT, 48}, {"TEXCOORD", 5, DXGI_FORMAT_R32_FLOAT, 52}, {"TEXCOORD", 6, DXGI_FORMAT_R32G32_FLOAT, 56}};
     int i;
 
     s_window = window;
@@ -674,11 +693,20 @@ int gfx_init(SDL_Window *window) {
     rsd.NumStaticSamplers = 0, rsd.pStaticSamplers = NULL;
     rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     s_main_root = root(&rsd);
+    {
+        const char *e = SDL_getenv("DW3_UPSCALE_DATA");
+
+        s_data_mshow = e != NULL && SDL_strstr(e, "mshow") != NULL;
+        s_data_motion = s_data_mshow || (e != NULL && SDL_strstr(e, "motion") != NULL);
+    }
     if (s_blit_root == NULL || s_main_root == NULL || !compile(BLIT_HLSL, "vs", "vs_5_0", &bvs) || !compile(BLIT_HLSL, "ps", "ps_5_0", &bps) ||
         !compile(BLIT_HLSL, "psn", "ps_5_0", &bpsn) || !compile(BLIT_HLSL, "psb", "ps_5_0", &bpsb) ||!compile(MAIN_HLSL, "vs", "vs_5_0", &s_main_vs) || !compile(MAIN_HLSL, "ps", "ps_5_0", &s_main_ps)) {
         return 0;
     }
-    for (i = 0; i < 8; i++) {
+    if (s_data_motion && !compile(MAIN_HLSL, "psm", "ps_5_0", &s_main_psm)) {
+        s_data_motion = 0;
+    }
+    for (i = 0; i < 9; i++) {
         s_layout[i].SemanticName = L[i].name, s_layout[i].SemanticIndex = L[i].idx, s_layout[i].Format = L[i].fmt;
         s_layout[i].AlignedByteOffset = L[i].off, s_layout[i].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
     }
@@ -864,7 +892,21 @@ static void flush_batch(void) {
         return;
     }
     trans(&s_rt, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    ID3D12GraphicsCommandList_OMSetRenderTargets(s_list, 1, &rtv, FALSE, &dsv);
+    if (s_data_motion && s_mv.r != NULL) {
+        D3D12_CPU_DESCRIPTOR_HANDLE two[2];
+
+        two[0] = rtv, two[1] = rtv_at(R_MV);
+        trans(&s_mv, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        if (s_mv_clear) { /* the first draw of a frame: no motion yet */
+            const float zero[4] = {0, 0, 0, 0};
+
+            ID3D12GraphicsCommandList_ClearRenderTargetView(s_list, two[1], zero, 0, NULL);
+            s_mv_clear = 0;
+        }
+        ID3D12GraphicsCommandList_OMSetRenderTargets(s_list, 2, two, FALSE, &dsv);
+    } else {
+        ID3D12GraphicsCommandList_OMSetRenderTargets(s_list, 1, &rtv, FALSE, &dsv);
+    }
     ID3D12GraphicsCommandList_RSSetViewports(s_list, 1, &vp);
     ID3D12GraphicsCommandList_RSSetScissorRects(s_list, 1, &sc);
     ID3D12GraphicsCommandList_SetGraphicsRootSignature(s_list, s_main_root);
@@ -1166,6 +1208,10 @@ void gfx_sync(int force) {
             ID3D12Resource_Release(s_tmp.r);
             ID3D12Resource_Release(s_depth.r);
         }
+        if (s_mv.r != NULL) {
+            ID3D12Resource_Release(s_mv.r);
+            s_mv.r = NULL;
+        }
         if (s_mask.r != NULL) {
             ID3D12Resource_Release(s_mask.r);
             ID3D12Resource_Release(s_blur.r);
@@ -1201,6 +1247,18 @@ void gfx_sync(int force) {
             srv(&s_blur, S_BLUR, DXGI_FORMAT_R8_UNORM);
         }
         ID3D12Device_CreateRenderTargetView(s_dev, s_rt.r, NULL, rtv_at(FRAMES));
+        if (s_data_motion) {
+            D3D12_CLEAR_VALUE cm = {DXGI_FORMAT_R16G16_FLOAT, {{0, 0, 0, 0}}};
+
+            s_mv = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R16G16_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cm);
+            if (s_mv.r != NULL) {
+                ID3D12Device_CreateRenderTargetView(s_dev, s_mv.r, NULL, rtv_at(R_MV));
+                srv(&s_mv, S_MV, DXGI_FORMAT_R16G16_FLOAT);
+            } else {
+                SDL_Log("d3d12: the motion target at scale %d", want);
+            }
+            s_mv_clear = 1;
+        }
         {
             D3D12_DEPTH_STENCIL_VIEW_DESC dv = {DXGI_FORMAT_D32_FLOAT, D3D12_DSV_DIMENSION_TEXTURE2D, D3D12_DSV_FLAG_NONE};
 
@@ -1437,6 +1495,10 @@ static void post_init(void) {
         vs = NULL;
     }
 
+    if (s_data_mshow && compile(MOTION_HLSL, "vs", "vs_5_0", &vs) && compile(MOTION_HLSL, "mview", "ps_5_0", &ps)) {
+        s_pso_mview = blit_pso(vs, ps, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+    }
+    vs = ps = NULL;
     if (compile(POST_HLSL, "vs", "vs_5_0", &vs) && compile(POST_HLSL, "pp", "ps_5_0", &ps)) {
         s_pso_post = blit_pso(vs, ps, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
     }
@@ -1720,6 +1782,7 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         stagefx_frame();
     }
     s_frame_3d = s_zframe > 0;
+    s_mv_clear = 1; /* (the motion of the next frame starts from nothing) */
     s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
     s_fog_on = 0, s_zframe = 0;
     if (s_data_jitter) { /* the next frame's: Halton (2, 3), 8 of them, centred on the pixel */
@@ -1792,6 +1855,11 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         float uv[4] = {0, 0, d.w / (float)VRAM_W, d.h / (float)VRAM_H};
 
         quad(S_PIC, vp, uv, s_pso_present);
+    } else if (game && s_pso_mview != NULL && s_mv.r != NULL) { /* the 3D's motion itself, to look at */
+        float k[12] = {0, 0, 1, 1, d.w * s_scale / (float)vp[2], d.h * s_scale / (float)vp[3], (float)(d.x * s_scale), (float)(d.y * s_scale), (float)vp[0], (float)vp[1]};
+
+        trans(&s_mv, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        draw_k(s_blit_root, s_pso_mview, S_MV, vp, k);
     } else if (game && s_data_view && s_do_depth) { /* the depth itself, to look at */
         float k[12] = {0, 0, 1, 1, s_dout_w / (float)vp[2], s_dout_h / (float)vp[3], 0, 0, (float)vp[0], (float)vp[1]};
 

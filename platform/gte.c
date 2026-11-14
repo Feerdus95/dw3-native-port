@@ -122,6 +122,7 @@ typedef struct {
     int frame;
     float x, y, z; /* z: the view depth, for the card's depth buffer */
     float oy;      /* the GTE's screen offset when it was made (a battle draws in alternating halves of VRAM) */
+    float mx, my;  /* motion: last frame's place minus this one's, 0 for unknown (motion_track) */
 } Precise;
 
 /* 1M entries a table (24 MB): a battle's six models put tens of thousands a frame */
@@ -199,7 +200,7 @@ static Precise *set(Precise **table, uintptr_t key) {
     return &(*table)[((uint32_t)(key * 2654435761u) >> (32 - PRECISE_BITS)) & ~(WAYS - 1u)];
 }
 
-static void put(Precise **table, uintptr_t key, uint32_t value, float x, float y, float z) {
+static void put(Precise **table, uintptr_t key, uint32_t value, float x, float y, float z, float mx, float my) {
     Precise *s = set(table, key), *p;
     int i;
 
@@ -216,7 +217,7 @@ static void put(Precise **table, uintptr_t key, uint32_t value, float x, float y
             p = &s[i];
         }
     }
-    p->key = key, p->value = value, p->frame = s_frame, p->x = x, p->y = y, p->z = z, p->oy = OFY / 65536.0f;
+    p->key = key, p->value = value, p->frame = s_frame, p->x = x, p->y = y, p->z = z, p->oy = OFY / 65536.0f, p->mx = mx, p->my = my;
 }
 
 /* Motion spike (DW3_UPSCALE_DATA "motion"): a vertex the game stores to the same address as in an earlier frame is the same
@@ -224,16 +225,21 @@ static void put(Precise **table, uintptr_t key, uint32_t value, float x, float y
    gte_precise_frame */
 static Precise *s_mvt; /* the same, by (address, the nth store to it in the frame): the game stores some addresses twice */
 
-static void motion_track(uintptr_t addr, float x, float y, float z) {
-    int occ, i;
-
+int gte_motion_on(void) {
     if (s_mv_on < 0) {
         const char *e = getenv("DW3_UPSCALE_DATA");
 
-        s_mv_on = e != NULL && strstr(e, "motion") != NULL;
+        s_mv_on = e != NULL && (strstr(e, "motion") != NULL || strstr(e, "mshow") != NULL);
     }
-    if (!s_mv_on || !s_battle) {
-        return;
+    return s_mv_on;
+}
+
+/* 1 when this store's vertex was stored last frame (or up to 3 before): mv is its motion per frame, previous place minus this one */
+static int motion_track(uintptr_t addr, float x, float y, float z, float mv[2]) {
+    int occ, i, found = 0;
+
+    if (!gte_motion_on() || !s_battle) {
+        return 0;
     }
     s_mv.n++;
     for (occ = 0; occ < 8; occ++) {
@@ -241,7 +247,7 @@ static void motion_track(uintptr_t addr, float x, float y, float z) {
         Precise *s = set(&s_mvt, key), *e = NULL;
 
         if (s == NULL) {
-            return;
+            return 0;
         }
         for (i = 0; i < WAYS; i++) {
             if (s[i].key == key) {
@@ -261,16 +267,19 @@ static void motion_track(uintptr_t addr, float x, float y, float z) {
             s_mv.sum += d;
             s_mv.big = fmax(s_mv.big, d);
             s_mv.dz += fabs(z - e->z);
+            mv[0] = (float)(-dx / (s_frame - e->frame)), mv[1] = (float)(-dy / (s_frame - e->frame));
+            found = 1;
         } else if (e != NULL) {
             s_mv.old++;
         }
-        put(&s_mvt, key, 0, x, y, z);
-        return;
+        put(&s_mvt, key, 0, x, y, z, 0, 0);
+        return found;
     }
     s_mv.age[0]++; /* more than 8 stores to one address */
+    return 0;
 }
 
-static int get(Precise **table, uintptr_t key, uint32_t value, float *x, float *y, float *z) {
+static int get(Precise **table, uintptr_t key, uint32_t value, float *x, float *y, float *z, float *mv) {
     Precise *s = set(table, key);
     int i;
 
@@ -279,6 +288,9 @@ static int get(Precise **table, uintptr_t key, uint32_t value, float *x, float *
             *x = s[i].x;
             *z = s[i].z;
             *y = s[i].y;
+            if (mv != NULL) {
+                mv[0] = s[i].mx, mv[1] = s[i].my;
+            }
             return 1;
         }
     }
@@ -287,7 +299,16 @@ static int get(Precise **table, uintptr_t key, uint32_t value, float *x, float *
 
 /* A vertex word in a packet: by where it is, else by what it holds */
 int gte_precise(const uint32_t *word, float *x, float *y, float *z) {
-    return g_subpixel && (get(&s_by_addr, (uintptr_t)word, *word, x, y, z) || get(&s_by_value, *word, *word, x, y, z));
+    return g_subpixel && (get(&s_by_addr, (uintptr_t)word, *word, x, y, z, NULL) || get(&s_by_value, *word, *word, x, y, z, NULL));
+}
+
+/* A vertex word's motion since last frame (VRAM pixels), where the GTE stored it and tracked it; 0 when it can't say */
+int gte_precise_motion(const uint32_t *word, float *mx, float *my) {
+    float x, y, z, mv[2] = {0, 0};
+    int ok = gte_motion_on() && g_subpixel && get(&s_by_addr, (uintptr_t)word, *word, &x, &y, &z, mv);
+
+    *mx = ok ? mv[0] : 0, *my = ok ? mv[1] : 0;
+    return ok;
 }
 
 /* FIGHTSTG's mesh polygon from the points at from[0..2] (and [3]): 1 if it
@@ -301,7 +322,7 @@ int gte_precise_faces(int32_t *const from[4], int32_t quad) {
         return -1;
     }
     for (i = 0; i < 3 + (quad != 0); i++) {
-        if (!get(&s_by_addr, (uintptr_t)from[i], (uint32_t)*from[i], &x[i], &y[i], &z)) {
+        if (!get(&s_by_addr, (uintptr_t)from[i], (uint32_t)*from[i], &x[i], &y[i], &z, NULL)) {
             /* why, for the log */
             Precise *e = set(&s_by_addr, (uintptr_t)from[i]);
             int why = ST_NONE, k;
@@ -324,12 +345,12 @@ int gte_precise_faces(int32_t *const from[4], int32_t quad) {
 
 /* The game copied a vertex word from src to dst: its fraction goes along */
 void gte_precise_copy(void *dst, const void *src) {
-    float x, y, z;
+    float x, y, z, mv[2] = {0, 0};
     uint32_t v;
 
     memcpy(&v, dst, 4);
-    if (get(&s_by_addr, (uintptr_t)src, v, &x, &y, &z)) {
-        put(&s_by_addr, (uintptr_t)dst, v, x, y, z);
+    if (get(&s_by_addr, (uintptr_t)src, v, &x, &y, &z, mv)) {
+        put(&s_by_addr, (uintptr_t)dst, v, x, y, z, mv[0], mv[1]);
     }
 }
 
@@ -367,7 +388,7 @@ static void remember(void) {
     s_sxy2[0] = (float)x;
     s_sxy2[1] = (float)y;
     s_sxy2[2] = (float)s_exact[2];
-    put(&s_by_value, key, key, (float)x, (float)y, s_sxy2[2]);
+    put(&s_by_value, key, key, (float)x, (float)y, s_sxy2[2], 0, 0);
 }
 
 /* V0 through RT and TR, then the perspective into SXY2/SZ3 and the depth cue into IR0 */
@@ -437,8 +458,10 @@ void psx_gte_stclmv(int16_t *p) {
 void psx_gte_stsxy(uint32_t *p) {
     *p = (uint16_t)SX[2] | (uint32_t)(uint16_t)SY[2] << 16;
     if (s_sxy2_ok) {
-        motion_track((uintptr_t)p, s_sxy2[0], s_sxy2[1], s_sxy2[2]);
-        put(&s_by_addr, (uintptr_t)p, *p, s_sxy2[0], s_sxy2[1], s_sxy2[2]);
+        float mv[2] = {0, 0};
+
+        motion_track((uintptr_t)p, s_sxy2[0], s_sxy2[1], s_sxy2[2], mv);
+        put(&s_by_addr, (uintptr_t)p, *p, s_sxy2[0], s_sxy2[1], s_sxy2[2], mv[0], mv[1]);
     }
 }
 void psx_gte_stflg(uint32_t *p) { *p = FLAG; }

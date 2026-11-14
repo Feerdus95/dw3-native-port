@@ -77,6 +77,8 @@ void native_effects_warm(void); /* once a frame from the start: the mod's effect
 void postcard_draw(int mode, float x, float y, float w, float h, int cx1, int cy1, int cx2, int cy2); /* postcards.c */
 void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int cy1, int cx2, int cy2);
 int gte_precise(const uint32_t *word, float *x, float *y, float *z);
+int gte_precise_motion(const uint32_t *word, float *mx, float *my); /* DW3_UPSCALE_DATA=motion: the vertex's motion since last frame */
+int gte_motion_on(void);
 void gte_precise_copy(void *dst, const void *src); /* the game's own code calls it too */
 void gte_precise_frame(void);
 

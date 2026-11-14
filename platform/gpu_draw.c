@@ -307,6 +307,7 @@ static GVtx gvtx(float x, float y, int r, int gg, int b, int u, int v, int clut,
     o.twoy = (uint16_t)g.tw_off_y;
     o.z = 0;
     o.w = 0;
+    o.mx = o.my = 0;
     o.mode = (uint32_t)((flags & 2) | (flags & 6) | (flags & 8) | (flags & 512) | (flags & 1024) | (flags & 2048) | g.depth << 4 | (dither ? 64 : 0) | (g.set_mask ? 256 : 0));
     return o;
 }
@@ -854,7 +855,7 @@ void gpu_gp0(const uint32_t *p, int n) {
         int gouraud = cmd & 0x10, quad = cmd & 8, tex = cmd & 4, semi = cmd & 2, raw = cmd & 1;
         int nv = quad ? 4 : 3, i, k = 0, clut = 0;
         Vtx v[4];
-        float fx[4], fy[4], fz[4];
+        float fx[4], fy[4], fz[4], fmx[4] = {0, 0, 0, 0}, fmy[4] = {0, 0, 0, 0};
         uint32_t color = p[k++] & 0xFFFFFF;
 
         s_far = 0;
@@ -867,7 +868,9 @@ void gpu_gp0(const uint32_t *p, int n) {
             v[i].b = color >> 16 & 255;
             v[i].x = sx(p[k]) + g.ox;
             v[i].y = sy(p[k]) + g.oy;
-            precise(&p[k], &fx[i], &fy[i], &fz[i]);
+            if (precise(&p[k], &fx[i], &fy[i], &fz[i])) {
+                gte_precise_motion(&p[k], &fmx[i], &fmy[i]);
+            }
             k++;
             if (tex) {
                 v[i].u = p[k] & 255;
@@ -901,6 +904,7 @@ void gpu_gp0(const uint32_t *p, int n) {
                 gv[k] = gvtx(fx[k], fy[k], v[k].r, v[k].g, v[k].b, v[k].u, v[k].v, clut, i | (s_far == nv ? 2048 : 0), dither);
                 gv[k].z = deep ? fz[k] : 0;
                 gv[k].w = known ? fz[k] : 0;
+                gv[k].mx = fmx[k] * s_map_s, gv[k].my = fmy[k];
             }
             if (!too_big(&v[0], &v[1], &v[2])) {
                 gl_tri(gv[0], gv[1], gv[2]);

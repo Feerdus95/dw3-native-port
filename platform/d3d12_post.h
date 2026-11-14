@@ -182,3 +182,21 @@ static const char *DEPTH_HLSL =
     "    float g = z > 0.0 ? sqrt(min(1.0, 3000.0 / z)) : 0.0;\n"
     "    return float4(g, g, g, 1.0);\n"
     "}\n";
+
+/* The motion data (DW3_UPSCALE_DATA=mshow), to look at: grey where nothing moves, red/green by the x/y motion (a.xy: the picture's
+   texels to one of the window's, a.zw: where the picture starts in the copy, b.xy: the window's corner) */
+static const char *MOTION_HLSL =
+    "cbuffer C : register(b0) { float4 uv; float4 a; float4 b; };\n"
+    "Texture2D<float2> t0 : register(t0);\n"
+    "struct VO { float4 p : SV_Position; };\n"
+    "VO vs(uint id : SV_VertexID) {\n"
+    "    float2 c = float2(id & 1, id >> 1);\n"
+    "    VO o;\n"
+    "    o.p = float4(c.x * 2 - 1, 1 - c.y * 2, 0, 1);\n"
+    "    return o;\n"
+    "}\n"
+    "float4 mview(VO i) : SV_Target {\n"
+    "    float2 m = t0.Load(int3(int2((i.p.xy - b.xy) * a.xy) + int2(a.zw), 0));\n"
+    "    float2 c = clamp(m / 16.0, -0.5, 0.5) + 0.5;\n"
+    "    return float4(c.x, c.y, 0.5, 1.0);\n"
+    "}\n";
