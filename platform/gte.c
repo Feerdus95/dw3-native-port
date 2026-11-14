@@ -154,7 +154,7 @@ int gte_widescreen(void) {
 }
 
 static int s_battle;
-static int s_mv_on = -1, s_mv_logs;
+static int s_mv_on = -1, s_mv_logs, s_mv_log; /* s_mv_log: DW3_UPSCALE_DATA with "mlog": its numbers to the log (it costs the frame it is in) */
 static struct { int n, age[4], old, nd, q, found, moving; double sum, big, dz, d[4096]; } s_mv; /* motion spike, see motion_track */
 
 static int cmp_d(const void *a, const void *b) {
@@ -174,7 +174,7 @@ void gte_motion_enable(void) {
 void gte_precise_frame(void) {
     s_battle = getMode() >> 8 == 6; /* FIGHTSTG */
     s_wide = g_widescreen && s_battle;
-    if (s_mv.n > 0 && s_mv_logs < 240 && (s_mv_logs < 12 || s_frame % 60 < 6)) {
+    if (s_mv_log && s_mv.n > 0 && s_mv_logs < 240 && (s_mv_logs < 12 || s_frame % 60 < 6)) {
         int hit = s_mv.age[1] + s_mv.age[2] + s_mv.age[3];
 
         qsort(s_mv.d, s_mv.nd, sizeof(double), cmp_d);
@@ -238,6 +238,7 @@ int gte_motion_on(void) {
         const char *e = getenv("DW3_UPSCALE_DATA");
 
         s_mv_on = e != NULL && (strstr(e, "motion") != NULL || strstr(e, "mshow") != NULL);
+        s_mv_log = e != NULL && strstr(e, "mlog") != NULL;
     }
     return s_mv_on;
 }
