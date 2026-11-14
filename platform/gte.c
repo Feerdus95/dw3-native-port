@@ -121,6 +121,7 @@ typedef struct {
     uint32_t value;
     int frame;
     float x, y, z; /* z: the view depth, for the card's depth buffer */
+    float oy;      /* the GTE's screen offset when it was made (a battle draws in alternating halves of VRAM) */
 } Precise;
 
 /* 1M entries a table (24 MB): a battle's six models put tens of thousands a frame */
@@ -148,6 +149,14 @@ int gte_widescreen(void) {
 }
 
 static int s_battle;
+static int s_mv_on = -1, s_mv_logs;
+static struct { int n, age[4], old, nd; double sum, big, dz, d[4096]; } s_mv; /* motion spike, see motion_track */
+
+static int cmp_d(const void *a, const void *b) {
+    double x = *(const double *)a, y = *(const double *)b;
+
+    return (x > y) - (x < y);
+}
 
 int gte_in_battle(void) {
     return s_battle;
@@ -156,6 +165,17 @@ int gte_in_battle(void) {
 void gte_precise_frame(void) {
     s_battle = getMode() >> 8 == 6; /* FIGHTSTG */
     s_wide = g_widescreen && s_battle;
+    if (s_mv.n > 0 && s_mv_logs < 40 && (s_mv_logs < 12 || s_frame % 60 == 0)) {
+        int hit = s_mv.age[1] + s_mv.age[2] + s_mv.age[3];
+
+        qsort(s_mv.d, s_mv.nd, sizeof(double), cmp_d);
+        fprintf(stderr, "motion gte: %d stored, matched %d (1 ago), unmatched: %d over 8 stores, %d older, %d new; "
+                "move median %.2f, p90 %.2f, mean %.2f, max %.2f px\n",
+                s_mv.n, hit, s_mv.age[0], s_mv.old, s_mv.n - hit - s_mv.age[0] - s_mv.old,
+                s_mv.nd ? s_mv.d[s_mv.nd / 2] : 0.0, s_mv.nd ? s_mv.d[s_mv.nd * 9 / 10] : 0.0, hit ? s_mv.sum / hit : 0.0, s_mv.big);
+        s_mv_logs++;
+    }
+    memset(&s_mv, 0, sizeof s_mv);
     s_frame++;
     if (s_frame % 60 == 0 && (g_log & LOG_GPU) && (s_stat[ST_FACED] || s_stat[ST_CULLED] || s_stat[ST_NONE])) {
         LOG("faces: %d drawn, %d culled; by the game's rule: %d no entry, %d other value, %d stale; "
@@ -196,7 +216,58 @@ static void put(Precise **table, uintptr_t key, uint32_t value, float x, float y
             p = &s[i];
         }
     }
-    p->key = key, p->value = value, p->frame = s_frame, p->x = x, p->y = y, p->z = z;
+    p->key = key, p->value = value, p->frame = s_frame, p->x = x, p->y = y, p->z = z, p->oy = OFY / 65536.0f;
+}
+
+/* Motion spike (DW3_UPSCALE_DATA "motion"): a vertex the game stores to the same address as in an earlier frame is the same
+   vertex of the same model; its motion is the change of place without the screen offset. Counted per frame, logged by
+   gte_precise_frame */
+static Precise *s_mvt; /* the same, by (address, the nth store to it in the frame): the game stores some addresses twice */
+
+static void motion_track(uintptr_t addr, float x, float y, float z) {
+    int occ, i;
+
+    if (s_mv_on < 0) {
+        const char *e = getenv("DW3_UPSCALE_DATA");
+
+        s_mv_on = e != NULL && strstr(e, "motion") != NULL;
+    }
+    if (!s_mv_on || !s_battle) {
+        return;
+    }
+    s_mv.n++;
+    for (occ = 0; occ < 8; occ++) {
+        uintptr_t key = addr << 3 | (uintptr_t)occ;
+        Precise *s = set(&s_mvt, key), *e = NULL;
+
+        if (s == NULL) {
+            return;
+        }
+        for (i = 0; i < WAYS; i++) {
+            if (s[i].key == key) {
+                e = &s[i];
+            }
+        }
+        if (e != NULL && e->frame == s_frame) {
+            continue; /* that store of this frame is taken: the next */
+        }
+        if (e != NULL && s_frame - e->frame <= 3) {
+            double dx = x - e->x, dy = (y - OFY / 65536.0) - (e->y - e->oy), d = fabs(dx) + fabs(dy);
+
+            if (s_mv.nd < 4096) {
+                s_mv.d[s_mv.nd++] = d;
+            }
+            s_mv.age[s_frame - e->frame]++;
+            s_mv.sum += d;
+            s_mv.big = fmax(s_mv.big, d);
+            s_mv.dz += fabs(z - e->z);
+        } else if (e != NULL) {
+            s_mv.old++;
+        }
+        put(&s_mvt, key, 0, x, y, z);
+        return;
+    }
+    s_mv.age[0]++; /* more than 8 stores to one address */
 }
 
 static int get(Precise **table, uintptr_t key, uint32_t value, float *x, float *y, float *z) {
@@ -366,6 +437,7 @@ void psx_gte_stclmv(int16_t *p) {
 void psx_gte_stsxy(uint32_t *p) {
     *p = (uint16_t)SX[2] | (uint32_t)(uint16_t)SY[2] << 16;
     if (s_sxy2_ok) {
+        motion_track((uintptr_t)p, s_sxy2[0], s_sxy2[1], s_sxy2[2]);
         put(&s_by_addr, (uintptr_t)p, *p, s_sxy2[0], s_sxy2[1], s_sxy2[2]);
     }
 }
