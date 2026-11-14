@@ -10,6 +10,7 @@
 - **FSR 3.1** (Options, Graphics, FSR upscaling: Off, FSR 1 or FSR 3.1; `fsr = 2`; the Direct3D 12 build only). AMD's temporal upscaler over the frames with 3D in them, fed with the game's own depth, motion and jitter. It is loaded at run time from AMD's two FidelityFX DLLs, which the player puts next to the exe; without them it stays off.
 - **FSR 3.1 files** (launcher, Settings, Graphics): downloads AMD's two DLLs from the FidelityFX SDK's tag v2.4.0 next to the game, each checked by its SHA-256. The port itself carries none of AMD's binaries.
 - **Preset** (Options, Graphics, first row). Original, Enhanced or Remaster set the tab's options at once; it reads Custom when they are at none of the three.
+- **Reads from the disc on their own thread.** The game asks for a file and goes on drawing while a thread reads it, as the console's drive did, instead of waiting for the disk. On a hard disk, the first battle no longer stutters when its files load.
 
 ## v0.19.7 (beta)
 

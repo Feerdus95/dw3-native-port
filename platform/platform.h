@@ -249,6 +249,7 @@ int native_fighter_has_record(const unsigned char *f, long size, int model); /* 
 const uint8_t *packs_file(int fid, long *size);
 const uint8_t *bladegaru_file(int fid, long *size);
 long native_read_raw(int fid, uint8_t **out); /* files.c: a file on disk whole, malloc'd; its size */
+void native_read_wait(void); /* files.c: waits for the disc read in flight (state.c) */
 #define NATIVE_MAX_FIDS 8192 /* the file ids files.c keeps: the disc's, then the field editor's and the mods' */
 int native_disc_file(int fid); /* files.c: data/files/<fid>.bin, a file of the player's disc, is there */
 int native_disk_file(int fid); /* files.c: data/mods/<fid>.bin or the disc's is there (the files options make anew aren't asked) */
