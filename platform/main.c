@@ -150,6 +150,8 @@ static void read_ini(int data_only) {
             g_smaa = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "fsr") == 0) {
             g_fsr = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "fsr3") == 0) {
+            g_fsr3 = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "scanlines") == 0) {
             g_scanlines = SDL_clamp(atoi(value), 0, 10);
         } else if (SDL_strcasecmp(key, "integer_scale") == 0) {

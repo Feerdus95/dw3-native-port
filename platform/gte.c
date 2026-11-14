@@ -145,6 +145,10 @@ int g_widescreen;
 static int s_wide;
 int getMode(void); /* main/game/state.c */
 
+int gte_proj_h(void) {
+    return H;
+}
+
 int gte_widescreen(void) {
     return s_wide;
 }
@@ -161,6 +165,10 @@ static int cmp_d(const void *a, const void *b) {
 
 int gte_in_battle(void) {
     return s_battle;
+}
+
+void gte_motion_enable(void) {
+    s_mv_on = 1;
 }
 
 void gte_precise_frame(void) {

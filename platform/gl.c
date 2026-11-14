@@ -566,7 +566,7 @@ int g_depth = 1;
 int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1; /* true_color, perspective, smooth_3d, the menu */
 int g_sharpen, g_brightness, g_gamma, g_saturation; /* sharpen 0 to 10; the others -10 to 10, 0 as the game's */
 int g_scanlines, g_integer_scale; /* scanlines 0 to 10; integer_scale = 1: the picture a whole multiple of 240 rows */
-int g_smaa, g_fsr;                   /* smaa, fsr = 1: the picture's edges smoothed; upscaled to the window by FSR 1 */
+int g_smaa, g_fsr, g_fsr3;                   /* smaa, fsr = 1: the picture's edges smoothed; upscaled to the window by FSR 1 */
 static GLuint s_smaa, s_easu, s_area_tex, s_search_tex; /* their programs (0: not on this card) and SMAA's tables */
 static GLuint s_pic_tex[3], s_pic_fbo[3], s_up_tex, s_up_fbo; /* the display area copied and SMAA's two; FSR's output */
 static int s_pic_w, s_pic_h, s_up_w, s_up_h, s_frame_3d; /* s_frame_3d: the frame has 3D in it */

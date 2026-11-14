@@ -51,6 +51,13 @@ smaa = 0
 # for slow graphics cards. Best with some sharpen
 fsr = 0
 
+# 1: FSR 3.1, AMD's temporal upscaler, over the 3D (the battles), in the
+# Direct3D 12 build (x64) only. It needs AMD's two DLLs next to the exe
+# (amd_fidelityfx_loader_dx12.dll and amd_fidelityfx_upscaler_dx12.dll, from
+# the FidelityFX SDK); without them it stays off. Takes the place of smaa and
+# fsr on those frames. Read at start
+fsr3 = 0
+
 # 0: no dithering (the PlayStation's, on shaded and blended polygons)
 dither = 1
 
