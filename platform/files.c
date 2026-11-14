@@ -176,17 +176,22 @@ void native_read_file(int fid, int sector, int count, void *dst) {
 }
 
 /* The game's reads, as the console's drive did them: asked now, done a few frames later (the game polls isCdReading / its done flag).
-   One at a time, as the game's reader is: a thread reads, the game's thread opens the file and finishes the request. */
-static struct { FILE *f; char path[1200]; int cold, fid, sector, count; void *dst; Uint64 t0; double open_ms, read_ms; int sync; } s_req;
+   One at a time, as the game's reader is: a thread reads, the game's thread opens the file and finishes the request.
+   With dstorage.dll beside the exe, DirectStorage reads (dstorage.c); without it, or if it fails, the thread reads with plain file reads. */
+static struct { FILE *f; char path[1200]; int ds, fid, sector, count; void *dst; Uint64 t0, t1; double open_ms, read_ms; } s_req;
 static FILE *s_log; /* perf = 1: perf/reads.csv, a row per disc read */
 static SDL_Semaphore *s_wake;
 static SDL_AtomicInt s_rstate; /* 0 nothing asked, 1 reading, 2 read */
 
-void native_read_cold(const char *path, int sector, int count, void *dst); /* files_cold.c */
+int ds_ready(int buffered); /* dstorage.c */
+int ds_start(const char *path, long long offset, unsigned bytes, void *dst);
+int ds_wait(void);
 
 static void do_read(void) {
-    if (s_req.cold) {
-        native_read_cold(s_req.path, s_req.sector, s_req.count, s_req.dst);
+    if (s_req.ds) { /* DirectStorage reads it; if it can't, the plain read */
+        if (!ds_wait()) {
+            read_from(fopen(s_req.path, "rb"), s_req.sector, s_req.count, s_req.dst);
+        }
     } else {
         read_from(s_req.f, s_req.sector, s_req.count, s_req.dst);
     }
@@ -200,7 +205,7 @@ static int SDLCALL reader(void *unused) {
     (void)unused;
     for (;;) {
         SDL_WaitSemaphore(s_wake);
-        Uint64 t = SDL_GetPerformanceCounter();
+        Uint64 t = s_req.ds ? s_req.t1 : SDL_GetPerformanceCounter();
 
         do_read();
         s_req.read_ms = ms_since(t);
@@ -224,20 +229,25 @@ void native_read_start(int fid, int sector, int count, void *dst) {
         LOG("files: no file %d", fid);
     }
     s_req.fid = fid, s_req.sector = sector, s_req.count = count, s_req.dst = dst;
-    s_req.cold = s_req.f != NULL && SDL_getenv("DW3_COLD") != NULL;
-    if (s_req.cold) {
+    /* DW3_DS_BUFFERED: DirectStorage with the OS file cache on, to try on a hard disk */
+    s_req.ds = s_req.f != NULL && ds_ready(SDL_getenv("DW3_DS_BUFFERED") != NULL);
+    if (s_req.ds) {
+        long long at = (long long)sector * SECTOR, have = disk_size(fid) - at, want = (long long)count * SECTOR, bytes = have < want ? (have > 0 ? have : 0) : want;
+
         SDL_strlcpy(s_req.path, s_path, sizeof s_req.path);
         fclose(s_req.f);
         s_req.f = NULL;
-    }
-    s_req.sync = SDL_getenv("DW3_SYNCREAD") != NULL; /* the same read on the game's thread, to compare */
-    if (s_req.sync) {
-        Uint64 t = SDL_GetPerformanceCounter();
-
-        do_read();
-        s_req.read_ms = ms_since(t);
-        SDL_SetAtomicInt(&s_rstate, 2);
-        return;
+        memset((char *)dst + bytes, 0, (size_t)(want - bytes)); /* past the file's end reads as zeroes */
+        s_req.t1 = SDL_GetPerformanceCounter();
+        if (bytes == 0) {
+            s_req.read_ms = 0;
+            SDL_SetAtomicInt(&s_rstate, 2);
+            return;
+        }
+        s_req.ds = ds_start(s_req.path, at, (unsigned)bytes, dst);
+        if (!s_req.ds) { /* it wouldn't: the reader thread's read, as without DirectStorage */
+            s_req.f = fopen(s_req.path, "rb");
+        }
     }
     SDL_SetAtomicInt(&s_rstate, 1);
     SDL_SignalSemaphore(s_wake);
@@ -259,7 +269,7 @@ int native_read_done(void) {
             fprintf(s_log, "ticks_ms,file,sectors,mode,open_ms,read_ms,done_after_ms\n");
         }
         if (s_log != NULL) {
-            fprintf(s_log, "%llu,%d,%d,%s,%.2f,%.2f,%.2f\n", (unsigned long long)SDL_GetTicks(), s_req.fid, s_req.count, s_req.cold ? (s_req.sync ? "cold-sync" : "cold-async") : s_req.sync ? "sync" : "async", s_req.open_ms, s_req.read_ms, ms_since(s_req.t0));
+            fprintf(s_log, "%llu,%d,%d,%s,%.2f,%.2f,%.2f\n", (unsigned long long)SDL_GetTicks(), s_req.fid, s_req.count, s_req.ds ? "ds" : "async", s_req.open_ms, s_req.read_ms, ms_since(s_req.t0));
             fflush(s_log);
         }
     }
