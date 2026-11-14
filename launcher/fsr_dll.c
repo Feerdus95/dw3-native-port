@@ -87,7 +87,7 @@ static int SDLCALL thread(void *unused)
     return result;
 }
 
-static bool have(void)
+bool fsr_dll_have(void)
 {
     char dest[1300];
     for (int i = 0; i < N; i++) {
@@ -105,7 +105,7 @@ void fsr_dll_activate(void)
         SDL_SetAtomicInt(&s_stop, 1);
     } else if (tools_busy() || port_updating()) {
         g_app.note = L->s[S_T_BUSY];
-    } else if (have()) {
+    } else if (fsr_dll_have()) {
         g_app.note = L->s[S_FSR_HAVE];
     } else {
         SDL_SetAtomicInt(&s_done, 0);
@@ -121,7 +121,7 @@ void fsr_dll_value(char *out, int size)
     if (s_thread) {
         SDL_snprintf(out, size, L->s[S_T_DOWNLOADING], SDL_GetAtomicInt(&s_percent));
     } else {
-        SDL_strlcpy(out, L->s[have() ? S_FSR_HAVE : S_T_GET], size);
+        SDL_strlcpy(out, L->s[fsr_dll_have() ? S_FSR_HAVE : S_T_GET], size);
     }
 }
 

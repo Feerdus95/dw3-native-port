@@ -131,8 +131,8 @@ void option_step(int o, int dir)
         s_value[o] = !s_value[o];
         return;
     }
-    const int v = s_value[o] + dir * DEF[o].step;
-    s_value[o] = (short)(v > DEF[o].max ? DEF[o].min : v < DEF[o].min ? DEF[o].max : v);
+    const int v = s_value[o] + dir * DEF[o].step, max = o == O_FSR && !fsr_dll_have() ? 1 : DEF[o].max; /* FSR 3.1 is offered once its files are there */
+    s_value[o] = (short)(v > max ? DEF[o].min : v < DEF[o].min ? max : v);
 }
 
 void option_value(int o, const Lang *l, char *out, int size)

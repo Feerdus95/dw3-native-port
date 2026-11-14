@@ -144,6 +144,7 @@ bool tools_busy(void);
 void fsr_dll_activate(void);                     /* download FSR 3.1's two DLLs (fsr_dll.c) */
 void fsr_dll_value(char *out, int size);
 bool fsr_dll_busy(void);
+bool fsr_dll_have(void);                         /* both are next to the game: FSR 3.1 can be chosen */
 void fsr_dll_poll(void);
 void fsr_dll_shutdown(void);
 void tools_poll(void);
