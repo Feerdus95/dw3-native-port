@@ -47,6 +47,7 @@ static const char *MAIN_VS =
     "layout(location = 7) in float w;\n" /* the same for the perspective, 0: none */
     "uniform vec2 size;\n" /* VRAM's, 1024x512 */
     "uniform int persp;\n"
+    "uniform vec2 jit;\n" /* the 3D shifted this much (clip units), for an upscaler: 0 without one */
     "out vec2 uv;\n" /* in perspective by w, or straight across the screen (w 1) */
     "out vec3 col;\n"
     "out float vw;\n" /* the view depth across the polygon, for the fog */
@@ -56,6 +57,7 @@ static const char *MAIN_VS =
     /* linear in 1/z, as depth goes across the screen; the depth test is off without one */
     "    gl_Position = vec4(pos_uv.xy / size * 2.0 - 1.0, z > 0.0 ? clamp(1.0 - 64.0 / z, 0.0, 1.0) * 2.0 - 1.0 : 0.0, 1.0);\n"
     "    gl_Position *= persp != 0 && w > 0.0 ? w : 1.0;\n"
+    "    if (w > 0.0) gl_Position.xy += jit * gl_Position.w;\n"
     "    uv = pos_uv.zw; col = color; t = tex; lim = limits; tw = window; md = mode; deep = w > 0.0 ? 1u : 0u; vw = w;\n"
     "}\n";
 
@@ -169,6 +171,20 @@ static const char *BLIT_FS =
     "in vec2 uv;\n"
     "out vec4 frag;\n"
     "void main() { frag = texture(tex, uv); }\n";
+
+/* The 3D's depth as the game gave it (MAIN_VS: depth = 1 - 64 / z) back to its view depth z, 0 where nothing 3D was
+   drawn. view 1: a grey picture of it instead (near bright), to look at */
+static const char *LIN_FS =
+    "#version 330 core\n"
+    "uniform sampler2D dep;\n"
+    "uniform int view;\n"
+    "in vec2 uv;\n"
+    "out vec4 frag;\n"
+    "void main() {\n"
+    "    float d = texture(dep, uv).r;\n"
+    "    float z = d < 1.0 ? 64.0 / (1.0 - d) : 0.0;\n"
+    "    frag = view != 0 ? (z > 0.0 ? vec4(vec3(min(1.0, 512.0 / z)), 1.0) : vec4(0.0, 0.0, 0.3, 1.0)) : vec4(z);\n"
+    "}\n";
 
 /* The game's picture on its way to the window, when any of sharpen, brightness, gamma or saturation is set.
    The sharpening is contrast-adaptive, after AMD's FidelityFX CAS (CREDITS.md): a pixel and its four
@@ -532,7 +548,14 @@ static const char *SOFT_FS =
 static SDL_Window *s_window;
 static SDL_GLContext s_ctx;
 static GLuint s_main, s_blit, s_post, s_vao, s_vbo, s_quad_vao, s_quad_vbo;
-static GLint s_pass_loc, s_scale_loc, s_size_loc, s_true_loc, s_persp_loc, s_smooth_loc, s_fog_loc, s_fogz_loc;
+static GLint s_pass_loc, s_scale_loc, s_size_loc, s_true_loc, s_persp_loc, s_smooth_loc, s_fog_loc, s_fogz_loc, s_jit_loc;
+/* What an upscaler (DLSS, FSR 3) is given, made only while something asks for it (DW3_UPSCALE_DATA, "depth", "jitter",
+   "view": until one is built in, to check them): the display area's colour before any pass (s_pic_tex[0]), the 3D's
+   view depth z (s_lin_tex, R32F, 0 = none), and this frame's jitter in pixels of the copy (+x right, +y down) */
+static int s_data_depth, s_data_jitter, s_data_view;
+static GLuint s_lin, s_dep_tex, s_dep_fbo, s_lin_tex, s_lin_fbo;
+static float s_jit_px[2];
+static unsigned s_jit_n;
 static GLuint s_vram_tex;            /* the 1x VRAM, R16UI */
 static GLuint s_fbo, s_fbo_tex;      /* the copy, render_scale times bigger */
 static GLuint s_fbo_depth;           /* its depth buffer, for the 3D models (g_depth) */
@@ -768,6 +791,7 @@ static void flush_batch(void) {
     GL(glUniform1i)(s_true_loc, g_true_color);
     GL(glUniform1i)(s_persp_loc, g_perspective);
     GL(glUniform1i)(s_smooth_loc, g_smooth_3d);
+    GL(glUniform2f)(s_jit_loc, s_jit_px[0] * 2.0f / (VRAM_W * s), s_jit_px[1] * 2.0f / (VRAM_H * s));
     GL(glUniform4f)(s_fog_loc, s_fog[0], s_fog[1], s_fog[2], s_fog_shown && s_zfar > 0 ? s_fog_amount : 0.0f);
     GL(glUniform2f)(s_fogz_loc, s_zfar * s_fog_from, s_zfar);
     GL(glDisable)(GL_BLEND);
@@ -1418,6 +1442,18 @@ int gfx_init(SDL_Window *window) {
     s_smooth_loc = GL(glGetUniformLocation)(s_main, "smooth3d");
     s_fog_loc = GL(glGetUniformLocation)(s_main, "fog");
     s_fogz_loc = GL(glGetUniformLocation)(s_main, "fogz");
+    s_jit_loc = GL(glGetUniformLocation)(s_main, "jit");
+    {
+        const char *e = SDL_getenv("DW3_UPSCALE_DATA");
+
+        s_data_depth = e != NULL && SDL_strstr(e, "depth") != NULL;
+        s_data_jitter = e != NULL && SDL_strstr(e, "jitter") != NULL;
+        s_data_view = e != NULL && SDL_strstr(e, "view") != NULL;
+        if ((s_data_depth || s_data_view) && (s_lin = program(BLIT_VS, LIN_FS)) != 0) {
+            GL(glUseProgram)(s_lin);
+            GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "dep"), 0);
+        }
+    }
     GL(glUseProgram)(s_main);
     GL(glUniform1i)(GL(glGetUniformLocation)(s_main, "vram"), 0);
     GL(glUniform2f)(s_size_loc, VRAM_W, VRAM_H);
@@ -1582,16 +1618,31 @@ static void bind(int unit, GLuint tex) {
    corners */
 static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
     int s = s_scale, pw = d->w * s, ph = d->h * s, smaa = g_smaa && s_smaa != 0, fsr = g_fsr && s_easu != 0 && h > ph && s_frame_3d, i;
+    int data = s_lin != 0 && (s_frame_3d || s_data_view); /* the view: on any frame, to see where there is none */
     GLuint tex = s_pic_tex[0];
 
     uv[0] = d->x / (float)VRAM_W, uv[1] = d->y / (float)VRAM_H;
     uv[2] = (d->x + d->w) / (float)VRAM_W, uv[3] = (d->y + d->h) / (float)VRAM_H;
-    if (!smaa && !fsr) {
+    if (!smaa && !fsr && !data) {
         return s_fbo_tex;
     }
     if (pw != s_pic_w || ph != s_pic_h) {
         for (i = 0; i < 3; i++) {
             target(&s_pic_tex[i], &s_pic_fbo[i], pw, ph);
+        }
+        if (s_lin != 0) {
+            if (s_dep_tex != 0) {
+                GL(glDeleteFramebuffers)(1, &s_dep_fbo);
+                GL(glDeleteTextures)(1, &s_dep_tex);
+                GL(glDeleteFramebuffers)(1, &s_lin_fbo);
+                GL(glDeleteTextures)(1, &s_lin_tex);
+            }
+            s_dep_tex = texture(GL_DEPTH24_STENCIL8, pw, ph, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, GL_NEAREST);
+            GL(glGenFramebuffers)(1, &s_dep_fbo);
+            GL(glBindFramebuffer)(GL_FRAMEBUFFER, s_dep_fbo);
+            GL(glFramebufferTexture2D)(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, s_dep_tex, 0);
+            s_lin_tex = texture(GL_R32F, pw, ph, GL_RED, GL_FLOAT, GL_NEAREST);
+            s_lin_fbo = framebuffer(s_lin_tex);
         }
         s_pic_w = pw, s_pic_h = ph;
         tex = s_pic_tex[0];
@@ -1599,6 +1650,15 @@ static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
     GL(glBindFramebuffer)(GL_READ_FRAMEBUFFER, s_fbo);
     GL(glBindFramebuffer)(GL_DRAW_FRAMEBUFFER, s_pic_fbo[0]);
     GL(glBlitFramebuffer)(d->x * s, d->y * s, d->x * s + pw, d->y * s + ph, 0, 0, pw, ph, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    if (data) { /* the depth of the same area, as view depth */
+        GL(glBindFramebuffer)(GL_READ_FRAMEBUFFER, s_fbo);
+        GL(glBindFramebuffer)(GL_DRAW_FRAMEBUFFER, s_dep_fbo);
+        GL(glBlitFramebuffer)(d->x * s, d->y * s, d->x * s + pw, d->y * s + ph, 0, 0, pw, ph, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        GL(glUseProgram)(s_lin);
+        GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "view"), 0);
+        bind(0, s_dep_tex);
+        pass(s_lin_fbo, pw, ph, 0);
+    }
     if (smaa) {
         GLint stage = GL(glGetUniformLocation)(s_smaa, "stage");
 
@@ -1628,6 +1688,13 @@ static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
         bind(0, tex);
         pass(s_up_fbo, w, h, 0);
         tex = s_up_tex;
+    }
+    if (data && s_data_view) { /* the depth itself on the screen, to see it */
+        GL(glUseProgram)(s_lin);
+        GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "view"), 1);
+        bind(0, s_dep_tex);
+        pass(s_pic_fbo[2], pw, ph, 0);
+        tex = s_pic_tex[2];
     }
     uv[0] = uv[1] = 0, uv[2] = uv[3] = 1;
     return tex;
@@ -1664,6 +1731,20 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
     s_frame_3d = s_zframe > 0;
     s_fog_on = 0, s_zframe = 0;
+    if (s_data_jitter) { /* the next frame's: Halton (2, 3), 8 of them, centred on the pixel */
+        unsigned n = ++s_jit_n % 8 + 1;
+        float f, b;
+        int k;
+
+        for (k = 0; k < 2; k++) {
+            unsigned i = n, base = k == 0 ? 2 : 3;
+
+            for (f = 1, b = 0; i > 0; i /= base) {
+                f /= base, b += f * (i % base);
+            }
+            s_jit_px[k] = b - 0.5f;
+        }
+    }
     if (vsync != g_vsync) {
         /* the game keeps its own time (etc.c); vsync only holds the swap for
            the screen's refresh, so that a frame isn't shown torn */
