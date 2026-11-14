@@ -1653,16 +1653,29 @@ static Tex pass_target(int w, int h, int rtv, int slot, DXGI_FORMAT fmt) {
     return t;
 }
 
+/* The size of the upscaled picture (FSR 3.1, DLSS) in W x H. DLSS takes square pixels, so its picture keeps the game's 4:3 and the present
+   stretches it over the viewport; FSR 3.1 is given the viewport */
+static void f3_size(int pw, int ph, const int vp[4], int *w, int *h) {
+    *w = vp[2], *h = vp[3];
+    if (g_fsr == 3) {
+        *w = vp[3] * pw / ph;
+        if (*w > vp[2]) {
+            *w = vp[2], *h = vp[2] * ph / pw;
+        }
+    }
+}
+
 /* Before the frame's list is opened: which of the passes run, and their targets the size of the picture (pw x ph) and of where it is shown */
 static void post_prepare(const PSX_RECT *d, const int vp[4]) {
-    int pw = d->w * s_scale, ph = d->h * s_scale, i, f3;
+    int pw = d->w * s_scale, ph = d->h * s_scale, i, f3, fw, fh;
 
     if (g_smaa && !s_smaa_tried) {
         s_smaa_tried = 1;
         smaa_init();
     }
     s_do_smaa = g_smaa && s_pso_smaa[2] != NULL;
-    f3 = ((g_fsr == 2 && g_fsr3 && s_fx_create != NULL) || (g_fsr == 3 && s_dlss && s_sl_state > 0)) && s_frame_3d && vp[2] >= pw && vp[3] >= ph;
+    f3_size(pw, ph, vp, &fw, &fh);
+    f3 = ((g_fsr == 2 && g_fsr3 && s_fx_create != NULL) || (g_fsr == 3 && s_dlss && s_sl_state > 0)) && s_frame_3d && fw >= pw && fh >= ph;
     s_do_fsr = g_fsr && s_pso_easu != NULL && vp[3] > ph && s_frame_3d;
     if ((s_do_smaa || f3) && (pw != s_p_w || ph != s_p_h)) {
         submit(); /* the last frames' passes are done before their targets go */
@@ -1706,23 +1719,23 @@ static void post_prepare(const PSX_RECT *d, const int vp[4]) {
     }
     s_do_mout = s_do_mout && s_mout.r != NULL && s_react.r != NULL;
     s_do_f3 = f3 && s_do_depth && s_do_mout && s_p[0].r != NULL;
-    if (s_do_f3 && (vp[2] != s_f3_w || vp[3] != s_f3_h)) {
+    if (s_do_f3 && (fw != s_f3_w || fh != s_f3_h)) {
         submit();
         if (s_f3.r != NULL) {
             ID3D12Resource_Release(s_f3.r);
         }
-        s_f3 = texture(vp[2], vp[3], DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
+        s_f3 = texture(fw, fh, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
         if (s_f3.r != NULL) {
             srv(&s_f3, S_F3, DXGI_FORMAT_R8G8B8A8_UNORM);
         }
-        s_f3_w = vp[2], s_f3_h = vp[3];
+        s_f3_w = fw, s_f3_h = fh;
     }
     s_do_f3 = s_do_f3 && s_f3.r != NULL;
     if (g_fsr3 && s_frame_3d) { /* what the menu says of it, and the log once */
-        int why = !(vp[2] >= pw && vp[3] >= ph), now = s_do_f3 ? 3 : why ? 2 : 1;
+        int why = !(fw >= pw && fh >= ph), now = s_do_f3 ? 3 : why ? 2 : 1;
 
         if (now != s_f3_state) {
-            SDL_Log(now == 3 ? "fsr3: running" : now == 2 ? "fsr3: idle, the render (%dx%d) is bigger than the window's picture (%dx%d): lower the Resolution" : "fsr3: idle, the data is not ready (%dx%d)", pw, ph, vp[2], vp[3]);
+            SDL_Log(now == 3 ? "fsr3: running" : now == 2 ? "fsr3: idle, the render (%dx%d) is bigger than the window's picture (%dx%d): lower the Resolution" : "fsr3: idle, the data is not ready (%dx%d)", pw, ph, fw, fh);
             s_f3_state = now;
         }
     }
@@ -1845,9 +1858,9 @@ static int post_f3(const PSX_RECT *d, const int vp[4]) {
     trans(&s_rt, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     trans(&s_f3, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     if (g_fsr == 3 && s_dlss) {
-        ok = sl_run(s_list, s_p[0].r, s_dout.r, s_mout.r, s_f3.r, pw, ph, vp[2], vp[3], s_jit_used[0], s_jit_used[1], !s_f3_prev, fov);
+        ok = sl_run(s_list, s_p[0].r, s_dout.r, s_mout.r, s_f3.r, pw, ph, s_f3_w, s_f3_h, s_jit_used[0], s_jit_used[1], !s_f3_prev, fov);
     } else {
-        ok = fx_run(s_dev, s_list, s_p[0].r, s_dout.r, s_mout.r, s_react.r, s_f3.r, pw, ph, vp[2], vp[3], s_jit_used[0], s_jit_used[1], !s_f3_prev, fov, ms);
+        ok = fx_run(s_dev, s_list, s_p[0].r, s_dout.r, s_mout.r, s_react.r, s_f3.r, pw, ph, s_f3_w, s_f3_h, s_jit_used[0], s_jit_used[1], !s_f3_prev, fov, ms);
     }
     ID3D12GraphicsCommandList_SetDescriptorHeaps(s_list, 1, heaps); /* (the upscaler set its own) */
     trans(&s_f3, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

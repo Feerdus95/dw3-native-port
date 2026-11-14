@@ -252,11 +252,19 @@ static int sl_factory(IDXGIFactory4 **fac) {
     return 1;
 }
 
-/* The mode the player chose (the menu's DLSS mode: DLAA, Quality, Balanced, Performance). The render size is the Resolution's, as for FSR */
-static uint32_t sl_mode(void) {
-    static const uint32_t MODES[4] = {SL_MODE_DLAA, SL_MODE_QUALITY, SL_MODE_BALANCED, SL_MODE_PERFORMANCE};
+/* The DLSS mode whose ratio is the nearest to the render's (RH to UH): the player's Upscaler mode fixed the render size, and DLSS refuses a size
+   that is not within a mode's range (the integer scales only come near the nominal ratios) */
+static uint32_t sl_mode(int rh, int uh) {
+    static const struct { uint32_t mode; float ratio; } M[] = {{SL_MODE_DLAA, 1.0f}, {SL_MODE_QUALITY, 1.5f}, {SL_MODE_BALANCED, 1.724f}, {SL_MODE_PERFORMANCE, 2.0f}, {SL_MODE_ULTRA_PERFORMANCE, 3.0f}};
+    float k = (float)uh / (float)SDL_max(rh, 1), d = 1e9f;
+    uint32_t best = SL_MODE_DLAA;
 
-    return MODES[SDL_clamp(g_up_mode, 0, 3)];
+    for (int i = 0; i < 5; i++) {
+        if (SDL_fabsf(k - M[i].ratio) < d) {
+            d = SDL_fabsf(k - M[i].ratio), best = M[i].mode;
+        }
+    }
+    return best;
 }
 
 static SlRes sl_res(ID3D12Resource *r, uint32_t state) {
@@ -289,7 +297,7 @@ static int sl_run(ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Re
         SlDlssOptimal best = {0};
 
         o.b = sl_base(&SL_G_DLSS_OPTIONS, 3);
-        o.mode = sl_mode(), o.out_w = (uint32_t)uw, o.out_h = (uint32_t)uh;
+        o.mode = sl_mode(rh, uh), o.out_w = (uint32_t)uw, o.out_h = (uint32_t)uh;
         o.pre_exposure = o.exposure_scale = 1;
         o.auto_exposure = 1; /* the picture has no exposure of its own; it is 8 bits, not HDR */
         best.b = sl_base(&SL_G_DLSS_OPTIMAL, 1);
