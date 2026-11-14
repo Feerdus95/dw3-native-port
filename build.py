@@ -43,9 +43,10 @@ LENIENT = ["-fno-strict-aliasing", "-fwrapv", "-fno-delete-null-pointer-checks"]
 EMIT_OPT = ["-O0", "-Xclang", "-disable-O0-optnone", *LENIENT] if O2 else GAME_OPT
 GAME_OPT = ["-O2", *LENIENT] if O2 else GAME_OPT
 # --x64: the same game as a 64-bit exe, into native/build-x64 (an experiment: what a 64-bit port needs)
-X64 = "--x64" in sys.argv
+D3D12 = "--d3d12" in sys.argv  # --d3d12: x64 too, with platform/d3d12.c in place of gl.c, into native/build-d3d12 (an experiment)
+X64 = "--x64" in sys.argv or D3D12
 ARCH = "x86_64" if X64 else "i686"
-OUT = NATIVE / ("build-x64" if X64 else "build-san" if SANITIZE else "build-o2" if O2 else "build")
+OUT = NATIVE / ("build-d3d12" if D3D12 else "build-x64" if X64 else "build-san" if SANITIZE else "build-o2" if O2 else "build")
 PATCHED = OUT / "patched"
 
 
@@ -83,6 +84,8 @@ PLATFORM_CFLAGS = ["-std=c11", "-c", "-O2", "-g", "-Wall", "-Wno-unused-paramete
 # game's memory has to stay below 16 MB (main.c checks it at startup)
 LDFLAGS = ["-g", "-Wl,--no-dynamicbase",
            f"-L{SDL / 'lib'}", "-lSDL3", "-lbcrypt", *SAN_FLAGS]
+if D3D12:
+    LDFLAGS += ["-ld3d12", "-ldxgi", "-ldxguid", "-ld3dcompiler_47"]
 if X64:
     # a low image base, and an address space cut to 2 GB (no large-address-aware): the stack and the heap stay below
     # 2 GB too, so a pointer the game passes through an int still reaches what it pointed at
@@ -347,6 +350,8 @@ def main():
 
     platform = []
     for src in sorted((NATIVE / "platform").glob("*.c")):
+        if src.name == ("gl.c" if D3D12 else "d3d12.c"):  # one renderer behind renderer.h
+            continue
         obj = OUT / "platform" / src.with_suffix(".o").name
         obj.parent.mkdir(parents=True, exist_ok=True)
         deps = [src, *(NATIVE / "platform").glob("*.h")]
@@ -383,7 +388,7 @@ def main():
         for s in u:
             undefined[s] += 1
     host_libs = [TC.parent / f"{ARCH}-w64-mingw32/lib" / f"lib{name}.a"
-                 for name in ("msvcrt", "bcrypt")]
+                 for name in ("msvcrt", "bcrypt", *(("d3d12", "dxgi", "dxguid", "d3dcompiler_47") if D3D12 else ()))]
     host = set(run([NM, "--format=just-symbols", "--defined-only", "--extern-only", *host_libs]).stdout.split())
     host = {cname(s) for s in host}
     missing = sorted(s for s in undefined if s not in defined and s not in host
