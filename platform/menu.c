@@ -16,7 +16,7 @@ static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Battle sky and fog", "Form name in battle", "Smooth movies", "VSync", "Fullscreen", "Window size", "Inactive window", "Vibration", "Stick deadzone",
     "Fast text (hold X)", "Fast forward (Tab/R3)", "Menus in fast forward", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon", "Full EXP Share", "Tech visual upgrade", "Heal on level up", "Save anywhere", "Crest fix", "Custom effects", "Custom sounds", "Custom scripts",
     "Button icons", "Controls", "Skip PRESS START", "Menu cursor wraps", "Quit game",
-    "Sharpen", "Brightness", "Gamma", "Saturation", "Scanlines", "Integer scaling", "SMAA anti-aliasing", "FSR upscaling", "Preset", "Upscaler mode",
+    "Sharpen", "Brightness", "Gamma", "Saturation", "Scanlines", "Integer scaling", "SMAA anti-aliasing", "Upscaling", "Preset", "Upscaler mode",
 };
 
 /* the tabs and their options, each list ending with -1 */
