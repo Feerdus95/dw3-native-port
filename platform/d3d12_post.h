@@ -154,3 +154,31 @@ static const char *SMAA_GLUE =
     "    return SMAABlendingWeightCalculationPS(i.t, i.px, off, t0, t1, t2, float4(0.0, 0.0, 0.0, 0.0));\n"
     "}\n"
     "float4 sps2(SO i) : SV_Target { return SMAANeighborhoodBlendingPS(i.t, i.o0, t0, t1); }\n";
+
+/* The 3D's depth for the upscalers (the game's: depth = 1 - 64 / z, a standard projection with near 64 and no far plane; 1 where
+   nothing 3D was drawn). dkeep: the copy of the depth buffer, for the rectangle the viewport is (a table of the stage, or of the
+   fighters, drawn); dout: the two joined, the fighters' over the stage's (a: the corner of each in its texture, b.xy: which there
+   is); dview: the depth in grey, near bright, to look at (a.xy: the picture's texels to one of the window's, b.xy: its corner) */
+static const char *DEPTH_HLSL =
+    "cbuffer C : register(b0) { float4 uv; float4 a; float4 b; };\n"
+    "Texture2D<float> t0 : register(t0);\n"
+    "Texture2D<float> t1 : register(t1);\n"
+    "struct VO { float4 p : SV_Position; };\n"
+    "VO vs(uint id : SV_VertexID) {\n"
+    "    float2 c = float2(id & 1, id >> 1);\n"
+    "    VO o;\n"
+    "    o.p = float4(c.x * 2 - 1, 1 - c.y * 2, 0, 1);\n"
+    "    return o;\n"
+    "}\n"
+    "float4 dkeep(VO i) : SV_Target { return float4(t0.Load(int3(int2(i.p.xy), 0)), 0, 0, 0); }\n"
+    "float4 dout(VO i) : SV_Target {\n"
+    "    int2 p = int2(i.p.xy);\n"
+    "    float ds = b.x > 0.0 ? t0.Load(int3(p + int2(a.xy), 0)) : 1.0, df = b.y > 0.0 ? t1.Load(int3(p + int2(a.zw), 0)) : 1.0;\n"
+    "    return float4(df < 1.0 ? df : ds, 0, 0, 0);\n"
+    "}\n"
+    "float4 dview(VO i) : SV_Target {\n"
+    "    float d = t0.Load(int3(int2((i.p.xy - b.xy) * a.xy), 0));\n"
+    "    float z = d < 1.0 ? 64.0 / (1.0 - d) : 0.0;\n"
+    "    float g = z > 0.0 ? sqrt(min(1.0, 3000.0 / z)) : 0.0;\n"
+    "    return float4(g, g, g, 1.0);\n"
+    "}\n";

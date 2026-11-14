@@ -186,9 +186,9 @@ typedef struct {
 
 /* the SRV heap's slots; the picture's passes (post): its copies P0-P2 and FSR's output, SMAA's tables, and for SMAA's three
    passes a table of three views each (t0, t1, t2) */
-enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_P0, S_P1, S_P2, S_FSR, S_AREA, S_SEARCH, S_T0, S_T1 = S_T0 + 3, S_T2 = S_T1 + 3, S_COUNT = S_T2 + 3 };
+enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_P0, S_P1, S_P2, S_FSR, S_AREA, S_SEARCH, S_DSRC, S_SD, S_FD, S_DOUT, S_TD, S_T0 = S_TD + 3, S_T1 = S_T0 + 3, S_T2 = S_T1 + 3, S_COUNT = S_T2 + 3 };
 #define MAX_IMG 1024 /* the port's own images (icons, postcards, effects): their slots follow S_COUNT */
-enum { R_RT = FRAMES, R_MASK, R_BLUR, R_P0, R_P1, R_P2, R_FSR, R_COUNT }; /* the RTV heap's, after the back buffers */
+enum { R_RT = FRAMES, R_MASK, R_BLUR, R_P0, R_P1, R_P2, R_FSR, R_SD, R_FD, R_DOUT, R_COUNT }; /* the RTV heap's, after the back buffers */
 
 static SDL_Window *s_window;
 static ID3D12Device *s_dev;
@@ -198,7 +198,10 @@ static ID3D12DescriptorHeap *s_rtv_heap, *s_srv_heap, *s_dsv_heap;
 static ID3D12Resource *s_back[FRAMES], *s_up_pic, *s_up_menu, *s_read, *s_ring_res;
 static Tex s_pic, s_menu, s_vram, s_rt, s_tmp, s_depth, s_mask, s_blur; /* the mask and its blur: battle shadows (R8) */
 static Tex s_p[3], s_fsr, s_area, s_search; /* the picture's passes: the display area copied, SMAA's edges, its weights; FSR's output */
-static ID3D12RootSignature *s_smaa_root;
+static ID3D12RootSignature *s_smaa_root; /* three views: SMAA's passes, the depth join */
+static Tex s_sd, s_fd, s_dout; /* the upscalers' depth: the stage's and the fighters' kept (R32F, as the buffer), and the two joined at the picture's size */
+static ID3D12PipelineState *s_pso_dkeep, *s_pso_dout, *s_pso_dview;
+static int s_data_depth, s_data_view, s_sd_valid, s_fd_valid, s_sd_org[2], s_fd_org[2], s_dout_w, s_dout_h, s_do_depth;
 static ID3D12PipelineState *s_pso_post, *s_pso_easu, *s_pso_smaa[3];
 /* what an upscaler (DLSS, FSR 3) is given, made only while DW3_UPSCALE_DATA asks (as gl.c's): the 3D shifted by a sub-pixel jitter, in pixels of the copy (+x right, +y down) */
 static int s_data_jitter;
@@ -1168,12 +1171,17 @@ void gfx_sync(int force) {
             ID3D12Resource_Release(s_blur.r);
             s_mask.r = s_blur.r = NULL;
         }
+        if (s_sd.r != NULL) {
+            ID3D12Resource_Release(s_sd.r);
+            ID3D12Resource_Release(s_fd.r);
+            s_sd.r = s_fd.r = NULL;
+        }
         s_mask_box[0] = VRAM_W, s_mask_box[1] = VRAM_H, s_mask_box[2] = s_mask_box[3] = -1;
         s_scale = want;
         cd.DepthStencil.Depth = 1.0f;
         s_rt = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cc);
         s_tmp = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
-        s_depth = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_D32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &cd);
+        s_depth = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R32_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &cd);
         if (s_rt.r == NULL || s_tmp.r == NULL || s_depth.r == NULL) {
             SDL_Log("d3d12: the copy at scale %d", want);
             return;
@@ -1193,7 +1201,28 @@ void gfx_sync(int force) {
             srv(&s_blur, S_BLUR, DXGI_FORMAT_R8_UNORM);
         }
         ID3D12Device_CreateRenderTargetView(s_dev, s_rt.r, NULL, rtv_at(FRAMES));
-        ID3D12Device_CreateDepthStencilView(s_dev, s_depth.r, NULL, ID3D12DescriptorHeap_GetCPUDescriptorHandleForHeapStart(s_dsv_heap));
+        {
+            D3D12_DEPTH_STENCIL_VIEW_DESC dv = {DXGI_FORMAT_D32_FLOAT, D3D12_DSV_DIMENSION_TEXTURE2D, D3D12_DSV_FLAG_NONE};
+
+            ID3D12Device_CreateDepthStencilView(s_dev, s_depth.r, &dv, ID3D12DescriptorHeap_GetCPUDescriptorHandleForHeapStart(s_dsv_heap));
+        }
+        if (s_data_depth) { /* what the upscalers are given: the buffer's depth read, kept per table */
+            D3D12_CLEAR_VALUE cf = {DXGI_FORMAT_R32_FLOAT, {{1, 0, 0, 0}}};
+
+            s_sd = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &cf);
+            s_fd = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &cf);
+            if (s_sd.r != NULL && s_fd.r != NULL) {
+                ID3D12Device_CreateRenderTargetView(s_dev, s_sd.r, NULL, rtv_at(R_SD));
+                ID3D12Device_CreateRenderTargetView(s_dev, s_fd.r, NULL, rtv_at(R_FD));
+                srv(&s_sd, S_SD, DXGI_FORMAT_R32_FLOAT);
+                srv(&s_fd, S_FD, DXGI_FORMAT_R32_FLOAT);
+                srv(&s_sd, S_TD, DXGI_FORMAT_R32_FLOAT);
+                srv(&s_fd, S_TD + 1, DXGI_FORMAT_R32_FLOAT);
+                srv(&s_fd, S_TD + 2, DXGI_FORMAT_R32_FLOAT);
+                srv(&s_depth, S_DSRC, DXGI_FORMAT_R32_FLOAT);
+            }
+        }
+        s_sd_valid = s_fd_valid = 0;
         srv(&s_rt, S_RT, DXGI_FORMAT_R8G8B8A8_UNORM);
         srv(&s_tmp, S_TMP, DXGI_FORMAT_R8G8B8A8_UNORM);
         list();
@@ -1208,8 +1237,6 @@ void gfx_sync(int force) {
 }
 
 /* what the card does not draw yet: props, images */
-void gfx_depth_save(void) {}
-void gfx_depth_models(void) {}
 
 static Tex s_imgs[MAX_IMG];
 static int s_nimg;
@@ -1370,8 +1397,45 @@ static void movie_rgba(const PSX_RECT *d) {
 
 static int s_do_smaa, s_do_fsr; /* this frame's, decided before its list is opened (post_prepare) */
 
+/* the root of three views, 12 constants and the two samplers: SMAA's passes, the depth join */
+static void make_root3(void) {
+    int i;
+    D3D12_DESCRIPTOR_RANGE range = {D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0, 0};
+    D3D12_ROOT_PARAMETER rp[2] = {0};
+    D3D12_STATIC_SAMPLER_DESC ss[2] = {0};
+    D3D12_ROOT_SIGNATURE_DESC rsd = {0};
+    if (s_smaa_root != NULL) {
+        return;
+    }
+    rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE, rp[0].DescriptorTable.NumDescriptorRanges = 1;
+    rp[0].DescriptorTable.pDescriptorRanges = &range, rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS, rp[1].Constants.Num32BitValues = 12, rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    for (i = 0; i < 2; i++) {
+        ss[i].Filter = i == 0 ? D3D12_FILTER_MIN_MAG_MIP_LINEAR : D3D12_FILTER_MIN_MAG_MIP_POINT;
+        ss[i].AddressU = ss[i].AddressV = ss[i].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        ss[i].ShaderRegister = (UINT)i, ss[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL, ss[i].MaxLOD = D3D12_FLOAT32_MAX;
+    }
+    rsd.NumParameters = 2, rsd.pParameters = rp, rsd.NumStaticSamplers = 2, rsd.pStaticSamplers = ss;
+    s_smaa_root = root(&rsd);
+}
+
 static void post_init(void) {
     ID3DBlob *vs = NULL, *ps = NULL;
+    const char *e = SDL_getenv("DW3_UPSCALE_DATA");
+
+    s_data_depth = e != NULL && (SDL_strstr(e, "depth") != NULL || SDL_strstr(e, "view") != NULL);
+    s_data_view = e != NULL && SDL_strstr(e, "view") != NULL;
+    make_root3();
+    if (s_data_depth && compile(DEPTH_HLSL, "vs", "vs_5_0", &vs)) {
+        ID3DBlob *pk = NULL, *po = NULL, *pv = NULL;
+
+        if (compile(DEPTH_HLSL, "dkeep", "ps_5_0", &pk) && compile(DEPTH_HLSL, "dout", "ps_5_0", &po) && compile(DEPTH_HLSL, "dview", "ps_5_0", &pv)) {
+            s_pso_dkeep = blit_pso(vs, pk, 1, DXGI_FORMAT_R32_FLOAT);
+            s_pso_dout = blit_pso_on(s_smaa_root, vs, po, 1, DXGI_FORMAT_R32_FLOAT);
+            s_pso_dview = blit_pso(vs, pv, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+        }
+        vs = NULL;
+    }
 
     if (compile(POST_HLSL, "vs", "vs_5_0", &vs) && compile(POST_HLSL, "pp", "ps_5_0", &ps)) {
         s_pso_post = blit_pso(vs, ps, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
@@ -1415,10 +1479,6 @@ static Tex smaa_table(const unsigned char *data, int w, int h, int bpp, DXGI_FOR
 /* SMAA's passes, when first asked for (its shader is the big one to compile): where it does not build, its option does nothing */
 static void smaa_init(void) {
     static const char *VS[3] = {"svs0", "svs1", "svs2"}, *PS[3] = {"sps0", "sps1", "sps2"};
-    D3D12_DESCRIPTOR_RANGE range = {D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0, 0};
-    D3D12_ROOT_PARAMETER rp[2] = {0};
-    D3D12_STATIC_SAMPLER_DESC ss[2] = {0};
-    D3D12_ROOT_SIGNATURE_DESC rsd = {0};
     ID3DBlob *vs[3] = {0}, *ps[3] = {0};
     size_t n = SDL_strlen(SMAA_HEAD) + SDL_strlen(SMAA_SRC) + SDL_strlen(SMAA_GLUE) + 1;
     char *src = SDL_malloc(n), *c;
@@ -1432,16 +1492,6 @@ static void smaa_init(void) {
             }
         }
     }
-    rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE, rp[0].DescriptorTable.NumDescriptorRanges = 1;
-    rp[0].DescriptorTable.pDescriptorRanges = &range, rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS, rp[1].Constants.Num32BitValues = 12, rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    for (i = 0; i < 2; i++) {
-        ss[i].Filter = i == 0 ? D3D12_FILTER_MIN_MAG_MIP_LINEAR : D3D12_FILTER_MIN_MAG_MIP_POINT;
-        ss[i].AddressU = ss[i].AddressV = ss[i].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-        ss[i].ShaderRegister = (UINT)i, ss[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL, ss[i].MaxLOD = D3D12_FLOAT32_MAX;
-    }
-    rsd.NumParameters = 2, rsd.pParameters = rp, rsd.NumStaticSamplers = 2, rsd.pStaticSamplers = ss;
-    s_smaa_root = root(&rsd);
     for (i = 0; ok && i < 3; i++) {
         ok = compile(src, VS[i], "vs_5_0", &vs[i]) && compile(src, PS[i], "ps_5_0", &ps[i]);
     }
@@ -1461,13 +1511,13 @@ static void smaa_init(void) {
     srv(&s_search, S_T1 + 2, DXGI_FORMAT_R8_UNORM);
 }
 
-static Tex pass_target(int w, int h, int rtv, int slot) {
-    D3D12_CLEAR_VALUE cc = {DXGI_FORMAT_R8G8B8A8_UNORM, {{0, 0, 0, 0}}};
-    Tex t = texture(w, h, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &cc);
+static Tex pass_target(int w, int h, int rtv, int slot, DXGI_FORMAT fmt) {
+    D3D12_CLEAR_VALUE cc = {fmt, {{0, 0, 0, 0}}};
+    Tex t = texture(w, h, fmt, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &cc);
 
     if (t.r != NULL) {
         ID3D12Device_CreateRenderTargetView(s_dev, t.r, NULL, rtv_at(rtv));
-        srv(&t, slot, DXGI_FORMAT_R8G8B8A8_UNORM);
+        srv(&t, slot, fmt);
     }
     return t;
 }
@@ -1486,7 +1536,7 @@ static void post_prepare(const PSX_RECT *d, const int vp[4]) {
         submit(); /* the last frames' passes are done before their targets go */
         for (i = 0; i < 3; i++) {
             if (s_p[i].r != NULL) ID3D12Resource_Release(s_p[i].r);
-            s_p[i] = pass_target(pw, ph, R_P0 + i, S_P0 + i);
+            s_p[i] = pass_target(pw, ph, R_P0 + i, S_P0 + i, DXGI_FORMAT_R8G8B8A8_UNORM);
         }
         for (i = 0; i < 3; i++) {
             srv(&s_p[0], S_T0 + i, DXGI_FORMAT_R8G8B8A8_UNORM); /* (the first pass reads its t0 only) */
@@ -1501,10 +1551,18 @@ static void post_prepare(const PSX_RECT *d, const int vp[4]) {
     if (s_do_fsr && (vp[2] != s_fsr_w || vp[3] != s_fsr_h)) {
         submit();
         if (s_fsr.r != NULL) ID3D12Resource_Release(s_fsr.r);
-        s_fsr = pass_target(vp[2], vp[3], R_FSR, S_FSR);
+        s_fsr = pass_target(vp[2], vp[3], R_FSR, S_FSR, DXGI_FORMAT_R8G8B8A8_UNORM);
         s_fsr_w = vp[2], s_fsr_h = vp[3];
     }
     s_do_fsr = s_do_fsr && s_fsr.r != NULL;
+    s_do_depth = s_data_depth && s_frame_3d && s_pso_dout != NULL && (s_sd_valid || s_fd_valid);
+    if (s_do_depth && (pw != s_dout_w || ph != s_dout_h)) {
+        submit();
+        if (s_dout.r != NULL) ID3D12Resource_Release(s_dout.r);
+        s_dout = pass_target(pw, ph, R_DOUT, S_DOUT, DXGI_FORMAT_R32_FLOAT);
+        s_dout_w = pw, s_dout_h = ph;
+    }
+    s_do_depth = s_do_depth && s_dout.r != NULL;
 }
 
 /* target t (index rtv in the RTV heap) set to be drawn into, cleared when asked */
@@ -1534,6 +1592,54 @@ static void draw_k(ID3D12RootSignature *rs, ID3D12PipelineState *pso, int slot, 
     ID3D12GraphicsCommandList_SetGraphicsRoot32BitConstants(s_list, 1, 12, k, 0);
     ID3D12GraphicsCommandList_IASetPrimitiveTopology(s_list, D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     ID3D12GraphicsCommandList_DrawInstanced(s_list, 4, 1, 0, 0);
+}
+
+/* The depth buffer as a table left it, kept (a viewport of its drawing area, so only that is read): the stage's after its table, before the
+   models' table empties the buffer, and the fighters' after theirs */
+static void depth_keep(Tex *to, int rtv, int *valid, int org[2]) {
+    int s = s_scale, box[4] = {s_clip[0] * s, s_clip[1] * s, (s_clip[2] - s_clip[0] + 1) * s, (s_clip[3] - s_clip[1] + 1) * s}, prev;
+    const float k[12] = {0, 0, 1, 1};
+
+    *valid = 0;
+    if (!s_data_depth || s == 0 || to->r == NULL || !g_depth || s_pso_dkeep == NULL || box[2] <= 0 || box[3] <= 0) {
+        return;
+    }
+    flush();
+    list();
+    prev = mark(C_DEPTH);
+    trans(&s_depth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    rt_pass(to, rtv, 0);
+    draw_k(s_blit_root, s_pso_dkeep, S_DSRC, box, k);
+    trans(to, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    trans(&s_depth, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    mark(prev);
+    *valid = 1, org[0] = s_clip[0], org[1] = s_clip[1];
+}
+
+void gfx_depth_save(void) {
+    depth_keep(&s_sd, R_SD, &s_sd_valid, s_sd_org);
+}
+
+void gfx_depth_models(void) {
+    depth_keep(&s_fd, R_FD, &s_fd_valid, s_fd_org);
+}
+
+/* The two joined, for this frame's picture (s_do_depth): where the upscalers will read it */
+static void post_depth(void) {
+    int s = s_scale, full[4] = {0, 0, s_dout_w, s_dout_h};
+    float k[12] = {0, 0, 1, 1, (float)(s_sd_org[0] * s), (float)(s_sd_org[1] * s), (float)(s_fd_org[0] * s), (float)(s_fd_org[1] * s), (float)(s_sd_valid != 0), (float)(s_fd_valid != 0)};
+    static int shown = -1;
+    int now = s_sd_valid << 1 | s_fd_valid;
+
+    if (shown != now) { /* what the frame has, once per change */
+        shown = now;
+        SDL_Log("d3d12: upscale data: 3D frame, stage depth %d, fighters' depth %d (picture %dx%d)", s_sd_valid, s_fd_valid, s_dout_w, s_dout_h);
+    }
+    mark(C_POST);
+    rt_pass(&s_dout, R_DOUT, 0);
+    draw_k(s_smaa_root, s_pso_dout, S_TD, full, k);
+    trans(&s_dout, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    mark(C_PRESENT);
 }
 
 /* The display area d of the copy through SMAA and FSR 1, those that are on: the SRV slot of what to show, and in it the rectangle uv */
@@ -1673,6 +1779,9 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     if (game) {
         trans(&s_rt, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         slot = post_chain(&d, vp, puv);
+        if (s_do_depth) {
+            post_depth();
+        }
     }
     bi = IDXGISwapChain3_GetCurrentBackBufferIndex(s_swap);
     barrier(s_back[bi], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -1683,6 +1792,10 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         float uv[4] = {0, 0, d.w / (float)VRAM_W, d.h / (float)VRAM_H};
 
         quad(S_PIC, vp, uv, s_pso_present);
+    } else if (game && s_data_view && s_do_depth) { /* the depth itself, to look at */
+        float k[12] = {0, 0, 1, 1, s_dout_w / (float)vp[2], s_dout_h / (float)vp[3], 0, 0, (float)vp[0], (float)vp[1]};
+
+        draw_k(s_blit_root, s_pso_dview, S_DOUT, vp, k);
     } else if (game) {
         if (s_pso_post != NULL && (g_sharpen | g_brightness | g_gamma | g_saturation | g_scanlines) != 0) {
             /* gamma 10 halves the exponent (brighter middles), -10 doubles it */
