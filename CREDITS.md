@@ -36,7 +36,7 @@ The native port of Digimon World 2003 builds on the work of others:
 - **AMD FidelityFX Super Resolution 1.0** (FSR 1, MIT; © 2021 Advanced Micro Devices, Inc.). The FSR 1 option is
   its upscaling pass (EASU), written out for this renderer after AMD's.
 - **AMD FidelityFX Super Resolution 3.1** (FSR 3.1 upscaler, MIT; © Advanced Micro Devices, Inc.). The FSR 3.1 option calls
-  it through AMD's C API (`ffx_api`), loaded at run time from AMD's own DLLs, which the port does not ship; only the
+  it through AMD's C API (`ffx_api`), loaded at run time from AMD's own DLLs, which the port does not ship (the launcher can download them from AMD's SDK, tag v2.4.0, checking their SHA-256); only the
   layout of the API's structures is declared in `platform/d3d12_fsr3.h`.
 
 PlayStation is a trademark of Sony Interactive Entertainment, Xbox of Microsoft and Nintendo Switch of Nintendo; the
