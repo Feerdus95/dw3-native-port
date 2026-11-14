@@ -18,7 +18,8 @@
 #define MENU_W 1280
 #define MENU_H 960
 #define BATCH 6144
-#define RING (48u << 20) /* the frame's uploads: VRAM rects and vertices */
+#define FIF 2 /* frames in flight */
+#define RING (96u << 20) /* the frame's uploads: VRAM rects and vertices */
 #define MAX_SCALE 8
 
 int g_res_scale = 1;
@@ -148,11 +149,13 @@ static const char *BLIT_HLSL =
     "float4 ps(VO i) : SV_Target { return tx.Sample(lin, i.t); }\n"
     "float4 psn(VO i) : SV_Target { return tx.Sample(pt, i.t); }\n"
     /* the battle shadows' blur (gl.c's SOFT_FS): k.xy a tap's step in pixels, k.z 0 for the blurred mask itself, else how much of the ground it takes */
-    "static const float W[5] = {0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216};\n"
+    /* a gaussian of 9 taps as 5 linear ones (the taps in pairs, between their two texels) */
     "float4 psb(VO i) : SV_Target {\n"
-    "    int2 at = (int2)i.p.xy, dir = (int2)i.k.xy;\n"
-    "    float m = tx.Load(int3(at, 0)).r * W[0];\n"
-    "    for (int n = 1; n < 5; n++) m += (tx.Load(int3(at + dir * n, 0)).r + tx.Load(int3(at - dir * n, 0)).r) * W[n];\n"
+    "    float2 sz; tx.GetDimensions(sz.x, sz.y);\n"
+    "    float2 c = i.p.xy / sz, d = i.k.xy / sz;\n"
+    "    float m = tx.Sample(lin, c).r * 0.227027;\n"
+    "    m += (tx.Sample(lin, c + d * 1.3846154).r + tx.Sample(lin, c - d * 1.3846154).r) * 0.3162162;\n"
+    "    m += (tx.Sample(lin, c + d * 3.2307692).r + tx.Sample(lin, c - d * 3.2307692).r) * 0.07027;\n"
     "    return i.k.z > 0.0 ? float4(m * i.k.z, m * i.k.z, m * i.k.z, 0.0) : float4(m, m, m, m);\n"
     "}\n";
 
@@ -174,7 +177,6 @@ static IDXGISwapChain3 *s_swap;
 static ID3D12DescriptorHeap *s_rtv_heap, *s_srv_heap, *s_dsv_heap;
 static ID3D12Resource *s_back[FRAMES], *s_up_pic, *s_up_menu, *s_read, *s_ring_res;
 static Tex s_pic, s_menu, s_vram, s_rt, s_tmp, s_depth, s_mask, s_blur; /* the mask and its blur: battle shadows (R8) */
-static ID3D12CommandAllocator *s_alloc;
 static ID3D12GraphicsCommandList *s_list;
 static ID3D12RootSignature *s_main_root, *s_blit_root;
 static ID3D12PipelineState *s_pso_present, *s_pso_copy, *s_pso_copyn, *s_pso_over, *s_pso_blur, *s_pso_dark, *s_pso_img, *s_pso_add, *s_pso_mask[2]; /* the mask's: without and with the depth test */
@@ -194,7 +196,7 @@ static int s_count, s_semi = -1, s_deep, s_clip[4] = {0, 0, 1023, 511};
 static int s_mask_box[4] = {VRAM_W, VRAM_H, -1, -1}; /* what the mask holds, in VRAM pixels */
 /* a battle's fog (gl.c has the same): the background colour this frame (5 bits), the fog shown, the farthest opaque 3D */
 static float s_bg[3], s_fog[3], s_fog_amount, s_fog_from, s_zfar, s_zframe;
-static int s_fog_on, s_fog_shown;
+static int s_fog_on, s_fog_shown, s_depth_used = 1; /* s_depth_used: some 3D has written depth since the last clear */
 
 #define OK(x) ((x) >= 0)
 
@@ -234,9 +236,53 @@ static Tex texture(int w, int h, DXGI_FORMAT fmt, D3D12_RESOURCE_FLAGS flags, D3
     return t;
 }
 
-/* what a frame cost, logged when it was long (the hitches): the GPU waits, the images made, the VRAM uploads */
+/* what the frame cost, logged when it was long: the GPU waits (a blocking submit), the images made, the VRAM uploads */
 static Uint64 s_wait_ns, s_img_ns;
 static int s_nsub, s_nimg_made, s_nup;
+
+/* GPU time by what the frame spends it on: a timestamp at each change of region, the span after it counted to its region */
+enum { C_OTHER, C_3D, C_2D, C_MASK, C_RESOLVE, C_REFRESH, C_COPY, C_DEPTH, C_IMAGE, C_PRESENT, C_N };
+#define QMAX 2048
+static ID3D12QueryHeap *s_qheap;
+static ID3D12Resource *s_qread; /* FIF frames' timestamps */
+static UINT8 *s_qptr;
+static UINT64 s_qfreq;
+static int s_cat, s_qn, s_qn_slot[FIF];
+static unsigned char s_qc[FIF][QMAX];
+
+/* Two frames in flight: the CPU records the next while the GPU draws the last. Each has its command allocator, its half of
+   the upload ring and its fence; the slot in use is reused once its fence says the GPU is done with it */
+static ID3D12CommandAllocator *s_alloc[FIF];
+static UINT64 s_slot_fence[FIF];
+static int s_slot;
+
+static void wait_slot(int slot) {
+    if (s_fence != NULL && ID3D12Fence_GetCompletedValue(s_fence) < s_slot_fence[slot]) {
+        ID3D12Fence_SetEventOnCompletion(s_fence, s_slot_fence[slot], s_event);
+        WaitForSingleObject(s_event, INFINITE);
+    }
+}
+
+/* the timestamps of the frame that last ran in SLOT (its fence is passed): what its GPU time went to, logged when it was long */
+static void harvest(int slot) {
+    const UINT64 *t = (const UINT64 *)(s_qptr + (size_t)slot * QMAX * 8);
+    double ms[C_N] = {0}, total = 0;
+    int i, n = s_qn_slot[slot];
+
+    s_qn_slot[slot] = 0;
+    if (n < 2 || s_qfreq == 0) {
+        return;
+    }
+    for (i = 0; i + 1 < n; i++) {
+        double d = (double)(t[i + 1] - t[i]) * 1000.0 / (double)s_qfreq;
+
+        ms[s_qc[slot][i]] += d, total += d;
+    }
+    if (total > 10.0) {
+        SDL_Log("d3d12: gpu %.1f ms: 3d %.1f, 2d %.1f, shadow mask %.1f, shadow blur %.1f, vram refresh %.1f, copies %.1f, depth clear %.1f, images %.1f, present %.1f, other %.1f",
+                total, ms[C_3D], ms[C_2D], ms[C_MASK], ms[C_RESOLVE], ms[C_REFRESH], ms[C_COPY], ms[C_DEPTH], ms[C_IMAGE], ms[C_PRESENT], ms[C_OTHER]);
+    }
+}
 
 static void list(void) {
     ID3D12DescriptorHeap *heaps[1] = {s_srv_heap};
@@ -244,13 +290,29 @@ static void list(void) {
     if (s_open) {
         return;
     }
-    ID3D12CommandAllocator_Reset(s_alloc);
-    ID3D12GraphicsCommandList_Reset(s_list, s_alloc, NULL);
+    wait_slot(s_slot);
+    harvest(s_slot);
+    ID3D12CommandAllocator_Reset(s_alloc[s_slot]);
+    ID3D12GraphicsCommandList_Reset(s_list, s_alloc[s_slot], NULL);
     ID3D12GraphicsCommandList_SetDescriptorHeaps(s_list, 1, heaps);
+    s_ring_off = (UINT)s_slot * (RING / FIF);
     s_open = 1;
 }
 
-/* the open list run and waited for: the uploads are free again */
+/* a region starts: its category from here on; the one before it is returned, to be marked again at the region's end */
+static int mark(int cat) {
+    int prev = s_cat;
+
+    if (s_qheap != NULL && s_qn < QMAX) {
+        list();
+        ID3D12GraphicsCommandList_EndQuery(s_list, s_qheap, D3D12_QUERY_TYPE_TIMESTAMP, (UINT)s_qn);
+        s_qc[s_slot][s_qn++] = (unsigned char)cat;
+    }
+    s_cat = cat;
+    return prev;
+}
+
+/* the open list run and waited for (the whole queue): what is recorded is done, the uploads are free again */
 static void submit(void) {
     ID3D12CommandList *l[1] = {(ID3D12CommandList *)s_list};
     Uint64 t0;
@@ -259,13 +321,27 @@ static void submit(void) {
         return;
     }
     t0 = SDL_GetTicksNS();
-
     ID3D12GraphicsCommandList_Close(s_list);
     ID3D12CommandQueue_ExecuteCommandLists(s_queue, 1, l);
     wait_idle();
     s_open = 0;
-    s_ring_off = 0;
     s_wait_ns += SDL_GetTicksNS() - t0, s_nsub++;
+}
+
+/* the frame's list run, not waited for: the next frame is recorded in the other slot meanwhile */
+static void submit_frame(void) {
+    ID3D12CommandList *l[1] = {(ID3D12CommandList *)s_list};
+
+    if (!s_open) {
+        return;
+    }
+    ID3D12GraphicsCommandList_Close(s_list);
+    ID3D12CommandQueue_ExecuteCommandLists(s_queue, 1, l);
+    ID3D12CommandQueue_Signal(s_queue, s_fence, ++s_fence_value);
+    s_slot_fence[s_slot] = s_fence_value;
+    s_qn_slot[s_slot] = s_qn, s_qn = 0;
+    s_slot = (s_slot + 1) % FIF;
+    s_open = 0;
 }
 
 static void trans(Tex *t, D3D12_RESOURCE_STATES to) {
@@ -292,7 +368,7 @@ static void barrier(ID3D12Resource *r, D3D12_RESOURCE_STATES from, D3D12_RESOURC
 /* size bytes of the frame's upload ring, 512-aligned; its offset in *off */
 static UINT8 *ring_alloc(UINT size, UINT *off) {
     s_ring_off = (s_ring_off + 511u) & ~511u;
-    if (s_ring_off + size > RING) {
+    if (s_ring_off + size > (UINT)(s_slot + 1) * (RING / FIF)) {
         submit(); /* full: what is recorded runs, the ring starts over */
         list();
     }
@@ -530,11 +606,22 @@ int gfx_init(SDL_Window *window) {
     ID3D12Device_CreateDescriptorHeap(s_dev, &dd, &IID_ID3D12DescriptorHeap, (void **)&s_dsv_heap);
     s_rtv_inc = ID3D12Device_GetDescriptorHandleIncrementSize(s_dev, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     s_srv_inc = ID3D12Device_GetDescriptorHandleIncrementSize(s_dev, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    ID3D12Device_CreateCommandAllocator(s_dev, D3D12_COMMAND_LIST_TYPE_DIRECT, &IID_ID3D12CommandAllocator, (void **)&s_alloc);
-    ID3D12Device_CreateCommandList(s_dev, 0, D3D12_COMMAND_LIST_TYPE_DIRECT, s_alloc, NULL, &IID_ID3D12GraphicsCommandList, (void **)&s_list);
+    for (i = 0; i < FIF; i++) {
+        ID3D12Device_CreateCommandAllocator(s_dev, D3D12_COMMAND_LIST_TYPE_DIRECT, &IID_ID3D12CommandAllocator, (void **)&s_alloc[i]);
+    }
+    ID3D12Device_CreateCommandList(s_dev, 0, D3D12_COMMAND_LIST_TYPE_DIRECT, s_alloc[0], NULL, &IID_ID3D12GraphicsCommandList, (void **)&s_list);
     ID3D12GraphicsCommandList_Close(s_list);
     ID3D12Device_CreateFence(s_dev, 0, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence, (void **)&s_fence);
     s_event = CreateEventA(NULL, FALSE, FALSE, NULL);
+    {
+        D3D12_QUERY_HEAP_DESC qd2 = {D3D12_QUERY_HEAP_TYPE_TIMESTAMP, QMAX, 0};
+
+        ID3D12CommandQueue_GetTimestampFrequency(s_queue, &s_qfreq);
+        s_qread = buffer(D3D12_HEAP_TYPE_READBACK, (UINT64)FIF * QMAX * 8, D3D12_RESOURCE_STATE_COPY_DEST, &s_qptr);
+        if (s_qread != NULL && !OK(ID3D12Device_CreateQueryHeap(s_dev, &qd2, &IID_ID3D12QueryHeap, (void **)&s_qheap))) {
+            s_qheap = NULL;
+        }
+    }
     /* the blit's root: a table of one SRV, 4 constants (the texture rectangle), two samplers */
     rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE, rp[0].DescriptorTable.NumDescriptorRanges = 1;
     rp[0].DescriptorTable.pDescriptorRanges = &range, rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -744,6 +831,7 @@ static void flush_batch(void) {
     ID3D12GraphicsCommandList_SetGraphicsRootDescriptorTable(s_list, 0, g);
     ID3D12GraphicsCommandList_IASetPrimitiveTopology(s_list, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     ID3D12GraphicsCommandList_IASetVertexBuffers(s_list, 0, 1, &vb);
+    s_depth_used |= s_deep;
     draw_batch(-1, s_deep ? 1 : 0, s_semi < 0 ? 0 : 1, &k);
     if (s_semi >= 0) { /* the blended pixels test the depth, they don't hide what is behind */
         draw_batch(s_semi, s_deep ? 2 : 0, 2, &k);
@@ -753,7 +841,15 @@ static void flush_batch(void) {
 }
 
 static void flush(void) {
+    int prev;
+
+    if (s_count == 0) {
+        return;
+    }
+    list();
+    prev = mark(s_semi == 5 ? C_MASK : s_deep ? C_3D : C_2D);
     flush_batch();
+    mark(prev);
 }
 
 /* Triangles (n a multiple of 3) for the copy, with gpu_draw.c's state: the drawing area, the semi-transparency mode (4: a soft shadow's) */
@@ -812,7 +908,15 @@ static void quad(int slot, const int vp[4], const float uv[4], ID3D12PipelineSta
 static void quad_sc(int slot, const int vp[4], const float uv[4], ID3D12PipelineState *pso, const D3D12_RECT *sc);
 
 /* An ordering table drawn: the battle shadows in the mask, blurred, darken the copy, and the mask is emptied */
+static void shadows_resolve(void);
 void gfx_shadows_resolve(void) {
+    int prev = mark(C_RESOLVE);
+
+    shadows_resolve();
+    mark(prev);
+}
+
+static void shadows_resolve(void) {
     int s = s_scale, step = SDL_max(1, s * 3 / 4), pad = 5 * step, r[4];
     int full[4];
     float across[4], down[4];
@@ -861,19 +965,39 @@ void gfx_shadows_resolve(void) {
     ID3D12GraphicsCommandList_ClearRenderTargetView(s_list, rtv_at(R_BLUR), zero, 1, &box);
 }
 
+static void depth_clear(void);
 void gfx_depth_clear(void) {
+    int prev = mark(C_DEPTH);
+
+    depth_clear();
+    mark(prev);
+}
+
+static void depth_clear(void) {
     D3D12_CPU_DESCRIPTOR_HANDLE dsv = ID3D12DescriptorHeap_GetCPUDescriptorHandleForHeapStart(s_dsv_heap);
 
     if (s_scale == 0 || s_depth.r == NULL) {
         return;
     }
     flush();
+    if (!s_depth_used) { /* nothing has written depth since the last clear */
+        return;
+    }
+    s_depth_used = 0;
     list();
     ID3D12GraphicsCommandList_ClearDepthStencilView(s_list, dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
 }
 
 /* A quad of the copy that shows the 1x VRAM under it: after the CPU wrote VRAM (an image, a fill) */
+static void refresh(int x, int y, int w, int h);
 void gfx_refresh(int x, int y, int w, int h) {
+    int prev = mark(C_REFRESH);
+
+    refresh(x, y, w, h);
+    mark(prev);
+}
+
+static void refresh(int x, int y, int w, int h) {
     GVtx q[6];
     int i;
 
@@ -936,7 +1060,15 @@ void gfx_copy(int sx, int sy, int w, int h, int dx, int dy) {
 }
 
 /* The same, to dw pixels across from dx (a widescreen battle's menus) */
+static void copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw);
 void gfx_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
+    int prev = mark(C_COPY);
+
+    copy_to(sx, sy, w, h, dx, dy, dw);
+    mark(prev);
+}
+
+static void copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
     int s = s_scale, x0, x1;
     D3D12_TEXTURE_COPY_LOCATION dst = {0}, src = {0};
     D3D12_BOX box;
@@ -1125,7 +1257,15 @@ int gfx_image_prepare(const SDL_Surface *img, unsigned *tex) {
 }
 
 /* An image of the port's own over the copy (platform.h): premultiplied over, or added; cut to the drawing area */
+static void image_draw(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2);
 void gfx_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
+    int prev = mark(C_IMAGE);
+
+    image_draw(img, tex, x0, y0, x1, y1, add, cx1, cy1, cx2, cy2);
+    mark(prev);
+}
+
+static void image_draw(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
     int s = s_scale;
     D3D12_VIEWPORT v;
     D3D12_RECT sc = {cx1 * s, cy1 * s, (cx2 + 1) * s, (cy2 + 1) * s};
@@ -1241,6 +1381,10 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     game = g_disp_on && d.w > 0 && d.h > 0 && !g_disp.isrgb24 && s_scale > 0;
 
     list();
+    if (movie || menu != NULL) { /* their upload buffers are written now: the last frame's copy from them must be done */
+        wait_slot((s_slot + FIF - 1) % FIF);
+    }
+    mark(C_PRESENT);
     if (movie) {
         movie_rgba(&d);
         upload_tex(&s_pic, s_up_pic, d.w, d.h);
@@ -1287,7 +1431,17 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     } else {
         barrier(s_back[bi], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     }
-    submit();
+    mark(C_OTHER);
+    if (s_qheap != NULL && s_qn > 1) {
+        ID3D12GraphicsCommandList_ResolveQueryData(s_list, s_qheap, D3D12_QUERY_TYPE_TIMESTAMP, 0, (UINT)s_qn, s_qread, (UINT64)s_slot * QMAX * 8);
+    }
+    if (shot != NULL) {
+        submit(); /* the screenshot reads the frame back: waited for */
+        s_qn_slot[s_slot] = s_qn, s_qn = 0; /* (a slot's timestamps are read when it is reused) */
+        s_slot = (s_slot + 1) % FIF;
+    } else {
+        submit_frame();
+    }
     if (shot != NULL && (*shot = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_ABGR8888)) != NULL) {
         for (i = 0; i < h; i++) {
             SDL_memcpy((uint8_t *)(*shot)->pixels + (size_t)i * (*shot)->pitch, s_read_ptr + (size_t)i * s_read_pitch, (size_t)w * 4);
