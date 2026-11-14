@@ -195,9 +195,9 @@ typedef struct {
 
 /* the SRV heap's slots; the picture's passes (post): its copies P0-P2 and FSR's output, SMAA's tables, and for SMAA's three
    passes a table of three views each (t0, t1, t2) */
-enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_P0, S_P1, S_P2, S_FSR, S_AREA, S_SEARCH, S_DSRC, S_SD, S_FD, S_DOUT, S_MV, S_TD, S_T0 = S_TD + 3, S_T1 = S_T0 + 3, S_T2 = S_T1 + 3, S_COUNT = S_T2 + 3 };
+enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_P0, S_P1, S_P2, S_FSR, S_AREA, S_SEARCH, S_DSRC, S_SD, S_FD, S_DOUT, S_MV, S_MOUT, S_TD, S_T0 = S_TD + 3, S_T1 = S_T0 + 3, S_T2 = S_T1 + 3, S_COUNT = S_T2 + 3 };
 #define MAX_IMG 1024 /* the port's own images (icons, postcards, effects): their slots follow S_COUNT */
-enum { R_RT = FRAMES, R_MASK, R_BLUR, R_P0, R_P1, R_P2, R_FSR, R_SD, R_FD, R_DOUT, R_MV, R_COUNT }; /* the RTV heap's, after the back buffers */
+enum { R_RT = FRAMES, R_MASK, R_BLUR, R_P0, R_P1, R_P2, R_FSR, R_SD, R_FD, R_DOUT, R_MV, R_MOUT, R_COUNT }; /* the RTV heap's, after the back buffers */
 
 static SDL_Window *s_window;
 static ID3D12Device *s_dev;
@@ -218,7 +218,9 @@ static int s_data_jitter;
    previous place minus this one; mshow draws it instead of the picture */
 static int s_data_motion, s_data_mshow, s_mv_clear, s_mv_org[2], s_mv_org_set, s_mv_area; /* s_mv_org: where the frame's 3D was drawn (the clip's corner), not always where it is shown */
 static Tex s_mv;
-static ID3D12PipelineState *s_pso_mview;
+static ID3D12PipelineState *s_pso_mview, *s_pso_mcopy;
+static Tex s_mout; /* the motion at the picture's size (R16G16F, pixels of the picture, previous place minus this one): where the upscalers will read it */
+static int s_mout_w, s_mout_h, s_do_mout;
 static float s_jit_px[2];
 static unsigned s_jit_n;
 static int s_p_w, s_p_h, s_fsr_w, s_fsr_h, s_smaa_tried, s_frame_3d; /* s_frame_3d: this frame has 3D in it */
@@ -1499,8 +1501,15 @@ static void post_init(void) {
         vs = NULL;
     }
 
-    if (s_data_mshow && compile(MOTION_HLSL, "vs", "vs_5_0", &vs) && compile(MOTION_HLSL, "mview", "ps_5_0", &ps)) {
-        s_pso_mview = blit_pso(vs, ps, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+    if (s_data_motion && compile(MOTION_HLSL, "vs", "vs_5_0", &vs)) {
+        ID3DBlob *pc = NULL;
+
+        if (compile(MOTION_HLSL, "mcopy", "ps_5_0", &pc)) {
+            s_pso_mcopy = blit_pso(vs, pc, 1, DXGI_FORMAT_R16G16_FLOAT);
+        }
+        if (s_data_mshow && compile(MOTION_HLSL, "mview", "ps_5_0", &ps)) {
+            s_pso_mview = blit_pso(vs, ps, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+        }
     }
     vs = ps = NULL;
     if (compile(POST_HLSL, "vs", "vs_5_0", &vs) && compile(POST_HLSL, "pp", "ps_5_0", &ps)) {
@@ -1629,6 +1638,14 @@ static void post_prepare(const PSX_RECT *d, const int vp[4]) {
         s_dout_w = pw, s_dout_h = ph;
     }
     s_do_depth = s_do_depth && s_dout.r != NULL;
+    s_do_mout = s_data_motion && s_frame_3d && s_pso_mcopy != NULL && s_mv.r != NULL;
+    if (s_do_mout && (pw != s_mout_w || ph != s_mout_h)) {
+        submit();
+        if (s_mout.r != NULL) ID3D12Resource_Release(s_mout.r);
+        s_mout = pass_target(pw, ph, R_MOUT, S_MOUT, DXGI_FORMAT_R16G16_FLOAT);
+        s_mout_w = pw, s_mout_h = ph;
+    }
+    s_do_mout = s_do_mout && s_mout.r != NULL;
 }
 
 /* target t (index rtv in the RTV heap) set to be drawn into, cleared when asked */
@@ -1705,6 +1722,19 @@ static void post_depth(void) {
     rt_pass(&s_dout, R_DOUT, 0);
     draw_k(s_smaa_root, s_pso_dout, S_TD, full, k);
     trans(&s_dout, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    mark(C_PRESENT);
+}
+
+/* The motion cropped to the picture, from the buffer the 3D was drawn in (s_do_mout) */
+static void post_motion(void) {
+    int s = s_scale, full[4] = {0, 0, s_mout_w, s_mout_h};
+    float k[12] = {0, 0, 1, 1, 1, 1, (float)(s_mv_org[0] * s), (float)(s_mv_org[1] * s), 0, 0};
+
+    mark(C_POST);
+    trans(&s_mv, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    rt_pass(&s_mout, R_MOUT, 0);
+    draw_k(s_blit_root, s_pso_mcopy, S_MV, full, k);
+    trans(&s_mout, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     mark(C_PRESENT);
 }
 
@@ -1866,6 +1896,9 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         if (s_do_depth) {
             post_depth();
         }
+        if (s_do_mout) {
+            post_motion();
+        }
     }
     bi = IDXGISwapChain3_GetCurrentBackBufferIndex(s_swap);
     barrier(s_back[bi], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -1877,10 +1910,15 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
 
         quad(S_PIC, vp, uv, s_pso_present);
     } else if (game && s_frame_3d && s_pso_mview != NULL && s_mv.r != NULL) { /* the 3D's motion itself, to look at (only 3D frames: menus stay as they are) */
-        float k[12] = {0, 0, 1, 1, d.w * s_scale / (float)vp[2], d.h * s_scale / (float)vp[3], (float)(s_mv_org[0] * s_scale), (float)(s_mv_org[1] * s_scale), (float)vp[0], (float)vp[1]};
+        float k[12] = {0, 0, 1, 1, d.w * s_scale / (float)vp[2], d.h * s_scale / (float)vp[3], 0, 0, (float)vp[0], (float)vp[1]};
 
-        trans(&s_mv, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        draw_k(s_blit_root, s_pso_mview, S_MV, vp, k);
+        if (s_do_mout) { /* what the upscalers are given */
+            draw_k(s_blit_root, s_pso_mview, S_MOUT, vp, k);
+        } else {
+            k[6] = (float)(s_mv_org[0] * s_scale), k[7] = (float)(s_mv_org[1] * s_scale);
+            trans(&s_mv, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            draw_k(s_blit_root, s_pso_mview, S_MV, vp, k);
+        }
     } else if (game && s_data_view && s_do_depth) { /* the depth itself, to look at */
         float k[12] = {0, 0, 1, 1, s_dout_w / (float)vp[2], s_dout_h / (float)vp[3], 0, 0, (float)vp[0], (float)vp[1]};
 
