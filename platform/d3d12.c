@@ -3,7 +3,8 @@
    draws the same ones finer (render_scale) into its own copy of VRAM, the picture shown on screen. The VRAM goes up as a
    R16_UINT texture, the CLUTs looked up in the pixel shader.
    Done: the copy at render_scale, the batches (semi-transparency, depth buffer), refreshes and VRAM-to-VRAM copies, the
-   menu, screenshots. Not yet (gl.c has them): the battle shadows' mask, fog, props, post-process, SMAA, FSR. */
+   menu, screenshots, the battle shadows, fog, images, and the picture's passes (d3d12_post.h: sharpen and colour options,
+   scanlines, SMAA, FSR 1). Not yet (gl.c has them): props, grass, the depth saves, the upscalers' data (jitter). */
 #define RECT PSX_RECT /* windows.h has its own */
 #include "platform.h"
 #undef RECT
@@ -159,6 +160,23 @@ static const char *BLIT_HLSL =
     "    return i.k.z > 0.0 ? float4(m * i.k.z, m * i.k.z, m * i.k.z, 0.0) : float4(m, m, m, m);\n"
     "}\n";
 
+#include "d3d12_post.h"
+
+/* SMAA's shader as its authors publish it (smaa/, MIT), in a section of its own after the game's memory: that has to end
+   below 16 MB (main.c); and its two tables */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc23-extensions"
+__attribute__((section(".zsmaa"))) static char SMAA_SRC[] = {
+#embed "smaa/SMAA.hlsl"
+    , 0};
+#pragma clang diagnostic pop
+#define areaTexBytes __attribute__((section(".zsmaar"))) areaTexBytes
+#define searchTexBytes __attribute__((section(".zsmaar"))) searchTexBytes
+#include "smaa/AreaTex.h"
+#include "smaa/SearchTex.h"
+#undef areaTexBytes
+#undef searchTexBytes
+
 /* --- the device --- */
 
 typedef struct {
@@ -166,9 +184,11 @@ typedef struct {
     D3D12_RESOURCE_STATES st;
 } Tex;
 
-enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_COUNT }; /* the SRV heap's slots */
+/* the SRV heap's slots; the picture's passes (post): its copies P0-P2 and FSR's output, SMAA's tables, and for SMAA's three
+   passes a table of three views each (t0, t1, t2) */
+enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_P0, S_P1, S_P2, S_FSR, S_AREA, S_SEARCH, S_T0, S_T1 = S_T0 + 3, S_T2 = S_T1 + 3, S_COUNT = S_T2 + 3 };
 #define MAX_IMG 1024 /* the port's own images (icons, postcards, effects): their slots follow S_COUNT */
-enum { R_RT = FRAMES, R_MASK, R_BLUR, R_COUNT }; /* the RTV heap's, after the back buffers */
+enum { R_RT = FRAMES, R_MASK, R_BLUR, R_P0, R_P1, R_P2, R_FSR, R_COUNT }; /* the RTV heap's, after the back buffers */
 
 static SDL_Window *s_window;
 static ID3D12Device *s_dev;
@@ -177,6 +197,10 @@ static IDXGISwapChain3 *s_swap;
 static ID3D12DescriptorHeap *s_rtv_heap, *s_srv_heap, *s_dsv_heap;
 static ID3D12Resource *s_back[FRAMES], *s_up_pic, *s_up_menu, *s_read, *s_ring_res;
 static Tex s_pic, s_menu, s_vram, s_rt, s_tmp, s_depth, s_mask, s_blur; /* the mask and its blur: battle shadows (R8) */
+static Tex s_p[3], s_fsr, s_area, s_search; /* the picture's passes: the display area copied, SMAA's edges, its weights; FSR's output */
+static ID3D12RootSignature *s_smaa_root;
+static ID3D12PipelineState *s_pso_post, *s_pso_easu, *s_pso_smaa[3];
+static int s_p_w, s_p_h, s_fsr_w, s_fsr_h, s_smaa_tried, s_frame_3d; /* s_frame_3d: this frame has 3D in it */
 static ID3D12GraphicsCommandList *s_list;
 static ID3D12RootSignature *s_main_root, *s_blit_root;
 static ID3D12PipelineState *s_pso_present, *s_pso_copy, *s_pso_copyn, *s_pso_over, *s_pso_blur, *s_pso_dark, *s_pso_img, *s_pso_add, *s_pso_mask[2]; /* the mask's: without and with the depth test */
@@ -241,7 +265,7 @@ static Uint64 s_wait_ns, s_img_ns;
 static int s_nsub, s_nimg_made, s_nup;
 
 /* GPU time by what the frame spends it on: a timestamp at each change of region, the span after it counted to its region */
-enum { C_OTHER, C_3D, C_2D, C_MASK, C_RESOLVE, C_REFRESH, C_COPY, C_DEPTH, C_IMAGE, C_PRESENT, C_N };
+enum { C_OTHER, C_3D, C_2D, C_MASK, C_RESOLVE, C_REFRESH, C_COPY, C_DEPTH, C_IMAGE, C_PRESENT, C_POST, C_N };
 #define QMAX 2048
 static ID3D12QueryHeap *s_qheap;
 static ID3D12Resource *s_qread; /* FIF frames' timestamps */
@@ -279,8 +303,8 @@ static void harvest(int slot) {
         ms[s_qc[slot][i]] += d, total += d;
     }
     if (total > 10.0) {
-        SDL_Log("d3d12: gpu %.1f ms: 3d %.1f, 2d %.1f, shadow mask %.1f, shadow blur %.1f, vram refresh %.1f, copies %.1f, depth clear %.1f, images %.1f, present %.1f, other %.1f",
-                total, ms[C_3D], ms[C_2D], ms[C_MASK], ms[C_RESOLVE], ms[C_REFRESH], ms[C_COPY], ms[C_DEPTH], ms[C_IMAGE], ms[C_PRESENT], ms[C_OTHER]);
+        SDL_Log("d3d12: gpu %.1f ms: 3d %.1f, 2d %.1f, shadow mask %.1f, shadow blur %.1f, vram refresh %.1f, copies %.1f, depth clear %.1f, images %.1f, present %.1f, post %.1f, other %.1f",
+                total, ms[C_3D], ms[C_2D], ms[C_MASK], ms[C_RESOLVE], ms[C_REFRESH], ms[C_COPY], ms[C_DEPTH], ms[C_IMAGE], ms[C_PRESENT], ms[C_POST], ms[C_OTHER]);
     }
 }
 
@@ -499,12 +523,13 @@ static ID3D12PipelineState *mask_pso(int depth) {
     return p;
 }
 
+#define blit_pso(vs, ps, wa, fmt) blit_pso_on(s_blit_root, vs, ps, wa, fmt)
 /* write_alpha: 0 the window's (opaque), 1 the copy's, 2 over (the menu's alpha), 3 back * (1 - front) onto the copy (the shadows); fmt the target's */
-static ID3D12PipelineState *blit_pso(ID3DBlob *vs, ID3DBlob *ps, int write_alpha, DXGI_FORMAT fmt) {
+static ID3D12PipelineState *blit_pso_on(ID3D12RootSignature *rs, ID3DBlob *vs, ID3DBlob *ps, int write_alpha, DXGI_FORMAT fmt) {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC d = {0};
     ID3D12PipelineState *p = NULL;
 
-    d.pRootSignature = s_blit_root;
+    d.pRootSignature = rs;
     d.VS.pShaderBytecode = ID3D10Blob_GetBufferPointer(vs), d.VS.BytecodeLength = ID3D10Blob_GetBufferSize(vs);
     d.PS.pShaderBytecode = ID3D10Blob_GetBufferPointer(ps), d.PS.BytecodeLength = ID3D10Blob_GetBufferSize(ps);
     d.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID, d.RasterizerState.CullMode = D3D12_CULL_MODE_NONE, d.RasterizerState.DepthClipEnable = TRUE;
@@ -560,6 +585,8 @@ static int compile(const char *src, const char *entry, const char *target, ID3DB
 uint64_t gfx_window_flags(void) {
     return 0; /* no GL: the window is plain */
 }
+
+static void post_init(void);
 
 int gfx_init(SDL_Window *window) {
     HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
@@ -622,10 +649,10 @@ int gfx_init(SDL_Window *window) {
             s_qheap = NULL;
         }
     }
-    /* the blit's root: a table of one SRV, 4 constants (the texture rectangle), two samplers */
+    /* the blit's root: a table of one SRV, 12 constants (the texture rectangle, then a pass's own), two samplers */
     rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE, rp[0].DescriptorTable.NumDescriptorRanges = 1;
     rp[0].DescriptorTable.pDescriptorRanges = &range, rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS, rp[1].Constants.Num32BitValues = 4, rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    rp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS, rp[1].Constants.Num32BitValues = 12, rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     for (i = 0; i < 2; i++) {
         ss[i].Filter = i == 0 ? D3D12_FILTER_MIN_MAG_MIP_LINEAR : D3D12_FILTER_MIN_MAG_MIP_POINT;
         ss[i].AddressU = ss[i].AddressV = ss[i].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -659,6 +686,7 @@ int gfx_init(SDL_Window *window) {
     }
     s_pso_blur = blit_pso(bvs, bpsb, 1, DXGI_FORMAT_R8_UNORM);
     s_pso_dark = blit_pso(bvs, bpsb, 3, DXGI_FORMAT_R8G8B8A8_UNORM);
+    post_init();
     s_pso_mask[0] = mask_pso(0);
     s_pso_mask[1] = mask_pso(1);
     s_pic = texture(VRAM_W, VRAM_H, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
@@ -1328,10 +1356,229 @@ static void movie_rgba(const PSX_RECT *d) {
     }
 }
 
+/* --- the picture's passes: sharpening and the colour options, SMAA, FSR 1 (d3d12_post.h) --- */
+
+static int s_do_smaa, s_do_fsr; /* this frame's, decided before its list is opened (post_prepare) */
+
+static void post_init(void) {
+    ID3DBlob *vs = NULL, *ps = NULL;
+
+    if (compile(POST_HLSL, "vs", "vs_5_0", &vs) && compile(POST_HLSL, "pp", "ps_5_0", &ps)) {
+        s_pso_post = blit_pso(vs, ps, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+    }
+    vs = ps = NULL;
+    if (compile(EASU_HLSL, "vs", "vs_5_0", &vs) && compile(EASU_HLSL, "ps", "ps_5_0", &ps)) {
+        s_pso_easu = blit_pso(vs, ps, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+    }
+}
+
+/* one of SMAA's tables, uploaded and waited for (once) */
+static Tex smaa_table(const unsigned char *data, int w, int h, int bpp, DXGI_FORMAT fmt) {
+    Tex t = texture(w, h, fmt, 0, D3D12_RESOURCE_STATE_COPY_DEST, NULL);
+    UINT pitch = (UINT)((w * bpp + 255) & ~255);
+    UINT8 *m = NULL;
+    ID3D12Resource *up = buffer(D3D12_HEAP_TYPE_UPLOAD, (UINT64)pitch * (UINT)h, D3D12_RESOURCE_STATE_GENERIC_READ, &m);
+    D3D12_TEXTURE_COPY_LOCATION dst = {0}, src = {0};
+    int y;
+
+    if (t.r == NULL || up == NULL) {
+        if (t.r != NULL) ID3D12Resource_Release(t.r);
+        if (up != NULL) ID3D12Resource_Release(up);
+        t.r = NULL;
+        return t;
+    }
+    for (y = 0; y < h; y++) {
+        SDL_memcpy(m + (size_t)y * pitch, data + (size_t)y * w * bpp, (size_t)w * bpp);
+    }
+    list();
+    dst.pResource = t.r, dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    src.pResource = up, src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    src.PlacedFootprint.Footprint.Format = fmt, src.PlacedFootprint.Footprint.Width = (UINT)w, src.PlacedFootprint.Footprint.Height = (UINT)h;
+    src.PlacedFootprint.Footprint.Depth = 1, src.PlacedFootprint.Footprint.RowPitch = pitch;
+    ID3D12GraphicsCommandList_CopyTextureRegion(s_list, &dst, 0, 0, 0, &src, NULL);
+    trans(&t, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    submit();
+    ID3D12Resource_Release(up);
+    return t;
+}
+
+/* SMAA's passes, when first asked for (its shader is the big one to compile): where it does not build, its option does nothing */
+static void smaa_init(void) {
+    static const char *VS[3] = {"svs0", "svs1", "svs2"}, *PS[3] = {"sps0", "sps1", "sps2"};
+    D3D12_DESCRIPTOR_RANGE range = {D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0, 0};
+    D3D12_ROOT_PARAMETER rp[2] = {0};
+    D3D12_STATIC_SAMPLER_DESC ss[2] = {0};
+    D3D12_ROOT_SIGNATURE_DESC rsd = {0};
+    ID3DBlob *vs[3] = {0}, *ps[3] = {0};
+    size_t n = SDL_strlen(SMAA_HEAD) + SDL_strlen(SMAA_SRC) + SDL_strlen(SMAA_GLUE) + 1;
+    char *src = SDL_malloc(n), *c;
+    int i, ok = src != NULL;
+
+    if (ok) {
+        SDL_snprintf(src, n, "%s%s%s", SMAA_HEAD, SMAA_SRC, SMAA_GLUE);
+        for (c = src; *c != 0; c++) { /* its comments have a letter or two that aren't ASCII */
+            if ((unsigned char)*c > 126) {
+                *c = ' ';
+            }
+        }
+    }
+    rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE, rp[0].DescriptorTable.NumDescriptorRanges = 1;
+    rp[0].DescriptorTable.pDescriptorRanges = &range, rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS, rp[1].Constants.Num32BitValues = 12, rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    for (i = 0; i < 2; i++) {
+        ss[i].Filter = i == 0 ? D3D12_FILTER_MIN_MAG_MIP_LINEAR : D3D12_FILTER_MIN_MAG_MIP_POINT;
+        ss[i].AddressU = ss[i].AddressV = ss[i].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        ss[i].ShaderRegister = (UINT)i, ss[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL, ss[i].MaxLOD = D3D12_FLOAT32_MAX;
+    }
+    rsd.NumParameters = 2, rsd.pParameters = rp, rsd.NumStaticSamplers = 2, rsd.pStaticSamplers = ss;
+    s_smaa_root = root(&rsd);
+    for (i = 0; ok && i < 3; i++) {
+        ok = compile(src, VS[i], "vs_5_0", &vs[i]) && compile(src, PS[i], "ps_5_0", &ps[i]);
+    }
+    SDL_free(src);
+    s_area = smaa_table(areaTexBytes, AREATEX_WIDTH, AREATEX_HEIGHT, 2, DXGI_FORMAT_R8G8_UNORM);
+    s_search = smaa_table(searchTexBytes, SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, 1, DXGI_FORMAT_R8_UNORM);
+    if (!ok || s_smaa_root == NULL || s_area.r == NULL || s_search.r == NULL) {
+        SDL_Log("d3d12: SMAA does not build here");
+        return;
+    }
+    for (i = 0; i < 3; i++) {
+        s_pso_smaa[i] = blit_pso_on(s_smaa_root, vs[i], ps[i], 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+    }
+    srv(&s_area, S_AREA, DXGI_FORMAT_R8G8_UNORM);
+    srv(&s_search, S_SEARCH, DXGI_FORMAT_R8_UNORM);
+    srv(&s_area, S_T1 + 1, DXGI_FORMAT_R8G8_UNORM);
+    srv(&s_search, S_T1 + 2, DXGI_FORMAT_R8_UNORM);
+}
+
+static Tex pass_target(int w, int h, int rtv, int slot) {
+    D3D12_CLEAR_VALUE cc = {DXGI_FORMAT_R8G8B8A8_UNORM, {{0, 0, 0, 0}}};
+    Tex t = texture(w, h, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &cc);
+
+    if (t.r != NULL) {
+        ID3D12Device_CreateRenderTargetView(s_dev, t.r, NULL, rtv_at(rtv));
+        srv(&t, slot, DXGI_FORMAT_R8G8B8A8_UNORM);
+    }
+    return t;
+}
+
+/* Before the frame's list is opened: which of the passes run, and their targets the size of the picture (pw x ph) and of where it is shown */
+static void post_prepare(const PSX_RECT *d, const int vp[4]) {
+    int pw = d->w * s_scale, ph = d->h * s_scale, i;
+
+    if (g_smaa && !s_smaa_tried) {
+        s_smaa_tried = 1;
+        smaa_init();
+    }
+    s_do_smaa = g_smaa && s_pso_smaa[2] != NULL;
+    s_do_fsr = g_fsr && s_pso_easu != NULL && vp[3] > ph && s_frame_3d;
+    if (s_do_smaa && (pw != s_p_w || ph != s_p_h)) {
+        submit(); /* the last frames' passes are done before their targets go */
+        for (i = 0; i < 3; i++) {
+            if (s_p[i].r != NULL) ID3D12Resource_Release(s_p[i].r);
+            s_p[i] = pass_target(pw, ph, R_P0 + i, S_P0 + i);
+        }
+        for (i = 0; i < 3; i++) {
+            srv(&s_p[0], S_T0 + i, DXGI_FORMAT_R8G8B8A8_UNORM); /* (the first pass reads its t0 only) */
+        }
+        srv(&s_p[1], S_T1, DXGI_FORMAT_R8G8B8A8_UNORM);
+        srv(&s_p[0], S_T2, DXGI_FORMAT_R8G8B8A8_UNORM);
+        srv(&s_p[2], S_T2 + 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+        srv(&s_p[2], S_T2 + 2, DXGI_FORMAT_R8G8B8A8_UNORM);
+        s_p_w = pw, s_p_h = ph;
+    }
+    s_do_smaa = s_do_smaa && s_p[0].r != NULL && s_p[1].r != NULL && s_p[2].r != NULL;
+    if (s_do_fsr && (vp[2] != s_fsr_w || vp[3] != s_fsr_h)) {
+        submit();
+        if (s_fsr.r != NULL) ID3D12Resource_Release(s_fsr.r);
+        s_fsr = pass_target(vp[2], vp[3], R_FSR, S_FSR);
+        s_fsr_w = vp[2], s_fsr_h = vp[3];
+    }
+    s_do_fsr = s_do_fsr && s_fsr.r != NULL;
+}
+
+/* target t (index rtv in the RTV heap) set to be drawn into, cleared when asked */
+static void rt_pass(Tex *t, int rtv, int clear) {
+    D3D12_CPU_DESCRIPTOR_HANDLE h = rtv_at(rtv);
+    const float zero[4] = {0, 0, 0, 0};
+
+    trans(t, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    ID3D12GraphicsCommandList_OMSetRenderTargets(s_list, 1, &h, FALSE, NULL);
+    if (clear) {
+        ID3D12GraphicsCommandList_ClearRenderTargetView(s_list, h, zero, 0, NULL);
+    }
+}
+
+/* the strip over the viewport vp, reading the views from SLOT on, with the 12 constants k */
+static void draw_k(ID3D12RootSignature *rs, ID3D12PipelineState *pso, int slot, const int vp[4], const float k[12]) {
+    D3D12_VIEWPORT v = {(float)vp[0], (float)vp[1], (float)vp[2], (float)vp[3], 0, 1};
+    D3D12_RECT sc = {vp[0], vp[1], vp[0] + vp[2], vp[1] + vp[3]};
+    D3D12_GPU_DESCRIPTOR_HANDLE g = ID3D12DescriptorHeap_GetGPUDescriptorHandleForHeapStart(s_srv_heap);
+
+    g.ptr += (UINT64)slot * s_srv_inc;
+    ID3D12GraphicsCommandList_SetGraphicsRootSignature(s_list, rs);
+    ID3D12GraphicsCommandList_SetPipelineState(s_list, pso);
+    ID3D12GraphicsCommandList_RSSetViewports(s_list, 1, &v);
+    ID3D12GraphicsCommandList_RSSetScissorRects(s_list, 1, &sc);
+    ID3D12GraphicsCommandList_SetGraphicsRootDescriptorTable(s_list, 0, g);
+    ID3D12GraphicsCommandList_SetGraphicsRoot32BitConstants(s_list, 1, 12, k, 0);
+    ID3D12GraphicsCommandList_IASetPrimitiveTopology(s_list, D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    ID3D12GraphicsCommandList_DrawInstanced(s_list, 4, 1, 0, 0);
+}
+
+/* The display area d of the copy through SMAA and FSR 1, those that are on: the SRV slot of what to show, and in it the rectangle uv */
+static int post_chain(const PSX_RECT *d, const int vp[4], float uv[4]) {
+    int s = s_scale, pw = d->w * s, ph = d->h * s, ox = d->x * s, oy = d->y * s, slot = S_RT, full[4] = {0, 0, pw, ph};
+    float k[12] = {0, 0, 1, 1};
+
+    uv[0] = d->x / (float)VRAM_W, uv[1] = d->y / (float)VRAM_H, uv[2] = d->w / (float)VRAM_W, uv[3] = d->h / (float)VRAM_H;
+    if (!s_do_smaa && !s_do_fsr) {
+        return slot;
+    }
+    mark(C_POST);
+    if (s_do_smaa) {
+        D3D12_TEXTURE_COPY_LOCATION dst = {0}, src = {0};
+        D3D12_BOX box = {(UINT)ox, (UINT)oy, 0, (UINT)(ox + pw), (UINT)(oy + ph), 1};
+
+        trans(&s_rt, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        trans(&s_p[0], D3D12_RESOURCE_STATE_COPY_DEST);
+        dst.pResource = s_p[0].r, dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        src.pResource = s_rt.r, src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        ID3D12GraphicsCommandList_CopyTextureRegion(s_list, &dst, 0, 0, 0, &src, &box);
+        trans(&s_p[0], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        trans(&s_rt, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        k[4] = 1.0f / pw, k[5] = 1.0f / ph, k[6] = (float)pw, k[7] = (float)ph;
+        rt_pass(&s_p[1], R_P1, 1); /* the edges */
+        draw_k(s_smaa_root, s_pso_smaa[0], S_T0, full, k);
+        trans(&s_p[1], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        rt_pass(&s_p[2], R_P2, 1); /* how much each pixel blends */
+        draw_k(s_smaa_root, s_pso_smaa[1], S_T1, full, k);
+        trans(&s_p[2], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        rt_pass(&s_p[1], R_P1, 0); /* the picture blended */
+        draw_k(s_smaa_root, s_pso_smaa[2], S_T2, full, k);
+        trans(&s_p[1], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        slot = S_P1, ox = oy = 0;
+        uv[0] = uv[1] = 0, uv[2] = uv[3] = 1;
+    }
+    if (s_do_fsr) {
+        int out[4] = {0, 0, vp[2], vp[3]};
+        float e[12] = {0, 0, 1, 1, pw / (float)vp[2], ph / (float)vp[3], 0, 0, (float)ox, (float)oy, (float)pw, (float)ph};
+
+        rt_pass(&s_fsr, R_FSR, 0);
+        draw_k(s_blit_root, s_pso_easu, slot, out, e);
+        trans(&s_fsr, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        slot = S_FSR;
+        uv[0] = uv[1] = 0, uv[2] = uv[3] = 1;
+    }
+    mark(C_PRESENT);
+    return slot;
+}
+
 /* The frame: the display area of the copy (or the 1x VRAM's 24-bit movie) letterboxed to 4:3, then the menu (a 1280x960 RGBA surface, or NULL) */
 void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     PSX_RECT d = g_disp.disp;
-    int w, h, vp[4], menu_vp[4], game, movie, i;
+    int w, h, vp[4], menu_vp[4], game, movie, i, slot = S_RT;
+    float puv[4] = {0, 0, 1, 1};
     int aw = gte_widescreen() ? 16 : 4, ah = gte_widescreen() ? 9 : 3;
     UINT bi;
     D3D12_CPU_DESCRIPTOR_HANDLE rtv;
@@ -1356,6 +1603,7 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         }
         stagefx_frame();
     }
+    s_frame_3d = s_zframe > 0;
     s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
     s_fog_on = 0, s_zframe = 0;
     SDL_GetWindowSizeInPixels(s_window, &w, &h);
@@ -1380,6 +1628,9 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     movie = g_disp_on && d.w > 0 && d.h > 0 && g_disp.isrgb24;
     game = g_disp_on && d.w > 0 && d.h > 0 && !g_disp.isrgb24 && s_scale > 0;
 
+    if (game) {
+        post_prepare(&d, vp);
+    }
     list();
     if (movie || menu != NULL) { /* their upload buffers are written now: the last frame's copy from them must be done */
         wait_slot((s_slot + FIF - 1) % FIF);
@@ -1397,6 +1648,7 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     }
     if (game) {
         trans(&s_rt, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        slot = post_chain(&d, vp, puv);
     }
     bi = IDXGISwapChain3_GetCurrentBackBufferIndex(s_swap);
     barrier(s_back[bi], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -1408,9 +1660,15 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
 
         quad(S_PIC, vp, uv, s_pso_present);
     } else if (game) {
-        float uv[4] = {d.x / (float)VRAM_W, d.y / (float)VRAM_H, d.w / (float)VRAM_W, d.h / (float)VRAM_H};
+        if (s_pso_post != NULL && (g_sharpen | g_brightness | g_gamma | g_saturation | g_scanlines) != 0) {
+            /* gamma 10 halves the exponent (brighter middles), -10 doubles it */
+            float k[12] = {puv[0], puv[1], puv[2], puv[3], g_sharpen / 10.0f, g_brightness * 0.02f, SDL_powf(2.0f, -g_gamma / 10.0f), 1.0f + g_saturation / 10.0f,
+                           puv[2] / vp[2], puv[3] / vp[3], g_scanlines / 10.0f, (float)d.h};
 
-        quad(S_RT, vp, uv, s_pso_present);
+            draw_k(s_blit_root, s_pso_post, slot, vp, k);
+        } else {
+            quad(slot, vp, puv, s_pso_present);
+        }
     }
     if (menu != NULL) {
         float uv[4] = {0, 0, 1, 1};
