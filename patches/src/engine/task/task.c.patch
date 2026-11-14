@@ -1,8 +1,13 @@
 --- a/src/engine/task/task.c
 +++ b/src/engine/task/task.c
-@@ -78,12 +78,26 @@
+@@ -77,13 +77,31 @@
+  * Allocates a zeroed task of `size` bytes (header included) with room for
   * childrenSize / 4 child tasks. A nonzero id also registers it (findTask).
   */
++#ifdef NATIVE
++#undef createTask
++#undef createTaskWithId
++#endif
  void *createTaskWithId(void (*update)(), s32 size, s32 childrenSize, s32 id) {
 +#ifdef NATIVE
 +    /* the sizes written as numbers are the PSX's, where a pointer is 4 bytes: a
@@ -27,3 +32,28 @@
      task->setState = taskSetState;
      task->setSubstate = taskSetSubstate;
      task->setStep = taskSetStep;
+@@ -105,3 +123,24 @@
+ void *createTask(void (*update)(), s32 size, s32 childrenSize) {
+     return createTaskWithId(update, size, childrenSize, 0);
+ }
++
++#ifdef NATIVE
++/* createTaskWithId through the macros: a children size written with sizeof is in bytes of
++   this build's slots (childCount = bytes / sizeof(void *)); a number is the PSX's, in 4-byte
++   slots. createTaskWithId makes childrenSize / 4 slots of a pointer each, so the first is
++   passed as half its bytes in 64 bits */
++void *createTaskText(void (*update)(), s32 size, s32 childrenSize, s32 id, const char *childrenText) {
++    const char *key = "sizeof";
++    s32 i;
++
++    for (; *childrenText != 0; childrenText++) {
++        for (i = 0; key[i] != 0 && childrenText[i] == key[i]; i++) {
++        }
++        if (key[i] == 0) {
++            childrenSize = childrenSize / (s32)(sizeof(void *) / 4);
++            break;
++        }
++    }
++    return createTaskWithId(update, size, childrenSize, id);
++}
++#endif

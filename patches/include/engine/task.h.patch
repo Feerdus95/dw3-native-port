@@ -1,0 +1,17 @@
+--- a/include/engine/task.h
++++ b/include/engine/task.h
+@@ -87,6 +87,14 @@
+ void taskTickCounter(Task *task);
+ void destroyTask(Task *task);
+ void *createTaskWithId(void (*update)(), s32 size, s32 childrenSize, s32 id);
++#ifdef NATIVE
++/* The callers write children sizes as numbers (the PSX's 4-byte slots) or as sizeof of a
++   struct of pointers (8-byte slots in 64 bits): the macros pass the text to tell them apart,
++   so that childCount is the slot count either way */
++void *createTaskText(void (*update)(), s32 size, s32 childrenSize, s32 id, const char *childrenText);
++#define createTask(update, size, children) createTaskText(update, size, children, 0, #children)
++#define createTaskWithId(update, size, children, id) createTaskText(update, size, children, id, #children)
++#endif
+ struct Task *executeTask(struct Task *task);
+ void runChildTasks(Task *task);
+ Task *runTask(Task *task);
