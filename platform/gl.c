@@ -15,7 +15,7 @@
 #define GL_FUNCS(X)                                                                                                  \
     X(glGetError) X(glGetIntegerv) X(glColorMask) X(glEnable) X(glDisable) X(glViewport) X(glScissor) X(glClear) X(glClearColor)   \
     X(glGenTextures) X(glDeleteTextures) X(glBindTexture) X(glTexImage2D) X(glTexSubImage2D) X(glTexParameteri)     \
-    X(glPixelStorei) X(glReadPixels) X(glDrawArrays) X(glActiveTexture) X(glBlendFuncSeparate) X(glBlendEquation)   \
+    X(glPixelStorei) X(glReadPixels) X(glGetTexImage) X(glDrawArrays) X(glActiveTexture) X(glBlendFuncSeparate) X(glBlendEquation)   \
     X(glBlendColor) X(glCreateShader) X(glShaderSource) X(glCompileShader) X(glGetShaderiv) X(glGetShaderInfoLog)  \
     X(glCreateProgram) X(glAttachShader) X(glLinkProgram) X(glGetProgramiv) X(glGetProgramInfoLog) X(glUseProgram) \
     X(glGetUniformLocation) X(glUniform1i) X(glUniform1f) X(glUniform2f) X(glUniform4f) X(glUniform2i) X(glGenVertexArrays) X(glBindVertexArray)  \
@@ -178,16 +178,15 @@ static const char *LIN_FS =
     "#version 330 core\n"
     "uniform sampler2D sd, col, fd;\n" /* the stage's depth, the picture, the fighters' (they are drawn over the stage) */
     "uniform ivec2 valid;\n" /* which of the two the frame has */
-    "uniform vec4 area;\n" /* the picture's corner and size in them */
+    "uniform vec4 asd, afd;\n" /* where the picture is in each (the buffer it was drawn in: corner and size) */
     "uniform int view;\n"
     "in vec2 uv;\n"
     "out vec4 frag;\n"
     "void main() {\n"
-    "    vec2 p = area.xy + uv * area.zw;\n"
-    "    float ds = valid.x != 0 ? texture(sd, p).r : 1.0, df = valid.y != 0 ? texture(fd, p).r : 1.0;\n"
+    "    float ds = valid.x != 0 ? texture(sd, asd.xy + uv * asd.zw).r : 1.0, df = valid.y != 0 ? texture(fd, afd.xy + uv * afd.zw).r : 1.0;\n"
     "    float d = df < 1.0 ? df : ds;\n"
     "    float z = d < 1.0 ? 64.0 / (1.0 - d) : 0.0;\n"
-    "    frag = view != 0 ? (z > 0.0 ? vec4(vec3(min(1.0, 512.0 / z)), 1.0) : texture(col, uv)) : vec4(z);\n"
+    "    frag = view != 0 ? (z > 0.0 ? vec4(vec3(min(1.0, sqrt(3000.0 / z))), 1.0) : texture(col, uv)) : vec4(z);\n"
     "}\n";
 
 /* The game's picture on its way to the window, when any of sharpen, brightness, gamma or saturation is set.
@@ -556,7 +555,7 @@ static GLint s_pass_loc, s_scale_loc, s_size_loc, s_true_loc, s_persp_loc, s_smo
 /* What an upscaler (DLSS, FSR 3) is given, made only while something asks for it (DW3_UPSCALE_DATA, "depth", "jitter",
    "view": until one is built in, to check them): the display area's colour before any pass (s_pic_tex[0]), the 3D's
    view depth z (s_lin_tex, R32F, 0 = none), and this frame's jitter in pixels of the copy (+x right, +y down) */
-static int s_data_depth, s_data_jitter, s_data_view;
+static int s_data_depth, s_data_jitter, s_data_view, s_data_selftest; /* selftest: a known depth written in, to check the pass */
 static GLuint s_lin, s_lin_tex, s_lin_fbo;
 static float s_jit_px[2];
 static unsigned s_jit_n;
@@ -587,6 +586,7 @@ static GLuint s_prop, s_prop_vao, s_prop_vbo, s_sd_tex, s_sd_fbo; /* props; the 
 static GLuint s_pinst, s_inst_vao, s_part_vao; /* the props from tables (PINST_VS) */
 static GLint s_prop_depth_loc, s_prop_fog_loc, s_prop_fogz_loc;
 static int s_sd_valid;
+static int s_sd_org[2], s_fd_org[2]; /* the VRAM corner of the buffer each saved depth was drawn in */
 static GLuint s_fd_tex, s_fd_fbo; /* the fighters' depth, kept for the props */
 static int s_fd_valid;
 
@@ -1121,7 +1121,7 @@ void gfx_depth_save(void) {
     GL(glBindFramebuffer)(GL_DRAW_FRAMEBUFFER, s_sd_fbo);
     GL(glBlitFramebuffer)(0, 0, VRAM_W * s, VRAM_H * s, 0, 0, VRAM_W * s, VRAM_H * s, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
-    s_sd_valid = 1;
+    s_sd_valid = 1, s_sd_org[0] = s_clip[0], s_sd_org[1] = s_clip[1];
 }
 
 /* The depth buffer as the fighters' table left it (it started empty): the grass is trodden down where a fighter is */
@@ -1137,7 +1137,7 @@ void gfx_depth_models(void) {
     GL(glBindFramebuffer)(GL_DRAW_FRAMEBUFFER, s_fd_fbo);
     GL(glBlitFramebuffer)(0, 0, VRAM_W * s, VRAM_H * s, 0, 0, VRAM_W * s, VRAM_H * s, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
-    s_fd_valid = 1;
+    s_fd_valid = 1, s_fd_org[0] = s_clip[0], s_fd_org[1] = s_clip[1];
 }
 
 /* Triangles (n a multiple of 3) textured with an image of the port's own
@@ -1453,6 +1453,7 @@ int gfx_init(SDL_Window *window) {
         s_data_depth = e != NULL && SDL_strstr(e, "depth") != NULL;
         s_data_jitter = e != NULL && SDL_strstr(e, "jitter") != NULL;
         s_data_view = e != NULL && SDL_strstr(e, "view") != NULL;
+        s_data_selftest = e != NULL && SDL_strstr(e, "selftest") != NULL;
         if ((s_data_depth || s_data_view) && (s_lin = program(BLIT_VS, LIN_FS)) != 0) {
             GL(glUseProgram)(s_lin);
             GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "sd"), 0);
@@ -1602,6 +1603,13 @@ static void pass(GLuint fbo, int w, int h, int clear) {
 
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, fbo);
     GL(glViewport)(0, 0, w, h);
+    /* a battle leaves its own state behind (shadows, props): a plain overwrite of every channel */
+    GL(glDisable)(GL_BLEND);
+    GL(glDisable)(GL_DEPTH_TEST);
+    GL(glDisable)(GL_STENCIL_TEST);
+    GL(glDisable)(GL_SCISSOR_TEST);
+    GL(glDisable)(GL_CULL_FACE);
+    GL(glColorMask)(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     if (clear) { /* SMAA leaves out what has no edge */
         GL(glClearColor)(0, 0, 0, 0);
         GL(glClear)(GL_COLOR_BUFFER_BIT);
@@ -1618,13 +1626,72 @@ static void bind(int unit, GLuint tex) {
     GL(glActiveTexture)(GL_TEXTURE0);
 }
 
+/* Measures the depth data a few times (DW3_UPSCALE_DATA with "depth"): how many pixels of the saved depths and of the
+   view depth hold anything, and the view depth's range. For checking that they arrive */
+static void probe(int pw, int ph, const PSX_RECT *d) {
+    static int n, logged;
+    int w = VRAM_W * s_scale, h = VRAM_H * s_scale, i, nz = 0, ns = 0, nf = 0;
+    float *z, zmin = 1e30f, zmax = 0;
+    uint32_t *a, *b;
+
+    if (!s_data_depth || logged >= 6 || n++ % 90 != 0) {
+        return;
+    }
+    z = SDL_malloc((size_t)pw * ph * 4), a = SDL_malloc((size_t)w * h * 4), b = SDL_malloc((size_t)w * h * 4);
+    if (z && a && b) {
+        GL(glBindFramebuffer)(GL_READ_FRAMEBUFFER, s_lin_fbo);
+        GL(glReadPixels)(0, 0, pw, ph, GL_RED, GL_FLOAT, z);
+        GL(glBindTexture)(GL_TEXTURE_2D, s_sd_tex);
+        GL(glGetTexImage)(GL_TEXTURE_2D, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, a);
+        GL(glBindTexture)(GL_TEXTURE_2D, s_fd_tex);
+        GL(glGetTexImage)(GL_TEXTURE_2D, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, b);
+        for (i = 0; i < pw * ph; i++) {
+            if (z[i] > 0) {
+                nz++, zmin = SDL_min(zmin, z[i]), zmax = SDL_max(zmax, z[i]);
+            }
+        }
+        for (i = 0; i < w * h; i++) {
+            ns += (a[i] >> 8) != 0xFFFFFF, nf += (b[i] >> 8) != 0xFFFFFF;
+        }
+        LOG("upscale depth: view depth %d of %d pixels (z %.0f to %.0f); saved stage depth %d, fighters' %d of %d; drawn at (%d,%d) and (%d,%d), shown at (%d,%d)",
+            nz, pw * ph, nz ? zmin : 0, zmax, ns, nf, w * h, s_sd_org[0], s_sd_org[1], s_fd_org[0], s_fd_org[1], d->x, d->y);
+        logged++;
+    }
+    SDL_free(z), SDL_free(a), SDL_free(b);
+}
+
 /* The game's picture before the window: the display area D of the copy, through SMAA and through FSR 1's upscaling
    to the W x H it is shown at, when they are on. FSR only where it has something to do: a frame with 3D in it shown
    bigger (the 2D is the PlayStation's pixels enlarged, which it would tangle). The texture to show and, in uv, its
    corners */
 static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
     int s = s_scale, pw = d->w * s, ph = d->h * s, smaa = g_smaa && s_smaa != 0, fsr = g_fsr && s_easu != 0 && h > ph && s_frame_3d, i;
-    int data = s_lin != 0 && s_frame_3d && (s_sd_valid || s_fd_valid); /* the 2D fields have none */
+    int data;
+    static int shown = -1;
+
+    if (s_data_selftest && s_sd_tex != 0 && !s_sd_valid) { /* the stage's depth: z = 1000 on the picture's left half, none on the right */
+        int sw = VRAM_W * s, sh = VRAM_H * s, x, y;
+        uint32_t *a = SDL_malloc((size_t)sw * sh * 4);
+
+        if (a != NULL) {
+            for (y = 0; y < sh; y++) {
+                for (x = 0; x < sw; x++) {
+                    a[y * sw + x] = (x < (d->x + d->w / 2) * s ? (uint32_t)((1.0 - 64.0 / 1000.0) * 16777215.0) : 0xFFFFFFu) << 8;
+                }
+            }
+            GL(glBindTexture)(GL_TEXTURE_2D, s_sd_tex);
+            GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, sw, sh, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, a);
+            s_sd_valid = 1, s_sd_org[0] = d->x, s_sd_org[1] = d->y;
+            SDL_free(a);
+        }
+    }
+    data = s_lin != 0 && (s_frame_3d || s_data_selftest) && (s_sd_valid || s_fd_valid); /* the 2D fields have none */
+    int now = (s_lin != 0) << 3 | (s_frame_3d != 0) << 2 | (s_sd_valid != 0) << 1 | (s_fd_valid != 0);
+
+    if (s_lin != 0 && shown != now) { /* what the data waits for, once per change */
+        shown = now;
+        LOG("upscale data: program %d, 3D frame %d, stage depth %d, fighters' depth %d", s_lin != 0, s_frame_3d, s_sd_valid, s_fd_valid);
+    }
     GLuint tex = s_pic_tex[0];
 
     uv[0] = d->x / (float)VRAM_W, uv[1] = d->y / (float)VRAM_H;
@@ -1654,10 +1721,12 @@ static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
         GL(glUseProgram)(s_lin);
         GL(glUniform1i)(GL(glGetUniformLocation)(s_lin, "view"), 0);
         GL(glUniform2i)(GL(glGetUniformLocation)(s_lin, "valid"), s_sd_valid && g_depth, s_fd_valid && g_depth);
-        GL(glUniform4f)(GL(glGetUniformLocation)(s_lin, "area"), uv[0], uv[1], uv[2] - uv[0], uv[3] - uv[1]);
+        GL(glUniform4f)(GL(glGetUniformLocation)(s_lin, "asd"), s_sd_org[0] / (float)VRAM_W, s_sd_org[1] / (float)VRAM_H, uv[2] - uv[0], uv[3] - uv[1]);
+        GL(glUniform4f)(GL(glGetUniformLocation)(s_lin, "afd"), s_fd_org[0] / (float)VRAM_W, s_fd_org[1] / (float)VRAM_H, uv[2] - uv[0], uv[3] - uv[1]);
         bind(0, s_sd_tex);
         bind(2, s_fd_tex);
         pass(s_lin_fbo, pw, ph, 0);
+        probe(pw, ph, d);
     }
     if (smaa) {
         GLint stage = GL(glGetUniformLocation)(s_smaa, "stage");
