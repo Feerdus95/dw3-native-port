@@ -29,6 +29,7 @@ int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1;
 int g_sharpen, g_brightness, g_gamma, g_saturation;
 int g_scanlines, g_integer_scale;
 int g_smaa, g_fsr;
+int g_dbg[3] = {0, 1, 1};
 static int g_fsr3; /* FSR 3.1 chosen at the start, and its DLLs there: its data is made */
 int g_soft_shadows;
 int g_vsync = 1;
@@ -53,7 +54,7 @@ static const char *MAIN_HLSL =
     "    float cz = i.z > 0.0 ? clamp(1.0 - 64.0 / i.z, 0.0, 1.0) : 0.0;\n"
     "    o.p = float4(i.pos_uv.x / size.x * 2.0 - 1.0, 1.0 - i.pos_uv.y / size.y * 2.0, cz, 1.0);\n"
     "    o.p *= (persp != 0 && i.w > 0.0) ? i.w : 1.0;\n"
-    "    if (i.w > 0.0) o.p.xy += jit * o.p.w;\n"
+    "    if (i.w > 0.0 || (pad & 2) != 0) o.p.xy += jit * o.p.w;\n"
     "    o.uv = i.pos_uv.zw; o.col = float3(i.colr.xyz); o.t = i.tex; o.lim = i.limits; o.tw = i.window; o.md = i.mode;\n"
     "    o.deep = i.w > 0.0 ? 1u : 0u; o.vw = i.w;\n"
     "    o.mv = i.w > 0.0 ? i.mv * scale : float2(0.0, 0.0);\n"
@@ -138,7 +139,7 @@ static const char *MAIN_HLSL =
     "PM psm(VO i, float4 fc : SV_Position) {\n"
     "    PM o;\n"
     "    o.c = ps(i, fc);\n"
-    "    o.m = float4(i.deep != 0u ? i.mv : float2(0.0, 0.0), (i.deep == 0u || pad != 0) ? 1.0 : 0.0, 0.0);\n"
+    "    o.m = float4(i.deep != 0u ? i.mv : float2(0.0, 0.0), ((pad & 4) == 0 && (i.deep == 0u || (pad & 1) != 0)) ? 1.0 : 0.0, 0.0);\n"
     "    return o;\n"
     "}\n";
 
@@ -856,7 +857,8 @@ static void draw_batch(int semi, int depth, int pass, const Consts *k0) {
     static const float half[4] = {0.5f, 0.5f, 0.5f, 0.5f}, quarter[4] = {0.25f, 0.25f, 0.25f, 0.25f};
 
     k.pass = pass;
-    k.pad = s_deep && (s_clip[2] - s_clip[0] + 1) * (s_clip[3] - s_clip[1] + 1) < 38400; /* a small 3D window (the portrait): its pixels are reactive */
+    /* bit 0: a small 3D window (the portrait), its pixels are reactive; bit 1: FSR 3.1 ran on the last frame, so the 2D is jittered as the 3D is (it takes the whole picture as jittered) */
+    k.pad = (s_deep && (s_clip[2] - s_clip[0] + 1) * (s_clip[3] - s_clip[1] + 1) < 38400) | (s_f3_prev && !g_dbg[1] ? 2 : 0) | (g_dbg[2] ? 4 : 0);
     ID3D12GraphicsCommandList_SetPipelineState(s_list, main_pso(semi, depth));
     ID3D12GraphicsCommandList_OMSetBlendFactor(s_list, semi == 0 ? half : quarter);
     ID3D12GraphicsCommandList_SetGraphicsRoot32BitConstants(s_list, 1, 16, &k, 0);
@@ -1915,7 +1917,9 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
     s_fog_on = 0, s_zframe = 0;
     s_jit_used[0] = s_jit_px[0], s_jit_used[1] = s_jit_px[1];
-    if (s_data_jitter && g_fsr3 && s_fx_create != NULL) { /* FSR 3.1's own sequence */
+    if (g_dbg[0]) {
+        s_jit_px[0] = s_jit_px[1] = 0;
+    } else if (s_data_jitter && g_fsr3 && s_fx_create != NULL) { /* FSR 3.1's own sequence */
         fx_jitter(++s_jit_n, s_fx_rw > 0 ? s_fx_rw : 640, s_fx_uw > 0 ? s_fx_uw : 1280, &s_jit_px[0], &s_jit_px[1]);
     } else if (s_data_jitter) { /* the next frame's: Halton (2, 3), 8 of them, centred on the pixel */
         unsigned n = ++s_jit_n % 8 + 1;

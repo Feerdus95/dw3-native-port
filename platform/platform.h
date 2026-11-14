@@ -127,6 +127,7 @@ extern int g_perspective;   /* perspective = 0: the 3D's textures without perspe
 extern int g_smooth_3d;     /* smooth_3d = 0: the 3D's textures by their nearest texel, as the PSX's (gl.c) */
 extern int g_sharpen, g_brightness, g_gamma, g_saturation; /* the post-process pass (gl.c): 0 to 10; -10 to 10 */
 extern int g_scanlines, g_integer_scale; /* scanlines = 0 to 10, integer_scale = 0/1 (gl.c) */
+extern int g_dbg[3]; /* ponytail: temporary, F6 F7 F8 in the game: jitter off, 2D jitter off, reactive mask off */
 extern int g_smaa, g_fsr; /* smaa, fsr = 0/1: SMAA over the picture, FSR 1's upscaling to the window (gl.c) */
 extern int g_widescreen;     /* widescreen = 1: battles 16:9, the window too (gte.c) */
 void gte_motion_enable(void); /* FSR 3.1 asks for the motion (gte.c) */

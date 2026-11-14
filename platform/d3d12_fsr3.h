@@ -55,7 +55,7 @@ typedef struct {
 } FxOffset;
 
 enum {
-    FX_CREATE = 0x10000, FX_DISPATCH = 0x10001, FX_BACKEND_DX12 = 2, FX_VERSION = 0x1000b, FX_PHASES = 0x10004, FX_OFFSET = 0x10005,
+    FX_CREATE = 0x10000, FX_DISPATCH = 0x10001, FX_BACKEND_DX12 = 2, FX_VERSION = 0x1000b, FX_PHASES = 0x10004, FX_OFFSET = 0x10005, FX_KEYVALUE = 0x10007, FX_KEY_SHADING = 2, FX_KEY_ACCUMULATION = 3,
     FX_VERSION_NUMBER = (4 << 22) | (1 << 12) | 2,
     FX_DEPTH_INFINITE = 1 << 4, FX_NON_LINEAR = 1 << 8, FX_AUTO_EXPOSURE = 1 << 5,
     FX_SRGB = 1 << 1,
@@ -67,11 +67,18 @@ typedef uint32_t (*FxCreateFn)(void **ctx, FxHdr *desc, const void *mem);
 typedef uint32_t (*FxDestroyFn)(void **ctx, const void *mem);
 typedef uint32_t (*FxDispatchFn)(void **ctx, const FxHdr *desc);
 typedef uint32_t (*FxQueryFn)(void **ctx, FxHdr *desc);
+typedef uint32_t (*FxConfigureFn)(void **ctx, const FxHdr *desc);
+typedef struct {
+    FxHdr h;
+    uint64_t key, u64;
+    void *ptr;
+} FxKeyValue;
 
 static FxCreateFn s_fx_create;
 static FxDestroyFn s_fx_destroy;
 static FxDispatchFn s_fx_dispatch;
 static FxQueryFn s_fx_query;
+static FxConfigureFn s_fx_configure;
 static void *s_fx_ctx;
 static int s_fx_rw, s_fx_rh, s_fx_uw, s_fx_uh, s_fx_tried;
 
@@ -99,6 +106,7 @@ static int fx_load(void) {
             s_fx_destroy = (FxDestroyFn)SDL_LoadFunction(so, "ffxDestroyContext");
             s_fx_dispatch = (FxDispatchFn)SDL_LoadFunction(so, "ffxDispatch");
             s_fx_query = (FxQueryFn)SDL_LoadFunction(so, "ffxQuery");
+            s_fx_configure = (FxConfigureFn)SDL_LoadFunction(so, "ffxConfigure");
         }
         if (s_fx_create == NULL || s_fx_destroy == NULL || s_fx_dispatch == NULL || s_fx_query == NULL) {
             s_fx_create = NULL;
@@ -136,6 +144,13 @@ static int fx_context(ID3D12Device *dev, int rw, int rh, int uw, int uh) {
     }
     s_fx_rw = rw, s_fx_rh = rh, s_fx_uw = uw, s_fx_uh = uh;
     SDL_Log("fsr3: context %dx%d -> %dx%d", rw, rh, uw, uh);
+    if (s_fx_configure != NULL) { /* it forgets its history sooner: less ghosting, a little more flicker (AMD's defaults: 0.333 and 1) */
+        const char *e1 = SDL_getenv("DW3_ACC"), *e2 = SDL_getenv("DW3_SHADE");
+        float acc = e1 != NULL ? (float)SDL_atof(e1) : 0.2f, shade = e2 != NULL ? (float)SDL_atof(e2) : 2.0f;
+        FxKeyValue a = {{FX_KEYVALUE, NULL}, FX_KEY_ACCUMULATION, 0, &acc}, b = {{FX_KEYVALUE, NULL}, FX_KEY_SHADING, 0, &shade};
+
+        SDL_Log("fsr3: configure %u %u (accumulation %.2f, shading change %.2f)", s_fx_configure(&s_fx_ctx, &a.h), s_fx_configure(&s_fx_ctx, &b.h), acc, shade);
+    }
     return 1;
 }
 
