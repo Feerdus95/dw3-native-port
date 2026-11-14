@@ -87,12 +87,6 @@ int pump_events(void) {
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && e.key.key == SDLK_F12) {
             s_screenshot = 1;
         }
-        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && e.key.key >= SDLK_F6 && e.key.key <= SDLK_F8) {
-            int n = (int)(e.key.key - SDLK_F6);
-
-            g_dbg[n] = !g_dbg[n];
-            SDL_Log("debug F%d: %s", n + 6, g_dbg[n] ? "ON" : "off");
-        }
         /* F10: the battle's performance meter on and off */
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && e.key.key == SDLK_F10) {
             g_perf = !g_perf;

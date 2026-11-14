@@ -145,8 +145,7 @@ static int fx_context(ID3D12Device *dev, int rw, int rh, int uw, int uh) {
     s_fx_rw = rw, s_fx_rh = rh, s_fx_uw = uw, s_fx_uh = uh;
     SDL_Log("fsr3: context %dx%d -> %dx%d", rw, rh, uw, uh);
     if (s_fx_configure != NULL) { /* it forgets its history sooner: less ghosting, a little more flicker (AMD's defaults: 0.333 and 1) */
-        const char *e1 = SDL_getenv("DW3_ACC"), *e2 = SDL_getenv("DW3_SHADE");
-        float acc = e1 != NULL ? (float)SDL_atof(e1) : 0.2f, shade = e2 != NULL ? (float)SDL_atof(e2) : 2.0f;
+        float acc = 0.2f, shade = 2.0f;
         FxKeyValue a = {{FX_KEYVALUE, NULL}, FX_KEY_ACCUMULATION, 0, &acc}, b = {{FX_KEYVALUE, NULL}, FX_KEY_SHADING, 0, &shade};
 
         SDL_Log("fsr3: configure %u %u (accumulation %.2f, shading change %.2f)", s_fx_configure(&s_fx_ctx, &a.h), s_fx_configure(&s_fx_ctx, &b.h), acc, shade);
@@ -176,9 +175,9 @@ static FxRes fx_res(ID3D12Resource *r, int w, int h, uint32_t fmt, uint32_t stat
     return f;
 }
 
-/* One frame: color, depth and motion and reactive mask (all the render size, in the state of a pixel shader's view) into out (the output size, a UAV).
+/* One frame: color, depth and motion (all the render size, in the state of a pixel shader's view) into out (the output size, a UAV).
    The command list's heaps and bindings are the caller's to set again after it. 1 when it ran */
-static int fx_run(ID3D12Device *dev, ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Resource *depth, ID3D12Resource *mv, ID3D12Resource *react, ID3D12Resource *out,
+static int fx_run(ID3D12Device *dev, ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Resource *depth, ID3D12Resource *mv, ID3D12Resource *out,
                   int rw, int rh, int uw, int uh, float jx, float jy, int reset, float fov, float ms) {
     FxDispatch d;
     uint32_t r;
@@ -191,7 +190,6 @@ static int fx_run(ID3D12Device *dev, ID3D12GraphicsCommandList *cl, ID3D12Resour
     d.color = fx_res(color, rw, rh, FX_R8G8B8A8, FX_ST_PIXEL, 0);
     d.depth = fx_res(depth, rw, rh, FX_R32F, FX_ST_PIXEL, 0);
     d.mv = fx_res(mv, rw, rh, FX_R16G16F, FX_ST_PIXEL, 0);
-    d.reactive = fx_res(react, rw, rh, FX_R8, FX_ST_PIXEL, 0);
     d.out = fx_res(out, uw, uh, FX_R8G8B8A8, FX_ST_UAV, FX_USAGE_UAV);
     d.jx = jx, d.jy = jy, d.msx = d.msy = 1; /* the motion is in pixels of the render size already */
     d.rw = (uint32_t)rw, d.rh = (uint32_t)rh, d.uw = (uint32_t)uw, d.uh = (uint32_t)uh;
