@@ -52,7 +52,7 @@ int fetch_unpack(const char *url, const char *tmp)
     if (!ok) {
         const bool stopped = SDL_GetAtomicInt(&s_stop);
         native_log(stopped ? "%s: cancelled" : "%s: can't download it", url);
-        SDL_RemovePath(tmp);
+        path_remove_tree(tmp);
         return stopped ? S_T_CANCELLED : S_T_FAILED;
     }
     /* Windows' own tar, by its full path: the zip's in a folder of plain names, whatever the path above it */
@@ -145,7 +145,7 @@ int tool_install(int i)
     if (!SDL_SaveFile(from, tag, SDL_strlen(tag))) {
         native_log("can't write %s", from); /* it's offered again, nothing worse */
     }
-    SDL_RemovePath(tmp);
+    path_remove_tree(tmp);
     return S_T_READY;
 }
 

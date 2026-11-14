@@ -70,7 +70,7 @@ static int SDLCALL update_thread(void *unused)
             native_log("can't move %s over %s: %s", tmp, a, SDL_GetError());
             result = S_T_FAILED;
         } else {
-            SDL_RemovePath(tmp);
+            path_remove_tree(tmp);
         }
     }
     if (result != S_T_READY) {
