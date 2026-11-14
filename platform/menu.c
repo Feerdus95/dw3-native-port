@@ -115,9 +115,13 @@ static void value(int item, char *out, size_t size) {
     case PRESET: SDL_snprintf(out, size, "%s", PRESET_NAMES[preset()]); return;
     case SMAA: on = g_smaa; break;
     case FSR: {
-        int st = gfx_fsr3_status();
+        int st = gfx_fsr3_status(), sd = gfx_dlss_status();
 
-        SDL_snprintf(out, size, g_fsr == 0 ? "Off" : g_fsr == 1 ? "FSR 1" : st == 0 ? "FSR 3.1 (restart)" : st == 2 ? "FSR 3.1 (lower res.)" : "FSR 3.1");
+        if (g_fsr == 3) {
+            SDL_snprintf(out, size, sd < 0 ? "DLSS (not here)" : sd == 0 ? "DLSS (restart)" : sd == 2 ? "DLSS (lower res.)" : "DLSS");
+        } else {
+            SDL_snprintf(out, size, g_fsr == 0 ? "Off" : g_fsr == 1 ? "FSR 1" : st == 0 ? "FSR 3.1 (restart)" : st == 2 ? "FSR 3.1 (lower res.)" : "FSR 3.1");
+        }
         return;
     }
     case SCANLINES: SDL_snprintf(out, size, g_scanlines ? "%d" : "Off", g_scanlines); return;
@@ -219,10 +223,15 @@ static void change(int item, int dir) {
         break;
     }
     case SMAA: g_smaa = !g_smaa; break;
-    case FSR: { /* Off, FSR 1, and FSR 3.1 where the renderer has it */
-        int top = gfx_fsr3_status() >= 0 ? 2 : 1;
+    case FSR: { /* Off, FSR 1, and FSR 3.1 and DLSS where the renderer has them */
+        int have[4] = {1, 1, gfx_fsr3_status() >= 0, gfx_dlss_status() >= 0}, k;
 
-        g_fsr = (g_fsr + (dir < 0 ? top : 1)) % (top + 1);
+        for (k = 0; k < 4; k++) { /* the next one that is there, in the direction asked */
+            g_fsr = (g_fsr + (dir < 0 ? 3 : 1)) % 4;
+            if (have[g_fsr]) {
+                break;
+            }
+        }
         break;
     }
     case SCANLINES: g_scanlines = SDL_clamp(g_scanlines + (dir < 0 ? -1 : 1), 0, 10); break;

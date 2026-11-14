@@ -30,6 +30,7 @@ int g_sharpen, g_brightness, g_gamma, g_saturation;
 int g_scanlines, g_integer_scale;
 int g_smaa, g_fsr;
 int g_dbg[3] = {0, 1, 1};
+static int s_dlss; /* DLSS chosen at the start, its DLLs there and the GPU one it runs on: the device is Streamline's proxy */
 static int g_fsr3; /* FSR 3.1 chosen at the start, and its DLLs there: its data is made */
 int g_soft_shadows;
 int g_vsync = 1;
@@ -173,6 +174,7 @@ static const char *BLIT_HLSL =
 
 #include "d3d12_post.h"
 #include "d3d12_fsr3.h"
+#include "d3d12_dlss.h"
 
 /* SMAA's shader as its authors publish it (smaa/, MIT), in a section of its own after the game's memory: that has to end
    below 16 MB (main.c); and its two tables */
@@ -648,12 +650,18 @@ int gfx_init(SDL_Window *window) {
     if ((s_batch = SDL_malloc(BATCH * sizeof(GVtx))) == NULL) {
         return 0;
     }
-    if (hwnd == NULL || !OK(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, (void **)&s_dev)) ||
-        !OK(ID3D12Device_CreateCommandQueue(s_dev, &qd, &IID_ID3D12CommandQueue, (void **)&s_queue)) ||
+    s_dlss = g_fsr == 3 && sl_start(); /* (before the device and the swap chain) */
+    if (hwnd == NULL || !OK(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, (void **)&s_dev))) {
+        SDL_Log("d3d12: no device");
+        return 0;
+    }
+    s_dlss = s_dlss && sl_device(&s_dev);
+    if (!OK(ID3D12Device_CreateCommandQueue(s_dev, &qd, &IID_ID3D12CommandQueue, (void **)&s_queue)) ||
         !OK(CreateDXGIFactory1(&IID_IDXGIFactory4, (void **)&fac))) {
         SDL_Log("d3d12: no device");
         return 0;
     }
+    s_dlss = s_dlss && sl_factory(&fac);
     scd.Width = (UINT)s_w, scd.Height = (UINT)s_h, scd.Format = DXGI_FORMAT_R8G8B8A8_UNORM, scd.SampleDesc.Count = 1;
     scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT, scd.BufferCount = FRAMES, scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     if (!OK(IDXGIFactory4_CreateSwapChainForHwnd(fac, (IUnknown *)s_queue, hwnd, &scd, NULL, NULL, &sc)) ||
@@ -701,7 +709,7 @@ int gfx_init(SDL_Window *window) {
     rsd.NumStaticSamplers = 0, rsd.pStaticSamplers = NULL;
     rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     s_main_root = root(&rsd);
-    g_fsr3 = g_fsr == 2 && fx_load();
+    g_fsr3 = (g_fsr == 2 && fx_load()) || s_dlss;
     if (g_fsr3) {
         gte_motion_enable();
     }
@@ -772,6 +780,14 @@ static void resize(int w, int h) {
     s_w = w, s_h = h;
     IDXGISwapChain3_ResizeBuffers(s_swap, FRAMES, (UINT)w, (UINT)h, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
     backbuffers();
+}
+
+/* DLSS: -1 not here (no DLLs, or a GPU that isn't an RTX), 0 after a restart, 1 on, 2 the Resolution is too high for it, 3 running (as gfx_fsr3_status) */
+int gfx_dlss_status(void) {
+    if (s_sl_state < 0 || (s_sl_state == 0 && !sl_files_here())) {
+        return -1;
+    }
+    return !s_dlss ? 0 : s_f3_state != 0 ? s_f3_state : 1;
 }
 
 int gfx_fsr3_status(void) {
@@ -1629,7 +1645,7 @@ static void post_prepare(const PSX_RECT *d, const int vp[4]) {
         smaa_init();
     }
     s_do_smaa = g_smaa && s_pso_smaa[2] != NULL;
-    f3 = g_fsr == 2 && g_fsr3 && s_fx_create != NULL && s_frame_3d && vp[2] >= pw && vp[3] >= ph;
+    f3 = ((g_fsr == 2 && g_fsr3 && s_fx_create != NULL) || (g_fsr == 3 && s_dlss && s_sl_state > 0)) && s_frame_3d && vp[2] >= pw && vp[3] >= ph;
     s_do_fsr = g_fsr && s_pso_easu != NULL && vp[3] > ph && s_frame_3d;
     if ((s_do_smaa || f3) && (pw != s_p_w || ph != s_p_h)) {
         submit(); /* the last frames' passes are done before their targets go */
@@ -1811,7 +1827,11 @@ static int post_f3(const PSX_RECT *d, const int vp[4]) {
     trans(&s_p[0], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     trans(&s_rt, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     trans(&s_f3, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    ok = fx_run(s_dev, s_list, s_p[0].r, s_dout.r, s_mout.r, s_react.r, s_f3.r, pw, ph, vp[2], vp[3], s_jit_used[0], s_jit_used[1], !s_f3_prev, fov, ms);
+    if (g_fsr == 3 && s_dlss) {
+        ok = sl_run(s_list, s_p[0].r, s_dout.r, s_mout.r, s_f3.r, pw, ph, vp[2], vp[3], s_jit_used[0], s_jit_used[1], !s_f3_prev, fov);
+    } else {
+        ok = fx_run(s_dev, s_list, s_p[0].r, s_dout.r, s_mout.r, s_react.r, s_f3.r, pw, ph, vp[2], vp[3], s_jit_used[0], s_jit_used[1], !s_f3_prev, fov, ms);
+    }
     ID3D12GraphicsCommandList_SetDescriptorHeaps(s_list, 1, heaps); /* (the upscaler set its own) */
     trans(&s_f3, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     mark(C_PRESENT);
@@ -1919,10 +1939,10 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     s_jit_used[0] = s_jit_px[0], s_jit_used[1] = s_jit_px[1];
     if (g_dbg[0]) {
         s_jit_px[0] = s_jit_px[1] = 0;
-    } else if (s_data_jitter && g_fsr3 && s_fx_create != NULL) { /* FSR 3.1's own sequence */
+    } else if (s_data_jitter && g_fsr3 && !s_dlss && s_fx_create != NULL) { /* FSR 3.1's own sequence */
         fx_jitter(++s_jit_n, s_fx_rw > 0 ? s_fx_rw : 640, s_fx_uw > 0 ? s_fx_uw : 1280, &s_jit_px[0], &s_jit_px[1]);
     } else if (s_data_jitter) { /* the next frame's: Halton (2, 3), 8 of them, centred on the pixel */
-        unsigned n = ++s_jit_n % 8 + 1;
+        unsigned n = ++s_jit_n % (s_dlss ? sl_phases() : 8) + 1;
         float f, b;
         int k;
 

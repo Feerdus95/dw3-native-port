@@ -660,6 +660,10 @@ int gfx_fsr3_status(void) {
     return -1;
 }
 
+int gfx_dlss_status(void) {
+    return -1;
+}
+
 int gfx_scale(void) {
     return SDL_max(s_scale, 1);
 }

@@ -50,6 +50,7 @@ smaa = 0
 # enlarged to the window by AMD's FSR 1 rather than plainly smoothed;
 # for slow graphics cards. Best with some sharpen.
 # 2: FSR 3.1, AMD's temporal upscaler, in the Direct3D 12 build (x64) only.
+# 3: DLSS, NVIDIA's, in the same build, on an RTX card, with NVIDIA's Streamline files next to the exe.
 # It needs AMD's two DLLs next to the exe (amd_fidelityfx_loader_dx12.dll and
 # amd_fidelityfx_upscaler_dx12.dll, from the FidelityFX SDK) and a Resolution
 # below the window's size; without them it works as 1. Takes the place of
