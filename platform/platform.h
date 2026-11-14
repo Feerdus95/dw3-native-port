@@ -128,9 +128,10 @@ extern int g_smooth_3d;     /* smooth_3d = 0: the 3D's textures by their nearest
 extern int g_sharpen, g_brightness, g_gamma, g_saturation; /* the post-process pass (gl.c): 0 to 10; -10 to 10 */
 extern int g_scanlines, g_integer_scale; /* scanlines = 0 to 10, integer_scale = 0/1 (gl.c) */
 extern int g_dbg[3]; /* ponytail: temporary, F6 F7 F8 in the game: jitter off, 2D jitter off, reactive mask off */
-extern int g_smaa, g_fsr, g_dlss_mode; /* smaa, fsr = 0/1: SMAA over the picture, FSR 1's upscaling to the window (gl.c) */
+extern int g_smaa, g_fsr, g_up_mode; /* smaa, fsr = 0/1: SMAA over the picture, FSR 1's upscaling to the window (gl.c) */
 extern int g_widescreen;     /* widescreen = 1: battles 16:9, the window too (gte.c) */
 void gte_motion_enable(void); /* FSR 3.1 asks for the motion (gte.c) */
+int gfx_scale_tied(void);   /* 1: the upscaler mode sets the render size, not Resolution (FSR 3.1, DLSS) */
 int gfx_dlss_status(void);  /* DLSS, the same numbers: -1 not here (the DLLs, an RTX card) */
 int gfx_fsr3_status(void); /* FSR 3.1: -1 not here, 0 after a restart, 1 on, 2 the Resolution is too high for it, 3 running (the renderer's) */
 int gte_proj_h(void);       /* the projection plane's distance, the 3D's field of view (gte.c) */

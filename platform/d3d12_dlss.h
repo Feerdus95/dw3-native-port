@@ -138,7 +138,9 @@ static SlBase sl_base(const SlGuid *g, size_t ver) {
 }
 
 static void sl_log(uint32_t type, const char *msg) {
-    SDL_Log("dlss: (%u) %s", type, msg);
+    if (type > 0) { /* (its chatter, 200 lines at start-up, is not worth the log: warnings and errors are) */
+        SDL_Log("dlss: (%u) %s", type, msg);
+    }
 }
 
 /* The four DLLs beside the exe (what the launcher puts there): the menu offers DLSS when they are */
@@ -254,7 +256,7 @@ static int sl_factory(IDXGIFactory4 **fac) {
 static uint32_t sl_mode(void) {
     static const uint32_t MODES[4] = {SL_MODE_DLAA, SL_MODE_QUALITY, SL_MODE_BALANCED, SL_MODE_PERFORMANCE};
 
-    return MODES[SDL_clamp(g_dlss_mode, 0, 3)];
+    return MODES[SDL_clamp(g_up_mode, 0, 3)];
 }
 
 static SlRes sl_res(ID3D12Resource *r, uint32_t state) {
@@ -283,7 +285,7 @@ static int sl_run(ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Re
     if (s_sl_state <= 0) {
         return 0;
     }
-    if (rw != s_sl_rw || rh != s_sl_rh || uw != s_sl_uw || uh != s_sl_uh || g_dlss_mode != s_sl_mode) {
+    if (rw != s_sl_rw || rh != s_sl_rh || uw != s_sl_uw || uh != s_sl_uh || g_up_mode != s_sl_mode) {
         SlDlssOptimal best = {0};
 
         o.b = sl_base(&SL_G_DLSS_OPTIONS, 3);
@@ -299,7 +301,7 @@ static int sl_run(ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Re
             s_sl_state = -1;
             return 0;
         }
-        s_sl_rw = rw, s_sl_rh = rh, s_sl_uw = uw, s_sl_uh = uh, s_sl_mode = g_dlss_mode;
+        s_sl_rw = rw, s_sl_rh = rh, s_sl_uw = uw, s_sl_uh = uh, s_sl_mode = g_up_mode;
     }
     c.b = sl_base(&SL_G_CONSTANTS, 2);
     for (i = 0; i < 4; i++) { /* the game has no camera matrices to give: identity, which the DLSS plugin doesn't use */

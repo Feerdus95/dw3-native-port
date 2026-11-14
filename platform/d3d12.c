@@ -28,7 +28,7 @@ int g_depth = 1;
 int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1;
 int g_sharpen, g_brightness, g_gamma, g_saturation;
 int g_scanlines, g_integer_scale;
-int g_smaa, g_fsr, g_dlss_mode = 1; /* g_dlss_mode: 0 DLAA, 1 Quality, 2 Balanced, 3 Performance */
+int g_smaa, g_fsr, g_up_mode = 1; /* g_up_mode: 0 DLAA, 1 Quality, 2 Balanced, 3 Performance */
 int g_dbg[3] = {0, 1, 1};
 static int s_dlss; /* DLSS chosen at the start, its DLLs there and the GPU one it runs on: the device is Streamline's proxy */
 static int g_fsr3; /* FSR 3.1 chosen at the start, and its DLLs there: its data is made */
@@ -1231,9 +1231,26 @@ static void copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
     }
 }
 
+/* 1 when FSR 3.1 or DLSS is chosen (and was at the start): then the upscaler mode, not Resolution, sets the render */
+int gfx_scale_tied(void) {
+    return (g_fsr == 2 && g_fsr3 && !s_dlss && s_fx_create != NULL) || (g_fsr == 3 && s_dlss && s_sl_state > 0);
+}
+
+/* The render scale: Resolution's, or with an upscaler its mode's share of the picture's height (100, 67, 58, 50 %) in whole 240 rows, the nearest,
+   never above the picture's own (the render is a whole number of the game's rows: a share in between rounds) */
+static int render_scale(void) {
+    static const float SHARE[4] = {1.0f, 0.667f, 0.58f, 0.5f};
+    int pic = s_w * 3 >= s_h * 4 ? s_h : s_w * 3 / 4, top = SDL_max(1, pic / 240); /* (the picture is 4:3 in the window, at most) */
+
+    if (!gfx_scale_tied() || pic <= 0) {
+        return SDL_clamp(g_res_scale, 1, MAX_SCALE);
+    }
+    return SDL_clamp((int)(pic * SHARE[SDL_clamp(g_up_mode, 0, 3)] / 240.0f + 0.5f), 1, SDL_min(top, MAX_SCALE));
+}
+
 /* The render scale in use, made to follow render_scale: the copy, its depth, the temporary of the copies */
 void gfx_sync(int force) {
-    int want = SDL_clamp(g_res_scale, 1, MAX_SCALE);
+    int want = render_scale();
 
     if (!s_ready || g_vram == NULL) { /* VRAM comes with ResetGraph */
         return;

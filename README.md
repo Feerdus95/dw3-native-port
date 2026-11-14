@@ -194,7 +194,7 @@ button can be changed in the options menu's Input tab, **Controls**.
     integer_scale = 0    ; 1: the picture a whole multiple of 240 rows
     smaa = 0             ; 1: the picture's jagged edges smoothed (SMAA)
     fsr = 0              ; 1: the 3D enlarged to the window by FSR 1, when render_scale is below it; 2: FSR 3.1 (Direct3D 12 build, needs AMD's two DLLs next to the exe: the launcher's Tools screen, **FSR 3.1 files**, downloads them); 3: DLSS (Direct3D 12 build, an NVIDIA RTX card, and NVIDIA's four Streamline files next to the exe: the launcher's Tools screen, **DLSS files**, downloads them)
-    dlss_mode = 1        ; with fsr = 3: 0 DLAA, 1 Quality, 2 Balanced, 3 Performance (the Resolution still sets the render size)
+    upscale_mode = 1        ; with fsr = 3: 0 DLAA, 1 Quality, 2 Balanced, 3 Performance (with fsr = 2 or 3 it sets the render size, not render_scale)
     battle_shadows = 1   ; 0: no shadows in battle
     battle_sky = 0       ; 1: a sky behind battles, the stage's far side fading into it
     battle_form_name = 0 ; 1: the battle HUD names the partner's current form
