@@ -136,16 +136,25 @@ static const char *BLIT_HLSL =
     "Texture2D tx : register(t0);\n"
     "SamplerState lin : register(s0);\n"
     "SamplerState pt : register(s1);\n"
-    "struct VO { float4 p : SV_Position; float2 t : TEXCOORD0; };\n"
+    "struct VO { float4 p : SV_Position; float2 t : TEXCOORD0; nointerpolation float4 k : TEXCOORD1; };\n"
     "VO vs(uint id : SV_VertexID) {\n"
     "    float2 c = float2(id & 1, id >> 1);\n"
     "    VO o;\n"
     "    o.p = float4(c.x * 2 - 1, 1 - c.y * 2, 0, 1);\n"
     "    o.t = uv.xy + c * uv.zw;\n"
+    "    o.k = uv;\n"
     "    return o;\n"
     "}\n"
     "float4 ps(VO i) : SV_Target { return tx.Sample(lin, i.t); }\n"
-    "float4 psn(VO i) : SV_Target { return tx.Sample(pt, i.t); }\n";
+    "float4 psn(VO i) : SV_Target { return tx.Sample(pt, i.t); }\n"
+    /* the battle shadows' blur (gl.c's SOFT_FS): k.xy a tap's step in pixels, k.z 0 for the blurred mask itself, else how much of the ground it takes */
+    "static const float W[5] = {0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216};\n"
+    "float4 psb(VO i) : SV_Target {\n"
+    "    int2 at = (int2)i.p.xy, dir = (int2)i.k.xy;\n"
+    "    float m = tx.Load(int3(at, 0)).r * W[0];\n"
+    "    for (int n = 1; n < 5; n++) m += (tx.Load(int3(at + dir * n, 0)).r + tx.Load(int3(at - dir * n, 0)).r) * W[n];\n"
+    "    return i.k.z > 0.0 ? float4(m * i.k.z, m * i.k.z, m * i.k.z, 0.0) : float4(m, m, m, m);\n"
+    "}\n";
 
 /* --- the device --- */
 
@@ -154,7 +163,9 @@ typedef struct {
     D3D12_RESOURCE_STATES st;
 } Tex;
 
-enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_COUNT }; /* the SRV heap's slots */
+enum { S_PIC, S_MENU, S_VRAM, S_RT, S_TMP, S_MASK, S_BLUR, S_COUNT }; /* the SRV heap's slots */
+#define MAX_IMG 1024 /* the port's own images (icons, postcards, effects): their slots follow S_COUNT */
+enum { R_RT = FRAMES, R_MASK, R_BLUR, R_COUNT }; /* the RTV heap's, after the back buffers */
 
 static SDL_Window *s_window;
 static ID3D12Device *s_dev;
@@ -162,11 +173,11 @@ static ID3D12CommandQueue *s_queue;
 static IDXGISwapChain3 *s_swap;
 static ID3D12DescriptorHeap *s_rtv_heap, *s_srv_heap, *s_dsv_heap;
 static ID3D12Resource *s_back[FRAMES], *s_up_pic, *s_up_menu, *s_read, *s_ring_res;
-static Tex s_pic, s_menu, s_vram, s_rt, s_tmp, s_depth;
+static Tex s_pic, s_menu, s_vram, s_rt, s_tmp, s_depth, s_mask, s_blur; /* the mask and its blur: battle shadows (R8) */
 static ID3D12CommandAllocator *s_alloc;
 static ID3D12GraphicsCommandList *s_list;
 static ID3D12RootSignature *s_main_root, *s_blit_root;
-static ID3D12PipelineState *s_pso_present, *s_pso_copy, *s_pso_copyn, *s_pso_over;
+static ID3D12PipelineState *s_pso_present, *s_pso_copy, *s_pso_copyn, *s_pso_over, *s_pso_blur, *s_pso_dark, *s_pso_img, *s_pso_add, *s_pso_mask[2]; /* the mask's: without and with the depth test */
 static ID3D12PipelineState *s_pso_main[6 * 3]; /* made on first use: (blend + 1) * 3 + depth mode */
 static ID3DBlob *s_main_vs, *s_main_ps;
 static D3D12_INPUT_ELEMENT_DESC s_layout[8];
@@ -180,6 +191,10 @@ static UINT s_read_pitch, s_ring_off;
 
 static GVtx *s_batch;
 static int s_count, s_semi = -1, s_deep, s_clip[4] = {0, 0, 1023, 511};
+static int s_mask_box[4] = {VRAM_W, VRAM_H, -1, -1}; /* what the mask holds, in VRAM pixels */
+/* a battle's fog (gl.c has the same): the background colour this frame (5 bits), the fog shown, the farthest opaque 3D */
+static float s_bg[3], s_fog[3], s_fog_amount, s_fog_from, s_zfar, s_zframe;
+static int s_fog_on, s_fog_shown;
 
 #define OK(x) ((x) >= 0)
 
@@ -219,6 +234,10 @@ static Tex texture(int w, int h, DXGI_FORMAT fmt, D3D12_RESOURCE_FLAGS flags, D3
     return t;
 }
 
+/* what a frame cost, logged when it was long (the hitches): the GPU waits, the images made, the VRAM uploads */
+static Uint64 s_wait_ns, s_img_ns;
+static int s_nsub, s_nimg_made, s_nup;
+
 static void list(void) {
     ID3D12DescriptorHeap *heaps[1] = {s_srv_heap};
 
@@ -234,15 +253,19 @@ static void list(void) {
 /* the open list run and waited for: the uploads are free again */
 static void submit(void) {
     ID3D12CommandList *l[1] = {(ID3D12CommandList *)s_list};
+    Uint64 t0;
 
     if (!s_open) {
         return;
     }
+    t0 = SDL_GetTicksNS();
+
     ID3D12GraphicsCommandList_Close(s_list);
     ID3D12CommandQueue_ExecuteCommandLists(s_queue, 1, l);
     wait_idle();
     s_open = 0;
     s_ring_off = 0;
+    s_wait_ns += SDL_GetTicksNS() - t0, s_nsub++;
 }
 
 static void trans(Tex *t, D3D12_RESOURCE_STATES to) {
@@ -377,7 +400,31 @@ static ID3D12PipelineState *main_pso(int semi, int depth) {
     return s_pso_main[k];
 }
 
-static ID3D12PipelineState *blit_pso(ID3DBlob *vs, ID3DBlob *ps, int write_alpha) {
+/* The battle shadows' batches: the main shader into the R8 mask, the largest of what overlaps (a pixel once), no depth */
+static ID3D12PipelineState *mask_pso(int depth) {
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC d = {0};
+    D3D12_RENDER_TARGET_BLEND_DESC *b = &d.BlendState.RenderTarget[0];
+    ID3D12PipelineState *p = NULL;
+
+    d.pRootSignature = s_main_root;
+    d.VS.pShaderBytecode = ID3D10Blob_GetBufferPointer(s_main_vs), d.VS.BytecodeLength = ID3D10Blob_GetBufferSize(s_main_vs);
+    d.PS.pShaderBytecode = ID3D10Blob_GetBufferPointer(s_main_ps), d.PS.BytecodeLength = ID3D10Blob_GetBufferSize(s_main_ps);
+    d.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID, d.RasterizerState.CullMode = D3D12_CULL_MODE_NONE, d.RasterizerState.DepthClipEnable = TRUE;
+    b->BlendEnable = TRUE, b->SrcBlend = b->DestBlend = b->SrcBlendAlpha = b->DestBlendAlpha = D3D12_BLEND_ONE;
+    b->BlendOp = b->BlendOpAlpha = D3D12_BLEND_OP_MAX, b->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    /* the models' depth hides what is behind them (not written), the shadow lying on the ground it falls on (gl.c's polygon offset) */
+    d.DepthStencilState.DepthEnable = depth != 0, d.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    d.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    d.RasterizerState.DepthBias = -4, d.RasterizerState.SlopeScaledDepthBias = -1.0f;
+    d.InputLayout.pInputElementDescs = s_layout, d.InputLayout.NumElements = 8;
+    d.SampleMask = 0xFFFFFFFFu, d.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    d.NumRenderTargets = 1, d.RTVFormats[0] = DXGI_FORMAT_R8_UNORM, d.DSVFormat = DXGI_FORMAT_D32_FLOAT, d.SampleDesc.Count = 1;
+    ID3D12Device_CreateGraphicsPipelineState(s_dev, &d, &IID_ID3D12PipelineState, (void **)&p);
+    return p;
+}
+
+/* write_alpha: 0 the window's (opaque), 1 the copy's, 2 over (the menu's alpha), 3 back * (1 - front) onto the copy (the shadows); fmt the target's */
+static ID3D12PipelineState *blit_pso(ID3DBlob *vs, ID3DBlob *ps, int write_alpha, DXGI_FORMAT fmt) {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC d = {0};
     ID3D12PipelineState *p = NULL;
 
@@ -395,8 +442,21 @@ static ID3D12PipelineState *blit_pso(ID3DBlob *vs, ID3DBlob *ps, int write_alpha
         d.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA, d.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
         d.BlendState.RenderTarget[0].RenderTargetWriteMask = 7;
     }
+    if (write_alpha == 4 || write_alpha == 5) { /* a premultiplied image over the copy, or added to it; the copy's alpha (its mask bit) is kept */
+        d.BlendState.RenderTarget[0].BlendEnable = TRUE;
+        d.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+        d.BlendState.RenderTarget[0].DestBlend = write_alpha == 5 ? D3D12_BLEND_ONE : D3D12_BLEND_INV_SRC_ALPHA;
+        d.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+        d.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ZERO;
+        d.BlendState.RenderTarget[0].RenderTargetWriteMask = 7;
+    }
+    if (write_alpha == 3) {
+        d.BlendState.RenderTarget[0].BlendEnable = TRUE;
+        d.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ZERO, d.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_COLOR;
+        d.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+    }
     d.SampleMask = 0xFFFFFFFFu, d.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    d.NumRenderTargets = 1, d.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM, d.SampleDesc.Count = 1;
+    d.NumRenderTargets = 1, d.RTVFormats[0] = fmt, d.SampleDesc.Count = 1;
     ID3D12Device_CreateGraphicsPipelineState(s_dev, &d, &IID_ID3D12PipelineState, (void **)&p);
     return p;
 }
@@ -428,8 +488,8 @@ uint64_t gfx_window_flags(void) {
 int gfx_init(SDL_Window *window) {
     HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
     D3D12_COMMAND_QUEUE_DESC qd = {D3D12_COMMAND_LIST_TYPE_DIRECT, 0, 0, 0};
-    D3D12_DESCRIPTOR_HEAP_DESC rd = {D3D12_DESCRIPTOR_HEAP_TYPE_RTV, FRAMES + 1, 0, 0};
-    D3D12_DESCRIPTOR_HEAP_DESC sd = {D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, S_COUNT, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 0};
+    D3D12_DESCRIPTOR_HEAP_DESC rd = {D3D12_DESCRIPTOR_HEAP_TYPE_RTV, R_COUNT, 0, 0};
+    D3D12_DESCRIPTOR_HEAP_DESC sd = {D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, S_COUNT + MAX_IMG,D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 0};
     D3D12_DESCRIPTOR_HEAP_DESC dd = {D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, 0, 0};
     IDXGIFactory4 *fac = NULL;
     IDXGISwapChain1 *sc = NULL;
@@ -438,7 +498,7 @@ int gfx_init(SDL_Window *window) {
     D3D12_ROOT_PARAMETER rp[2] = {0};
     D3D12_STATIC_SAMPLER_DESC ss[2] = {0};
     D3D12_ROOT_SIGNATURE_DESC rsd = {0};
-    ID3DBlob *bvs = NULL, *bps = NULL, *bpsn = NULL;
+    ID3DBlob *bvs = NULL, *bps = NULL, *bpsn = NULL, *bpsb = NULL;
     static const struct { const char *name; UINT idx; DXGI_FORMAT fmt; UINT off; } L[8] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0}, {"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UINT, 16},
         {"TEXCOORD", 0, DXGI_FORMAT_R16G16B16A16_UINT, 20}, {"TEXCOORD", 1, DXGI_FORMAT_R16G16B16A16_UINT, 28},
@@ -494,24 +554,33 @@ int gfx_init(SDL_Window *window) {
     rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     s_main_root = root(&rsd);
     if (s_blit_root == NULL || s_main_root == NULL || !compile(BLIT_HLSL, "vs", "vs_5_0", &bvs) || !compile(BLIT_HLSL, "ps", "ps_5_0", &bps) ||
-        !compile(BLIT_HLSL, "psn", "ps_5_0", &bpsn) || !compile(MAIN_HLSL, "vs", "vs_5_0", &s_main_vs) || !compile(MAIN_HLSL, "ps", "ps_5_0", &s_main_ps)) {
+        !compile(BLIT_HLSL, "psn", "ps_5_0", &bpsn) || !compile(BLIT_HLSL, "psb", "ps_5_0", &bpsb) ||!compile(MAIN_HLSL, "vs", "vs_5_0", &s_main_vs) || !compile(MAIN_HLSL, "ps", "ps_5_0", &s_main_ps)) {
         return 0;
     }
     for (i = 0; i < 8; i++) {
         s_layout[i].SemanticName = L[i].name, s_layout[i].SemanticIndex = L[i].idx, s_layout[i].Format = L[i].fmt;
         s_layout[i].AlignedByteOffset = L[i].off, s_layout[i].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
     }
-    s_pso_present = blit_pso(bvs, bps, 0);
-    s_pso_copy = blit_pso(bvs, bps, 1);
-    s_pso_over = blit_pso(bvs, bps, 2);
-    s_pso_copyn = blit_pso(bvs, bpsn, 1);
+    s_pso_present = blit_pso(bvs, bps, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+    s_pso_copy = blit_pso(bvs, bps, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+    s_pso_over = blit_pso(bvs, bps, 2, DXGI_FORMAT_R8G8B8A8_UNORM);
+    s_pso_copyn = blit_pso(bvs, bpsn, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+    s_pso_img = blit_pso(bvs, bps, 4, DXGI_FORMAT_R8G8B8A8_UNORM);
+    s_pso_add = blit_pso(bvs, bps, 5, DXGI_FORMAT_R8G8B8A8_UNORM);
+    for (i = 0; i < 6 * 3; i++) { /* all the main shader's states now: made in the middle of a fight they would be a hitch */
+        main_pso(i / 3 - 1, i % 3);
+    }
+    s_pso_blur = blit_pso(bvs, bpsb, 1, DXGI_FORMAT_R8_UNORM);
+    s_pso_dark = blit_pso(bvs, bpsb, 3, DXGI_FORMAT_R8G8B8A8_UNORM);
+    s_pso_mask[0] = mask_pso(0);
+    s_pso_mask[1] = mask_pso(1);
     s_pic = texture(VRAM_W, VRAM_H, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
     s_menu = texture(MENU_W, MENU_H, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
     s_vram = texture(VRAM_W, VRAM_H, DXGI_FORMAT_R16_UINT, 0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
     s_up_pic = buffer(D3D12_HEAP_TYPE_UPLOAD, (UINT64)VRAM_W * 4 * VRAM_H, D3D12_RESOURCE_STATE_GENERIC_READ, &s_up_pic_ptr);
     s_up_menu = buffer(D3D12_HEAP_TYPE_UPLOAD, (UINT64)((MENU_W * 4 + 255) & ~255) * MENU_H, D3D12_RESOURCE_STATE_GENERIC_READ, &s_up_menu_ptr);
     s_ring_res = buffer(D3D12_HEAP_TYPE_UPLOAD, RING, D3D12_RESOURCE_STATE_GENERIC_READ, &s_ring);
-    if (s_pso_present == NULL || s_pso_copy == NULL || s_pso_copyn == NULL || s_pso_over == NULL || s_pic.r == NULL || s_menu.r == NULL || s_vram.r == NULL ||
+    if (s_pso_present == NULL || s_pso_copy == NULL || s_pso_copyn == NULL || s_pso_over == NULL || s_pso_blur == NULL || s_pso_dark == NULL || s_pso_img == NULL || s_pso_add == NULL ||s_pso_mask[0] == NULL || s_pso_mask[1] == NULL || s_pic.r == NULL || s_menu.r == NULL || s_vram.r == NULL ||
         s_up_pic == NULL || s_up_menu == NULL || s_ring_res == NULL) {
         SDL_Log("d3d12: resources");
         return 0;
@@ -551,6 +620,7 @@ static void upload(int x, int y, int w, int h) {
     UINT8 *p;
     int r;
 
+    s_nup++;
     list();
     p = ring_alloc(pitch * (UINT)h, &off);
     for (r = 0; r < h; r++) {
@@ -634,16 +704,38 @@ static void flush_batch(void) {
     if (s_count == 0) {
         return;
     }
-    if (s_semi == 5) { /* a battle shadow: the mask's, not here yet */
+    if (s_semi == 5 && s_mask.r == NULL) {
         s_count = 0, s_semi = -1;
         return;
     }
+    k.fog[0] = s_fog[0], k.fog[1] = s_fog[1], k.fog[2] = s_fog[2], k.fog[3] = s_fog_shown && s_zfar > 0 ? s_fog_amount : 0.0f;
+    k.fogz[0] = s_zfar * s_fog_from, k.fogz[1] = s_zfar;
     list();
     p = ring_alloc(bytes, &off);
     SDL_memcpy(p, s_batch, bytes);
     trans(&s_vram, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    trans(&s_rt, D3D12_RESOURCE_STATE_RENDER_TARGET);
     vb.BufferLocation = ID3D12Resource_GetGPUVirtualAddress(s_ring_res) + off, vb.SizeInBytes = bytes, vb.StrideInBytes = sizeof(GVtx);
+    if (s_semi == 5) { /* a battle shadow: into the mask (gfx_shadows_resolve) */
+        D3D12_CPU_DESCRIPTOR_HANDLE mrtv = rtv_at(R_MASK);
+
+        trans(&s_mask, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        ID3D12GraphicsCommandList_OMSetRenderTargets(s_list, 1, &mrtv, FALSE, &dsv);
+        ID3D12GraphicsCommandList_RSSetViewports(s_list, 1, &vp);
+        ID3D12GraphicsCommandList_RSSetScissorRects(s_list, 1, &sc);
+        ID3D12GraphicsCommandList_SetGraphicsRootSignature(s_list, s_main_root);
+        g.ptr += (UINT64)S_VRAM * s_srv_inc;
+        ID3D12GraphicsCommandList_SetGraphicsRootDescriptorTable(s_list, 0, g);
+        ID3D12GraphicsCommandList_IASetPrimitiveTopology(s_list, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        ID3D12GraphicsCommandList_IASetVertexBuffers(s_list, 0, 1, &vb);
+        k.pass = 2;
+        ID3D12GraphicsCommandList_SetPipelineState(s_list, s_pso_mask[s_deep ? 1 : 0]);
+        ID3D12GraphicsCommandList_SetGraphicsRoot32BitConstants(s_list, 1, 16, &k, 0);
+        ID3D12GraphicsCommandList_DrawInstanced(s_list, (UINT)s_count, 1, 0, 0);
+        s_count = 0;
+        s_semi = -1;
+        return;
+    }
+    trans(&s_rt, D3D12_RESOURCE_STATE_RENDER_TARGET);
     ID3D12GraphicsCommandList_OMSetRenderTargets(s_list, 1, &rtv, FALSE, &dsv);
     ID3D12GraphicsCommandList_RSSetViewports(s_list, 1, &vp);
     ID3D12GraphicsCommandList_RSSetScissorRects(s_list, 1, &sc);
@@ -695,13 +787,79 @@ void gfx_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int sem
     }
     if (semi_prim) {
         s_semi = semi;
+    } else if (v[0].w > 0 && !(v[0].mode & 2048)) { /* the fog's range: the farthest opaque 3D */
+        int i;
+
+        for (i = 0; i < n; i++) {
+            s_zframe = SDL_max(s_zframe, v[i].w);
+        }
+    }
+    if (semi == 5) { /* where the mask has shadows */
+        int i;
+
+        for (i = 0; i < n; i++) {
+            s_mask_box[0] = SDL_min(s_mask_box[0], (int)v[i].x);
+            s_mask_box[1] = SDL_min(s_mask_box[1], (int)v[i].y);
+            s_mask_box[2] = SDL_max(s_mask_box[2], (int)v[i].x + 1);
+            s_mask_box[3] = SDL_max(s_mask_box[3], (int)v[i].y + 1);
+        }
     }
     SDL_memcpy(&s_batch[s_count], v, n * sizeof(GVtx));
     s_count += n;
 }
 
-/* An ordering table drawn: the battle shadows' mask comes later */
-void gfx_shadows_resolve(void) {}
+static void quad(int slot, const int vp[4], const float uv[4], ID3D12PipelineState *pso);
+static void quad_sc(int slot, const int vp[4], const float uv[4], ID3D12PipelineState *pso, const D3D12_RECT *sc);
+
+/* An ordering table drawn: the battle shadows in the mask, blurred, darken the copy, and the mask is emptied */
+void gfx_shadows_resolve(void) {
+    int s = s_scale, step = SDL_max(1, s * 3 / 4), pad = 5 * step, r[4];
+    int full[4];
+    float across[4], down[4];
+    static const float zero[4] = {0, 0, 0, 0};
+    D3D12_RECT box;
+
+    if (s == 0 || s_mask_box[2] < 0 || s_mask.r == NULL) {
+        return;
+    }
+    flush();
+    r[0] = SDL_max(0, s_mask_box[0] * s - pad);
+    r[1] = SDL_max(0, s_mask_box[1] * s - pad);
+    r[2] = SDL_min(VRAM_W * s, s_mask_box[2] * s + pad) - r[0];
+    r[3] = SDL_min(VRAM_H * s, s_mask_box[3] * s + pad) - r[1];
+    s_mask_box[0] = VRAM_W, s_mask_box[1] = VRAM_H, s_mask_box[2] = s_mask_box[3] = -1;
+    if (r[2] <= 0 || r[3] <= 0) {
+        return;
+    }
+    box.left = r[0], box.top = r[1], box.right = r[0] + r[2], box.bottom = r[1] + r[3];
+    full[0] = full[1] = 0, full[2] = VRAM_W * s, full[3] = VRAM_H * s;
+    across[0] = (float)step, across[1] = 0, across[2] = 0, across[3] = 0;
+    down[0] = 0, down[1] = (float)step, down[2] = 0.5f, down[3] = 0;
+    list();
+    /* across: the mask into the blur */
+    trans(&s_mask, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    trans(&s_blur, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    {
+        D3D12_CPU_DESCRIPTOR_HANDLE b = rtv_at(R_BLUR);
+
+        ID3D12GraphicsCommandList_OMSetRenderTargets(s_list, 1, &b, FALSE, NULL);
+    }
+    quad_sc(S_MASK, full, across, s_pso_blur, &box);
+    /* down, darkening the copy: back * (1 - front) */
+    trans(&s_blur, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    trans(&s_rt, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    {
+        D3D12_CPU_DESCRIPTOR_HANDLE c = rtv_at(R_RT);
+
+        ID3D12GraphicsCommandList_OMSetRenderTargets(s_list, 1, &c, FALSE, NULL);
+    }
+    quad_sc(S_BLUR, full, down, s_pso_dark, &box);
+    /* empty for the next */
+    trans(&s_mask, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    trans(&s_blur, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    ID3D12GraphicsCommandList_ClearRenderTargetView(s_list, rtv_at(R_MASK), zero, 1, &box);
+    ID3D12GraphicsCommandList_ClearRenderTargetView(s_list, rtv_at(R_BLUR), zero, 1, &box);
+}
 
 void gfx_depth_clear(void) {
     D3D12_CPU_DESCRIPTOR_HANDLE dsv = ID3D12DescriptorHeap_GetCPUDescriptorHandleForHeapStart(s_dsv_heap);
@@ -741,14 +899,26 @@ void gfx_refresh(int x, int y, int w, int h) {
     flush();
 }
 
-void gfx_battle_fog(int r, int g, int b) { (void)r, (void)g, (void)b; }
+/* A battle's sky drawn (gpu_draw.c), its colour at the horizon the fog's: the stage's background colour (gl.c has the notes) */
+void gfx_battle_fog(int r, int g, int b) {
+    s_bg[0] = r / 8.0f, s_bg[1] = g / 8.0f, s_bg[2] = b / 8.0f;
+    s_fog_on = 1;
+}
 
 /* A rectangle of tex (its slot in the SRV heap) onto the viewport vp (pixels, from the top left) */
 static void quad(int slot, const int vp[4], const float uv[4], ID3D12PipelineState *pso) {
+    quad_sc(slot, vp, uv, pso, NULL);
+}
+
+/* The same cut to the rectangle sc (the viewport's when NULL) */
+static void quad_sc(int slot, const int vp[4], const float uv[4], ID3D12PipelineState *pso, const D3D12_RECT *scr) {
     D3D12_VIEWPORT v = {(float)vp[0], (float)vp[1], (float)vp[2], (float)vp[3], 0, 1};
     D3D12_RECT sc = {vp[0], vp[1], vp[0] + vp[2], vp[1] + vp[3]};
     D3D12_GPU_DESCRIPTOR_HANDLE g = ID3D12DescriptorHeap_GetGPUDescriptorHandleForHeapStart(s_srv_heap);
 
+    if (scr != NULL) {
+        sc = *scr;
+    }
     g.ptr += (UINT64)slot * s_srv_inc;
     ID3D12GraphicsCommandList_SetGraphicsRootSignature(s_list, s_blit_root);
     ID3D12GraphicsCommandList_SetPipelineState(s_list, pso);
@@ -823,6 +993,12 @@ void gfx_sync(int force) {
             ID3D12Resource_Release(s_tmp.r);
             ID3D12Resource_Release(s_depth.r);
         }
+        if (s_mask.r != NULL) {
+            ID3D12Resource_Release(s_mask.r);
+            ID3D12Resource_Release(s_blur.r);
+            s_mask.r = s_blur.r = NULL;
+        }
+        s_mask_box[0] = VRAM_W, s_mask_box[1] = VRAM_H, s_mask_box[2] = s_mask_box[3] = -1;
         s_scale = want;
         cd.DepthStencil.Depth = 1.0f;
         s_rt = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cc);
@@ -831,6 +1007,20 @@ void gfx_sync(int force) {
         if (s_rt.r == NULL || s_tmp.r == NULL || s_depth.r == NULL) {
             SDL_Log("d3d12: the copy at scale %d", want);
             return;
+        }
+        cc.Format = DXGI_FORMAT_R8_UNORM;
+        s_mask = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cc);
+        s_blur = texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cc);
+        if (s_mask.r == NULL || s_blur.r == NULL) {
+            SDL_Log("d3d12: the shadows' mask at scale %d", want); /* the shadows are left out: flush_batch drops them */
+            if (s_mask.r != NULL) ID3D12Resource_Release(s_mask.r);
+            if (s_blur.r != NULL) ID3D12Resource_Release(s_blur.r);
+            s_mask.r = s_blur.r = NULL;
+        } else {
+            ID3D12Device_CreateRenderTargetView(s_dev, s_mask.r, NULL, rtv_at(R_MASK));
+            ID3D12Device_CreateRenderTargetView(s_dev, s_blur.r, NULL, rtv_at(R_BLUR));
+            srv(&s_mask, S_MASK, DXGI_FORMAT_R8_UNORM);
+            srv(&s_blur, S_BLUR, DXGI_FORMAT_R8_UNORM);
         }
         ID3D12Device_CreateRenderTargetView(s_dev, s_rt.r, NULL, rtv_at(FRAMES));
         ID3D12Device_CreateDepthStencilView(s_dev, s_depth.r, NULL, ID3D12DescriptorHeap_GetCPUDescriptorHandleForHeapStart(s_dsv_heap));
@@ -850,9 +1040,119 @@ void gfx_sync(int force) {
 /* what the card does not draw yet: props, images */
 void gfx_depth_save(void) {}
 void gfx_depth_models(void) {}
-int gfx_image_prepare(const SDL_Surface *img, unsigned *tex) { (void)img, (void)tex; return 0; }
+
+static Tex s_imgs[MAX_IMG];
+static int s_nimg;
+
+/* An image's texture, made on first use (*tex is its number + 1): premultiplied, so that filtering doesn't bleed the transparent
+   texels' colour into the edges, and mipmapped (a box filter), so that a big image shrunk to the picture keeps its detail */
+static int image_tex(const SDL_Surface *img, unsigned *tex) {
+    D3D12_HEAP_PROPERTIES hp = {D3D12_HEAP_TYPE_DEFAULT, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 1, 1};
+    D3D12_RESOURCE_DESC rd = {D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0, 0, 0, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, {1, 0}, D3D12_TEXTURE_LAYOUT_UNKNOWN, 0};
+    D3D12_SHADER_RESOURCE_VIEW_DESC sd = {0};
+    D3D12_CPU_DESCRIPTOR_HANDLE h;
+    Tex t = {NULL, D3D12_RESOURCE_STATE_COPY_DEST};
+    uint8_t *cur;
+    int w = img->w, h2 = img->h, levels = 1, lv, i;
+
+    Uint64 t0 = SDL_GetTicksNS();
+
+    if (*tex != 0) {
+        return 1;
+    }
+    if (s_nimg >= MAX_IMG) {
+        return 0;
+    }
+    for (i = SDL_max(w, h2); i > 1; i >>= 1) {
+        levels++;
+    }
+    cur = SDL_malloc((size_t)w * h2 * 4);
+    if (cur == NULL || !SDL_PremultiplyAlpha(w, h2, img->format, img->pixels, img->pitch, SDL_PIXELFORMAT_RGBA32, cur, w * 4, false)) {
+        SDL_free(cur);
+        return 0;
+    }
+    rd.Width = (UINT64)w, rd.Height = (UINT)h2, rd.MipLevels = (UINT16)levels;
+    if (!OK(ID3D12Device_CreateCommittedResource(s_dev, &hp, D3D12_HEAP_FLAG_NONE, &rd, D3D12_RESOURCE_STATE_COPY_DEST, NULL, &IID_ID3D12Resource, (void **)&t.r))) {
+        SDL_free(cur);
+        return 0;
+    }
+    list();
+    for (lv = 0; lv < levels; lv++) {
+        UINT pitch = (UINT)((w * 4 + 255) & ~255), off;
+        UINT8 *p = ring_alloc(pitch * (UINT)h2, &off);
+        D3D12_TEXTURE_COPY_LOCATION dst = {0}, src = {0};
+        int nw = SDL_max(1, w / 2), nh = SDL_max(1, h2 / 2), x, y, c;
+        uint8_t *nxt = lv + 1 < levels ? SDL_malloc((size_t)nw * nh * 4) : NULL;
+
+        for (y = 0; y < h2; y++) {
+            SDL_memcpy(p + (size_t)y * pitch, cur + (size_t)y * w * 4, (size_t)w * 4);
+        }
+        dst.pResource = t.r, dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX, dst.SubresourceIndex = (UINT)lv;
+        src.pResource = s_ring_res, src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT, src.PlacedFootprint.Offset = off;
+        src.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM, src.PlacedFootprint.Footprint.Width = (UINT)w;
+        src.PlacedFootprint.Footprint.Height = (UINT)h2, src.PlacedFootprint.Footprint.Depth = 1, src.PlacedFootprint.Footprint.RowPitch = pitch;
+        ID3D12GraphicsCommandList_CopyTextureRegion(s_list, &dst, 0, 0, 0, &src, NULL);
+        if (nxt != NULL) {
+            for (y = 0; y < nh; y++) {
+                for (x = 0; x < nw; x++) {
+                    int x1 = SDL_min(x * 2 + 1, w - 1), y1 = SDL_min(y * 2 + 1, h2 - 1);
+
+                    for (c = 0; c < 4; c++) {
+                        nxt[((size_t)y * nw + x) * 4 + c] = (uint8_t)((cur[((size_t)y * 2 * w + x * 2) * 4 + c] + cur[((size_t)y * 2 * w + x1) * 4 + c] +
+                                                                    cur[((size_t)y1 * w + x * 2) * 4 + c] + cur[((size_t)y1 * w + x1) * 4 + c] + 2) / 4);
+                    }
+                }
+            }
+        }
+        SDL_free(cur);
+        cur = nxt, w = nw, h2 = nh;
+    }
+    trans(&t, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    s_imgs[s_nimg] = t;
+    sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM, sd.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    sd.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING, sd.Texture2D.MipLevels = (UINT)levels;
+    h = ID3D12DescriptorHeap_GetCPUDescriptorHandleForHeapStart(s_srv_heap);
+    h.ptr += (SIZE_T)(S_COUNT + s_nimg) * s_srv_inc;
+    ID3D12Device_CreateShaderResourceView(s_dev, t.r, &sd, h);
+    *tex = (unsigned)++s_nimg;
+    s_img_ns += SDL_GetTicksNS() - t0, s_nimg_made++;
+    return 1;
+}
+
+/* An image's texture made ahead of its first use (effects.c's warm-up), not in the frame it first shows */
+int gfx_image_prepare(const SDL_Surface *img, unsigned *tex) {
+    return s_scale != 0 && img != NULL && image_tex(img, tex); /* 0: the card isn't up yet */
+}
+
+/* An image of the port's own over the copy (platform.h): premultiplied over, or added; cut to the drawing area */
 void gfx_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
-    (void)img, (void)tex, (void)x0, (void)y0, (void)x1, (void)y1, (void)add, (void)cx1, (void)cy1, (void)cx2, (void)cy2;
+    int s = s_scale;
+    D3D12_VIEWPORT v;
+    D3D12_RECT sc = {cx1 * s, cy1 * s, (cx2 + 1) * s, (cy2 + 1) * s};
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv = rtv_at(R_RT);
+    D3D12_GPU_DESCRIPTOR_HANDLE g = ID3D12DescriptorHeap_GetGPUDescriptorHandleForHeapStart(s_srv_heap);
+    static const float uv[4] = {0, 0, 1, 1};
+
+    if (s == 0 || x1 <= x0 || y1 <= y0) {
+        return;
+    }
+    flush();
+    if (!image_tex(img, tex)) {
+        return;
+    }
+    list();
+    trans(&s_rt, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    v.TopLeftX = x0 * s, v.TopLeftY = y0 * s, v.Width = (x1 - x0) * s, v.Height = (y1 - y0) * s, v.MinDepth = 0, v.MaxDepth = 1;
+    g.ptr += (UINT64)(S_COUNT + (int)*tex - 1) * s_srv_inc;
+    ID3D12GraphicsCommandList_OMSetRenderTargets(s_list, 1, &rtv, FALSE, NULL);
+    ID3D12GraphicsCommandList_SetGraphicsRootSignature(s_list, s_blit_root);
+    ID3D12GraphicsCommandList_SetPipelineState(s_list, add ? s_pso_add : s_pso_img);
+    ID3D12GraphicsCommandList_RSSetViewports(s_list, 1, &v);
+    ID3D12GraphicsCommandList_RSSetScissorRects(s_list, 1, &sc);
+    ID3D12GraphicsCommandList_SetGraphicsRootDescriptorTable(s_list, 0, g);
+    ID3D12GraphicsCommandList_SetGraphicsRoot32BitConstants(s_list, 1, 4, uv, 0);
+    ID3D12GraphicsCommandList_IASetPrimitiveTopology(s_list, D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    ID3D12GraphicsCommandList_DrawInstanced(s_list, 4, 1, 0, 0);
 }
 void gfx_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo) {
     (void)img, (void)tex, (void)v, (void)n, (void)x1, (void)y1, (void)x2, (void)y2, (void)fogo;
@@ -901,6 +1201,23 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         return;
     }
     flush();
+    /* the fog for the next frame: on while a sky is drawn, its depths eased toward this frame's farthest (a camera's cut) */
+    {
+        float bright;
+        const StageFx *fx = stagefx_current(&bright);
+        int k;
+
+        s_fog_shown = s_fog_on && fx != NULL && fx->fog > 0;
+        if (s_fog_shown) {
+            for (k = 0; k < 3; k++) {
+                s_fog[k] = fx->fog_color[k] >= 0 ? fx->fog_color[k] * bright / 8.0f : s_bg[k];
+            }
+            s_fog_amount = fx->fog, s_fog_from = fx->fog_start;
+        }
+        stagefx_frame();
+    }
+    s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
+    s_fog_on = 0, s_zframe = 0;
     SDL_GetWindowSizeInPixels(s_window, &w, &h);
     if (w < 1 || h < 1) {
         return;
@@ -976,5 +1293,15 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
             SDL_memcpy((uint8_t *)(*shot)->pixels + (size_t)i * (*shot)->pitch, s_read_ptr + (size_t)i * s_read_pitch, (size_t)w * 4);
         }
     }
-    IDXGISwapChain3_Present(s_swap, g_vsync ? 1 : 0, 0);
+    {
+        Uint64 t0 = SDL_GetTicksNS(), pr;
+
+        IDXGISwapChain3_Present(s_swap, g_vsync ? 1 : 0, 0);
+        pr = SDL_GetTicksNS() - t0;
+        if (s_wait_ns > 14000000 ||s_img_ns > 3000000 || pr > 25000000) {
+            SDL_Log("d3d12: long frame: gpu wait %.1f ms in %d submits, %d images made in %.1f ms, %d vram uploads, present %.1f ms",
+                    s_wait_ns / 1e6, s_nsub, s_nimg_made, s_img_ns / 1e6, s_nup, pr / 1e6);
+        }
+        s_wait_ns = s_img_ns = 0, s_nsub = s_nimg_made = s_nup = 0;
+    }
 }
