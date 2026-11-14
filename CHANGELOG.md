@@ -8,6 +8,7 @@
 - **SMAA anti-aliasing** (Options, Graphics; `smaa`, off by default). The picture's jagged edges are smoothed and the rest is left sharp. Jimenez, Echevarria, Masia, Navarro and Gutierrez's SMAA 1x, as they publish it.
 - **FSR 1 upscaling** (Options, Graphics; `fsr`, off by default). With the Resolution below the window's size, the frames with 3D in them (the battles) are enlarged to the window by the upscaling pass of AMD's FidelityFX Super Resolution 1.0 instead of plain smoothing; Sharpen does the rest. For slow graphics cards: at a Resolution that matches the window it has nothing to do.
 - **FSR 3.1** (Options, Graphics, FSR upscaling: Off, FSR 1 or FSR 3.1; `fsr = 2`; the Direct3D 12 build only). AMD's temporal upscaler over the frames with 3D in them, fed with the game's own depth, motion and jitter. It is loaded at run time from AMD's two FidelityFX DLLs, which the player puts next to the exe; without them it stays off.
+- **FSR 3.1 files** (launcher, Settings, Graphics): downloads AMD's two DLLs from the FidelityFX SDK's tag v2.4.0 next to the game, each checked by its SHA-256. The port itself carries none of AMD's binaries.
 - **Preset** (Options, Graphics, first row). Original, Enhanced or Remaster set the tab's options at once; it reads Custom when they are at none of the three.
 
 ## v0.19.7 (beta)

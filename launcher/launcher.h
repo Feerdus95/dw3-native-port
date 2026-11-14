@@ -58,6 +58,7 @@ enum {
     S_B_UP, S_B_RIGHT, S_B_DOWN, S_B_LEFT, S_B_TRIANGLE, S_B_CIRCLE, S_B_CROSS, S_B_SQUARE,
     S_T_GET, S_T_OPEN, S_T_SETUP, S_T_DOWNLOADING, S_T_UNPACKING, S_T_PREPARING, S_T_READY, S_T_FAILED, S_T_CANCELLED, S_T_NO_START, S_T_BUSY, S_T_NEED_DISC,
     S_T_UPDATE, S_T_UPDATE_D, S_T_UPDATED, S_T_CLOSE_IT,
+    S_FSR_DLL, S_FSR_DLL_D, S_FSR_HAVE, S_FSR_DONE,
     S_TEAM, S_LAST_SAVE, S_LEVEL, S_NO_TEAM,
     S_SAVES, S_SAVES_D, S_EXPORT, S_EXPORT_D, S_IMPORT, S_IMPORT_D, S_UNDO, S_UNDO_D, S_SV_FOLDER, S_SV_FOLDER_D,
     S_SV_SLOT, S_SV_EMPTY, S_SV_DAMAGED, S_SV_NONE, S_SV_OK, S_SV_STALE, S_SV_NEWER, S_SV_BAD, S_SV_NOCARD,
@@ -140,6 +141,11 @@ void tool_update_activate(int tool);
 void tool_update_fake(const char *tag);
 bool tool_update_now(int tool); /* --tool-update: blocking, for the tests */
 bool tools_busy(void);
+void fsr_dll_activate(void);                     /* download FSR 3.1's two DLLs (fsr_dll.c) */
+void fsr_dll_value(char *out, int size);
+bool fsr_dll_busy(void);
+void fsr_dll_poll(void);
+void fsr_dll_shutdown(void);
 void tools_poll(void);
 void tools_shutdown(void);
 int tools_selftest(void);
