@@ -16,7 +16,7 @@ static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Battle sky and fog", "Form name in battle", "Smooth movies", "VSync", "Fullscreen", "Window size", "Inactive window", "Vibration", "Stick deadzone",
     "Fast text (hold X)", "Fast forward (Tab/R3)", "Menus in fast forward", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon", "Full EXP Share", "Tech visual upgrade", "Heal on level up", "Save anywhere", "Crest fix", "Custom effects", "Custom sounds", "Custom scripts",
     "Button icons", "Controls", "Skip PRESS START", "Menu cursor wraps", "Quit game",
-    "Sharpen", "Brightness", "Gamma", "Saturation", "Scanlines", "Integer scaling", "SMAA anti-aliasing", "FSR 1 upscaling", "Preset",
+    "Sharpen", "Brightness", "Gamma", "Saturation", "Scanlines", "Integer scaling", "SMAA anti-aliasing", "FSR upscaling", "Preset",
 };
 
 /* the tabs and their options, each list ending with -1 */
@@ -114,7 +114,12 @@ static void value(int item, char *out, size_t size) {
     case SHARPEN: SDL_snprintf(out, size, g_sharpen ? "%d" : "Off", g_sharpen); return;
     case PRESET: SDL_snprintf(out, size, "%s", PRESET_NAMES[preset()]); return;
     case SMAA: on = g_smaa; break;
-    case FSR: on = g_fsr; break;
+    case FSR: {
+        int st = gfx_fsr3_status();
+
+        SDL_snprintf(out, size, g_fsr == 0 ? "Off" : g_fsr == 1 ? "FSR 1" : st == 0 ? "FSR 3.1 (restart)" : st == 2 ? "FSR 3.1 (lower res.)" : "FSR 3.1");
+        return;
+    }
     case SCANLINES: SDL_snprintf(out, size, g_scanlines ? "%d" : "Off", g_scanlines); return;
     case INTEGER_SCALE: on = g_integer_scale; break;
     case BRIGHTNESS: SDL_snprintf(out, size, g_brightness ? "%+d" : "0", g_brightness); return;
@@ -214,7 +219,12 @@ static void change(int item, int dir) {
         break;
     }
     case SMAA: g_smaa = !g_smaa; break;
-    case FSR: g_fsr = !g_fsr; break;
+    case FSR: { /* Off, FSR 1, and FSR 3.1 where the renderer has it */
+        int top = gfx_fsr3_status() >= 0 ? 2 : 1;
+
+        g_fsr = (g_fsr + (dir < 0 ? top : 1)) % (top + 1);
+        break;
+    }
     case SCANLINES: g_scanlines = SDL_clamp(g_scanlines + (dir < 0 ? -1 : 1), 0, 10); break;
     case INTEGER_SCALE: g_integer_scale = !g_integer_scale; break;
     case BRIGHTNESS: g_brightness = SDL_clamp(g_brightness + (dir < 0 ? -1 : 1), -10, 10); break;

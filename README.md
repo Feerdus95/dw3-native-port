@@ -193,8 +193,7 @@ button can be changed in the options menu's Input tab, **Controls**.
     scanlines = 0        ; 1-10: dark lines between the game's rows
     integer_scale = 0    ; 1: the picture a whole multiple of 240 rows
     smaa = 0             ; 1: the picture's jagged edges smoothed (SMAA)
-    fsr = 0              ; 1: the 3D enlarged to the window by FSR 1, when render_scale is below it
-    fsr3 = 0             ; 1: FSR 3.1 over the 3D (Direct3D 12 build, needs AMD's two DLLs next to the exe)
+    fsr = 0              ; 1: the 3D enlarged to the window by FSR 1, when render_scale is below it; 2: FSR 3.1 (Direct3D 12 build, needs AMD's two DLLs next to the exe)
     battle_shadows = 1   ; 0: no shadows in battle
     battle_sky = 0       ; 1: a sky behind battles, the stage's far side fading into it
     battle_form_name = 0 ; 1: the battle HUD names the partner's current form

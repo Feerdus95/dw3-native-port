@@ -28,7 +28,8 @@ int g_depth = 1;
 int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1;
 int g_sharpen, g_brightness, g_gamma, g_saturation;
 int g_scanlines, g_integer_scale;
-int g_smaa, g_fsr, g_fsr3;
+int g_smaa, g_fsr;
+static int g_fsr3; /* FSR 3.1 chosen at the start, and its DLLs there: its data is made */
 int g_soft_shadows;
 int g_vsync = 1;
 int g_battle_shadows = 1;
@@ -225,7 +226,7 @@ static int s_mout_w, s_mout_h, s_do_mout;
 static float s_jit_px[2], s_jit_used[2]; /* s_jit_used: the jitter the frame being shown was drawn with */
 static unsigned s_jit_n;
 static Tex s_f3; /* FSR 3.1's output at the size of the window's picture (a UAV) */
-static int s_f3_w, s_f3_h, s_do_f3, s_f3_prev;
+static int s_f3_w, s_f3_h, s_do_f3, s_f3_prev, s_f3_state;
 static int s_p_w, s_p_h, s_fsr_w, s_fsr_h, s_smaa_tried, s_frame_3d; /* s_frame_3d: this frame has 3D in it */
 static ID3D12GraphicsCommandList *s_list;
 static ID3D12RootSignature *s_main_root, *s_blit_root;
@@ -698,9 +699,7 @@ int gfx_init(SDL_Window *window) {
     rsd.NumStaticSamplers = 0, rsd.pStaticSamplers = NULL;
     rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     s_main_root = root(&rsd);
-    if (g_fsr3 && !fx_load()) {
-        g_fsr3 = 0;
-    }
+    g_fsr3 = g_fsr == 2 && fx_load();
     if (g_fsr3) {
         gte_motion_enable();
     }
@@ -771,6 +770,13 @@ static void resize(int w, int h) {
     s_w = w, s_h = h;
     IDXGISwapChain3_ResizeBuffers(s_swap, FRAMES, (UINT)w, (UINT)h, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
     backbuffers();
+}
+
+int gfx_fsr3_status(void) {
+    if (!fx_load()) {
+        return -1;
+    }
+    return !g_fsr3 ? 0 : s_f3_state != 0 ? s_f3_state : 1;
 }
 
 int gfx_scale(void) {
@@ -1615,7 +1621,7 @@ static void post_prepare(const PSX_RECT *d, const int vp[4]) {
         smaa_init();
     }
     s_do_smaa = g_smaa && s_pso_smaa[2] != NULL;
-    f3 = g_fsr3 && s_fx_create != NULL && s_frame_3d && vp[2] >= pw && vp[3] >= ph;
+    f3 = g_fsr == 2 && g_fsr3 && s_fx_create != NULL && s_frame_3d && vp[2] >= pw && vp[3] >= ph;
     s_do_fsr = g_fsr && s_pso_easu != NULL && vp[3] > ph && s_frame_3d;
     if ((s_do_smaa || f3) && (pw != s_p_w || ph != s_p_h)) {
         submit(); /* the last frames' passes are done before their targets go */
@@ -1669,6 +1675,14 @@ static void post_prepare(const PSX_RECT *d, const int vp[4]) {
         s_f3_w = vp[2], s_f3_h = vp[3];
     }
     s_do_f3 = s_do_f3 && s_f3.r != NULL;
+    if (g_fsr3 && s_frame_3d) { /* what the menu says of it, and the log once */
+        int why = !(vp[2] >= pw && vp[3] >= ph), now = s_do_f3 ? 3 : why ? 2 : 1;
+
+        if (now != s_f3_state) {
+            SDL_Log(now == 3 ? "fsr3: running" : now == 2 ? "fsr3: idle, the render (%dx%d) is bigger than the window's picture (%dx%d): lower the Resolution" : "fsr3: idle, the data is not ready (%dx%d)", pw, ph, vp[2], vp[3]);
+            s_f3_state = now;
+        }
+    }
     if (s_do_f3) { /* it does the smoothing and the upscaling */
         s_do_smaa = s_do_fsr = 0;
     }

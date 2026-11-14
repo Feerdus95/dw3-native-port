@@ -48,15 +48,13 @@ smaa = 0
 
 # 1: with render_scale below the window's size, the 3D (the battles) is
 # enlarged to the window by AMD's FSR 1 rather than plainly smoothed;
-# for slow graphics cards. Best with some sharpen
+# for slow graphics cards. Best with some sharpen.
+# 2: FSR 3.1, AMD's temporal upscaler, in the Direct3D 12 build (x64) only.
+# It needs AMD's two DLLs next to the exe (amd_fidelityfx_loader_dx12.dll and
+# amd_fidelityfx_upscaler_dx12.dll, from the FidelityFX SDK) and a Resolution
+# below the window's size; without them it works as 1. Takes the place of
+# smaa on those frames. Choosing it in the options needs a restart
 fsr = 0
-
-# 1: FSR 3.1, AMD's temporal upscaler, over the 3D (the battles), in the
-# Direct3D 12 build (x64) only. It needs AMD's two DLLs next to the exe
-# (amd_fidelityfx_loader_dx12.dll and amd_fidelityfx_upscaler_dx12.dll, from
-# the FidelityFX SDK); without them it stays off. Takes the place of smaa and
-# fsr on those frames. Read at start
-fsr3 = 0
 
 # 0: no dithering (the PlayStation's, on shaded and blended polygons)
 dither = 1
