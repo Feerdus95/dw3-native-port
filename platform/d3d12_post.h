@@ -197,6 +197,6 @@ static const char *MOTION_HLSL =
     "}\n"
     "float4 mview(VO i) : SV_Target {\n"
     "    float2 m = t0.Load(int3(int2((i.p.xy - b.xy) * a.xy) + int2(a.zw), 0));\n"
-    "    float2 c = clamp(m / 16.0, -0.5, 0.5) + 0.5;\n"
+    "    float2 c = clamp(m / 0.5, -0.5, 0.5) + 0.5;\n"
     "    return float4(c.x, c.y, 0.5, 1.0);\n"
     "}\n";

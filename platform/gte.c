@@ -151,7 +151,7 @@ int gte_widescreen(void) {
 
 static int s_battle;
 static int s_mv_on = -1, s_mv_logs;
-static struct { int n, age[4], old, nd; double sum, big, dz, d[4096]; } s_mv; /* motion spike, see motion_track */
+static struct { int n, age[4], old, nd, q, found, moving; double sum, big, dz, d[4096]; } s_mv; /* motion spike, see motion_track */
 
 static int cmp_d(const void *a, const void *b) {
     double x = *(const double *)a, y = *(const double *)b;
@@ -166,14 +166,14 @@ int gte_in_battle(void) {
 void gte_precise_frame(void) {
     s_battle = getMode() >> 8 == 6; /* FIGHTSTG */
     s_wide = g_widescreen && s_battle;
-    if (s_mv.n > 0 && s_mv_logs < 40 && (s_mv_logs < 12 || s_frame % 60 == 0)) {
+    if (s_mv.n > 0 && s_mv_logs < 240 && (s_mv_logs < 12 || s_frame % 60 < 6)) {
         int hit = s_mv.age[1] + s_mv.age[2] + s_mv.age[3];
 
         qsort(s_mv.d, s_mv.nd, sizeof(double), cmp_d);
-        fprintf(stderr, "motion gte: %d stored, matched %d (1 ago), unmatched: %d over 8 stores, %d older, %d new; "
-                "move median %.2f, p90 %.2f, mean %.2f, max %.2f px\n",
-                s_mv.n, hit, s_mv.age[0], s_mv.old, s_mv.n - hit - s_mv.age[0] - s_mv.old,
-                s_mv.nd ? s_mv.d[s_mv.nd / 2] : 0.0, s_mv.nd ? s_mv.d[s_mv.nd * 9 / 10] : 0.0, hit ? s_mv.sum / hit : 0.0, s_mv.big);
+        fprintf(stderr, "motion gte f%d: %d stored, matched %d (1 ago), unmatched: %d over 8 stores, %d older, %d new; "
+                "move median %.2f, p90 %.2f, mean %.2f, max %.2f px; the drawing asked %d, found %d, moving %d\n",
+                s_frame, s_mv.n, hit, s_mv.age[0], s_mv.old, s_mv.n - hit - s_mv.age[0] - s_mv.old,
+                s_mv.nd ? s_mv.d[s_mv.nd / 2] : 0.0, s_mv.nd ? s_mv.d[s_mv.nd * 9 / 10] : 0.0, hit ? s_mv.sum / hit : 0.0, s_mv.big, s_mv.q, s_mv.found, s_mv.moving);
         s_mv_logs++;
     }
     memset(&s_mv, 0, sizeof s_mv);
@@ -308,6 +308,7 @@ int gte_precise_motion(const uint32_t *word, float *mx, float *my) {
     int ok = gte_motion_on() && g_subpixel && get(&s_by_addr, (uintptr_t)word, *word, &x, &y, &z, mv);
 
     *mx = ok ? mv[0] : 0, *my = ok ? mv[1] : 0;
+    s_mv.q++, s_mv.found += ok != 0, s_mv.moving += ok && (mv[0] > 0.25f || mv[0] < -0.25f || mv[1] > 0.25f || mv[1] < -0.25f);
     return ok;
 }
 

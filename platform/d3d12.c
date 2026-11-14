@@ -216,7 +216,7 @@ static ID3D12PipelineState *s_pso_post, *s_pso_easu, *s_pso_smaa[3];
 static int s_data_jitter;
 /* and the 3D's motion (gte.c tracks each vertex between frames): a second target of the main draws, R16G16F, in pixels of the copy,
    previous place minus this one; mshow draws it instead of the picture */
-static int s_data_motion, s_data_mshow, s_mv_clear;
+static int s_data_motion, s_data_mshow, s_mv_clear, s_mv_org[2], s_mv_org_set, s_mv_area; /* s_mv_org: where the frame's 3D was drawn (the clip's corner), not always where it is shown */
 static Tex s_mv;
 static ID3D12PipelineState *s_pso_mview;
 static float s_jit_px[2];
@@ -896,6 +896,10 @@ static void flush_batch(void) {
         D3D12_CPU_DESCRIPTOR_HANDLE two[2];
 
         two[0] = rtv, two[1] = rtv_at(R_MV);
+        if (s_deep && (s_clip[2] - s_clip[0] + 1) * (s_clip[3] - s_clip[1] + 1) > s_mv_area) { /* the biggest 3D (not a small window's, like the portrait) */
+            s_mv_org[0] = s_clip[0], s_mv_org[1] = s_clip[1], s_mv_org_set = 1;
+            s_mv_area = (s_clip[2] - s_clip[0] + 1) * (s_clip[3] - s_clip[1] + 1);
+        }
         trans(&s_mv, D3D12_RESOURCE_STATE_RENDER_TARGET);
         if (s_mv_clear) { /* the first draw of a frame: no motion yet */
             const float zero[4] = {0, 0, 0, 0};
@@ -1783,6 +1787,23 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     }
     s_frame_3d = s_zframe > 0;
     s_mv_clear = 1; /* (the motion of the next frame starts from nothing) */
+    if (s_data_mshow) {
+        static int shown_org[4] = {-1, -1, -1, -1};
+
+        if (!s_mv_org_set) {
+            s_mv_org[0] = d.x, s_mv_org[1] = d.y;
+        } else if (!(s_mv_org[0] >= d.x && s_mv_org[0] < d.x + d.w && s_mv_org[1] >= d.y && s_mv_org[1] < d.y + d.h)) {
+            /* the 3D is a window inside a buffer (not the one shown): the buffer's corner is the shown one's, 256 lines apart */
+            s_mv_org[0] = d.x, s_mv_org[1] = d.y >= 256 ? d.y - 256 : d.y + 256;
+        } else {
+            s_mv_org[0] = d.x, s_mv_org[1] = d.y;
+        }
+        if (s_frame_3d && (shown_org[0] != s_mv_org[0] || shown_org[1] != s_mv_org[1] || shown_org[2] != d.x || shown_org[3] != d.y)) {
+            shown_org[0] = s_mv_org[0], shown_org[1] = s_mv_org[1], shown_org[2] = d.x, shown_org[3] = d.y;
+            SDL_Log("d3d12: motion: 3D drawn at (%d,%d), shown from (%d,%d)", s_mv_org[0], s_mv_org[1], d.x, d.y);
+        }
+        s_mv_org_set = 0, s_mv_area = 0;
+    }
     s_zfar = !s_fog_on || s_zframe <= 0 ? 0 : s_zfar > 0 ? s_zfar + (s_zframe - s_zfar) * 0.2f : s_zframe;
     s_fog_on = 0, s_zframe = 0;
     if (s_data_jitter) { /* the next frame's: Halton (2, 3), 8 of them, centred on the pixel */
@@ -1855,8 +1876,8 @@ void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
         float uv[4] = {0, 0, d.w / (float)VRAM_W, d.h / (float)VRAM_H};
 
         quad(S_PIC, vp, uv, s_pso_present);
-    } else if (game && s_pso_mview != NULL && s_mv.r != NULL) { /* the 3D's motion itself, to look at */
-        float k[12] = {0, 0, 1, 1, d.w * s_scale / (float)vp[2], d.h * s_scale / (float)vp[3], (float)(d.x * s_scale), (float)(d.y * s_scale), (float)vp[0], (float)vp[1]};
+    } else if (game && s_frame_3d && s_pso_mview != NULL && s_mv.r != NULL) { /* the 3D's motion itself, to look at (only 3D frames: menus stay as they are) */
+        float k[12] = {0, 0, 1, 1, d.w * s_scale / (float)vp[2], d.h * s_scale / (float)vp[3], (float)(s_mv_org[0] * s_scale), (float)(s_mv_org[1] * s_scale), (float)vp[0], (float)vp[1]};
 
         trans(&s_mv, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         draw_k(s_blit_root, s_pso_mview, S_MV, vp, k);
