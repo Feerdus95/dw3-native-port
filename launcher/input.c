@@ -176,6 +176,7 @@ static void activate(int id)
     case S_CREDITS: open_credits(); break;
     case S_FSR_DLL: fsr_dll_activate(); break;
     case S_DS_DLL: ds_dll_activate(); break;
+    case S_DLSS_DLL: dlss_dll_activate(); break;
     case S_CHECK:
         if (tools_busy()) { /* the check would write what the download reads */
             g_app.note = L->s[S_T_BUSY];
@@ -400,6 +401,7 @@ bool screens_tick(void)
     tools_poll();
     fsr_dll_poll();
     ds_dll_poll();
+    dlss_dll_poll();
     port_update_poll();
     saves_poll();
     if (game_ended(&code) && code != 0) {
@@ -410,7 +412,7 @@ bool screens_tick(void)
     if (message >= 0) {
         g_app.note = L->s[message];
     }
-    return first_run_reading() || game_running() || release_busy() || tools_busy() || fsr_dll_busy() || ds_dll_busy() || port_updating() || saves_busy() || bind_capturing() >= 0;
+    return first_run_reading() || game_running() || release_busy() || tools_busy() || fsr_dll_busy() || ds_dll_busy() || dlss_dll_busy() || port_updating() || saves_busy() || bind_capturing() >= 0;
 }
 
 /* the settings kept, the disc's reading stopped cleanly; the game, if running, goes on */
@@ -421,6 +423,7 @@ void screens_shutdown(void)
     tools_shutdown();
     fsr_dll_shutdown();
     ds_dll_shutdown();
+    dlss_dll_shutdown();
     if (g_app.screen == SC_SETTINGS) {
         options_save();
     }

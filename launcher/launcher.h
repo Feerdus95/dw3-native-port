@@ -58,7 +58,7 @@ enum {
     S_B_UP, S_B_RIGHT, S_B_DOWN, S_B_LEFT, S_B_TRIANGLE, S_B_CIRCLE, S_B_CROSS, S_B_SQUARE,
     S_T_GET, S_T_OPEN, S_T_SETUP, S_T_DOWNLOADING, S_T_UNPACKING, S_T_PREPARING, S_T_READY, S_T_FAILED, S_T_CANCELLED, S_T_NO_START, S_T_BUSY, S_T_NEED_DISC,
     S_T_UPDATE, S_T_UPDATE_D, S_T_UPDATED, S_T_CLOSE_IT,
-    S_FSR_DLL, S_FSR_DLL_D, S_FSR_HAVE, S_FSR_DONE, S_DS_DLL, S_DS_DLL_D, S_DS_DONE,
+    S_FSR_DLL, S_FSR_DLL_D, S_FSR_HAVE, S_FSR_DONE, S_DS_DLL, S_DS_DLL_D, S_DS_DONE, S_DLSS_DLL, S_DLSS_DLL_D, S_DLSS_DONE,
     S_TEAM, S_LAST_SAVE, S_LEVEL, S_NO_TEAM,
     S_SAVES, S_SAVES_D, S_EXPORT, S_EXPORT_D, S_IMPORT, S_IMPORT_D, S_UNDO, S_UNDO_D, S_SV_FOLDER, S_SV_FOLDER_D,
     S_SV_SLOT, S_SV_EMPTY, S_SV_DAMAGED, S_SV_NONE, S_SV_OK, S_SV_STALE, S_SV_NEWER, S_SV_BAD, S_SV_NOCARD,
@@ -153,6 +153,12 @@ bool ds_dll_busy(void);
 bool ds_dll_have(void);
 void ds_dll_poll(void);
 void ds_dll_shutdown(void);
+void dlss_dll_activate(void);                    /* download DLSS's four DLLs (dlss_dll.c) */
+void dlss_dll_value(char *out, int size);
+bool dlss_dll_busy(void);
+bool dlss_dll_have(void);                        /* all four are next to the game: DLSS can be chosen */
+void dlss_dll_poll(void);
+void dlss_dll_shutdown(void);
 void tools_poll(void);
 void tools_shutdown(void);
 int tools_selftest(void);

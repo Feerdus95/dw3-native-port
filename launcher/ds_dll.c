@@ -81,7 +81,7 @@ void ds_dll_activate(void)
 {
     if (s_thread) {
         SDL_SetAtomicInt(&s_stop, 1);
-    } else if (tools_busy() || port_updating() || fsr_dll_busy()) {
+    } else if (tools_busy() || port_updating() || fsr_dll_busy() || dlss_dll_busy()) {
         g_app.note = L->s[S_T_BUSY];
     } else if (ds_dll_have()) {
         g_app.note = L->s[S_FSR_HAVE];

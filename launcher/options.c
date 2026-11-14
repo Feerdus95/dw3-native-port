@@ -24,7 +24,7 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_SATURATION] = {"saturation", K_NUMBER, 0, -10, 10, 1},
     [O_SCANLINES] = {"scanlines", K_NUMBER, 0, 0, 10, 1},
     [O_SMAA] = {"smaa", K_BOOL, 0},
-    [O_FSR] = {"fsr", K_FSR, 0, 0, 2, 1},
+    [O_FSR] = {"fsr", K_FSR, 0, 0, 3, 1},
     [O_INTEGER] = {"integer_scale", K_BOOL, 0},
     [O_INACTIVE] = {"inactive_window", K_FOCUS, 0, 0, 2, 1},
     [O_FF_MENUS] = {"ff_menu_speed", K_BOOL, 0},
@@ -69,7 +69,8 @@ void options_load(void)
         case K_BOOL: s_value[o] = SDL_atoi(v) != 0; break;
         case K_FPS: s_value[o] = SDL_atoi(v) == 60 ? 60 : 50; break;
         case K_TIMES: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 8); break;
-        case K_FOCUS: case K_FSR: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 2); break;
+        case K_FOCUS: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 2); break;
+        case K_FSR: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 3); break;
         case K_NUMBER: s_value[o] = (short)SDL_clamp(SDL_atoi(v), DEF[o].min, DEF[o].max); break;
         case K_PERCENT: s_value[o] = (short)SDL_clamp((SDL_atoi(v) * 100 + 16383) / 32767, 0, 100); break;
         default:
@@ -131,7 +132,16 @@ void option_step(int o, int dir)
         s_value[o] = !s_value[o];
         return;
     }
-    const int v = s_value[o] + dir * DEF[o].step, max = o == O_FSR && !fsr_dll_have() ? 1 : DEF[o].max; /* FSR 3.1 is offered once its files are there */
+    if (o == O_FSR) { /* FSR 3.1 and DLSS are offered once their files are there */
+        const bool have[4] = {true, true, fsr_dll_have(), dlss_dll_have()};
+        int f = s_value[o];
+        do {
+            f = (f + (dir < 0 ? 3 : 1)) % 4;
+        } while (!have[f]);
+        s_value[o] = (short)f;
+        return;
+    }
+    const int v = s_value[o] + dir * DEF[o].step, max = DEF[o].max;
     s_value[o] = (short)(v > max ? DEF[o].min : v < DEF[o].min ? max : v);
 }
 
@@ -150,7 +160,7 @@ void option_value(int o, const Lang *l, char *out, int size)
         break;
     case K_FOCUS: SDL_snprintf(out, size, "%s", l->s[v == 2 ? S_PAUSE : v == 1 ? S_MUTE : S_OFF]); break;
     case K_PERCENT: SDL_snprintf(out, size, "%d%%", v); break;
-    case K_FSR: SDL_snprintf(out, size, "%s", v == 2 ? "FSR 3.1" : v == 1 ? "FSR 1" : l->s[S_OFF]); break;
+    case K_FSR: SDL_snprintf(out, size, "%s", v == 3 ? "DLSS" : v == 2 ? "FSR 3.1" : v == 1 ? "FSR 1" : l->s[S_OFF]); break;
     case K_NUMBER: /* from 0: off or a level; around 0: signed */
         if (v == 0) {
             SDL_snprintf(out, size, "%s", DEF[o].min == 0 ? l->s[S_OFF] : "0");
