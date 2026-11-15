@@ -230,7 +230,7 @@ button can be changed in the options menu's Input tab, **Controls**.
                          ;    F5 / F9 save / load a state (saves/quick.state)
     log =                ; extra logs: cd, snd, pad, mc, ovl, gpu or all (into log.txt when started from the launcher)
 
-**DirectStorage** (x64 build): with Microsoft's `dstorage.dll` and `dstoragecore.dll` next to the exe, the game reads its files through DirectStorage; without them, or if it fails, it reads them as before. There is no option: the launcher's Tools screen, **DirectStorage files**, downloads the two DLLs from Microsoft's NuGet package, each checked by its SHA-256.
+**DirectStorage** (x64 build): with Microsoft's `dstorage.dll` and `dstoragecore.dll` next to the exe, the game reads its files through DirectStorage; without them, or if it fails, it reads them as before. There is no option: the launcher's Tools screen, **DirectStorage files**, downloads the two DLLs from Microsoft's NuGet package, each checked by its SHA-256. The same goes for **FSR 3.1 files** and **DLSS files**: the launcher counts them as installed only while their SHA-256 matches, so a damaged or different DLL is offered for download again, and the download replaces it.
 
 ### Effects' own images (mods)
 
