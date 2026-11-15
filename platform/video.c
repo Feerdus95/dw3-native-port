@@ -32,7 +32,12 @@ void video_resize(int scale) {
 
 /* The game's boot image in the window while Direct3D 12 starts (with DLSS, NVIDIA's Streamline takes seconds there): the
    320x480 TIM that main.c's load_boot_image put at STAGE_VRAM, the one the game's main() shows first. Drawn by SDL in
-   software, letterboxed, and let go before the swap chain takes the window */
+   software where the renderer will show it (frame.c's picture: 4:3, whole rows with integer_scale; main() shows 640 rows
+   from (0, 0), the VRAM's 512 of them, so the image is its top 480/512 and a black band is left under it), unsmoothed as
+   there, with what is starting written in that band. Let go before the swap chain takes the window; nothing is presented
+   (present_frame) until the game shows the image itself, so it stays up to then */
+static int s_boot_shown;
+
 static void boot_image(SDL_Window *w) {
     extern uint8_t STAGE_VRAM[];
     const uint8_t *t = STAGE_VRAM + 4; /* after the TIM's ID word, as main() reads it: flags, block size, x, y, w, h, pixels */
@@ -52,15 +57,28 @@ static void boot_image(SDL_Window *w) {
         }
     }
     if ((win = SDL_GetWindowSurface(w)) != NULL) {
-        SDL_Rect r = {0, 0, win->h * 4 / 3, win->h};
+        const char *text = g_fsr == 3 ? "Starting DLSS (NVIDIA), it takes a few seconds..." : "Starting Direct3D 12...";
+        SDL_Rect vp = {0, 0, win->w * 3 > win->h * 4 ? win->h * 4 / 3 : win->w, win->w * 3 > win->h * 4 ? win->h : win->w * 3 / 4}, r;
+        SDL_Renderer *sr;
 
-        if (r.w > win->w) {
-            r.w = win->w, r.h = win->w * 3 / 4;
+        if (g_integer_scale && vp.h >= 240) {
+            vp.h = vp.h / 240 * 240, vp.w = vp.h * 4 / 3;
         }
-        r.x = (win->w - r.w) / 2, r.y = (win->h - r.h) / 2;
+        vp.x = (win->w - vp.w) / 2, vp.y = (win->h - vp.h) / 2;
+        r = (SDL_Rect){vp.x, vp.y, vp.w, vp.h * 480 / 512};
         SDL_FillSurfaceRect(win, NULL, 0);
-        SDL_BlitSurfaceScaled(img, NULL, win, &r, SDL_SCALEMODE_LINEAR);
+        SDL_BlitSurfaceScaled(img, NULL, win, &r, SDL_SCALEMODE_NEAREST);
+        if ((sr = SDL_CreateSoftwareRenderer(win)) != NULL) { /* the text, centred in the band */
+            const float k = (float)SDL_max(1, vp.h / 480), band = vp.h - r.h;
+
+            SDL_SetRenderScale(sr, k, k);
+            SDL_SetRenderDrawColor(sr, 255, 255, 255, 255);
+            SDL_RenderDebugText(sr, (vp.x + (vp.w - SDL_strlen(text) * 8 * k) / 2) / k, (r.y + r.h + (band - 8 * k) / 2) / k, text);
+            SDL_RenderPresent(sr);
+            SDL_DestroyRenderer(sr);
+        }
         SDL_UpdateWindowSurface(w);
+        s_boot_shown = 1;
         SDL_PumpEvents();
         SDL_DestroyWindowSurface(w);
     }
@@ -206,6 +224,10 @@ void present_frame(void) {
     int ff = !menu_active() && g_ff_speed > 1, pf = !menu_active() && perf_on();
 
     gfx_sync(0);
+    if (s_boot_shown && !g_disp_on && !menu_active() && n == 0) { /* main()'s black frames before its SetDispMask(1): boot_image's stays */
+        return;
+    }
+    s_boot_shown = 0;
     if (menu_active() || ff || pf) {
         SDL_SetRenderDrawColor(s_menu_renderer, 0, 0, 0, 0);
         SDL_RenderClear(s_menu_renderer);
