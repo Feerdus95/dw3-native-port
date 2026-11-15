@@ -144,6 +144,8 @@ void tool_update_activate(int tool);
 void tool_update_fake(const char *tag);
 bool tool_update_now(int tool); /* --tool-update: blocking, for the tests */
 bool tools_busy(void);
+bool sha256_is(const char *path, const char *want); /* the file there and its SHA-256 that one (tools_install.c) */
+bool dll_valid(signed char *state, const char *path, const char *want);
 void fsr_dll_activate(void);                     /* download FSR 3.1's two DLLs (fsr_dll.c) */
 void fsr_dll_value(char *out, int size);
 bool fsr_dll_busy(void);

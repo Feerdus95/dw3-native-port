@@ -214,10 +214,25 @@ static int SDLCALL reader(void *unused) {
     return 0;
 }
 
+/* 1 when the reader thread is there: tried once, and up only with both its semaphore and its thread made */
+static int reader_up(void) {
+    static int s_reader; /* 0 not tried, 1 up, -1 not: every read at once */
+
+    if (s_reader == 0) {
+        s_wake = SDL_CreateSemaphore(0);
+        s_reader = s_wake != NULL && SDL_CreateThread(reader, "cd read", NULL) != NULL ? 1 : -1;
+        if (s_reader < 0) {
+            LOG("files: no reader thread, disc reads at once");
+            SDL_DestroySemaphore(s_wake), s_wake = NULL;
+        }
+    }
+    return s_reader > 0;
+}
+
 void native_read_start(int fid, int sector, int count, void *dst) {
     long size;
 
-    if (made_file(fid, &size) != NULL || (s_wake == NULL && ((s_wake = SDL_CreateSemaphore(0)) == NULL || SDL_CreateThread(reader, "cd read", NULL) == NULL))) {
+    if (made_file(fid, &size) != NULL || !reader_up()) {
         native_read_file(fid, sector, count, dst); /* a made file is in memory; no thread: at once */
         return;
     }

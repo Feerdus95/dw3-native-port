@@ -1,6 +1,9 @@
 /* The Direct3D 12 renderer's device: the queue, the frames in flight, resources and their states, the GPU's timestamps, set up */
 #include "dx.h"
 
+#define DXS_INIT {.semi = -1, .clip = {0, 0, 1023, 511}, .mask_box = {VRAM_W, VRAM_H, -1, -1}, .depth_used = 1}
+SDL_COMPILE_TIME_ASSERT(dx_release_lists, FRAMES == 2 && FIF == 2); /* (dx_release names back[0..1] and s_alloc[0..1]) */
+
 static ID3D12CommandQueue *s_queue;
 
 static ID3D12Fence *s_fence;
@@ -208,11 +211,15 @@ void dx_upload_tex(Tex *tex, ID3D12Resource *up, int w, int h) {
     dx_trans(tex, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-static void backbuffers(void) {
+/* 1 when the back buffers are there */
+static int backbuffers(void) {
     int i;
 
     for (i = 0; i < FRAMES; i++) {
-        IDXGISwapChain3_GetBuffer(DXS.swap, (UINT)i, &IID_ID3D12Resource, (void **)&DXS.back[i]);
+        if (!OK(IDXGISwapChain3_GetBuffer(DXS.swap, (UINT)i, &IID_ID3D12Resource, (void **)&DXS.back[i]))) {
+            DXS.back[i] = NULL;
+            return 0;
+        }
         ID3D12Device_CreateRenderTargetView(DXS.dev, DXS.back[i], NULL, dx_rtv_at(i));
     }
     if (DXS.read != NULL) {
@@ -220,6 +227,49 @@ static void backbuffers(void) {
     }
     DXS.read_pitch = (UINT)((DXS.w * 4 + 255) & ~255);
     DXS.read = dx_buffer(D3D12_HEAP_TYPE_READBACK, (UINT64)DXS.read_pitch * (UINT)DXS.h, D3D12_RESOURCE_STATE_COPY_DEST, &DXS.read_ptr);
+    return 1;
+}
+
+static void rel(void *pp) {
+    IUnknown **p = pp;
+
+    if (*p != NULL) {
+        IUnknown_Release(*p);
+        *p = NULL;
+    }
+}
+
+/* All the device's own let go, from a start that stopped anywhere (dx_init's failures; again is harmless): the GPU waited for, Streamline
+   shut down before its proxies (the device, the swap chain) are released, each object once, the device last */
+static void dx_release(void) {
+    Tex *t[] = {&DXS.pic, &DXS.menu, &DXS.vram, &DXS.rt, &DXS.tmp, &DXS.depth, &DXS.mask, &DXS.blur, &DXS.p[0], &DXS.p[1], &DXS.p[2], &DXS.fsr,
+                &DXS.area, &DXS.search, &DXS.sd, &DXS.fd, &DXS.dout, &DXS.mv, &DXS.mout, &DXS.f3};
+    void *o[] = {&DXS.pso_present, &DXS.pso_copy, &DXS.pso_copyn, &DXS.pso_over, &DXS.pso_blur, &DXS.pso_dark, &DXS.pso_img, &DXS.pso_add,
+                 &DXS.pso_mask[0], &DXS.pso_mask[1], &DXS.pso_dkeep, &DXS.pso_dout, &DXS.pso_dview, &DXS.pso_post, &DXS.pso_easu,
+                 &DXS.pso_smaa[0], &DXS.pso_smaa[1], &DXS.pso_smaa[2], &DXS.pso_mview, &DXS.pso_mcopy, &DXS.main_root, &DXS.blit_root,
+                 &DXS.smaa_root, &DXS.main_vs, &DXS.main_ps, &DXS.main_psm, &DXS.up_pic, &DXS.up_menu, &DXS.read, &DXS.ring_res, &DXS.qread,
+                 &DXS.qheap, &DXS.back[0], &DXS.back[1], &DXS.list, &s_alloc[0], &s_alloc[1], &DXS.rtv_heap, &DXS.srv_heap, &DXS.dsv_heap,
+                 &s_fence, &DXS.swap, &s_queue, &DXS.dev};
+    size_t i;
+
+    wait_idle();
+    sl_stop();
+    for (i = 0; i < SDL_arraysize(DXS.pso_main); i++) {
+        rel(&DXS.pso_main[i]);
+    }
+    for (i = 0; i < SDL_arraysize(t); i++) {
+        rel(&t[i]->r);
+    }
+    for (i = 0; i < SDL_arraysize(o); i++) {
+        rel(o[i]);
+    }
+    if (s_event != NULL) {
+        CloseHandle(s_event);
+    }
+    s_event = NULL, s_fence_value = 0, s_qptr = NULL;
+    SDL_memset(s_slot_fence, 0, sizeof s_slot_fence);
+    SDL_free(DXS.batch);
+    DXS = (struct DxState)DXS_INIT;
 }
 
 /* The swap chain has the window from its creation on, shown empty until a present (in full screen, the desktop behind
@@ -283,21 +333,21 @@ int dx_init(SDL_Window *window) {
     DXS.window = window;
     SDL_GetWindowSizeInPixels(window, &DXS.w, &DXS.h);
     if ((DXS.batch = SDL_malloc(BATCH * sizeof(GVtx))) == NULL) {
-        return 0;
+        goto fail;
     }
     DXS.dlss = g_fsr == 3 && sl_start(); /* (before the device and the swap chain) */
     SDL_PumpEvents(); /* Streamline's start and the device with it take seconds each: Windows is answered in between,
                          so that the window is never "not responding" (5 s without its messages) */
     if (hwnd == NULL || !OK(p_D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, (void **)&DXS.dev))) {
         SDL_Log("d3d12: no device");
-        return 0;
+        goto fail;
     }
     DXS.dlss = DXS.dlss && sl_device(&DXS.dev);
     SDL_PumpEvents();
     if (!OK(ID3D12Device_CreateCommandQueue(DXS.dev, &qd, &IID_ID3D12CommandQueue, (void **)&s_queue)) ||
         !OK(p_CreateDXGIFactory1(&IID_IDXGIFactory4, (void **)&fac))) {
         SDL_Log("d3d12: no device");
-        return 0;
+        goto fail;
     }
     DXS.dlss = DXS.dlss && sl_factory(&fac);
     scd.Width = (UINT)DXS.w, scd.Height = (UINT)DXS.h, scd.Format = DXGI_FORMAT_R8G8B8A8_UNORM, scd.SampleDesc.Count = 1;
@@ -305,22 +355,30 @@ int dx_init(SDL_Window *window) {
     if (!OK(IDXGIFactory4_CreateSwapChainForHwnd(fac, (IUnknown *)s_queue, hwnd, &scd, NULL, NULL, &sc)) ||
         !OK(IDXGISwapChain1_QueryInterface(sc, &IID_IDXGISwapChain3, (void **)&DXS.swap))) {
         SDL_Log("d3d12: no swap chain");
-        return 0;
+        goto fail;
     }
     IDXGIFactory4_MakeWindowAssociation(fac, hwnd, DXGI_MWA_NO_ALT_ENTER);
-    ID3D12Device_CreateDescriptorHeap(DXS.dev, &rd, &IID_ID3D12DescriptorHeap, (void **)&DXS.rtv_heap);
-    ID3D12Device_CreateDescriptorHeap(DXS.dev, &sd, &IID_ID3D12DescriptorHeap, (void **)&DXS.srv_heap);
-    ID3D12Device_CreateDescriptorHeap(DXS.dev, &dd, &IID_ID3D12DescriptorHeap, (void **)&DXS.dsv_heap);
+    if (!OK(ID3D12Device_CreateDescriptorHeap(DXS.dev, &rd, &IID_ID3D12DescriptorHeap, (void **)&DXS.rtv_heap)) ||
+        !OK(ID3D12Device_CreateDescriptorHeap(DXS.dev, &sd, &IID_ID3D12DescriptorHeap, (void **)&DXS.srv_heap)) ||
+        !OK(ID3D12Device_CreateDescriptorHeap(DXS.dev, &dd, &IID_ID3D12DescriptorHeap, (void **)&DXS.dsv_heap))) {
+        SDL_Log("d3d12: no descriptor heaps");
+        goto fail;
+    }
     DXS.rtv_inc = ID3D12Device_GetDescriptorHandleIncrementSize(DXS.dev, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     DXS.srv_inc = ID3D12Device_GetDescriptorHandleIncrementSize(DXS.dev, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     for (i = 0; i < FIF; i++) {
-        ID3D12Device_CreateCommandAllocator(DXS.dev, D3D12_COMMAND_LIST_TYPE_DIRECT, &IID_ID3D12CommandAllocator, (void **)&s_alloc[i]);
+        if (!OK(ID3D12Device_CreateCommandAllocator(DXS.dev, D3D12_COMMAND_LIST_TYPE_DIRECT, &IID_ID3D12CommandAllocator, (void **)&s_alloc[i]))) {
+            SDL_Log("d3d12: no command allocator");
+            goto fail;
+        }
     }
-    ID3D12Device_CreateCommandList(DXS.dev, 0, D3D12_COMMAND_LIST_TYPE_DIRECT, s_alloc[0], NULL, &IID_ID3D12GraphicsCommandList, (void **)&DXS.list);
+    if (!OK(ID3D12Device_CreateCommandList(DXS.dev, 0, D3D12_COMMAND_LIST_TYPE_DIRECT, s_alloc[0], NULL, &IID_ID3D12GraphicsCommandList, (void **)&DXS.list)) ||
+        !OK(ID3D12Device_CreateFence(DXS.dev, 0, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence, (void **)&s_fence)) ||
+        (s_event = CreateEventA(NULL, FALSE, FALSE, NULL)) == NULL || !backbuffers()) {
+        SDL_Log("d3d12: no command list, fence or back buffers");
+        goto fail;
+    }
     ID3D12GraphicsCommandList_Close(DXS.list);
-    ID3D12Device_CreateFence(DXS.dev, 0, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence, (void **)&s_fence);
-    s_event = CreateEventA(NULL, FALSE, FALSE, NULL);
-    backbuffers();
     boot_picture();
     {
         D3D12_QUERY_HEAP_DESC qd2 = {D3D12_QUERY_HEAP_TYPE_TIMESTAMP, QMAX, 0};
@@ -350,9 +408,6 @@ int dx_init(SDL_Window *window) {
     rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     DXS.main_root = dx_root(&rsd);
     DXS.fsr3 = (g_fsr == 2 && fx_load()) || DXS.dlss;
-    if (DXS.fsr3) {
-        gte_motion_enable();
-    }
     {
         const char *e = SDL_getenv("DW3_UPSCALE_DATA");
 
@@ -361,7 +416,7 @@ int dx_init(SDL_Window *window) {
     }
     if (DXS.blit_root == NULL || DXS.main_root == NULL || !dx_compile(BLIT_HLSL, "vs", "vs_5_0", &bvs) || !dx_compile(BLIT_HLSL, "ps", "ps_5_0", &bps) ||
         !dx_compile(BLIT_HLSL, "psn", "ps_5_0", &bpsn) || !dx_compile(BLIT_HLSL, "psb", "ps_5_0", &bpsb) ||!dx_compile(MAIN_HLSL, "vs", "vs_5_0", &DXS.main_vs) || !dx_compile(MAIN_HLSL, "ps", "ps_5_0", &DXS.main_ps)) {
-        return 0;
+        goto fail;
     }
     if (DXS.data_motion && !dx_compile(MAIN_HLSL, "psm", "ps_5_0", &DXS.main_psm)) {
         DXS.data_motion = 0;
@@ -378,7 +433,7 @@ int dx_init(SDL_Window *window) {
     DXS.pso_add = blit_pso(bvs, bps, 5, DXGI_FORMAT_R8G8B8A8_UNORM);
     for (i = 0; i < 6 * 3; i++) { /* all the main shader's states now: made in the middle of a fight they would be a hitch */
         if (dx_main_pso(i / 3 - 1, i % 3) == NULL) {
-            return 0;
+            goto fail;
         }
     }
     DXS.pso_blur = blit_pso(bvs, bpsb, 1, DXGI_FORMAT_R8_UNORM);
@@ -400,14 +455,24 @@ int dx_init(SDL_Window *window) {
     if (DXS.pso_present == NULL || DXS.pso_copy == NULL || DXS.pso_copyn == NULL || DXS.pso_over == NULL || DXS.pso_blur == NULL || DXS.pso_dark == NULL || DXS.pso_img == NULL || DXS.pso_add == NULL ||DXS.pso_mask[0] == NULL || DXS.pso_mask[1] == NULL || DXS.pic.r == NULL || DXS.menu.r == NULL || DXS.vram.r == NULL ||
         DXS.up_pic == NULL || DXS.up_menu == NULL || DXS.ring_res == NULL) {
         SDL_Log("d3d12: resources");
-        return 0;
+        goto fail;
     }
     dx_srv(&DXS.pic, S_PIC, DXGI_FORMAT_R8G8B8A8_UNORM);
     dx_srv(&DXS.menu, S_MENU, DXGI_FORMAT_R8G8B8A8_UNORM);
     dx_srv(&DXS.vram, S_VRAM, DXGI_FORMAT_R16_UINT);
+    if (DXS.fsr3) {
+        gte_motion_enable(); /* (here, once nothing can fail: OpenGL taking over doesn't make the motion) */
+    }
     DXS.ready = 1;
     SDL_Log("d3d12: ready, %dx%d, in %.0f ms (shaders compiled in %.0f)", DXS.w, DXS.h, (SDL_GetTicksNS() - t_init) / 1e6, DXS.compile_ns / 1e6);
     return 1;
+fail: /* what was made let go, Streamline first (sc and fac may be its proxies): OpenGL takes over (video.c) */
+    SDL_Log("d3d12: the start failed, its resources released");
+    wait_idle();
+    sl_stop();
+    rel(&bvs), rel(&bps), rel(&bpsn), rel(&bpsb), rel(&sc), rel(&fac);
+    dx_release();
+    return 0;
 }
 
 void dx_resize(int w, int h) {
@@ -460,4 +525,4 @@ int dx_available(void) {
 
 const struct Gfx GFX_D3D12 = GFX_TABLE(dx, "D3D12");
 
-struct DxState DXS = {.semi = -1, .clip = {0, 0, 1023, 511}, .mask_box = {VRAM_W, VRAM_H, -1, -1}, .depth_used = 1};
+struct DxState DXS = DXS_INIT;
