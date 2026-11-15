@@ -43,6 +43,8 @@ tested by playing it through.
 
 - Windows 10 or 11.
 - A graphics card with OpenGL 3.3 (any from the last decade).
+- Two zips: `dw2003-native-x64.zip` for 64-bit Windows (Direct3D 12 or OpenGL, FSR 3.1, DLSS, DirectStorage), and
+  `dw2003-native.zip`, the 32-bit build (OpenGL only) for any other. Saves and `native.ini` work in both.
 - About 900 MB free: the game read from your disc goes next to the port.
 - Your disc of *Digimon World 2003 (Europe) (En,Fr,De,Es,It)*, as an image. A `.cue`/`.bin` pair is best; an `.iso`
   may cause issues (a plain 2048-byte one loses the movies' sound).
@@ -350,9 +352,8 @@ Then:
     python tools/package.py              # dist/dw2003-native.zip, refused if any of the game is in it
 
 `python build.py --x64` builds the 64-bit exe into `build-x64/` (llvm-mingw's `x86_64-w64-mingw32-clang`), with
-OpenGL and Direct3D 12 in one exe; `python tools/build_launcher.py --x64` its launcher. It is not released yet: the zip
-is the 32-bit build, so the x64-only options above (Renderer, FSR 3.1, DLSS, DirectStorage) are only in a build of
-your own for now.
+OpenGL and Direct3D 12 in one exe; `python tools/build_launcher.py --x64` its launcher, and
+`python tools/package.py --x64` its zip, `dist/dw2003-native-x64.zip`.
 
 The first build has no `data/` yet, so its exe keeps the game's tables and can read the disc into `data/`; every build
 after that takes them out (`tools/asset_scan.py`) and writes `dw2003.fill`. `python tools/smoke.py` builds and boots the
@@ -403,7 +404,8 @@ reescrito para PC en vez de emulado. Eso permite cambiar el juego como código f
 con el editor), archivos de cualquier tamaño, 3D dibujado hasta 8 veces más fino y, a futuro, otros sistemas. El
 precio: cada diferencia con la consola hay que encontrarla y corregirla a mano, por eso se prueba jugándolo entero.
 
-**Requisitos:** Windows 10 u 11, una tarjeta gráfica con OpenGL 3.3, unos 900 MB libres y tu disco de *Digimon World
+**Requisitos:** Windows 10 u 11, una tarjeta gráfica con OpenGL 3.3 (el zip x64, para Windows de 64 bits, suma
+Direct3D 12, FSR 3.1, DLSS y DirectStorage; el de 32 bits es solo OpenGL), unos 900 MB libres y tu disco de *Digimon World
 2003 (Europe) (En,Fr,De,Es,It)* como imagen: mejor `.cue`/`.bin`; una `.iso` puede dar problemas. El disco con el que se
 probó y sus sumas (CRC32, MD5, SHA-1) están en la tabla de arriba. El port comprueba el ejecutable del juego
 (`SLES_039.36`), no la imagen: otra copia buena del mismo disco sirve. Las versiones americana y japonesa no.

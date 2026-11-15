@@ -2,7 +2,9 @@
 it: the exe and its .fill, SDL3.dll, the README, credits and license, an
 example native.ini, the technique visuals map, the menu's button icons. Nothing from the game: it refuses to finish if anything of
 the disc or a save got in, or if the exe has any of the game's bytes
-(asset_scan.py). Run from anywhere: python native/tools/package.py"""
+(asset_scan.py). Run from anywhere: python native/tools/package.py
+(--x64: build-x64/'s exe, launcher and SDL3.dll into dist/dw2003-native-x64 and its zip;
+the vendors' DLLs the launcher downloads next to them are never taken)"""
 import shutil
 import subprocess
 import sys
@@ -10,12 +12,14 @@ from pathlib import Path
 
 NATIVE = Path(__file__).resolve().parents[1]
 DIST = NATIVE / "dist"
-OUT = DIST / "dw2003-native"
+X64 = "--x64" in sys.argv
+BUILD = NATIVE / ("build-x64" if X64 else "build")
+OUT = DIST / ("dw2003-native-x64" if X64 else "dw2003-native")
 FILES = {
-    "dw2003.exe": NATIVE / "build/dw2003.exe",
-    "SDL3.dll": NATIVE / "build/SDL3.dll",
-    "dw2003.fill": NATIVE / "build/dw2003.fill",
-    "dw3launcher.exe": NATIVE / "build/dw3launcher.exe",
+    "dw2003.exe": BUILD / "dw2003.exe",
+    "SDL3.dll": BUILD / "SDL3.dll",
+    "dw2003.fill": BUILD / "dw2003.fill",
+    "dw3launcher.exe": BUILD / "dw3launcher.exe",
     "licenses/PixelDigivolve-License.txt": NATIVE / "launcher/PixelDigivolve-License.txt",
     "README.md": NATIVE / "README.md",
     "CREDITS.md": NATIVE / "CREDITS.md",
@@ -27,14 +31,17 @@ FILES = {
 # what the disc or a player brings, never ours to ship
 FORBIDDEN_SUFFIXES = {".bin", ".str", ".cue", ".iso", ".mcd", ".36", ".state"}
 FORBIDDEN_DIRS = {"data", "saves"}
+# NVIDIA's, AMD's and Microsoft's DLLs: the launcher downloads them, their licences are not ours to ship under
+VENDOR_DLLS = ("sl.", "nvngx", "amd_fidelityfx", "dstorage")
 
 
 def check(root):
-    """Paths in root that come from the game or a player"""
+    """Paths in root that come from the game, a player or a vendor"""
     bad = []
     for p in root.rglob("*"):
         rel = p.relative_to(root)
-        if rel.parts[0] in FORBIDDEN_DIRS or p.suffix.lower() in FORBIDDEN_SUFFIXES:
+        if (rel.parts[0] in FORBIDDEN_DIRS or p.suffix.lower() in FORBIDDEN_SUFFIXES or
+                (p.suffix.lower() == ".dll" and p.name.lower().startswith(VENDOR_DLLS))):
             bad.append(rel.as_posix())
     return bad
 
@@ -58,7 +65,7 @@ def main():
     if bad:
         shutil.rmtree(OUT)
         sys.exit(f"refused, game or player files: {bad}")
-    zip_path = shutil.make_archive(str(DIST / "dw2003-native"), "zip", OUT)
+    zip_path = shutil.make_archive(str(OUT), "zip", OUT)
     print(f"OK {OUT} and {zip_path}")
 
 
@@ -69,7 +76,9 @@ if __name__ == "__main__":
         (t / "data").mkdir()
         (t / "data/SLES_039.36").write_bytes(b"x")
         (t / "dw2003.exe").write_bytes(b"x")
-        assert check(t) == ["data", "data/SLES_039.36"], check(t)
+        (t / "SDL3.dll").write_bytes(b"x")
+        (t / "sl.interposer.dll").write_bytes(b"x")
+        assert sorted(check(t)) == ["data", "data/SLES_039.36", "sl.interposer.dll"], check(t)
         print("selftest OK")
     else:
         main()
