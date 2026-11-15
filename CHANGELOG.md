@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.20.0 (beta)
 
 - **Sharpen, Brightness, Gamma, Saturation** (Options, Graphics; `sharpen` 0 to 10, `brightness`, `gamma`, `saturation` -10 to 10; all 0 by default, the game's own picture). A post-process pass over the game's picture on its way to the window, not over the movies or the options menu. The sharpening is contrast-adaptive, after AMD's FidelityFX CAS.
 - **Scanlines** (Options, Graphics; `scanlines` 0 to 10, off by default). Dark lines between the game's rows, in the same pass.
@@ -12,9 +12,7 @@
 - **No console window.** The game is built as a window's program: started from the launcher or Explorer, no black console window opens with it.
 - **log.txt** (launcher, Tools): the game started from the launcher now writes what it reports there. The launcher pointed to it after a failed start, but nothing wrote the file.
 
-## x64 build (not released yet)
-
-What only the 64-bit exe has. It is not shipped yet: the released zip stays the 32-bit build.
+**x64 build** (new: `dw2003-native-x64.zip`, for 64-bit Windows; the 32-bit `dw2003-native.zip` stays, OpenGL only). What only it has:
 
 - **FSR 3.1** (Options, Graphics, Upscaling: Off, FSR 1 or FSR 3.1; `fsr = 2`; the Direct3D 12 renderer only). AMD's temporal upscaler over the frames with 3D in them, fed with the game's own depth, motion and jitter. It is loaded at run time from AMD's two FidelityFX DLLs, which the player puts next to the exe; without them it stays off.
 - **FSR 3.1 files** (launcher, Settings, Graphics): downloads AMD's two DLLs from the FidelityFX SDK's tag v2.4.0 next to the game, each checked by its SHA-256. The port itself carries none of AMD's binaries.
