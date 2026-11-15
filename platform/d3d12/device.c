@@ -254,11 +254,14 @@ int dx_init(SDL_Window *window) {
         return 0;
     }
     DXS.dlss = g_fsr == 3 && sl_start(); /* (before the device and the swap chain) */
+    SDL_PumpEvents(); /* Streamline's start and the device with it take seconds each: Windows is answered in between,
+                         so that the window is never "not responding" (5 s without its messages) */
     if (hwnd == NULL || !OK(p_D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, (void **)&DXS.dev))) {
         SDL_Log("d3d12: no device");
         return 0;
     }
     DXS.dlss = DXS.dlss && sl_device(&DXS.dev);
+    SDL_PumpEvents();
     if (!OK(ID3D12Device_CreateCommandQueue(DXS.dev, &qd, &IID_ID3D12CommandQueue, (void **)&s_queue)) ||
         !OK(p_CreateDXGIFactory1(&IID_IDXGIFactory4, (void **)&fac))) {
         SDL_Log("d3d12: no device");

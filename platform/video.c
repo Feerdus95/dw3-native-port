@@ -30,6 +30,43 @@ void video_resize(int scale) {
     SDL_SetWindowPosition(s_window, SDL_WINDOWPOS_CENTERED_DISPLAY(display), SDL_WINDOWPOS_CENTERED_DISPLAY(display));
 }
 
+/* The game's boot image in the window while Direct3D 12 starts (with DLSS, NVIDIA's Streamline takes seconds there): the
+   320x480 TIM that main.c's load_boot_image put at STAGE_VRAM, the one the game's main() shows first. Drawn by SDL in
+   software, letterboxed, and let go before the swap chain takes the window */
+static void boot_image(SDL_Window *w) {
+    extern uint8_t STAGE_VRAM[];
+    const uint8_t *t = STAGE_VRAM + 4; /* after the TIM's ID word, as main() reads it: flags, block size, x, y, w, h, pixels */
+    const int iw = t[12] | t[13] << 8, ih = t[14] | t[15] << 8;
+    SDL_Surface *img, *win;
+    int x, y;
+
+    if ((t[0] & 7) != 2 || iw != 320 || ih != 480 || (img = SDL_CreateSurface(iw, ih, SDL_PIXELFORMAT_XRGB8888)) == NULL) {
+        return; /* 16-bit, no CLUT, 320x480: anything else is not it */
+    }
+    for (y = 0; y < ih; y++) {
+        for (x = 0; x < iw; x++) {
+            const uint8_t *p = t + 16 + ((size_t)y * iw + x) * 2;
+            const unsigned c = p[0] | p[1] << 8;
+
+            ((uint32_t *)((uint8_t *)img->pixels + (size_t)y * img->pitch))[x] = (c & 31) << 19 | (c >> 5 & 31) << 11 | (c >> 10 & 31) << 3;
+        }
+    }
+    if ((win = SDL_GetWindowSurface(w)) != NULL) {
+        SDL_Rect r = {0, 0, win->h * 4 / 3, win->h};
+
+        if (r.w > win->w) {
+            r.w = win->w, r.h = win->w * 3 / 4;
+        }
+        r.x = (win->w - r.w) / 2, r.y = (win->h - r.h) / 2;
+        SDL_FillSurfaceRect(win, NULL, 0);
+        SDL_BlitSurfaceScaled(img, NULL, win, &r, SDL_SCALEMODE_LINEAR);
+        SDL_UpdateWindowSurface(w);
+        SDL_PumpEvents();
+        SDL_DestroyWindowSurface(w);
+    }
+    SDL_DestroySurface(img);
+}
+
 int video_init(int scale, int fullscreen) {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         LOG("SDL_Init: %s", SDL_GetError());
@@ -41,6 +78,9 @@ int video_init(int scale, int fullscreen) {
         if (s_window == NULL) {
             LOG("window: %s", SDL_GetError());
             return 0;
+        }
+        if (!g_render_sounds && SDL_strcmp(gfx_name(), "D3D12") == 0) {
+            boot_image(s_window);
         }
         if (gfx_init(s_window)) {
             break;
