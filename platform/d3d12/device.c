@@ -113,19 +113,18 @@ int dx_mark(int cat) {
     return prev;
 }
 
-/* the open list run and waited for (the whole queue): what is recorded is done, the uploads are free again */
+/* the open list run and waited for (the whole queue, the last frames' too): what is recorded is done, the uploads are free
+   again, and a resource can be released */
 void dx_submit(void) {
     ID3D12CommandList *l[1] = {(ID3D12CommandList *)DXS.list};
-    Uint64 t0;
+    Uint64 t0 = SDL_GetTicksNS();
 
-    if (!DXS.open) {
-        return;
+    if (DXS.open) {
+        ID3D12GraphicsCommandList_Close(DXS.list);
+        ID3D12CommandQueue_ExecuteCommandLists(s_queue, 1, l);
+        DXS.open = 0;
     }
-    t0 = SDL_GetTicksNS();
-    ID3D12GraphicsCommandList_Close(DXS.list);
-    ID3D12CommandQueue_ExecuteCommandLists(s_queue, 1, l);
-    wait_idle();
-    DXS.open = 0;
+    wait_idle(); /* (with no list open, a frame of dx_submit_frame's may still be drawing) */
     DXS.wait_ns += SDL_GetTicksNS() - t0, DXS.nsub++;
 }
 

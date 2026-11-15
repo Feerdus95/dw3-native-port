@@ -80,7 +80,8 @@ static int render_scale(void) {
 
 /* The render scale in use, made to follow render_scale: the copy, its depth, the temporary of the copies */
 void dx_sync(int force) {
-    int want = render_scale();
+    static int s_cap = MAX_SCALE; /* below the scale the card couldn't hold */
+    int want = SDL_min(render_scale(), s_cap);
 
     if (!DXS.ready || g_vram == NULL) { /* VRAM comes with ResetGraph */
         return;
@@ -111,15 +112,26 @@ void dx_sync(int force) {
             DXS.sd.r = DXS.fd.r = NULL;
         }
         DXS.mask_box[0] = VRAM_W, DXS.mask_box[1] = VRAM_H, DXS.mask_box[2] = DXS.mask_box[3] = -1;
-        DXS.scale = want;
         cd.DepthStencil.Depth = 1.0f;
-        DXS.rt = dx_texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cc);
-        DXS.tmp = dx_texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
-        DXS.depth = dx_texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R32_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &cd);
-        if (DXS.rt.r == NULL || DXS.tmp.r == NULL || DXS.depth.r == NULL) {
+        for (;; want--) { /* a scale the card can't hold: the next one down, not a black picture */
+            DXS.rt = dx_texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cc);
+            DXS.tmp = dx_texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL);
+            DXS.depth = dx_texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R32_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &cd);
+            if (DXS.rt.r != NULL && DXS.tmp.r != NULL && DXS.depth.r != NULL) {
+                break;
+            }
             SDL_Log("d3d12: the copy at scale %d", want);
-            return;
+            if (DXS.rt.r != NULL) ID3D12Resource_Release(DXS.rt.r);
+            if (DXS.tmp.r != NULL) ID3D12Resource_Release(DXS.tmp.r);
+            if (DXS.depth.r != NULL) ID3D12Resource_Release(DXS.depth.r);
+            DXS.rt.r = DXS.tmp.r = DXS.depth.r = NULL;
+            s_cap = SDL_max(want - 1, 1);
+            if (want == 1) {
+                DXS.scale = 0; /* tried again next frame */
+                return;
+            }
         }
+        DXS.scale = want;
         cc.Format = DXGI_FORMAT_R8_UNORM;
         DXS.mask = dx_texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cc);
         DXS.blur = dx_texture(VRAM_W * want, VRAM_H * want, DXGI_FORMAT_R8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_RENDER_TARGET, &cc);
