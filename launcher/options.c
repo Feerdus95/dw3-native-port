@@ -1,7 +1,7 @@
 /* Every option native.ini saves, read from it and written back when changed. Only what changed is written. */
 #include "launcher.h"
 
-enum { K_BOOL, K_FPS, K_TIMES, K_ICONS, K_PERCENT, K_FOCUS };
+enum { K_BOOL, K_FPS, K_TIMES, K_ICONS, K_PERCENT, K_FOCUS, K_NUMBER, K_FSR, K_UPMODE, K_RENDERER };
 
 static const struct { const char *key; Uint8 kind; short def, min, max, step; } DEF[O_COUNT] = {
     [O_FPS] = {"fps", K_FPS, 50, 50, 60, 10},
@@ -18,7 +18,17 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_SOFT_SHADOWS] = {"soft_shadows", K_BOOL, 0},
     [O_BATTLE_SHADOWS] = {"battle_shadows", K_BOOL, 1},
     [O_BATTLE_SKY] = {"battle_sky", K_BOOL, 0},
+    [O_SHARPEN] = {"sharpen", K_NUMBER, 0, 0, 10, 1},
+    [O_BRIGHTNESS] = {"brightness", K_NUMBER, 0, -10, 10, 1},
+    [O_GAMMA] = {"gamma", K_NUMBER, 0, -10, 10, 1},
+    [O_SATURATION] = {"saturation", K_NUMBER, 0, -10, 10, 1},
+    [O_SCANLINES] = {"scanlines", K_NUMBER, 0, 0, 10, 1},
+    [O_SMAA] = {"smaa", K_BOOL, 0},
+    [O_FSR] = {"fsr", K_FSR, 0, 0, 3, 1},
+    [O_UP_MODE] = {"upscale_mode", K_UPMODE, 1, 0, 3, 1},
+    [O_INTEGER] = {"integer_scale", K_BOOL, 0},
     [O_INACTIVE] = {"inactive_window", K_FOCUS, 0, 0, 2, 1},
+    [O_RENDERER] = {"renderer", K_RENDERER, 0, 0, 2, 1}, /* auto, d3d12, gl */
     [O_FF_MENUS] = {"ff_menu_speed", K_BOOL, 0},
     [O_BATTLE_FORM_NAME] = {"battle_form_name", K_BOOL, 0},
     [O_MENU_WRAP] = {"menu_wrap", K_BOOL, 0},
@@ -42,6 +52,7 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_CUSTOM_SCRIPTS] = {"custom_scripts", K_BOOL, 1},
 };
 static const char *const ICON_KEYS[] = {"auto", "ps1", "ps3", "ps4", "ps5", "xbox360", "xboxone", "xboxseries", "switch", "keyboard"};
+static const char *const RENDERER_KEYS[] = {"auto", "d3d12", "gl"};
 static const char *const ICON_NAMES[] = {NULL, "PS1", "PS3", "PS4", "PS5", "Xbox 360", "Xbox One", "Xbox Series", "Switch", NULL};
 
 static short s_value[O_COUNT];
@@ -62,6 +73,9 @@ void options_load(void)
         case K_FPS: s_value[o] = SDL_atoi(v) == 60 ? 60 : 50; break;
         case K_TIMES: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 8); break;
         case K_FOCUS: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 2); break;
+        case K_UPMODE: case K_FSR: s_value[o] = (short)SDL_clamp(SDL_atoi(v), 0, 3); break;
+        case K_RENDERER: s_value[o] = !SDL_strcasecmp(v, "d3d12") ? 1 : !SDL_strcasecmp(v, "gl") ? 2 : 0; break;
+        case K_NUMBER: s_value[o] = (short)SDL_clamp(SDL_atoi(v), DEF[o].min, DEF[o].max); break;
         case K_PERCENT: s_value[o] = (short)SDL_clamp((SDL_atoi(v) * 100 + 16383) / 32767, 0, 100); break;
         default:
             for (int i = 0; i < (int)SDL_arraysize(ICON_KEYS); i++) {
@@ -97,6 +111,8 @@ bool options_save(void)
             const char *value = text[o];
             if (DEF[o].kind == K_ICONS) {
                 value = ICON_KEYS[v];
+            } else if (DEF[o].kind == K_RENDERER) {
+                value = RENDERER_KEYS[v];
             } else if (DEF[o].kind == K_TIMES && v == 0) {
                 value = NULL;
             } else {
@@ -122,8 +138,17 @@ void option_step(int o, int dir)
         s_value[o] = !s_value[o];
         return;
     }
-    const int v = s_value[o] + dir * DEF[o].step;
-    s_value[o] = (short)(v > DEF[o].max ? DEF[o].min : v < DEF[o].min ? DEF[o].max : v);
+    if (o == O_FSR) { /* FSR 3.1 and DLSS are offered once their files are there */
+        const bool have[4] = {true, true, game_x64() && fsr_dll_have(), game_x64() && dlss_dll_have()};
+        int f = s_value[o];
+        do {
+            f = (f + (dir < 0 ? 3 : 1)) % 4;
+        } while (!have[f]);
+        s_value[o] = (short)f;
+        return;
+    }
+    const int v = s_value[o] + dir * DEF[o].step, max = DEF[o].max;
+    s_value[o] = (short)(v > max ? DEF[o].min : v < DEF[o].min ? max : v);
 }
 
 void option_value(int o, const Lang *l, char *out, int size)
@@ -141,8 +166,19 @@ void option_value(int o, const Lang *l, char *out, int size)
         break;
     case K_FOCUS: SDL_snprintf(out, size, "%s", l->s[v == 2 ? S_PAUSE : v == 1 ? S_MUTE : S_OFF]); break;
     case K_PERCENT: SDL_snprintf(out, size, "%d%%", v); break;
+    case K_UPMODE: SDL_snprintf(out, size, "%s", v == 0 ? "DLAA" : v == 1 ? "Quality" : v == 2 ? "Balanced" : "Performance"); break;
+    case K_RENDERER: SDL_snprintf(out, size, "%s", v == 1 ? "Direct3D 12" : v == 2 ? "OpenGL" : l->s[S_AUTO]); break;
+    case K_FSR: SDL_snprintf(out, size, "%s", v == 3 ? "DLSS" : v == 2 ? "FSR 3.1" : v == 1 ? "FSR 1" : l->s[S_OFF]); break;
+    case K_NUMBER: /* from 0: off or a level; around 0: signed */
+        if (v == 0) {
+            SDL_snprintf(out, size, "%s", DEF[o].min == 0 ? l->s[S_OFF] : "0");
+        } else {
+            SDL_snprintf(out, size, DEF[o].min == 0 ? "%d" : "%+d", v);
+        }
+        break;
     default: SDL_snprintf(out, size, "%s", v == 0 ? l->s[S_AUTO] : v == 9 ? l->s[S_KEYBOARD] : ICON_NAMES[v]); break;
     }
 }
 
 bool option_is_off(int o) { return (DEF[o].kind == K_BOOL && !s_value[o]); }
+int option_int(int o) { return s_value[o]; }

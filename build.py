@@ -11,9 +11,11 @@ gets a stub that logs once and returns 0; native/build/report.md lists them.
                                            native/build-san, logging and going on
     python native/build.py --O2            the game optimised, into native/build-o2
                                            (to become the default once played through)
+    python native/build.py --x64           a 64-bit exe, into native/build-x64 (an experiment)
 """
 import collections
 import concurrent.futures as cf
+import filecmp
 import os
 import re
 import shutil
@@ -41,7 +43,10 @@ O2 = "--O2" in sys.argv and not SANITIZE
 LENIENT = ["-fno-strict-aliasing", "-fwrapv", "-fno-delete-null-pointer-checks"]
 EMIT_OPT = ["-O0", "-Xclang", "-disable-O0-optnone", *LENIENT] if O2 else GAME_OPT
 GAME_OPT = ["-O2", *LENIENT] if O2 else GAME_OPT
-OUT = NATIVE / ("build-san" if SANITIZE else "build-o2" if O2 else "build")
+# --x64: the same game as a 64-bit exe, into native/build-x64 (an experiment: what a 64-bit port needs)
+X64 = "--x64" in sys.argv  # with both renderers, platform/gl/ and platform/d3d12/ (gfx.c picks one at start)
+ARCH = "x86_64" if X64 else "i686"
+OUT = NATIVE / ("build-x64" if X64 else "build-san" if SANITIZE else "build-o2" if O2 else "build")
 PATCHED = OUT / "patched"
 
 
@@ -59,10 +64,10 @@ def toolchain():
 
 
 TC = toolchain()
-CC = TC / "i686-w64-mingw32-clang.exe"
+CC = TC / f"{ARCH}-w64-mingw32-clang.exe"
 NM = TC / "llvm-nm.exe"
 OBJCOPY = TC / "llvm-objcopy.exe"
-SDL = NATIVE / "third_party/SDL3-3.4.16/i686-w64-mingw32"
+SDL = NATIVE / f"third_party/SDL3-3.4.16/{ARCH}-w64-mingw32"
 STAGE = re.compile(r"(wstag\d+)(_head)?\.c$")
 
 GAME_CFLAGS = [
@@ -77,8 +82,14 @@ GAME_CFLAGS = [
 PLATFORM_CFLAGS = ["-std=c11", "-c", "-O2", "-g", "-Wall", "-Wno-unused-parameter", f"-I{SDL / 'include'}", f"-I{OUT}", *SAN_FLAGS]
 # fixed image base (no ASLR): the GPU tags keep 24-bit addresses, so the
 # game's memory has to stay below 16 MB (main.c checks it at startup)
-LDFLAGS = ["-g", "-Wl,--no-dynamicbase",
+# -mwindows: a window's program, not a console's (started from the launcher or Explorer, no console window opens)
+LDFLAGS = ["-g", "-mwindows", "-Wl,--no-dynamicbase",
            f"-L{SDL / 'lib'}", "-lSDL3", "-lbcrypt", *SAN_FLAGS]
+if X64:
+    LDFLAGS += ["-ldxguid"]  # the interfaces' ids; Direct3D 12's DLLs are loaded at run time (platform/d3d12/device.c)
+    # a low image base, and an address space cut to 2 GB (no large-address-aware): the stack and the heap stay below
+    # 2 GB too, so a pointer the game passes through an int still reaches what it pointed at
+    LDFLAGS += ["-Wl,--image-base=0x400000", "-Wl,--disable-high-entropy-va"]
 
 
 def run(cmd, **kw):
@@ -88,13 +99,20 @@ def run(cmd, **kw):
 def apply_patches():
     """native/patches/<path in dw3_decomp>.patch -> build/patched/<path>. The
     whole include/ is mirrored there, since a quoted #include looks in the
-    including header's own directory first and would miss a patched copy."""
+    including header's own directory first and would miss a patched copy.
+    A patch deleted leaves no trace: its source's copy goes (with its object,
+    which the older original would not make stale), its header's is the
+    original again (copied fresh, so what includes it is rebuilt)."""
     for h in (DECOMP / "include").rglob("*"):
         out = PATCHED / "include" / h.relative_to(DECOMP / "include")
         if h.is_file() and not (NATIVE / "patches" / f"{out.relative_to(PATCHED).as_posix()}.patch").exists():
-            if not out.exists() or out.stat().st_mtime < h.stat().st_mtime:
+            if not out.exists() or not filecmp.cmp(h, out, shallow=False):
                 out.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(h, out)
+                shutil.copy(h, out)
+    for out in (PATCHED / "src").rglob("*"):
+        if out.is_file() and not (NATIVE / "patches" / f"{out.relative_to(PATCHED).as_posix()}.patch").exists():
+            out.unlink()
+            (OUT / "obj" / out.relative_to(PATCHED / "src")).with_suffix(".o").unlink(missing_ok=True)
     for patch in (NATIVE / "patches").rglob("*.patch"):
         rel = patch.relative_to(NATIVE / "patches").with_suffix("")
         out = PATCHED / rel
@@ -232,7 +250,8 @@ def prefix_stages(objs):
         for obj in group:
             names.update(run([NM, "--format=just-symbols", "--defined-only", "--extern-only", obj]).stdout.split())
         pairs = OUT / "obj" / f"{stage}.syms"
-        pairs.write_text("".join(f"{n} _{stage.upper()}_{n.lstrip('_')}\n" for n in sorted(names)))
+        pre = "" if X64 else "_"  # i686's cdecl symbols carry an underscore, x64's don't
+        pairs.write_text("".join(f"{n} {pre}{stage.upper()}_{n.lstrip('_')}\n" for n in sorted(names)))
         for obj in group:
             run([OBJCOPY, f"--redefine-syms={pairs}", obj])
 
@@ -240,7 +259,7 @@ def prefix_stages(objs):
 def cname(sym):
     """The C name of an i686 symbol: cdecl adds one underscore. Only one goes,
     so the compiler's runtime (___divdi3 = __divdi3) stays apart from the game's."""
-    return sym[1:] if sym.startswith("_") else sym
+    return sym if X64 or not sym.startswith("_") else sym[1:]
 
 
 def symbols(obj):
@@ -337,23 +356,25 @@ def main():
         sys.exit(f"{len(failed)} game files failed")
 
     platform = []
-    for src in sorted((NATIVE / "platform").glob("*.c")):
-        obj = OUT / "platform" / src.with_suffix(".o").name
+    renderer = sorted(p for d in (("gl", "d3d12") if X64 else ("gl",)) for p in (NATIVE / "platform" / d).glob("*.c"))  # behind renderer.h, gfx.c
+    for src in sorted((NATIVE / "platform").glob("*.c")) + renderer:
+        rel = src.relative_to(NATIVE / "platform")
+        obj = OUT / "platform" / rel.with_suffix(".o")
         obj.parent.mkdir(parents=True, exist_ok=True)
-        deps = [src, *(NATIVE / "platform").glob("*.h")]
+        deps = [src, *(NATIVE / "platform").glob("*.h"), *src.parent.glob("*.h")]
         if src.name == "launch_slots.c":
             deps.append(manifest)
         if clean or not obj.exists() or obj.stat().st_mtime < max(h.stat().st_mtime for h in deps):
             r = run([CC, *PLATFORM_CFLAGS, src, "-o", obj])
             if r.returncode != 0:
-                sys.exit(f"FAILED {src.name}\n{r.stderr}")
+                sys.exit(f"FAILED {rel}\n{r.stderr}")
             if r.stderr:
                 print(r.stderr)
         platform.append(obj)
 
     # the stages' setups, by name, for --dump-stages (platform/stagedump.c)
     stage_list = OUT / "stage_list.c"
-    names = sorted(p.stem for p in (OUT / "obj").glob("wstag*.syms") if "_setupStage " in p.read_text())
+    names = sorted(p.stem for p in (OUT / "obj").glob("wstag*.syms") if re.search(r"^_?setupStage ", p.read_text(), re.M))  # i686 symbols carry an underscore
     with open(stage_list, "w") as f:
         f.writelines(f"void {n.upper()}_setupStage(void); void {n.upper()}_startStage(void);\n" for n in names)
         f.write("struct { const char *name; void (*setup)(void); void *start; } native_stage_list[] = {\n")
@@ -373,8 +394,8 @@ def main():
         defined |= d
         for s in u:
             undefined[s] += 1
-    host_libs = [TC.parent / "i686-w64-mingw32/lib" / f"lib{name}.a"
-                 for name in ("msvcrt", "bcrypt")]
+    host_libs = [TC.parent / f"{ARCH}-w64-mingw32/lib" / f"lib{name}.a"
+                 for name in ("msvcrt", "bcrypt", *(("dxguid",) if X64 else ()))]
     host = set(run([NM, "--format=just-symbols", "--defined-only", "--extern-only", *host_libs]).stdout.split())
     host = {cname(s) for s in host}
     missing = sorted(s for s in undefined if s not in defined and s not in host
@@ -392,7 +413,7 @@ def main():
 
     # platform/utf8.manifest: paths in UTF-8 whatever the system's code page
     manifest_obj = OUT / "utf8_res.o"
-    r = run([TC / "i686-w64-mingw32-windres.exe", "-O", "coff", "-i", NATIVE / "platform/utf8.rc", "-o", manifest_obj])
+    r = run([TC / f"{ARCH}-w64-mingw32-windres.exe","-O", "coff", "-i", NATIVE / "platform/utf8.rc", "-o", manifest_obj])
     if r.returncode != 0:
         sys.exit(r.stderr)
 
@@ -406,6 +427,17 @@ def main():
     sys.path.insert(0, str(NATIVE / "tools"))
     import asset_scan
     stripped = asset_scan.strip(exe)
+    # --2gb: not large-address-aware, so no pointer at all needs more than 31 bits (to tell a truncated host
+    # pointer from another bug). Not by default: the card's driver runs out of memory at render_scale 8
+    if X64 and "--2gb" in sys.argv:
+        import struct
+        with open(exe, "r+b") as f:
+            f.seek(0x3C)
+            pe = struct.unpack("<I", f.read(4))[0]
+            f.seek(pe + 22)
+            chars = struct.unpack("<H", f.read(2))[0]
+            f.seek(pe + 22)
+            f.write(struct.pack("<H", chars & ~0x20))
     dll = OUT / "SDL3.dll"
     if not dll.exists() or dll.read_bytes() != (SDL / "bin/SDL3.dll").read_bytes():  # a running game locks it
         shutil.copy2(SDL / "bin/SDL3.dll", dll)

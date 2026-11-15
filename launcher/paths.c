@@ -44,6 +44,25 @@ bool path_move_tree(const char *from, const char *to)
     return ok;
 }
 
+/* DIR and all that is in it (SDL_RemovePath only takes empty folders; the glob lists one level) */
+void path_remove_tree(const char *dir)
+{
+    int n = 0;
+    char **names = SDL_GlobDirectory(dir, "*", 0, &n);
+    for (int i = 0; i < n; i++) {
+        char p[1400];
+        SDL_PathInfo info;
+        SDL_snprintf(p, sizeof p, "%s/%s", dir, names[i]);
+        if (SDL_GetPathInfo(p, &info) && info.type == SDL_PATHTYPE_DIRECTORY) {
+            path_remove_tree(p);
+        } else {
+            SDL_RemovePath(p);
+        }
+    }
+    SDL_free(names);
+    SDL_RemovePath(dir);
+}
+
 bool data_has_file(const char *name)
 {
     char path[1300];

@@ -291,7 +291,7 @@ void native_effects_warm(void) {
     for (; s_set < s_count; s_set++, s_img = 0) {
         for (; s_sets[s_set].img != NULL && s_img < s_sets[s_set].images; s_img++) {
             if (s_sets[s_set].tex[s_img] == 0 && s_sets[s_set].img[s_img] != NULL) {
-                if (gl_image_prepare(s_sets[s_set].img[s_img], &s_sets[s_set].tex[s_img])) {
+                if (gfx_image_prepare(s_sets[s_set].img[s_img], &s_sets[s_set].tex[s_img])) {
                     s_img++;
                 }
                 return; /* not up yet: the same one next frame */
@@ -326,6 +326,6 @@ void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int c
     w = h * img->w / img->h * xs;
     x += s_sets[set].x * xs;
     y += s_sets[set].y;
-    gl_image(img, &s_sets[set].tex[s_sets[set].image[f]], x - w / 2, y - h / 2, x + w / 2, y + h / 2, s_sets[set].add, cx1, cy1, cx2,
+    gfx_image(img, &s_sets[set].tex[s_sets[set].image[f]], x - w / 2, y - h / 2, x + w / 2, y + h / 2, s_sets[set].add, cx1, cy1, cx2,
              cy2);
 }

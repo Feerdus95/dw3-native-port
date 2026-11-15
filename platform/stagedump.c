@@ -73,7 +73,7 @@ static void dump(FILE *f, const StageFuncs *s) {
     int images = 6; /* the field's two, the player's and the partners' (FIELDSTG_createActor's 0 to 3) */
 
     native_reset_overlays(1);
-    memset(st, 0, 0x64);
+    memset(st, 0, offsetof(FieldState, defaultStart)); /* as FIELDSTG_pickStage */
     memset(&FIELDSTG_map, 0, sizeof FIELDSTG_map);
     s_places = NULL;
     s_findBattles = st->findBattles;

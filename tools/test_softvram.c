@@ -19,23 +19,25 @@ int MoveImage(RECT *r, int x, int y);
 void gpu_gp0(const uint32_t *p, int n);
 
 int g_depth, g_log;
-int gl_scale(void) { return 1; }
+int gfx_scale(void) { return 1; }
 uint16_t g_vram_dirty[8];
-void gl_sync(int force) {}
-void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {}
-void gl_vram_dirty(int x, int y, int w, int h) {}
-void gl_shadows_resolve(void) {}
-void gl_depth_clear(void) {}
-void gl_refresh(int x, int y, int w, int h) {}
-void gl_copy(int sx, int sy, int w, int h, int dx, int dy) {}
-void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {}
-void gl_depth_save(void) {}
-void gl_depth_models(void) {}
-void gl_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {}
-void gl_battle_fog(int r, int g, int b) {}
+void gfx_sync(int force) {}
+void gfx_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {}
+void gfx_vram_dirty(int x, int y, int w, int h) {}
+void gfx_shadows_resolve(void) {}
+void gfx_depth_clear(void) {}
+void gfx_refresh(int x, int y, int w, int h) {}
+void gfx_copy(int sx, int sy, int w, int h, int dx, int dy) {}
+void gfx_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {}
+void gfx_depth_save(void) {}
+void gfx_depth_models(void) {}
+void gfx_image(const struct SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {}
+void gfx_battle_fog(int r, int g, int b) {}
 void native_effect_draw(unsigned key, float x, float y, float xs, int cx1, int cy1, int cx2, int cy2) {}
 void postcard_draw(int mode, float x, float y, float w, float h, int cx1, int cy1, int cx2, int cy2) {}
 int gte_precise(const uint32_t *word, float *x, float *y, float *z) { return 0; }
+int gte_precise_motion(const uint32_t *word, float *mx, float *my) { return 0; }
+int gte_motion_on(void) { return 0; }
 int gte_widescreen(void) { return 0; }
 int gte_in_battle(void) { return 0; }
 void perf_begin(int s) {}

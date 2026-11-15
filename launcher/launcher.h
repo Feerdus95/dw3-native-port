@@ -37,8 +37,8 @@ void art_flag(int x, int y, int lang); /* 16x10: en, es, fr, de, it */
 
 /* lang_*.c */
 enum {
-    O_FPS, O_FULLSCREEN, O_WINDOW, O_WIDESCREEN, O_VSYNC, O_MOVIES, O_INACTIVE,
-    O_RESOLUTION, O_PERSPECTIVE, O_SMOOTH_3D, O_TRUE_COLOR, O_DITHER, O_SOFT_SHADOWS, O_BATTLE_SHADOWS, O_BATTLE_SKY, O_BATTLE_FORM_NAME,
+    O_FPS, O_FULLSCREEN, O_WINDOW, O_WIDESCREEN, O_VSYNC, O_MOVIES, O_INACTIVE, O_RENDERER,
+    O_RESOLUTION, O_PERSPECTIVE, O_SMOOTH_3D, O_TRUE_COLOR, O_DITHER, O_SOFT_SHADOWS, O_BATTLE_SHADOWS, O_BATTLE_SKY, O_BATTLE_FORM_NAME, O_SHARPEN, O_BRIGHTNESS, O_GAMMA, O_SATURATION, O_SCANLINES, O_INTEGER, O_SMAA, O_FSR, O_UP_MODE,
     O_ICONS, O_RUMBLE, O_DEADZONE, O_FF_MENUS, O_SKIP_START, O_MENU_WRAP,
     O_FAST_TEXT, O_FAST_TRAVEL, O_OBJECTIVE, O_JOURNAL, O_PACKS,
     O_BLADEGARURUMON, O_FULL_EXP_SHARE, O_TECH_VISUALS, O_HEAL_LEVELUP, O_SAVE_ANYWHERE, O_FIX_EQUIP, O_CUSTOM_EFFECTS, O_CUSTOM_SOUNDS, O_CUSTOM_SCRIPTS,
@@ -58,6 +58,7 @@ enum {
     S_B_UP, S_B_RIGHT, S_B_DOWN, S_B_LEFT, S_B_TRIANGLE, S_B_CIRCLE, S_B_CROSS, S_B_SQUARE,
     S_T_GET, S_T_OPEN, S_T_SETUP, S_T_DOWNLOADING, S_T_UNPACKING, S_T_PREPARING, S_T_READY, S_T_FAILED, S_T_CANCELLED, S_T_NO_START, S_T_BUSY, S_T_NEED_DISC,
     S_T_UPDATE, S_T_UPDATE_D, S_T_UPDATED, S_T_CLOSE_IT,
+    S_FSR_DLL, S_FSR_DLL_D, S_FSR_HAVE, S_FSR_DONE, S_DS_DLL, S_DS_DLL_D, S_DS_DONE, S_DLSS_DLL, S_DLSS_DLL_D, S_DLSS_DONE,
     S_TEAM, S_LAST_SAVE, S_LEVEL, S_NO_TEAM,
     S_SAVES, S_SAVES_D, S_EXPORT, S_EXPORT_D, S_IMPORT, S_IMPORT_D, S_UNDO, S_UNDO_D, S_SV_FOLDER, S_SV_FOLDER_D,
     S_SV_SLOT, S_SV_EMPTY, S_SV_DAMAGED, S_SV_NONE, S_SV_OK, S_SV_STALE, S_SV_NEWER, S_SV_BAD, S_SV_NOCARD,
@@ -84,6 +85,7 @@ void native_log(const char *fmt, ...);
 bool ini_get(const char *file, const char *key, char *value, int size);
 bool ini_write(const char *file, IniEdit *edits, int count);
 char *ini_apply(const char *in, IniEdit *edits, int count); /* SDL_free it */
+void path_remove_tree(const char *dir); /* DIR with all that it holds */
 bool path_move_tree(const char *from, const char *to); /* FROM's files over TO's; what only TO has stays */
 
 /* options.c */
@@ -93,6 +95,7 @@ bool options_save(void);
 void option_step(int option, int dir);
 void option_value(int option, const Lang *lang, char *out, int size);
 bool option_is_off(int option);
+int option_int(int option); /* its value as kept */
 
 /* binds.c: the controls, as the game's own menu sets them */
 enum { BIND_COUNT = 16 };
@@ -114,6 +117,7 @@ int binds_selftest(void);
 /* game.c: other programs. None is ever stopped from here. */
 bool game_start(void);
 bool game_running(void);
+bool game_x64(void); /* dw2003.exe is the 64-bit build: the renderer and Direct3D 12's extras are offered */
 bool game_ended(int *code); /* once, when it ends */
 bool process_open(const char *const *args, const char *cwd); /* started and left alone */
 int process_wait(const char *const *args, const char *cwd);  /* hidden, to its end: its exit code, or -1 */
@@ -140,6 +144,24 @@ void tool_update_activate(int tool);
 void tool_update_fake(const char *tag);
 bool tool_update_now(int tool); /* --tool-update: blocking, for the tests */
 bool tools_busy(void);
+void fsr_dll_activate(void);                     /* download FSR 3.1's two DLLs (fsr_dll.c) */
+void fsr_dll_value(char *out, int size);
+bool fsr_dll_busy(void);
+bool fsr_dll_have(void);                         /* both are next to the game: FSR 3.1 can be chosen */
+void fsr_dll_poll(void);
+void fsr_dll_shutdown(void);
+void ds_dll_activate(void);                      /* download DirectStorage's two DLLs (ds_dll.c) */
+void ds_dll_value(char *out, int size);
+bool ds_dll_busy(void);
+bool ds_dll_have(void);
+void ds_dll_poll(void);
+void ds_dll_shutdown(void);
+void dlss_dll_activate(void);                    /* download DLSS's four DLLs (dlss_dll.c) */
+void dlss_dll_value(char *out, int size);
+bool dlss_dll_busy(void);
+bool dlss_dll_have(void);                        /* all four are next to the game: DLSS can be chosen */
+void dlss_dll_poll(void);
+void dlss_dll_shutdown(void);
 void tools_poll(void);
 void tools_shutdown(void);
 int tools_selftest(void);
@@ -198,7 +220,9 @@ void screens_draw(void);
 /* input.c: what's done with it */
 enum { A_NONE, A_UP, A_DOWN, A_LEFT, A_RIGHT, A_OK, A_BACK, A_PREV, A_NEXT, A_CLEAR };
 void screens_action(int action);
-void screens_mouse(int x, int y, bool clicked);
+void activate(int id); /* a button's id (S_*) pressed */
+void go_home(void);
+void screens_mouse(int x, int y, bool clicked); /* mouse.c */
 bool scroll_mouse(int x, int y, bool clicked); /* scroll.c: true while the scroll bar holds the pointer */
 int scrollbar_state(void);   /* 0 at rest, 1 pointer over the bar, 2 held */
 void screens_mouse_release(void);

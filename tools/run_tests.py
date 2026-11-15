@@ -1,6 +1,6 @@
 """Builds and runs the unit tests that need neither the game's data nor its code:
 
-    python native/tools/run_tests.py [name ...]      (no names: all)
+    python native/tools/run_tests.py [--x64] [name ...]      (no names: all; --x64: as 64-bit programs)
 
 Each test is compiled with llvm-mingw (build.toolchain) and SDL (third_party), into a scratch folder with SDL3.dll beside it, and
 run there, so nothing of the tree or of the player's is touched. The exit code is the number of tests that failed (CI runs this).
@@ -14,7 +14,8 @@ from pathlib import Path
 
 NATIVE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(NATIVE))
-sys.argv, argv = sys.argv[:1], sys.argv[1:]  # build.py reads sys.argv for its own flags
+argv = [a for a in sys.argv[1:] if a != "--x64"]
+sys.argv = sys.argv[:1] + [a for a in sys.argv[1:] if a == "--x64"]  # build.py reads sys.argv for its own flags: only --x64 is for it
 import build  # noqa: E402
 
 # name: (the sources, with -lSDL3 when it needs it). Each is a tools/test_<name>.c

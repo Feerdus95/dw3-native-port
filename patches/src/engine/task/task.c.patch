@@ -1,0 +1,59 @@
+--- a/src/engine/task/task.c
++++ b/src/engine/task/task.c
+@@ -77,13 +77,31 @@
+  * Allocates a zeroed task of `size` bytes (header included) with room for
+  * childrenSize / 4 child tasks. A nonzero id also registers it (findTask).
+  */
++#ifdef NATIVE
++#undef createTask
++#undef createTaskWithId
++#endif
+ void *createTaskWithId(void (*update)(), s32 size, s32 childrenSize, s32 id) {
++#ifdef NATIVE
++    /* the sizes written as numbers are the PSX's, where a pointer is 4 bytes: a
++       struct is at most twice that with 8-byte ones, and the children are
++       childrenSize / 4 pointers. The same sizes as ever in 32 bits.
++       ponytail: every task doubles in 64 bits; sizeof in the callers that
++       pass a number would save it */
++    Task *task = HEAP.allocZeroed(size * (sizeof(void *) / 4), MEM_MODE);
++
++    if (childrenSize != 0) {
++        task->childCount = childrenSize / 4;
++        task->children = HEAP.allocZeroed(task->childCount * sizeof(void *), MEM_MODE);
++    }
++#else
+     Task *task = HEAP.allocZeroed(size, MEM_MODE);
+ 
+     if (childrenSize != 0) {
+         task->children = HEAP.allocZeroed(childrenSize, MEM_MODE);
+         task->childCount = childrenSize / 4;
+     }
++#endif
+     task->setState = taskSetState;
+     task->setSubstate = taskSetSubstate;
+     task->setStep = taskSetStep;
+@@ -105,3 +123,24 @@
+ void *createTask(void (*update)(), s32 size, s32 childrenSize) {
+     return createTaskWithId(update, size, childrenSize, 0);
+ }
++
++#ifdef NATIVE
++/* createTaskWithId through the macros: a children size written with sizeof is in bytes of
++   this build's slots (childCount = bytes / sizeof(void *)); a number is the PSX's, in 4-byte
++   slots. createTaskWithId makes childrenSize / 4 slots of a pointer each, so the first is
++   passed as half its bytes in 64 bits */
++void *createTaskText(void (*update)(), s32 size, s32 childrenSize, s32 id, const char *childrenText) {
++    const char *key = "sizeof";
++    s32 i;
++
++    for (; *childrenText != 0; childrenText++) {
++        for (i = 0; key[i] != 0 && childrenText[i] == key[i]; i++) {
++        }
++        if (key[i] == 0) {
++            childrenSize = childrenSize / (s32)(sizeof(void *) / 4);
++            break;
++        }
++    }
++    return createTaskWithId(update, size, childrenSize, id);
++}
++#endif

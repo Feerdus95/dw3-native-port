@@ -136,6 +136,7 @@ static void load_state(void) {
         fclose(f);
         return;
     }
+    native_read_wait(); /* a disc read still in flight would write over what is loaded */
     for (i = 0; i < n; i++) {
         if (fread(list[i].p, list[i].n, 1, f) != 1) {
             LOG("state: %s cut short", path); /* can't happen: the size was checked */
@@ -144,7 +145,7 @@ static void load_state(void) {
     fclose(f);
     spu_cd_clear();
     soft_discard();
-    gl_sync(1);
+    gfx_sync(1);
     LOG("state: loaded %s", path);
 }
 

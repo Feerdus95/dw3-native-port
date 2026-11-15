@@ -11,11 +11,11 @@ static const Row HOME[] = {ACT(S_PLAY), ACT(S_SETTINGS), ACT(S_SAVES), ACT(S_TOO
 static const Row HOME_NEWS[] = {ACT(S_PLAY), ACT(S_SETTINGS), ACT(S_SAVES), ACT(S_TOOLS), ACT(S_RELEASE), ACT(S_QUIT), {R_LANGUAGE}, {R_END}};
 static const Row SAVES[] = {ACT(S_EXPORT), ACT(S_IMPORT), ACT(S_UNDO), ACT(S_SV_FOLDER), ACT(S_BACK), {R_END}};
 static const Row FIRST_RUN[] = {ACT(S_BROWSE), {R_LANGUAGE}, {R_END}};
-static const Row TOOLS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_LOG), ACT(S_CHECK), ACT(S_CREDITS), ACT(S_BACK), {R_END}};
+static const Row TOOLS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_LOG), ACT(S_CHECK), ACT(S_FSR_DLL), ACT(S_DS_DLL), ACT(S_DLSS_DLL), ACT(S_CREDITS), ACT(S_BACK), {R_END}};
 /* the Input tab's buttons in the order of the game's Controls page */
 static const Row TABS[4][27] = {
-    {OPT(O_FPS), OPT(O_FULLSCREEN), OPT(O_WINDOW), OPT(O_WIDESCREEN), OPT(O_VSYNC), OPT(O_MOVIES), OPT(O_INACTIVE), ACT(S_RESET), ACT(S_BACK), {R_END}},
-    {OPT(O_RESOLUTION), OPT(O_PERSPECTIVE), OPT(O_SMOOTH_3D), OPT(O_TRUE_COLOR), OPT(O_DITHER), OPT(O_SOFT_SHADOWS), OPT(O_BATTLE_SHADOWS), OPT(O_BATTLE_SKY), OPT(O_BATTLE_FORM_NAME), ACT(S_RESET), ACT(S_BACK), {R_END}},
+    {OPT(O_FPS), OPT(O_RENDERER), OPT(O_FULLSCREEN), OPT(O_WINDOW), OPT(O_INTEGER), OPT(O_WIDESCREEN), OPT(O_VSYNC), OPT(O_MOVIES), OPT(O_INACTIVE), ACT(S_RESET), ACT(S_BACK), {R_END}},
+    {OPT(O_RESOLUTION), OPT(O_PERSPECTIVE), OPT(O_SMOOTH_3D), OPT(O_TRUE_COLOR), OPT(O_DITHER), OPT(O_SOFT_SHADOWS), OPT(O_BATTLE_SHADOWS), OPT(O_BATTLE_SKY), OPT(O_BATTLE_FORM_NAME), OPT(O_SMAA), OPT(O_FSR), OPT(O_UP_MODE), OPT(O_SHARPEN), OPT(O_BRIGHTNESS), OPT(O_GAMMA), OPT(O_SATURATION), OPT(O_SCANLINES), ACT(S_RESET), ACT(S_BACK), {R_END}},
     {OPT(O_ICONS), OPT(O_RUMBLE), OPT(O_DEADZONE), OPT(O_FF_MENUS), OPT(O_SKIP_START), OPT(O_MENU_WRAP), ACT(S_SWAP), {R_HEADING, S_BUTTONS},
      BIND(14), BIND(13), BIND(15), BIND(12), BIND(10), BIND(11), BIND(8), BIND(9), BIND(1), BIND(2), BIND(3), BIND(0), BIND(4), BIND(6), BIND(7), BIND(5),
      ACT(S_RESET), ACT(S_BACK), {R_END}},
@@ -55,13 +55,32 @@ SDL_Rect update_button(int tool)
     return (SDL_Rect){a.x + a.w - 6 - w, 0, w, ROW_H - 2};
 }
 
+/* The 32-bit game has OpenGL alone: no renderer to pick, nor Direct3D 12's upscalers and DirectStorage.
+   Upscaler mode shows only with FSR 3.1 or DLSS picked, the two it sets */
+static const Row *for_this_game(const Row *r)
+{
+    static Row out[32];
+    const bool x64 = game_x64();
+    int n = 0;
+    for (; r->kind != R_END; r++) {
+        const bool opt = r->kind == R_OPTION, act = r->kind == R_ACTION;
+        if ((opt && r->id == O_UP_MODE && (!x64 || option_int(O_FSR) < 2)) ||
+            (!x64 && ((opt && r->id == O_RENDERER) || (act && (r->id == S_FSR_DLL || r->id == S_DS_DLL || r->id == S_DLSS_DLL))))) {
+            continue;
+        }
+        out[n++] = *r;
+    }
+    out[n] = (Row){R_END, 0};
+    return out;
+}
+
 const Row *rows(void)
 {
     if (s_screen == SC_SETTINGS) {
-        return TABS[s_tab];
+        return for_this_game(TABS[s_tab]);
     }
     if (s_screen == SC_TOOLS) {
-        return TOOLS;
+        return for_this_game(TOOLS);
     }
     if (s_screen == SC_SAVES) {
         return SAVES;
@@ -195,6 +214,21 @@ static void draw_list(void)
             text_right(right, y, sel && !on ? C_GOLD : C_SOFT, value);
         }
         text(a.x + 13, y, 1, sel ? C_GOLD : C_TEXT, r[i].kind == R_OPTION ? L->option[r[i].id].name : L->s[r[i].id]);
+        if (r[i].kind == R_ACTION && r[i].id == S_FSR_DLL) {
+            char value[64];
+            fsr_dll_value(value, sizeof value);
+            text_right(a.x + a.w - 12 - list_inset(), y, C_SOFT, value);
+        }
+        if (r[i].kind == R_ACTION && r[i].id == S_DS_DLL) {
+            char value[64];
+            ds_dll_value(value, sizeof value);
+            text_right(a.x + a.w - 12 - list_inset(), y, C_SOFT, value);
+        }
+        if (r[i].kind == R_ACTION && r[i].id == S_DLSS_DLL) {
+            char value[64];
+            dlss_dll_value(value, sizeof value);
+            text_right(a.x + a.w - 12 - list_inset(), y, C_SOFT, value);
+        }
         if (r[i].kind == R_ACTION && r[i].id == S_SWAP) { /* on or off, so it shows it took */
             text_right(a.x + a.w - 12 - list_inset(), y, binds_swapped() ? C_GOLD : C_SOFT, L->s[binds_swapped() ? S_ON : S_OFF]);
         }

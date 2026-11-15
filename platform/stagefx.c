@@ -224,14 +224,14 @@ static void leaves_draw(int n, float lwind, float bright, int ox, int oy, int x1
     SDL_zero(p);
     p.radius = ARENA, p.top = TOP, p.fall = 1, p.wind = lwind, p.above = 1500, p.size[0] = 70, p.size[1] = 140, p.floor = 40;
     p.fog = 1, p.count = n, p.leaf = 1;
-    gl_props_part(s_white, &s_white_tex, &p, &cam, x1, y1, x2, y2, NULL);
+    gfx_props_part(s_white, &s_white_tex, &p, &cam, x1, y1, x2, y2, NULL);
 }
 
 /* --- the stage's list of props and emitters ---
    data/mods/fightstages/<id>/props.json (the viewer's Stages section writes it):
    upright billboards and particle emitters of the mod's own PNGs, placed in the
    world (the game's units, y up, 0 the ground). Drawn over the models with the
-   stage's depth (gl_props), so the stage's trees and the fighters hide them. */
+   stage's depth (gfx_props), so the stage's trees and the fighters hide them. */
 #define MAX_BB 100000
 #define MAX_EM 64
 #define MAX_PART 5000
@@ -557,7 +557,7 @@ static int s_nmg;
 static unsigned s_mvbo;
 
 static void models_free(void) {
-    gl_inst_free(s_mvbo);
+    gfx_inst_free(s_mvbo);
     s_mvbo = 0, s_nmg = 0;
 }
 
@@ -593,7 +593,7 @@ static void models_upload(void) {
             p->tint[0] = md->tint[0] / 255.0f, p->tint[1] = md->tint[1] / 255.0f, p->tint[2] = md->tint[2] / 255.0f, p->tint[3] = 1;
         }
     }
-    s_mvbo = gl_buf_make(tab, (unsigned long)s_nmd * sizeof *tab);
+    s_mvbo = gfx_buf_make(tab, (unsigned long)s_nmd * sizeof *tab);
     SDL_free(tab);
 }
 
@@ -612,9 +612,9 @@ static void models_draw(float bright, int ox, int oy, int x1, int y1, int x2, in
         Mesh *m = &s_mesh[g->mesh];
 
         if (m->g.n == 0) {
-            gl_mesh_make(&m->g, m->v, m->n); /* once; no card yet: again next frame */
+            gfx_mesh_make(&m->g, m->v, m->n); /* once; no card yet: again next frame */
         }
-        gl_props_model(s_img[g->img].surf, &s_img[g->img].tex, &m->g, m->miny, m->h, s_mvbo, g->first, g->count, &cam, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
+        gfx_props_model(s_img[g->img].surf, &s_img[g->img].tex, &m->g, m->miny, m->h, s_mvbo, g->first, g->count, &cam, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
     }
 }
 
@@ -918,7 +918,7 @@ static int cache_load(int id, const char *dir, const char *json_path) {
         return 0; /* the caller starts over from the JSON */
     }
     if (s_inst != NULL && s_nbb > 0) {
-        s_ivbo = gl_inst_make(s_inst, s_nbb);
+        s_ivbo = gfx_inst_make(s_inst, s_nbb);
     }
     models_upload();
     return 1;
@@ -947,7 +947,7 @@ static void props_load(int id) {
     {
         uint64_t tu = SDL_GetPerformanceCounter();
 
-        gl_inst_free(s_ivbo);
+        gfx_inst_free(s_ivbo);
         models_free();
         s_ms_up += ms_since(tu);
     }
@@ -962,7 +962,7 @@ static void props_load(int id) {
         return;
     }
     /* a cache that failed halfway left things in the tables: start clean */
-    gl_inst_free(s_ivbo);
+    gfx_inst_free(s_ivbo);
     SDL_free(s_inst);
     s_inst = NULL, s_ivbo = 0;
     SDL_memset(s_icnt, 0, sizeof s_icnt);
@@ -1022,7 +1022,7 @@ static void props_load(int id) {
             if (s_inst != NULL) {
                 uint64_t tu = SDL_GetPerformanceCounter();
 
-                s_nbb = m, s_ivbo = gl_inst_make(s_inst, m);
+                s_nbb = m, s_ivbo = gfx_inst_make(s_inst, m);
                 s_ms_up += ms_since(tu);
             }
         }
@@ -1087,7 +1087,7 @@ static void props_gpu(float bright, int ox, int oy, int x1, int y1, int x2, int 
     }
     for (im = 0; im < s_nimg; im++) {
         if (s_icnt[im] > 0) {
-            gl_props_inst(s_img[im].surf, &s_img[im].tex, s_ivbo, s_ibeg[im], s_icnt[im], &cam, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
+            gfx_props_inst(s_img[im].surf, &s_img[im].tex, s_ivbo, s_ibeg[im], s_icnt[im], &cam, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
         }
     }
     for (i = 0; i < s_nem; i++) {
@@ -1097,7 +1097,7 @@ static void props_gpu(float bright, int ox, int oy, int x1, int y1, int x2, int 
         SDL_zero(p);
         SDL_memcpy(p.center, e->center, sizeof p.center), SDL_memcpy(p.size, e->size, sizeof p.size), SDL_memcpy(p.tint, e->tint, sizeof p.tint);
         p.radius = e->radius, p.top = e->top, p.fall = e->fall, p.wind = e->wind, p.above = 300, p.floor = 20, p.fog = e->fog, p.count = e->count;
-        gl_props_part(s_img[e->img].surf, &s_img[e->img].tex, &p, &cam, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
+        gfx_props_part(s_img[e->img].surf, &s_img[e->img].tex, &p, &cam, x1, y1, x2, y2, s_pfog_on ? s_pfog : NULL);
     }
 }
 

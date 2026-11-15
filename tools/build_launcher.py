@@ -1,4 +1,4 @@
-"""Builds the launcher into build/, next to the game and its SDL3.dll.
+"""Builds the launcher into build/, next to the game and its SDL3.dll (--x64: a 64-bit one into build-x64/).
 Run from anywhere: python tools/build_launcher.py"""
 import os
 import shutil
@@ -7,14 +7,16 @@ import sys
 from pathlib import Path
 
 NATIVE = Path(__file__).resolve().parents[1]
-OUT = NATIVE / "build"
-SDL = NATIVE / "third_party/SDL3-3.4.16/i686-w64-mingw32"
+X64 = "--x64" in sys.argv  # next to build.py --x64's game: its SDL3.dll is 64-bit too
+ARCH = "x86_64" if X64 else "i686"
+OUT = NATIVE / ("build-x64" if X64 else "build")
+SDL = NATIVE / f"third_party/SDL3-3.4.16/{ARCH}-w64-mingw32"
 
 
 def compiler():
     if os.environ.get("LLVM_MINGW"):
-        return str(Path(os.environ["LLVM_MINGW"]) / "bin/i686-w64-mingw32-clang.exe")
-    found = shutil.which("i686-w64-mingw32-clang")
+        return str(Path(os.environ["LLVM_MINGW"]) / f"bin/{ARCH}-w64-mingw32-clang.exe")
+    found = shutil.which(f"{ARCH}-w64-mingw32-clang")
     if not found:
         sys.exit("no llvm-mingw: set LLVM_MINGW to its folder, or put its bin/ on the PATH")
     return found
@@ -26,11 +28,11 @@ def main():
     sources = [*sorted((NATIVE / "launcher").glob("*.c")), NATIVE / "platform/extract.c"]
     tag = subprocess.run(["git", "describe", "--tags", "--abbrev=0"], cwd=NATIVE, capture_output=True, text=True).stdout.strip()
     res = OUT / "launcher_res.o"
-    subprocess.run([Path(compiler()).with_name("i686-w64-mingw32-windres.exe"), "-O", "coff", "-i", str(NATIVE / "launcher/launcher.rc"), "-o", str(res)], check=True)
+    subprocess.run([Path(compiler()).with_name(f"{ARCH}-w64-mingw32-windres.exe"), "-O", "coff", "-i", str(NATIVE / "launcher/launcher.rc"), "-o", str(res)], check=True)
     # -static: the C runtime inside the exe, so that only SDL3.dll sits next to it
     subprocess.run([compiler(), "-std=c11", "-O2", "-Wall", "-Wextra", "-Wno-missing-field-initializers",
                     f"-I{SDL / 'include'}", f"-I{NATIVE / 'platform'}", f'-DLAUNCHER_VERSION="{tag or "dev"}"',
-                    *map(str, sources), str(res), str(SDL / "lib/libSDL3.dll.a"), "-lwinhttp", "-static", "-mwindows", "-o", str(exe)], check=True)
+                    *map(str, sources), str(res), str(SDL / "lib/libSDL3.dll.a"), "-lwinhttp", "-lbcrypt", "-static", "-mwindows", "-o", str(exe)], check=True)
     if not (OUT / "SDL3.dll").exists():
         shutil.copy2(SDL / "bin/SDL3.dll", OUT / "SDL3.dll")
     print(f"OK {exe} ({exe.stat().st_size // 1024} KB)")

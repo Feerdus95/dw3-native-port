@@ -139,6 +139,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | | |
 |---|---|
 | Frame rate | 50 (the European original) or 60 (the game's own 60 Hz mode; walking speed follows at the next area) |
+| Preset | the Graphics tab at once: Original (the PlayStation's picture), Enhanced (the port's defaults) or Remaster (those, with soft shadows, the battle sky, SMAA and some sharpening); Custom when the options are at none of them. Brightness, gamma and saturation stay as set |
 | Resolution | the 3D drawn 1 to 8 times finer than the PlayStation's 320x240, on the graphics card |
 | Sub-pixel 3D | the 3D's points at their exact place at higher resolutions, without the PlayStation's wobble |
 | Depth buffer | the battle models' polygons in the right order at higher resolutions |
@@ -152,6 +153,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Battle sky and fog | battles get a sky behind the stage and their far side fades into a fog, each stage by its kind (open air, night, rooms, water) in `stages.ini` by the exe, which can be edited; digital, space and technique backdrops are left as they are |
 | Smooth movies | the movies smoothed when scaled up, or with sharp pixels |
 | VSync | each frame shown whole, at the screen's refresh: no tearing |
+| Renderer | x64 build: Auto (Direct3D 12 where the card has it, else OpenGL), Direct3D 12 or OpenGL; OpenGL takes over if Direct3D 12 fails. Needs a restart |
 | Inactive window | what the game does while its window is not in front (minimised, or another window has the focus): nothing, mute the sound, or pause everything until it is back |
 | Fullscreen, Window size | the window fits the screen it is on, centred |
 | Controls | each PlayStation button's two keys and gamepad button: pick a slot, press the key or button (Esc / Back cancels); Del / Y clears it, the second to last line swaps Triangle (the game's cancel) and Circle, to cancel on B; the last puts the defaults back. A key or button set to one leaves any other it was on |
@@ -187,11 +189,19 @@ button can be changed in the options menu's Input tab, **Controls**.
     smooth_3d = 1        ; 0: the 3D's textures in sharp blocks
     true_color = 1       ; 0: the colours at the PlayStation's 5 bits a channel
     dither = 1           ; 0 turns off the PlayStation's dithering
+    sharpen = 0          ; 1-10: contrast-adaptive sharpening of the picture
+    brightness = 0       ; -10 to 10; gamma and saturation the same
+    scanlines = 0        ; 1-10: dark lines between the game's rows
+    integer_scale = 0    ; 1: the picture a whole multiple of 240 rows
+    smaa = 0             ; 1: the picture's jagged edges smoothed (SMAA)
+    fsr = 0              ; 1: the 3D enlarged to the window by FSR 1, when render_scale is below it; 2: FSR 3.1 (Direct3D 12 renderer, needs AMD's two DLLs next to the exe: the launcher's Tools screen, **FSR 3.1 files**, downloads them); 3: DLSS (Direct3D 12 renderer, an NVIDIA RTX card, and NVIDIA's four Streamline files next to the exe: the launcher's Tools screen, **DLSS files**, downloads them)
+    upscale_mode = 1        ; with fsr = 3: 0 DLAA, 1 Quality, 2 Balanced, 3 Performance (with fsr = 2 or 3 it sets the render size, not render_scale)
     battle_shadows = 1   ; 0: no shadows in battle
     battle_sky = 0       ; 1: a sky behind battles, the stage's far side fading into it
     battle_form_name = 0 ; 1: the battle HUD names the partner's current form
     soft_shadows = 0     ; 1: the field's shadows see-through and smooth
     vsync = 1            ; 0: frames shown at once, which can tear
+    renderer = auto      ; x64 build: auto, d3d12 or gl (OpenGL takes over if Direct3D 12 fails)
     smooth_movies = 1    ; 0 shows the movies with sharp pixels
     deadzone = 3277      ; how far the sticks and triggers move before they count (0-32767)
     rumble = 1           ; 0: no vibration
@@ -211,6 +221,8 @@ button can be changed in the options menu's Input tab, **Controls**.
     debug = 0            ; 1: F1 debug stage select, F3 sound test, F4 vibration test, F2 dump of the game state,
                          ;    F5 / F9 save / load a state (saves/quick.state)
     log =                ; console logs: cd, snd, pad, mc, ovl, gpu or all
+
+**DirectStorage** (x64 build): with Microsoft's `dstorage.dll` and `dstoragecore.dll` next to the exe, the game reads its files through DirectStorage; without them, or if it fails, it reads them as before. There is no option: the launcher's Tools screen, **DirectStorage files**, downloads the two DLLs from Microsoft's NuGet package, each checked by its SHA-256.
 
 ### Effects' own images (mods)
 

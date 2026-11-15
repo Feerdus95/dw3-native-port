@@ -1,4 +1,4 @@
-/* The window: an OpenGL one, where gl.c draws the display area (the last
+/* The window, where the renderer (gfx.c) draws the display area (the last
    PutDispEnv) and the options menu over it. */
 #include <SDL3/SDL.h>
 #include "platform.h"
@@ -30,24 +30,95 @@ void video_resize(int scale) {
     SDL_SetWindowPosition(s_window, SDL_WINDOWPOS_CENTERED_DISPLAY(display), SDL_WINDOWPOS_CENTERED_DISPLAY(display));
 }
 
+/* The game's boot image in the window while Direct3D 12 starts (with DLSS, NVIDIA's Streamline takes seconds there): the
+   320x480 TIM that main.c's load_boot_image put at STAGE_VRAM, the one the game's main() shows first. Drawn by SDL in
+   software where the renderer will show it (frame.c's picture: 4:3, whole rows with integer_scale; main() shows 640 rows
+   from (0, 0), the VRAM's 512 of them, so the image is its top 480/512 and a black band is left under it), unsmoothed as
+   there, with what is starting written in that band. Let go before the swap chain takes the window; nothing is presented
+   (present_frame) until the game shows the image itself, so it stays up to then */
+static int s_boot_shown;
+static SDL_Surface *s_boot_pic;
+
+SDL_Surface *video_boot_picture(void) {
+    return s_boot_pic;
+}
+
+static void boot_image(SDL_Window *w) {
+    extern uint8_t STAGE_VRAM[];
+    const uint8_t *t = STAGE_VRAM + 4; /* after the TIM's ID word, as main() reads it: flags, block size, x, y, w, h, pixels */
+    const int iw = t[12] | t[13] << 8, ih = t[14] | t[15] << 8;
+    SDL_Surface *img, *win;
+    int x, y;
+
+    if ((t[0] & 7) != 2 || iw != 320 || ih != 480 || (img = SDL_CreateSurface(iw, ih, SDL_PIXELFORMAT_XRGB8888)) == NULL) {
+        return; /* 16-bit, no CLUT, 320x480: anything else is not it */
+    }
+    for (y = 0; y < ih; y++) {
+        for (x = 0; x < iw; x++) {
+            const uint8_t *p = t + 16 + ((size_t)y * iw + x) * 2;
+            const unsigned c = p[0] | p[1] << 8;
+
+            ((uint32_t *)((uint8_t *)img->pixels + (size_t)y * img->pitch))[x] = (c & 31) << 19 | (c >> 5 & 31) << 11 | (c >> 10 & 31) << 3;
+        }
+    }
+    if ((win = SDL_GetWindowSurface(w)) != NULL) {
+        const char *text = g_fsr == 3 ? "Starting DLSS (NVIDIA), it takes a few seconds..." : "Starting Direct3D 12...";
+        SDL_Rect vp = {0, 0, win->w * 3 > win->h * 4 ? win->h * 4 / 3 : win->w, win->w * 3 > win->h * 4 ? win->h : win->w * 3 / 4}, r;
+        SDL_Renderer *sr;
+
+        if (g_integer_scale && vp.h >= 240) {
+            vp.h = vp.h / 240 * 240, vp.w = vp.h * 4 / 3;
+        }
+        vp.x = (win->w - vp.w) / 2, vp.y = (win->h - vp.h) / 2;
+        r = (SDL_Rect){vp.x, vp.y, vp.w, vp.h * 480 / 512};
+        SDL_FillSurfaceRect(win, NULL, 0);
+        SDL_BlitSurfaceScaled(img, NULL, win, &r, SDL_SCALEMODE_NEAREST);
+        if ((sr = SDL_CreateSoftwareRenderer(win)) != NULL) { /* the text, centred in the band */
+            const float k = (float)SDL_max(1, vp.h / 480), band = vp.h - r.h;
+
+            SDL_SetRenderScale(sr, k, k);
+            SDL_SetRenderDrawColor(sr, 255, 255, 255, 255);
+            SDL_RenderDebugText(sr, (vp.x + (vp.w - SDL_strlen(text) * 8 * k) / 2) / k, (r.y + r.h + (band - 8 * k) / 2) / k, text);
+            SDL_RenderPresent(sr);
+            SDL_DestroyRenderer(sr);
+        }
+        SDL_UpdateWindowSurface(w);
+        s_boot_pic = SDL_ConvertSurface(win, SDL_PIXELFORMAT_RGBA32); /* for D3D12's first present (dx_init) */
+        s_boot_shown = 1;
+        SDL_PumpEvents();
+        SDL_DestroyWindowSurface(w);
+    }
+    SDL_DestroySurface(img);
+}
+
 int video_init(int scale, int fullscreen) {
+    int ok;
+
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         LOG("SDL_Init: %s", SDL_GetError());
         return 0;
     }
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    s_window = SDL_CreateWindow("Digimon World 2003", video_window_width(scale), 240 * scale,
-                                SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0) | (g_render_sounds ? SDL_WINDOW_HIDDEN : 0));
-    if (s_window == NULL) {
-        LOG("window: %s", SDL_GetError());
-        return 0;
-    }
-    if (!gl_init(s_window)) {
-        LOG("this needs OpenGL 3.3");
-        return 0;
+    for (;;) { /* the renderer picked, or OpenGL when it can't start: a new window, as its flags differ */
+        s_window = SDL_CreateWindow("Digimon World 2003", video_window_width(scale), 240 * scale,
+                                    gfx_window_flags() | SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0) | (g_render_sounds ? SDL_WINDOW_HIDDEN : 0));
+        if (s_window == NULL) {
+            LOG("window: %s", SDL_GetError());
+            return 0;
+        }
+        if (!g_render_sounds && SDL_strcmp(gfx_name(), "D3D12") == 0) {
+            boot_image(s_window);
+        }
+        ok = gfx_init(s_window);
+        SDL_DestroySurface(s_boot_pic), s_boot_pic = NULL;
+        if (ok) {
+            break;
+        }
+        SDL_DestroyWindow(s_window);
+        if (!gfx_fallback()) {
+            LOG("this needs OpenGL 3.3");
+            return 0;
+        }
+        LOG("renderer: failed, OpenGL instead");
     }
     /* the menu in 320x240 units, four times as fine: its icons sharp */
     s_menu = SDL_CreateSurface(1280, 960, SDL_PIXELFORMAT_ABGR8888);
@@ -162,7 +233,11 @@ void present_frame(void) {
 
     int ff = !menu_active() && g_ff_speed > 1, pf = !menu_active() && perf_on();
 
-    gl_sync(0);
+    gfx_sync(0);
+    if (s_boot_shown && !g_disp_on && !menu_active() && n == 0) { /* main()'s black frames before its SetDispMask(1): boot_image's stays */
+        return;
+    }
+    s_boot_shown = 0;
     if (menu_active() || ff || pf) {
         SDL_SetRenderDrawColor(s_menu_renderer, 0, 0, 0, 0);
         SDL_RenderClear(s_menu_renderer);
@@ -185,13 +260,13 @@ void present_frame(void) {
     }
     if (screenshot) {
         s_screenshot = 0;
-        gl_present(NULL, &shot); /* without the fast forward's corner */
+        gfx_present(NULL, &shot); /* without the fast forward's corner */
         if (shot != NULL) {
             save_screenshot(shot);
         }
         shot = NULL;
     }
-    gl_present(menu_active() || ff || pf ? s_menu : NULL, n ? &shot : NULL);
+    gfx_present(menu_active() || ff || pf ? s_menu : NULL, n ? &shot : NULL);
     if (n) {
         dump_vram(n, shot);
     }

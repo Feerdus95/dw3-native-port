@@ -27,6 +27,39 @@ smooth_3d = 1
 # dithering is then left out
 true_color = 1
 
+# the picture on its way to the window, all 0 as the game's own:
+# sharpen 0 to 10 (contrast-adaptive, keeps edges from ringing);
+# brightness, gamma and saturation -10 to 10. Not on the movies
+sharpen = 0
+brightness = 0
+gamma = 0
+saturation = 0
+
+# 1 to 10: dark lines between the game's rows, as a tube television's
+# (best with integer_scale, or they beat against the screen's rows)
+scanlines = 0
+
+# 1: the picture a whole multiple of the game's 240 rows, with bars
+# around it, so that every pixel of the game's is the same size
+integer_scale = 0
+
+# 1: the picture's jagged edges smoothed (SMAA), the rest left sharp
+smaa = 0
+
+# 1: with render_scale below the window's size, the 3D (the battles) is
+# enlarged to the window by AMD's FSR 1 rather than plainly smoothed;
+# for slow graphics cards. Best with some sharpen.
+# 2: FSR 3.1, AMD's temporal upscaler, with the Direct3D 12 renderer (x64) only.
+# 3: DLSS, NVIDIA's, the same, on an RTX card, with NVIDIA's Streamline files next to the exe.
+# It needs AMD's two DLLs next to the exe (amd_fidelityfx_loader_dx12.dll and
+# amd_fidelityfx_upscaler_dx12.dll, from the FidelityFX SDK) and a Resolution
+# below the window's size; without them it works as 1. Takes the place of
+# smaa on those frames. Choosing it in the options needs a restart
+fsr = 0
+
+# With fsr = 3 (DLSS): 0 DLAA, 1 Quality, 2 Balanced, 3 Performance.
+upscale_mode = 1
+
 # 0: no dithering (the PlayStation's, on shaded and blended polygons)
 dither = 1
 
@@ -46,6 +79,11 @@ soft_shadows = 0
 
 # 0: no vsync: frames shown at once, which can tear in fullscreen
 vsync = 1
+
+# The 64-bit build's renderer: auto (Direct3D 12 where the graphics card has
+# it, else OpenGL), d3d12 or gl. OpenGL takes over if Direct3D 12 can't start.
+# The 32-bit build is OpenGL only. Needs a restart
+renderer = auto
 
 # 0: the movies with sharp pixels instead of smoothed when scaled up
 smooth_movies = 1

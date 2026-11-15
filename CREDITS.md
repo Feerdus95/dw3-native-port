@@ -28,6 +28,18 @@ The native port of Digimon World 2003 builds on the work of others:
   The hardware behaviour the platform layer reproduces, including two data tables of the chips: the SPU's Gaussian
   interpolation weights and its reverb resampling filter.
 - **Zaw Htet Naing** (PR #21). Tech visual upgrade: the technique visuals map, the prepared launch slots of the players' scripts 9 and 13, and their option.
+- **AMD FidelityFX Contrast Adaptive Sharpening** (CAS, MIT). The idea behind the Sharpen option: a sharpening
+  weighted by the local contrast. The shader here is written for this renderer, not AMD's code.
+- **[SMAA](https://github.com/iryoku/smaa)** (Enhanced Subpixel Morphological Antialiasing, MIT; © 2013 Jorge Jimenez,
+  Jose I. Echevarria, Belen Masia, Fernando Navarro, Diego Gutierrez). The SMAA option: their shader and its two
+  tables as published, in `platform/smaa/` with their license.
+- **AMD FidelityFX Super Resolution 1.0** (FSR 1, MIT; © 2021 Advanced Micro Devices, Inc.). The FSR 1 option is
+  its upscaling pass (EASU), written out for this renderer after AMD's.
+- **AMD FidelityFX Super Resolution 3.1** (FSR 3.1 upscaler, MIT; © Advanced Micro Devices, Inc.). The FSR 3.1 option calls
+  it through AMD's C API (`ffx_api`), loaded at run time from AMD's own DLLs, which the port does not ship (the launcher can download them from AMD's SDK, tag v2.4.0, checking their SHA-256); only the
+  layout of the API's structures is declared in `platform/d3d12/fsr3_api.h`.
+- **[Microsoft DirectStorage](https://github.com/microsoft/DirectStorage)** (MIT; © Microsoft Corporation). The disc reads can go through it. The port loads `dstorage.dll` at run time, does not ship it, and declares the few calls it uses by hand in `platform/dstorage.c`, checked against Microsoft's header.
+- **[NVIDIA Streamline](https://github.com/NVIDIA-RTX/Streamline)** (headers MIT; © NVIDIA Corporation; its DLLs and the DLSS runtime under NVIDIA's own licence). The DLSS option calls it at run time from NVIDIA's DLLs, which the port does not ship (the launcher can download them from NVIDIA's release v2.14.16, checking their SHA-256); the layout of its structures is declared in `platform/d3d12/dlss_api.h`.
 
 PlayStation is a trademark of Sony Interactive Entertainment, Xbox of Microsoft and Nintendo Switch of Nintendo; the
 icons only show which button to press, and the project has no relation to them.

@@ -22,6 +22,8 @@
 int native_file_exists(int fid);
 int native_file_sectors(int fid);
 void native_read_file(int fid, int sector, int count, void *dst);
+void native_read_start(int fid, int sector, int count, void *dst); /* the same, but done later: native_read_done() says when (files.c) */
+int native_read_done(void);
 
 /* Waits for the next vsync and runs what an interrupt would have (platform/etc.c) */
 void native_wait_vblank(void);

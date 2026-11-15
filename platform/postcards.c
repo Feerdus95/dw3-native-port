@@ -70,7 +70,7 @@ int native_postcard(int mode) {
 
 void postcard_draw(int mode, float x, float y, float w, float h, int cx1, int cy1, int cx2, int cy2) {
     if (postcard(mode) != NULL) {
-        gl_image(s_img[mode - FIRST], &s_tex[mode - FIRST], x, y, x + w, y + h, 0, cx1, cy1, cx2, cy2);
+        gfx_image(s_img[mode - FIRST], &s_tex[mode - FIRST], x, y, x + w, y + h, 0, cx1, cy1, cx2, cy2);
     }
 }
 

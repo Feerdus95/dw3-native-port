@@ -79,6 +79,7 @@ static int load_boot_image(void) {
    render_scale = 1-8, fast_text = 0/1, fast_travel = 0/1, map_objective = 0/1, journal = 0/1, extra_packs = 0/1,
    bladegarurumon = 0/1, full_exp_share = 0/1, technique_visuals = 0/1, heal_on_levelup = 0/1, skip_press_start = 0/1, ff_menu_speed = 0/1, menu_wrap = 0/1, battle_form_name = 0/1, fix_equip_stacking = 0/1, save_anywhere = 0/1, soft_shadows = 0/1, true_color = 0/1, perspective = 0/1,
    smooth_3d = 0/1, battle_shadows = 0/1, battle_sky = 0/1, widescreen = 0/1,
+   sharpen = 0-10, brightness, gamma, saturation = -10 to 10, scanlines = 0-10, integer_scale = 0/1, smaa = 0/1, fsr = 0/1,
    vsync = 0/1, inactive_window = 0 nothing / 1 mute / 2 pause;
    the options menu (menu.c) writes them back */
 static int s_fullscreen, s_scale, s_fps60, s_res_set; /* s_scale 0: from the screen */
@@ -131,6 +132,8 @@ static void read_ini(int data_only) {
             g_true_color = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "vsync") == 0) {
             g_vsync = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "renderer") == 0) {
+            g_renderer = SDL_strcasecmp(value, "d3d12") == 0 ? 1 : SDL_strcasecmp(value, "gl") == 0 ? 2 : 0;
         } else if (SDL_strcasecmp(key, "widescreen") == 0) {
             g_widescreen = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "battle_shadows") == 0) {
@@ -143,6 +146,24 @@ static void read_ini(int data_only) {
             g_perspective = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "soft_shadows") == 0) {
             g_soft_shadows = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "sharpen") == 0) {
+            g_sharpen = SDL_clamp(atoi(value), 0, 10);
+        } else if (SDL_strcasecmp(key, "smaa") == 0) {
+            g_smaa = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "fsr") == 0) {
+            g_fsr = SDL_clamp(atoi(value), 0, 3);
+        } else if (SDL_strcasecmp(key, "upscale_mode") == 0) {
+            g_up_mode = SDL_clamp(atoi(value), 0, 3);
+        } else if (SDL_strcasecmp(key, "scanlines") == 0) {
+            g_scanlines = SDL_clamp(atoi(value), 0, 10);
+        } else if (SDL_strcasecmp(key, "integer_scale") == 0) {
+            g_integer_scale = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "brightness") == 0) {
+            g_brightness = SDL_clamp(atoi(value), -10, 10);
+        } else if (SDL_strcasecmp(key, "gamma") == 0) {
+            g_gamma = SDL_clamp(atoi(value), -10, 10);
+        } else if (SDL_strcasecmp(key, "saturation") == 0) {
+            g_saturation = SDL_clamp(atoi(value), -10, 10);
         } else if (SDL_strcasecmp(key, "smooth_movies") == 0) {
             g_smooth_movies = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "debug") == 0) {
@@ -330,8 +351,14 @@ int main(int argc, char **argv) {
     if (getenv("DW3_LOG") != NULL) {
         g_log = log_bits(getenv("DW3_LOG"));
     }
+#ifdef _WIN64
+    /* x64 experiment: the 64-bit image is bigger and the overlay areas land past 16 MB; they hold files' data, which
+       no ordering table points at: only the heap (the primitives) has to be reachable by a 24-bit tag */
+    if ((uintptr_t)HEAP_BASE + NATIVE_HEAP_SIZE > 0x01000000) {
+#else
     if ((uintptr_t)STAGE_VRAM + 512 * 1024 > 0x01000000 || (uintptr_t)OVERLAY_VRAM + 512 * 1024 > 0x01000000 ||
         (uintptr_t)HEAP_BASE + NATIVE_HEAP_SIZE > 0x01000000) {
+#endif
         LOG("the game's memory is above 16 MB: the GPU's 24-bit tags can't reach it");
         return 1;
     }

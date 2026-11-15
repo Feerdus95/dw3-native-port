@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+- **Sharpen, Brightness, Gamma, Saturation** (Options, Graphics; `sharpen` 0 to 10, `brightness`, `gamma`, `saturation` -10 to 10; all 0 by default, the game's own picture). A post-process pass over the game's picture on its way to the window, not over the movies or the options menu. The sharpening is contrast-adaptive, after AMD's FidelityFX CAS.
+- **Scanlines** (Options, Graphics; `scanlines` 0 to 10, off by default). Dark lines between the game's rows, in the same pass.
+- **Integer scaling** (Options, Display; `integer_scale`, off by default). The picture is a whole multiple of the game's 240 rows, with bars around it, so that every pixel of the game's is the same size on screen.
+- **SMAA anti-aliasing** (Options, Graphics; `smaa`, off by default). The picture's jagged edges are smoothed and the rest is left sharp. Jimenez, Echevarria, Masia, Navarro and Gutierrez's SMAA 1x, as they publish it.
+- **FSR 1 upscaling** (Options, Graphics; `fsr`, off by default). With the Resolution below the window's size, the frames with 3D in them (the battles) are enlarged to the window by the upscaling pass of AMD's FidelityFX Super Resolution 1.0 instead of plain smoothing; Sharpen does the rest. For slow graphics cards: at a Resolution that matches the window it has nothing to do.
+- **Preset** (Options, Graphics, first row). Original, Enhanced or Remaster set the tab's options at once; it reads Custom when they are at none of the three.
+- **Reads from the disc on their own thread.** The game asks for a file and goes on drawing while a thread reads it, as the console's drive did, instead of waiting for the disk. On a hard disk, the first battle no longer stutters when its files load.
+- **No console window.** The game is built as a window's program: started from the launcher or Explorer, no black console window opens with it.
+- **log.txt** (launcher, Tools): the game started from the launcher now writes what it reports there. The launcher pointed to it after a failed start, but nothing wrote the file.
+
+## x64 build (not released yet)
+
+What only the 64-bit exe has. It is not shipped yet: the released zip stays the 32-bit build.
+
+- **FSR 3.1** (Options, Graphics, Upscaling: Off, FSR 1 or FSR 3.1; `fsr = 2`; the Direct3D 12 renderer only). AMD's temporal upscaler over the frames with 3D in them, fed with the game's own depth, motion and jitter. It is loaded at run time from AMD's two FidelityFX DLLs, which the player puts next to the exe; without them it stays off.
+- **FSR 3.1 files** (launcher, Settings, Graphics): downloads AMD's two DLLs from the FidelityFX SDK's tag v2.4.0 next to the game, each checked by its SHA-256. The port itself carries none of AMD's binaries.
+- **DLSS** (Options, Graphics, Upscaling: Off, FSR 1, FSR 3.1 or DLSS; `fsr = 3`; the Direct3D 12 renderer, an NVIDIA RTX card). NVIDIA's temporal upscaler through Streamline, over the frames with 3D in them, fed with the same depth, motion and jitter as FSR 3.1. The mode is a row of its own (Upscaler mode, `upscale_mode`: DLAA, Quality, Balanced or Performance, Quality by default) and, for DLSS and FSR 3.1, it sets the render size instead of Resolution: 100, 67, 58 or 50 % of the picture's height, rounded to whole 240 rows of the game's (at 1440p: 6x, 4x, 3x, 3x). DLSS gets the picture in the game's 4:3 with square pixels, stretched over the window when shown, and is told the mode nearest to the real render ratio, since it refuses sizes outside a mode's range. It is loaded at run time from NVIDIA's four Streamline files next to the exe; without them, or on another card, it stays off. Needs a restart to take effect.
+- **DLSS files** (launcher, Tools): downloads NVIDIA's Streamline SDK release v2.14.16 from GitHub and keeps the four DLLs next to the game, each checked by its SHA-256. The port itself carries none of NVIDIA's binaries.
+- **Renderer** (x64 build; Options, Display, and the launcher; `renderer`: Auto, Direct3D 12 or OpenGL, Auto by default). The 64-bit exe carries both renderers and picks one at start: Auto takes Direct3D 12 where the graphics card has it, else OpenGL, and OpenGL takes over on its own if Direct3D 12 fails to start. Direct3D 12's DLLs are loaded at run time, so the exe starts on a system without them. Needs a restart. The 32-bit build stays OpenGL only, and the launcher shows neither this row nor Direct3D 12's extras (FSR 3.1, DLSS, DirectStorage) next to it.
+- **DirectStorage reads** (Windows, x64 build). With Microsoft's `dstorage.dll` and `dstoragecore.dll` next to the exe, the reader thread asks DirectStorage for the files instead of reading them itself; without them, or if it fails, the thread's plain reads stay. Measured on a hard disk, a SATA SSD and an NVMe, the game's small reads take the same either way today; it is there for the larger files mods will bring. The port carries none of Microsoft's binaries, and DirectStorage's usage reports to Microsoft are switched off.
+- **DirectStorage files** (launcher, Tools): downloads Microsoft's two DLLs from the DirectStorage 1.3.0 NuGet package next to the game, each checked by its SHA-256.
+- **The boot image while Direct3D 12 starts** (x64). DLSS takes a few seconds to start (NVIDIA's Streamline); meanwhile the window shows the game's own boot image, with a line saying what is starting, instead of nothing. Upscaler mode is listed only while FSR 3.1 or DLSS is picked.
+
 ## v0.19.7 (beta)
 
 - The Digilog no longer gives away the Qing Long Chief while the Digi-Egg of Sincerity is still being looked for: the step is titled after the egg, and once the swamp's wall is down it only says to go through it.

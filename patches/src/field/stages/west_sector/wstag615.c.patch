@@ -1,0 +1,14 @@
+--- a/src/field/stages/west_sector/wstag615.c
++++ b/src/field/stages/west_sector/wstag615.c
+@@ -534,6 +534,11 @@
+     { { { CODES_END, 0 }, { CODES_END, 0 } }, SLOT_CLIMB_DOWN, 6, 0xB3, 0x238, 0, 0, 0, 0 },
+     { { { CODES_END, 0 }, { CODES_END, 0 } }, SLOT_CLIMB_UP, 6, 0xC3, 0x2A0, 0, 0, 0, 0 },
+     { { { PROGRESS(STORY_LISA_SAVED), 1 }, { FLAG(0x40, 0x39), 0 } }, SLOT_EVENT, 0x212, 0, 0, 0, 0, 0, 0 },
++#if defined(NATIVE) && __SIZEOF_POINTER__ == 8
++    /* the list has no end of its own: it runs on into stageSlots1, which a
++       64-bit build aligns apart from it */
++    { { { CODES_END, 0 }, { CODES_END, 0 } }, 0, 0, 0, 0, 0, 0, 0, 0 },
++#endif
+ };
+ StageSlot stageSlots1[] = {
+     { { { CODES_END, 0 }, { CODES_END, 0 } }, SLOT_EXIT, 0x253, 0x90, 0x240, 7, 0, 0, 0 },

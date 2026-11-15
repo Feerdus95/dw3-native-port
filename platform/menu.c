@@ -10,38 +10,62 @@
 extern int NTSC_MODE; /* the game's: 60 Hz (its NTSC mode) rather than 50 */
 void SsSetTickMode(long mode);
 
-enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, MOVIES, VSYNC, FULLSCREEN, WINDOW, INACTIVE, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FF_MENUS, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, TECHNIQUE_VISUALS, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, ICONS, CONTROLS, SKIP_START, MENU_WRAP, QUIT_GAME, ITEMS };
+enum { FPS, SCALE, SUBPIXEL, DEPTH, WIDESCREEN, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, MOVIES, VSYNC, FULLSCREEN, WINDOW, INACTIVE, RUMBLE, DEADZONE, FAST_TEXT, FAST_FORWARD, FF_MENUS, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, TECHNIQUE_VISUALS, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, ICONS, CONTROLS, SKIP_START, MENU_WRAP, QUIT_GAME, SHARPEN, BRIGHTNESS, GAMMA, SATURATION, SCANLINES, INTEGER_SCALE, SMAA, FSR, PRESET, UP_MODE, RENDERER, ITEMS };
 
 static const char *LABELS[ITEMS] = {
     "Frame rate", "Resolution", "Sub-pixel 3D", "Depth buffer", "Widescreen battles", "Perspective 3D", "Smooth 3D textures", "True colour", "Dithering", "Soft shadows", "Battle shadows", "Battle sky and fog", "Form name in battle", "Smooth movies", "VSync", "Fullscreen", "Window size", "Inactive window", "Vibration", "Stick deadzone",
     "Fast text (hold X)", "Fast forward (Tab/R3)", "Menus in fast forward", "Fast travel (map, X)", "Objective on map", "Digilog (field menu)", "Extra starter packs", "BladeGarurumon", "Full EXP Share", "Tech visual upgrade", "Heal on level up", "Save anywhere", "Crest fix", "Custom effects", "Custom sounds", "Custom scripts",
     "Button icons", "Controls", "Skip PRESS START", "Menu cursor wraps", "Quit game",
+    "Sharpen", "Brightness", "Gamma", "Saturation", "Scanlines", "Integer scaling", "SMAA anti-aliasing", "Upscaling", "Preset", "Upscaler mode", "Renderer",
 };
 
 /* the tabs and their options, each list ending with -1 */
 #define TABS 4
 #define ROWS 12 /* the rows shown: the box stays the same size, a longer tab scrolls */
-#define MAX_ITEMS 16
+#define MAX_ITEMS 20
 static const char *TAB_NAMES[TABS] = {"Display", "Graphics", "Input", "Mods"};
 static const int TAB_ITEMS[TABS][MAX_ITEMS + 1] = {
-    {FPS, FULLSCREEN, WINDOW, WIDESCREEN, VSYNC, MOVIES, INACTIVE, QUIT_GAME, -1},
-    {SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, -1},
+#ifdef _WIN64 /* the 32-bit build has OpenGL alone: no Renderer, no Upscaler mode (FSR 3.1 and DLSS are Direct3D 12's) */
+    {FPS, RENDERER, FULLSCREEN, WINDOW, INTEGER_SCALE, WIDESCREEN, VSYNC, MOVIES, INACTIVE, QUIT_GAME, -1},
+    {PRESET, SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, SMAA, FSR, UP_MODE, SHARPEN, BRIGHTNESS, GAMMA, SATURATION, SCANLINES, -1},
+#else
+    {FPS, FULLSCREEN, WINDOW, INTEGER_SCALE, WIDESCREEN, VSYNC, MOVIES, INACTIVE, QUIT_GAME, -1},
+    {PRESET, SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, SMAA, FSR, SHARPEN, BRIGHTNESS, GAMMA, SATURATION, SCANLINES, -1},
+#endif
     {ICONS, CONTROLS, FAST_FORWARD, FF_MENUS, SKIP_START, MENU_WRAP, RUMBLE, DEADZONE, -1},
     {FAST_TEXT, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, TECHNIQUE_VISUALS, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, -1},
 };
 
 static int s_open, s_tab, s_cursor[TABS], s_top[TABS], s_changed; /* s_top: the first row shown */
 static int s_quit_armed, s_quit_was; /* "Quit game" asks for a second press */
+static int s_renderer_was = -1;      /* native.ini's renderer at start, once the menu changed it */
 
 static void save(void);
 
-static int tab_count(int tab) {
-    int n = 0;
+/* Upscaler mode sets FSR 3.1's and DLSS's render size alone: hidden with the others */
+static int shown(int item) {
+    return item != UP_MODE || g_fsr >= 2;
+}
 
-    while (n < MAX_ITEMS && TAB_ITEMS[tab][n] >= 0) {
-        n++;
+static int tab_count(int tab) {
+    int n = 0, i;
+
+    for (i = 0; i < MAX_ITEMS && TAB_ITEMS[tab][i] >= 0; i++) {
+        n += shown(TAB_ITEMS[tab][i]);
     }
     return n;
+}
+
+/* the tab's nth row shown */
+static int tab_item(int tab, int n) {
+    int i;
+
+    for (i = 0; i < MAX_ITEMS && TAB_ITEMS[tab][i] >= 0; i++) {
+        if (shown(TAB_ITEMS[tab][i]) && n-- == 0) {
+            return TAB_ITEMS[tab][i];
+        }
+    }
+    return -1;
 }
 
 int menu_active(void) {
@@ -62,12 +86,43 @@ static int window_scale(void) {
     return SDL_clamp((h + 120) / 240, 1, 8);
 }
 
+/* The Graphics tab as a whole: the PlayStation's picture, the port's own defaults, and those with every extra on.
+   Brightness, gamma and saturation are the screen's, and stay as they are, as do Sub-pixel 3D and the Depth buffer */
+static int *const PRESET_VARS[] = {&g_perspective, &g_smooth_3d, &g_true_color, &g_dither_on, &g_soft_shadows,
+                                   &g_battle_shadows, &g_battle_sky, &g_smaa, &g_fsr, &g_sharpen, &g_scanlines};
+enum { PRESET_N = SDL_arraysize(PRESET_VARS), PRESETS = 3 };
+static const char *PRESET_NAMES[PRESETS + 1] = {"Original", "Enhanced", "Remaster", "Custom"};
+static const signed char PRESET_VALUES[PRESETS][PRESET_N] = {
+    {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1, 0, 3, 0},
+};
+
+/* The resolution a preset goes with: the PlayStation's, or a finer one (the one set, else the window's) */
+static int preset_scale(int p) {
+    return p == 0 ? 1 : g_res_scale > 1 ? g_res_scale : SDL_max(window_scale(), 2);
+}
+
+/* The preset the options are at, PRESETS when at none */
+static int preset(void) {
+    int p, i;
+
+    for (p = 0; p < PRESETS; p++) {
+        for (i = 0; i < PRESET_N && *PRESET_VARS[i] == PRESET_VALUES[p][i]; i++) {
+        }
+        if (i == PRESET_N && g_res_scale == preset_scale(p)) {
+            return p;
+        }
+    }
+    return PRESETS;
+}
+
 static void value(int item, char *out, size_t size) {
     int on = 0;
 
     switch (item) {
     case FPS: SDL_snprintf(out, size, NTSC_MODE ? "60 Hz" : "50 Hz (original)"); return;
-    case SCALE: SDL_snprintf(out, size, g_res_scale > 1 ? "%dx%d" : "%dx%d (original)", 320 * g_res_scale, 240 * g_res_scale); return;
+    case SCALE: if (gfx_scale_tied()) { SDL_snprintf(out, size, "%dx%d (mode)", 320 * gfx_scale(), 240 * gfx_scale()); return; } SDL_snprintf(out, size, g_res_scale > 1 ? "%dx%d" : "%dx%d (original)", 320 * g_res_scale, 240 * g_res_scale); return;
     case WINDOW: SDL_snprintf(out, size, "%dx%d", video_window_width(window_scale()), 240 * window_scale()); return;
     case DEADZONE: SDL_snprintf(out, size, "%d%%", (g_deadzone * 100 + 16383) / 32767); return;
     case FAST_FORWARD: SDL_snprintf(out, size, g_ff_speed > 1 ? "x%d" : "Off", g_ff_speed); return;
@@ -79,7 +134,43 @@ static void value(int item, char *out, size_t size) {
     }
     case INACTIVE: SDL_snprintf(out, size, "%s", g_inactive_window == 2 ? "Pause" : g_inactive_window == 1 ? "Mute" : "Off"); return;
     case CONTROLS: SDL_snprintf(out, size, ">"); return;
+    case SHARPEN: SDL_snprintf(out, size, g_sharpen ? "%d" : "Off", g_sharpen); return;
+    case PRESET: SDL_snprintf(out, size, "%s", PRESET_NAMES[preset()]); return;
+    case SMAA: on = g_smaa; break;
+    case FSR: {
+        int st = gfx_fsr3_status(), sd = gfx_dlss_status();
+
+        if (g_fsr == 3) {
+            SDL_snprintf(out, size, sd < 0 ? "DLSS (not here)" : sd == 0 ? "DLSS (restart)" : sd == 2 ? "DLSS (lower res.)" : "DLSS");
+        } else {
+            SDL_snprintf(out, size, g_fsr == 0 ? "Off" : g_fsr == 1 ? "FSR 1" : st == 0 ? "FSR 3.1 (restart)" : st == 2 ? "FSR 3.1 (lower res.)" : "FSR 3.1");
+        }
+        return;
+    }
+    case UP_MODE:
+        if (gfx_fsr3_status() < 0 && gfx_dlss_status() < 0) { /* OpenGL running: kept for Direct3D 12 */
+            SDL_snprintf(out, size, "(not here)");
+            return;
+        }
+        SDL_snprintf(out, size, "%s", g_up_mode == 0 ? (g_fsr == 2 ? "Native AA" : "DLAA") : g_up_mode == 1 ? "Quality" : g_up_mode == 2 ? "Balanced" : "Performance"); return;
+    case SCANLINES: SDL_snprintf(out, size, g_scanlines ? "%d" : "Off", g_scanlines); return;
+    case INTEGER_SCALE: on = g_integer_scale; break;
+    case BRIGHTNESS: SDL_snprintf(out, size, g_brightness ? "%+d" : "0", g_brightness); return;
+    case GAMMA: SDL_snprintf(out, size, g_gamma ? "%+d" : "0", g_gamma); return;
+    case SATURATION: SDL_snprintf(out, size, g_saturation ? "%+d" : "0", g_saturation); return;
     case QUIT_GAME: SDL_snprintf(out, size, s_quit_armed ? "Press again" : ">"); return;
+    case RENDERER: { /* the one asked for, and what runs: Auto's pick, a restart pending, or OpenGL in its place */
+        static const char *NAMES[3] = {"Auto", "D3D12", "OpenGL"};
+
+        if (s_renderer_was >= 0 && g_renderer != s_renderer_was) {
+            SDL_snprintf(out, size, "%s (restart)", NAMES[g_renderer]);
+        } else if (g_renderer == 0) {
+            SDL_snprintf(out, size, "Auto (%s)", gfx_name());
+        } else {
+            SDL_snprintf(out, size, SDL_strcmp(NAMES[g_renderer], gfx_name()) != 0 ? "%s (not here)" : "%s", NAMES[g_renderer]);
+        }
+        return;
+    }
     case DITHER: on = g_dither_on; break;
     case SOFT_SHADOWS: on = g_soft_shadows; break;
     case BATTLE_SHADOWS: on = g_battle_shadows; break;
@@ -161,6 +252,39 @@ static void change(int item, int dir) {
     case CUSTOM_EFFECTS: g_custom_effects = !g_custom_effects; break;
     case CUSTOM_SOUNDS: g_custom_sounds = !g_custom_sounds; break;
     case CUSTOM_SCRIPTS: g_custom_scripts = !g_custom_scripts; break;
+    case SHARPEN: g_sharpen = SDL_clamp(g_sharpen + (dir < 0 ? -1 : 1), 0, 10); break;
+    case PRESET: { /* from Custom: right to the first, left to the last */
+        int p = preset(), i;
+
+        p = dir < 0 ? (p + PRESETS - 1) % PRESETS : (p + 1) % (p == PRESETS ? PRESETS + 1 : PRESETS);
+        for (i = 0; i < PRESET_N; i++) {
+            *PRESET_VARS[i] = PRESET_VALUES[p][i];
+        }
+        g_res_scale = preset_scale(p);
+        break;
+    }
+    case SMAA: g_smaa = !g_smaa; break;
+    case FSR: { /* Off, FSR 1, and FSR 3.1 and DLSS where the renderer has them */
+        int have[4] = {1, 1, gfx_fsr3_status() >= 0, gfx_dlss_status() >= 0}, k;
+
+        for (k = 0; k < 4; k++) { /* the next one that is there, in the direction asked */
+            g_fsr = (g_fsr + (dir < 0 ? 3 : 1)) % 4;
+            if (have[g_fsr]) {
+                break;
+            }
+        }
+        break;
+    }
+    case UP_MODE: g_up_mode = (g_up_mode + (dir < 0 ? 3 : 1)) % 4; break;
+    case RENDERER:
+        s_renderer_was = s_renderer_was < 0 ? g_renderer : s_renderer_was;
+        g_renderer = (g_renderer + (dir < 0 ? 2 : 1)) % 3;
+        break;
+    case SCANLINES: g_scanlines = SDL_clamp(g_scanlines + (dir < 0 ? -1 : 1), 0, 10); break;
+    case INTEGER_SCALE: g_integer_scale = !g_integer_scale; break;
+    case BRIGHTNESS: g_brightness = SDL_clamp(g_brightness + (dir < 0 ? -1 : 1), -10, 10); break;
+    case GAMMA: g_gamma = SDL_clamp(g_gamma + (dir < 0 ? -1 : 1), -10, 10); break;
+    case SATURATION: g_saturation = SDL_clamp(g_saturation + (dir < 0 ? -1 : 1), -10, 10); break;
     case FAST_FORWARD: ff_cycle(); return; /* not saved */
     case ICONS: g_icons = (g_icons + (dir < 0 ? ICONS_COUNT - 1 : 1)) % ICONS_COUNT; break;
     case CONTROLS:
@@ -191,7 +315,7 @@ static void change(int item, int dir) {
 /* native.ini's "key = value" lines get the new values; missing keys are
    added, the bindings' only when not the default */
 static void save(void) {
-    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons", "battle_sky", "full_exp_share", "save_anywhere", "custom_effects", "custom_sounds", "custom_scripts", "inactive_window", "heal_on_levelup", "skip_press_start", "ff_menu_speed", "menu_wrap", "battle_form_name", "fix_equip_stacking", "technique_visuals"};
+    static const char *KEYS[] = {"fps", "render_scale", "dither", "smooth_movies", "fullscreen", "scale", "rumble", "deadzone", "fast_text", "extra_packs", "bladegarurumon", "soft_shadows", "true_color", "perspective", "smooth_3d", "battle_shadows", "widescreen", "vsync", "fast_travel", "map_objective", "journal", "icons", "battle_sky", "full_exp_share", "save_anywhere", "custom_effects", "custom_sounds", "custom_scripts", "inactive_window", "heal_on_levelup", "skip_press_start", "ff_menu_speed", "menu_wrap", "battle_form_name", "fix_equip_stacking", "technique_visuals", "sharpen", "brightness", "gamma", "saturation", "scanlines", "integer_scale", "smaa", "fsr", "upscale_mode", "renderer"};
     enum { FIXED = SDL_arraysize(KEYS), ALL = FIXED + 32 };
     char path[1100], line[1200], key[32], names[ALL][32], vals[ALL][64];
     int done[ALL] = {0}, i, n = ALL;
@@ -235,6 +359,16 @@ static void save(void) {
     SDL_snprintf(vals[33], 16, "%d", g_battle_form_name);
     SDL_snprintf(vals[34], 16, "%d", g_fix_equip_stacking);
     SDL_snprintf(vals[35], 16, "%d", g_technique_visuals);
+    SDL_snprintf(vals[36], 16, "%d", g_sharpen);
+    SDL_snprintf(vals[37], 16, "%d", g_brightness);
+    SDL_snprintf(vals[38], 16, "%d", g_gamma);
+    SDL_snprintf(vals[39], 16, "%d", g_saturation);
+    SDL_snprintf(vals[40], 16, "%d", g_scanlines);
+    SDL_snprintf(vals[41], 16, "%d", g_integer_scale);
+    SDL_snprintf(vals[42], 16, "%d", g_smaa);
+    SDL_snprintf(vals[43], 16, "%d", g_fsr);
+    SDL_snprintf(vals[44], 16, "%d", g_up_mode);
+    SDL_snprintf(vals[45], 16, "%s", g_renderer == 1 ? "d3d12" : g_renderer == 2 ? "gl" : "auto");
     for (i = 0; i < ALL; i++) {
         if (i < FIXED) {
             SDL_strlcpy(names[i], KEYS[i], sizeof names[i]);
@@ -294,7 +428,8 @@ static void move(int up, int down, int left, int right, int ok, int tab) {
     if (tab) s_tab = (s_tab + tab + TABS) % TABS;
     if (up) *c = (*c + n - 1) % n;
     if (down) *c = (*c + 1) % n;
-    if (left || right || ok) change(TAB_ITEMS[s_tab][*c], left ? -1 : 1);
+    if (left || right || ok) change(tab_item(s_tab, *c), left ? -1 : 1);
+    *c = SDL_min(*c, tab_count(s_tab) - 1); /* a row hidden by the change (Preset, Upscaling) */
 }
 
 /* 1 when the event was the menu's */
@@ -503,7 +638,7 @@ void menu_draw(SDL_Renderer *r) {
         *top = s_cursor[s_tab] - ROWS + 1;
     }
     for (i = *top; i < n && i < *top + ROWS; i++) {
-        int item = TAB_ITEMS[s_tab][i];
+        int item = tab_item(s_tab, i);
         float y = box.y + 32 + (i - *top) * 14;
 
         if (i == s_cursor[s_tab]) {

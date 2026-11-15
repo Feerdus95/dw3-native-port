@@ -92,11 +92,47 @@ bool game_start(void)
     /* so that a game that finds no data reports it, instead of opening a launcher again */
     SDL_SetEnvironmentVariable(SDL_GetEnvironment(), "DW3_FROM_LAUNCHER", "1", true);
     const char *args[] = {path, NULL};
-    s_game = process_start(args, SDL_GetBasePath(), false);
+    char log[1200];
+    path_in_root(log, sizeof log, "log.txt");
+    SDL_IOStream *out = SDL_IOFromFile(log, "w"); /* what the game reports, for Tools' log.txt */
+    SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, (void *)args);
+    SDL_SetStringProperty(props, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, SDL_GetBasePath());
+    if (out) {
+        SDL_SetNumberProperty(props, SDL_PROP_PROCESS_CREATE_STDERR_NUMBER, SDL_PROCESS_STDIO_REDIRECT);
+        SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_STDERR_POINTER, out);
+    }
+    s_game = SDL_CreateProcessWithProperties(props);
+    SDL_DestroyProperties(props);
+    if (out) {
+        SDL_CloseIO(out); /* the game keeps its own copy of the handle */
+    }
+    if (!s_game) {
+        native_log("can't start %s: %s", path, SDL_GetError());
+    }
     return s_game != NULL;
 }
 
 bool game_running(void) { return s_game != NULL; }
+
+/* The machine in dw2003.exe's PE header, read once */
+bool game_x64(void)
+{
+    static int s_x64 = -1;
+    if (s_x64 < 0) {
+        char path[1200];
+        Uint32 pe = 0;
+        Uint16 machine = 0;
+        path_in_root(path, sizeof path, "dw2003.exe");
+        SDL_IOStream *f = SDL_IOFromFile(path, "rb");
+        s_x64 = f && SDL_SeekIO(f, 0x3C, SDL_IO_SEEK_SET) >= 0 && SDL_ReadU32LE(f, &pe) && SDL_SeekIO(f, pe + 4, SDL_IO_SEEK_SET) >= 0 &&
+                SDL_ReadU16LE(f, &machine) && machine == 0x8664;
+        if (f) {
+            SDL_CloseIO(f);
+        }
+    }
+    return s_x64 == 1;
+}
 
 bool game_ended(int *code)
 {

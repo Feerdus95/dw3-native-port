@@ -66,7 +66,9 @@ typedef struct {
     uint8_t spriteColor[4];
     int32_t soundBank, music, textFile, eventText;
     FieldActorEntry **actors;
-    uint8_t rest[0x80 - 0x50 - 4];
+    int32_t menuOpen, frozen, busy, battleStarting, acting;
+    int32_t defaultStart[2], defaultStartDir;
+    void *init, *getFileEntry, *getActorWidth;
     FieldBattles *(*findBattles)(FieldBattles *list, int32_t id);
 } FieldState;
 
