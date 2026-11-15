@@ -222,6 +222,38 @@ static void backbuffers(void) {
     DXS.read = dx_buffer(D3D12_HEAP_TYPE_READBACK, (UINT64)DXS.read_pitch * (UINT)DXS.h, D3D12_RESOURCE_STATE_COPY_DEST, &DXS.read_ptr);
 }
 
+/* The swap chain has the window from its creation on, shown empty until a present (in full screen, the desktop behind
+   it): the boot image video.c drew there is presented again at once, and stays until the game's first frame */
+static void boot_picture(void) {
+    SDL_Surface *s = video_boot_picture();
+    const UINT pitch = (UINT)((DXS.w * 4 + 255) & ~255);
+    D3D12_TEXTURE_COPY_LOCATION dst = {0}, src = {0};
+    ID3D12Resource *up, *back;
+    UINT8 *m;
+    int y;
+
+    if (s == NULL || s->w != DXS.w || s->h != DXS.h ||
+        (up = dx_buffer(D3D12_HEAP_TYPE_UPLOAD, (UINT64)pitch * (UINT)DXS.h, D3D12_RESOURCE_STATE_GENERIC_READ, &m)) == NULL) {
+        return;
+    }
+    for (y = 0; y < DXS.h; y++) {
+        SDL_memcpy(m + (size_t)y * pitch, (const UINT8 *)s->pixels + (size_t)y * s->pitch, (size_t)DXS.w * 4);
+    }
+    back = DXS.back[IDXGISwapChain3_GetCurrentBackBufferIndex(DXS.swap)];
+    dst.pResource = back, dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    src.pResource = up, src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    src.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    src.PlacedFootprint.Footprint.Width = (UINT)DXS.w, src.PlacedFootprint.Footprint.Height = (UINT)DXS.h;
+    src.PlacedFootprint.Footprint.Depth = 1, src.PlacedFootprint.Footprint.RowPitch = pitch;
+    dx_list();
+    dx_barrier(back, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
+    ID3D12GraphicsCommandList_CopyTextureRegion(DXS.list, &dst, 0, 0, 0, &src, NULL);
+    dx_barrier(back, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+    dx_submit();
+    IDXGISwapChain3_Present(DXS.swap, 0, 0);
+    ID3D12Resource_Release(up);
+}
+
 uint64_t dx_window_flags(void) {
     return 0; /* no GL: the window is plain */
 }
@@ -288,6 +320,8 @@ int dx_init(SDL_Window *window) {
     ID3D12GraphicsCommandList_Close(DXS.list);
     ID3D12Device_CreateFence(DXS.dev, 0, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence, (void **)&s_fence);
     s_event = CreateEventA(NULL, FALSE, FALSE, NULL);
+    backbuffers();
+    boot_picture();
     {
         D3D12_QUERY_HEAP_DESC qd2 = {D3D12_QUERY_HEAP_TYPE_TIMESTAMP, QMAX, 0};
 
@@ -371,7 +405,6 @@ int dx_init(SDL_Window *window) {
     dx_srv(&DXS.pic, S_PIC, DXGI_FORMAT_R8G8B8A8_UNORM);
     dx_srv(&DXS.menu, S_MENU, DXGI_FORMAT_R8G8B8A8_UNORM);
     dx_srv(&DXS.vram, S_VRAM, DXGI_FORMAT_R16_UINT);
-    backbuffers();
     DXS.ready = 1;
     SDL_Log("d3d12: ready, %dx%d, in %.0f ms (shaders compiled in %.0f)", DXS.w, DXS.h, (SDL_GetTicksNS() - t_init) / 1e6, DXS.compile_ns / 1e6);
     return 1;

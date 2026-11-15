@@ -37,6 +37,11 @@ void video_resize(int scale) {
    there, with what is starting written in that band. Let go before the swap chain takes the window; nothing is presented
    (present_frame) until the game shows the image itself, so it stays up to then */
 static int s_boot_shown;
+static SDL_Surface *s_boot_pic;
+
+SDL_Surface *video_boot_picture(void) {
+    return s_boot_pic;
+}
 
 static void boot_image(SDL_Window *w) {
     extern uint8_t STAGE_VRAM[];
@@ -78,6 +83,7 @@ static void boot_image(SDL_Window *w) {
             SDL_DestroyRenderer(sr);
         }
         SDL_UpdateWindowSurface(w);
+        s_boot_pic = SDL_ConvertSurface(win, SDL_PIXELFORMAT_RGBA32); /* for D3D12's first present (dx_init) */
         s_boot_shown = 1;
         SDL_PumpEvents();
         SDL_DestroyWindowSurface(w);
@@ -86,6 +92,8 @@ static void boot_image(SDL_Window *w) {
 }
 
 int video_init(int scale, int fullscreen) {
+    int ok;
+
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         LOG("SDL_Init: %s", SDL_GetError());
         return 0;
@@ -100,7 +108,9 @@ int video_init(int scale, int fullscreen) {
         if (!g_render_sounds && SDL_strcmp(gfx_name(), "D3D12") == 0) {
             boot_image(s_window);
         }
-        if (gfx_init(s_window)) {
+        ok = gfx_init(s_window);
+        SDL_DestroySurface(s_boot_pic), s_boot_pic = NULL;
+        if (ok) {
             break;
         }
         SDL_DestroyWindow(s_window);

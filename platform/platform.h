@@ -40,6 +40,7 @@ void native_log(const char *fmt, ...);
 void present_frame(void); /* platform/video.c */
 int pump_events(void);    /* 0 once the user closed the window */
 struct SDL_Window *video_window(void);
+struct SDL_Surface *video_boot_picture(void); /* the boot image as drawn on the window (RGBA), NULL once the renderer is up */
 
 /* The options menu (platform/menu.c) */
 union SDL_Event;
