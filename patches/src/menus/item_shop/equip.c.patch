@@ -1,0 +1,54 @@
+--- a/src/menus/item_shop/equip.c
++++ b/src/menus/item_shop/equip.c
+@@ -1,6 +1,27 @@
+ /* The shop's helpers: a shop's stock, and who can equip an item, in which slot */
+ 
+ #include "menus/item_shop.h"
++
++#ifdef NATIVE
++/* The five city item shops on each server are Wizardmon's. */
++static s32 STITSHOP_isWizardmon(s32 shop) {
++    switch (shop) {
++    case 2:
++    case 6:
++    case 9:
++    case 12:
++    case 14:
++    case 17:
++    case 21:
++    case 24:
++    case 27:
++    case 29:
++        return 1;
++    default:
++        return 0;
++    }
++}
++#endif
+ 
+ /* The items a shop sells (up to 0), noting how many in STITSHOP_funcs.count;
+    NULL for none */
+@@ -8,6 +29,23 @@
+     if (shop < 0 || STITSHOP_shops[shop].items == NULL) {
+         return NULL;
+     }
++#ifdef NATIVE
++    if (g_sober_disk_shops && STITSHOP_isWizardmon(shop)) {
++        static s16 stock[32]; /* largest Wizardmon list: 21 items, plus disk and terminator */
++        s32 count = STITSHOP_shops[shop].count;
++        s32 i;
++
++        if (count + 2 <= (s32)(sizeof stock / sizeof stock[0])) {
++            for (i = 0; i < count; i++) {
++                stock[i] = STITSHOP_shops[shop].items[i];
++            }
++            stock[count] = 0x44; /* Sober Disk, after the original stock */
++            stock[count + 1] = 0;
++            STITSHOP_funcs.count = count + 1;
++            return stock;
++        }
++    }
++#endif
+     STITSHOP_funcs.count = STITSHOP_shops[shop].count;
+     return STITSHOP_shops[shop].items;
+ }
