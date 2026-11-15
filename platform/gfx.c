@@ -42,6 +42,10 @@ int gfx_fallback(void) {
     return 1;
 }
 
+const char *gfx_name(void) {
+    return s_gfx->name;
+}
+
 int gfx_init(SDL_Window *window) {
     return s_gfx->init(window);
 }

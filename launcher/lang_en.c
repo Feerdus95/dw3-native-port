@@ -154,6 +154,7 @@ const Lang LANG_EN = {
         [O_WINDOW] = {"Window size", "The window's size in steps of the PlayStation's 320x240, centred on its screen."},
         [O_WIDESCREEN] = {"Widescreen battles", "Battles in 16:9: the 3D sees a third wider, the menus keep their shape and the window turns 16:9. The fields stay 4:3."},
         [O_VSYNC] = {"VSync", "Shows each frame whole, at the screen's refresh: no tearing."},
+        [O_RENDERER] = {"Renderer", "Auto takes Direct3D 12 where the card has it, else OpenGL; OpenGL also takes over if Direct3D 12 fails. Needs a restart."},
         [O_MOVIES] = {"Smooth movies", "Smooths the movies when they are scaled up. Off keeps sharp pixels."},
         [O_INTEGER] = {"Integer scaling", "Sizes the picture to a whole multiple of the game's 240 rows, with bars around it, so every pixel is the same size."},
         [O_INACTIVE] = {"Inactive window", "What the game does when its window is not in front: keep going, mute the sound, or pause."},

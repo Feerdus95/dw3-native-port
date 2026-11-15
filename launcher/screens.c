@@ -14,7 +14,7 @@ static const Row FIRST_RUN[] = {ACT(S_BROWSE), {R_LANGUAGE}, {R_END}};
 static const Row TOOLS[] = {ACT(S_VIEWER), ACT(S_EDITOR), ACT(S_FOLDER), ACT(S_LOG), ACT(S_CHECK), ACT(S_FSR_DLL), ACT(S_DS_DLL), ACT(S_DLSS_DLL), ACT(S_CREDITS), ACT(S_BACK), {R_END}};
 /* the Input tab's buttons in the order of the game's Controls page */
 static const Row TABS[4][27] = {
-    {OPT(O_FPS), OPT(O_FULLSCREEN), OPT(O_WINDOW), OPT(O_INTEGER), OPT(O_WIDESCREEN), OPT(O_VSYNC), OPT(O_MOVIES), OPT(O_INACTIVE), ACT(S_RESET), ACT(S_BACK), {R_END}},
+    {OPT(O_FPS), OPT(O_RENDERER), OPT(O_FULLSCREEN), OPT(O_WINDOW), OPT(O_INTEGER), OPT(O_WIDESCREEN), OPT(O_VSYNC), OPT(O_MOVIES), OPT(O_INACTIVE), ACT(S_RESET), ACT(S_BACK), {R_END}},
     {OPT(O_RESOLUTION), OPT(O_PERSPECTIVE), OPT(O_SMOOTH_3D), OPT(O_TRUE_COLOR), OPT(O_DITHER), OPT(O_SOFT_SHADOWS), OPT(O_BATTLE_SHADOWS), OPT(O_BATTLE_SKY), OPT(O_BATTLE_FORM_NAME), OPT(O_SMAA), OPT(O_FSR), OPT(O_UP_MODE), OPT(O_SHARPEN), OPT(O_BRIGHTNESS), OPT(O_GAMMA), OPT(O_SATURATION), OPT(O_SCANLINES), ACT(S_RESET), ACT(S_BACK), {R_END}},
     {OPT(O_ICONS), OPT(O_RUMBLE), OPT(O_DEADZONE), OPT(O_FF_MENUS), OPT(O_SKIP_START), OPT(O_MENU_WRAP), ACT(S_SWAP), {R_HEADING, S_BUTTONS},
      BIND(14), BIND(13), BIND(15), BIND(12), BIND(10), BIND(11), BIND(8), BIND(9), BIND(1), BIND(2), BIND(3), BIND(0), BIND(4), BIND(6), BIND(7), BIND(5),
@@ -55,13 +55,31 @@ SDL_Rect update_button(int tool)
     return (SDL_Rect){a.x + a.w - 6 - w, 0, w, ROW_H - 2};
 }
 
+/* The 32-bit game has OpenGL alone: no renderer to pick, nor Direct3D 12's upscalers and DirectStorage */
+static const Row *for_this_game(const Row *r)
+{
+    static Row out[32];
+    int n = 0;
+    if (game_x64()) {
+        return r;
+    }
+    for (; r->kind != R_END; r++) {
+        if (!(r->kind == R_OPTION && (r->id == O_RENDERER || r->id == O_UP_MODE)) &&
+            !(r->kind == R_ACTION && (r->id == S_FSR_DLL || r->id == S_DS_DLL || r->id == S_DLSS_DLL))) {
+            out[n++] = *r;
+        }
+    }
+    out[n] = (Row){R_END, 0};
+    return out;
+}
+
 const Row *rows(void)
 {
     if (s_screen == SC_SETTINGS) {
-        return TABS[s_tab];
+        return for_this_game(TABS[s_tab]);
     }
     if (s_screen == SC_TOOLS) {
-        return TOOLS;
+        return for_this_game(TOOLS);
     }
     if (s_screen == SC_SAVES) {
         return SAVES;

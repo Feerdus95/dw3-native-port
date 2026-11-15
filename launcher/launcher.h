@@ -37,7 +37,7 @@ void art_flag(int x, int y, int lang); /* 16x10: en, es, fr, de, it */
 
 /* lang_*.c */
 enum {
-    O_FPS, O_FULLSCREEN, O_WINDOW, O_WIDESCREEN, O_VSYNC, O_MOVIES, O_INACTIVE,
+    O_FPS, O_FULLSCREEN, O_WINDOW, O_WIDESCREEN, O_VSYNC, O_MOVIES, O_INACTIVE, O_RENDERER,
     O_RESOLUTION, O_PERSPECTIVE, O_SMOOTH_3D, O_TRUE_COLOR, O_DITHER, O_SOFT_SHADOWS, O_BATTLE_SHADOWS, O_BATTLE_SKY, O_BATTLE_FORM_NAME, O_SHARPEN, O_BRIGHTNESS, O_GAMMA, O_SATURATION, O_SCANLINES, O_INTEGER, O_SMAA, O_FSR, O_UP_MODE,
     O_ICONS, O_RUMBLE, O_DEADZONE, O_FF_MENUS, O_SKIP_START, O_MENU_WRAP,
     O_FAST_TEXT, O_FAST_TRAVEL, O_OBJECTIVE, O_JOURNAL, O_PACKS,
@@ -116,6 +116,7 @@ int binds_selftest(void);
 /* game.c: other programs. None is ever stopped from here. */
 bool game_start(void);
 bool game_running(void);
+bool game_x64(void); /* dw2003.exe is the 64-bit build: the renderer and Direct3D 12's extras are offered */
 bool game_ended(int *code); /* once, when it ends */
 bool process_open(const char *const *args, const char *cwd); /* started and left alone */
 int process_wait(const char *const *args, const char *cwd);  /* hidden, to its end: its exit code, or -1 */

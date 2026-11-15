@@ -15,6 +15,7 @@ struct SDL_Surface;
 /* The window's flags for this backend, with its attributes set (video.c creates the window with them, before gfx_init) */
 uint64_t gfx_window_flags(void);
 int gfx_fallback(void); /* gfx_init failed: OpenGL next, on a new window; 0 when it was OpenGL (gfx.c) */
+const char *gfx_name(void); /* the renderer running: "D3D12" or "OpenGL" */
 /* The drawing on the graphics card (gl.c), render_scale times finer than
    VRAM; the GTE keeps each vertex's fraction for it (gte.c) */
 extern int g_res_scale;  /* render_scale = 1-8 */

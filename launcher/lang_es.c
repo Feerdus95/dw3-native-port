@@ -154,6 +154,7 @@ const Lang LANG_ES = {
         [O_WINDOW] = {"Tamaño de ventana", "El tamaño de la ventana en múltiplos de los 320x240 de PlayStation, centrada en su pantalla."},
         [O_WIDESCREEN] = {"Combates panorámicos", "Combates en 16:9: el 3D ve un tercio más de ancho, los menús conservan su forma y la ventana pasa a 16:9. Los mapas siguen en 4:3."},
         [O_VSYNC] = {"VSync", "Muestra cada fotograma entero, al refresco de la pantalla: sin cortes en la imagen."},
+        [O_RENDERER] = {"Renderer", "Auto usa Direct3D 12 si la tarjeta lo tiene, si no OpenGL; OpenGL también entra si Direct3D 12 falla. Pide reiniciar."},
         [O_MOVIES] = {"Vídeos suavizados", "Suaviza los vídeos al ampliarlos. Si no, se ven con píxeles nítidos."},
         [O_INTEGER] = {"Escalado entero", "Ajusta la imagen a un múltiplo exacto de las 240 filas del juego, con barras alrededor, para que todos los píxeles midan lo mismo."},
         [O_INACTIVE] = {"Ventana inactiva", "Qué hace el juego cuando su ventana no está al frente: seguir, silenciar el sonido o pausar."},

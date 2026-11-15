@@ -422,6 +422,6 @@ int dx_available(void) {
     return SUCCEEDED(p_D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, NULL));
 }
 
-const struct Gfx GFX_D3D12 = GFX_TABLE(dx, "Direct3D 12");
+const struct Gfx GFX_D3D12 = GFX_TABLE(dx, "D3D12");
 
 struct DxState DXS = {.semi = -1, .clip = {0, 0, 1023, 511}, .mask_box = {VRAM_W, VRAM_H, -1, -1}, .depth_used = 1};

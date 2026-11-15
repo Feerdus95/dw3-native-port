@@ -154,6 +154,7 @@ const Lang LANG_DE = {
         [O_WINDOW] = {"Fenstergröße", "Die Fenstergröße in Vielfachen der 320x240 der PlayStation, mittig auf dem Bildschirm."},
         [O_WIDESCREEN] = {"Breitbild-Kämpfe", "Kämpfe in 16:9: das 3D sieht ein Drittel breiter, die Menüs behalten ihre Form, das Fenster wird 16:9. Die Felder bleiben 4:3."},
         [O_VSYNC] = {"VSync", "Zeigt jedes Bild ganz, im Takt des Bildschirms: kein Tearing."},
+        [O_RENDERER] = {"Renderer", "Auto nimmt Direct3D 12, wenn die Karte es kann, sonst OpenGL; OpenGL springt auch ein, wenn Direct3D 12 scheitert. Neustart nötig."},
         [O_MOVIES] = {"Weiche Videos", "Glättet die Videos beim Vergrößern. Sonst bleiben die Pixel scharf."},
         [O_INTEGER] = {"Ganzzahlige Skalierung", "Passt das Bild an ein ganzes Vielfaches der 240 Zeilen des Spiels an, mit Balken darum, damit alle Pixel gleich groß sind."},
         [O_INACTIVE] = {"Inaktives Fenster", "Was das Spiel tut, wenn sein Fenster nicht vorn ist: weiterlaufen, Ton stummschalten oder pausieren."},

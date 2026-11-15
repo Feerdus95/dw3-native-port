@@ -98,6 +98,25 @@ bool game_start(void)
 
 bool game_running(void) { return s_game != NULL; }
 
+/* The machine in dw2003.exe's PE header, read once */
+bool game_x64(void)
+{
+    static int s_x64 = -1;
+    if (s_x64 < 0) {
+        char path[1200];
+        Uint32 pe = 0;
+        Uint16 machine = 0;
+        path_in_root(path, sizeof path, "dw2003.exe");
+        SDL_IOStream *f = SDL_IOFromFile(path, "rb");
+        s_x64 = f && SDL_SeekIO(f, 0x3C, SDL_IO_SEEK_SET) >= 0 && SDL_ReadU32LE(f, &pe) && SDL_SeekIO(f, pe + 4, SDL_IO_SEEK_SET) >= 0 &&
+                SDL_ReadU16LE(f, &machine) && machine == 0x8664;
+        if (f) {
+            SDL_CloseIO(f);
+        }
+    }
+    return s_x64 == 1;
+}
+
 bool game_ended(int *code)
 {
     if (!s_game || !SDL_WaitProcess(s_game, false, code)) {
