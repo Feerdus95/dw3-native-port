@@ -16,6 +16,8 @@
 - **Reads from the disc on their own thread.** The game asks for a file and goes on drawing while a thread reads it, as the console's drive did, instead of waiting for the disk. On a hard disk, the first battle no longer stutters when its files load.
 - **DirectStorage reads** (Windows, x64 build). With Microsoft's `dstorage.dll` and `dstoragecore.dll` next to the exe, the reader thread asks DirectStorage for the files instead of reading them itself; without them, or if it fails, the thread's plain reads stay. Measured on a hard disk, a SATA SSD and an NVMe, the game's small reads take the same either way today; it is there for the larger files mods will bring. The port carries none of Microsoft's binaries, and DirectStorage's usage reports to Microsoft are switched off.
 - **DirectStorage files** (launcher, Tools): downloads Microsoft's two DLLs from the DirectStorage 1.3.0 NuGet package next to the game, each checked by its SHA-256.
+- **No console window.** The game is built as a window's program: started from the launcher or Explorer, no black console window opens with it.
+- **The boot image while Direct3D 12 starts** (x64). DLSS takes a few seconds to start (NVIDIA's Streamline); meanwhile the window shows the game's own boot image, with a line saying what is starting, instead of nothing. Upscaler mode is listed only while FSR 3.1 or DLSS is picked.
 - **log.txt** (launcher, Tools): the game started from the launcher now writes what it reports there. The launcher pointed to it after a failed start, but nothing wrote the file.
 
 ## v0.19.7 (beta)
