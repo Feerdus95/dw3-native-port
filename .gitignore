@@ -1,7 +1,6 @@
 build/
 build-san/
 build-x64/
-build-d3d12/
 dist/
 data/
 saves/
