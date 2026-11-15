@@ -81,7 +81,8 @@ GAME_CFLAGS = [
 PLATFORM_CFLAGS = ["-std=c11", "-c", "-O2", "-g", "-Wall", "-Wno-unused-parameter", f"-I{SDL / 'include'}", f"-I{OUT}", *SAN_FLAGS]
 # fixed image base (no ASLR): the GPU tags keep 24-bit addresses, so the
 # game's memory has to stay below 16 MB (main.c checks it at startup)
-LDFLAGS = ["-g", "-Wl,--no-dynamicbase",
+# -mwindows: a window's program, not a console's (started from the launcher or Explorer, no console window opens)
+LDFLAGS = ["-g", "-mwindows", "-Wl,--no-dynamicbase",
            f"-L{SDL / 'lib'}", "-lSDL3", "-lbcrypt", *SAN_FLAGS]
 if X64:
     LDFLAGS += ["-ldxguid"]  # the interfaces' ids; Direct3D 12's DLLs are loaded at run time (platform/d3d12/device.c)
