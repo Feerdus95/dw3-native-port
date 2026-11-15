@@ -151,11 +151,17 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Soft shadows | the shadows under the characters on the field darken the ground, with smooth edges, instead of the original's grey disc. Off by default |
 | Battle shadows | the Digimon in battle cast their shape on the ground, as the light from above falls (with Sub-pixel 3D and the Depth buffer) |
 | Battle sky and fog | battles get a sky behind the stage and their far side fades into a fog, each stage by its kind (open air, night, rooms, water) in `stages.ini` by the exe, which can be edited; digital, space and technique backdrops are left as they are |
+| Sharpen, Brightness, Gamma, Saturation | a pass over the game's picture (not the movies or this menu): contrast-adaptive sharpening after AMD's FidelityFX CAS, and the colours. All 0 by default, the game's own picture |
+| Scanlines | dark lines between the game's rows. Off by default |
+| SMAA | the picture's jagged edges smoothed, the rest left sharp (SMAA 1x). Off by default |
+| Upscaling | FSR 1: with the Resolution below the window's size, the battles' 3D enlarged by AMD's FSR 1 instead of plain smoothing. x64 build, Direct3D 12 only: FSR 3.1 (AMD's two DLLs next to the exe) or DLSS (an NVIDIA RTX card and NVIDIA's four Streamline files), temporal upscalers fed with the game's depth and motion; the launcher's Tools screen downloads their files, the port carries none; turning them on needs a restart. Off by default |
+| Upscaler mode | with FSR 3.1 or DLSS: DLAA, Quality, Balanced or Performance, which sets the render size instead of Resolution |
 | Smooth movies | the movies smoothed when scaled up, or with sharp pixels |
 | VSync | each frame shown whole, at the screen's refresh: no tearing |
 | Renderer | x64 build: Auto (Direct3D 12 where the card has it, else OpenGL), Direct3D 12 or OpenGL; OpenGL takes over if Direct3D 12 fails. Needs a restart |
 | Inactive window | what the game does while its window is not in front (minimised, or another window has the focus): nothing, mute the sound, or pause everything until it is back |
 | Fullscreen, Window size | the window fits the screen it is on, centred |
+| Integer scaling | the picture a whole multiple of the game's 240 rows, with bars around it: every pixel the same size on screen. Off by default |
 | Controls | each PlayStation button's two keys and gamepad button: pick a slot, press the key or button (Esc / Back cancels); Del / Y clears it, the second to last line swaps Triangle (the game's cancel) and Circle, to cancel on B; the last puts the defaults back. A key or button set to one leaves any other it was on |
 | Button icons | the menu's icons: PS1 (the game's own in its texts), PS3, PS4, PS5 (the default), Xbox 360, Xbox One, Xbox Series, Switch, Keyboard, or Auto (the keyboard or the gamepad you used last, by its maker). The game's texts show their buttons (✕ ○ □ △) the same way, as the key or button each is bound to. By [Xelu](https://thoseawesomeguys.com/prompts/) |
 | Menus in fast forward | with fast forward on, a menu's cursor keeps its normal pace while a direction is held, instead of racing at x2, x3 or x5 |
@@ -195,7 +201,7 @@ button can be changed in the options menu's Input tab, **Controls**.
     integer_scale = 0    ; 1: the picture a whole multiple of 240 rows
     smaa = 0             ; 1: the picture's jagged edges smoothed (SMAA)
     fsr = 0              ; 1: the 3D enlarged to the window by FSR 1, when render_scale is below it; 2: FSR 3.1 (Direct3D 12 renderer, needs AMD's two DLLs next to the exe: the launcher's Tools screen, **FSR 3.1 files**, downloads them); 3: DLSS (Direct3D 12 renderer, an NVIDIA RTX card, and NVIDIA's four Streamline files next to the exe: the launcher's Tools screen, **DLSS files**, downloads them)
-    upscale_mode = 1        ; with fsr = 3: 0 DLAA, 1 Quality, 2 Balanced, 3 Performance (with fsr = 2 or 3 it sets the render size, not render_scale)
+    upscale_mode = 1     ; with fsr = 2 or 3: 0 DLAA, 1 Quality, 2 Balanced, 3 Performance (it sets the render size, not render_scale)
     battle_shadows = 1   ; 0: no shadows in battle
     battle_sky = 0       ; 1: a sky behind battles, the stage's far side fading into it
     battle_form_name = 0 ; 1: the battle HUD names the partner's current form
@@ -220,7 +226,7 @@ button can be changed in the options menu's Input tab, **Controls**.
                          ; F12 in game saves the picture to screenshots/ by the exe
     debug = 0            ; 1: F1 debug stage select, F3 sound test, F4 vibration test, F2 dump of the game state,
                          ;    F5 / F9 save / load a state (saves/quick.state)
-    log =                ; console logs: cd, snd, pad, mc, ovl, gpu or all
+    log =                ; extra logs: cd, snd, pad, mc, ovl, gpu or all (into log.txt when started from the launcher)
 
 **DirectStorage** (x64 build): with Microsoft's `dstorage.dll` and `dstoragecore.dll` next to the exe, the game reads its files through DirectStorage; without them, or if it fails, it reads them as before. There is no option: the launcher's Tools screen, **DirectStorage files**, downloads the two DLLs from Microsoft's NuGet package, each checked by its SHA-256.
 
@@ -307,8 +313,9 @@ ticks each (30 a second).
 - **No sound in the movies**: the disc was read from a plain `.iso`. Delete `data/` and read it again from a
   `.cue`/`.bin`.
 - **The window doesn't open**: the graphics card needs OpenGL 3.3; update its driver.
-- **It crashed**: `crash.txt` next to `dw2003.exe` says where. Please open an issue with it (the form asks for what
-  helps), and a memory card from just before if you can. Never attach the game's files.
+- **It crashed**: `crash.txt` next to `dw2003.exe` says where, and `log.txt` (written when the launcher starts the game)
+  what it reported. Please open an issue with them (the form asks for what helps), and a memory card from just before
+  if you can. Never attach the game's files.
 
 For scripts: `dw2003.exe --extract "path/to/image.cue"` reads the disc without the window, and the `DW3_DATA`
 environment variable points the port at a `data/` elsewhere. `dw2003.exe --check-mods` lists what the loader makes of each
@@ -341,6 +348,11 @@ Then:
     build/dw2003.exe --extract "path/to/Digimon World 2003 (Europe) (En,Fr,De,Es,It).cue"
     python build.py                      # again: now it takes the game's tables out of the exe
     python tools/package.py              # dist/dw2003-native.zip, refused if any of the game is in it
+
+`python build.py --x64` builds the 64-bit exe into `build-x64/` (llvm-mingw's `x86_64-w64-mingw32-clang`), with
+OpenGL and Direct3D 12 in one exe; `python tools/build_launcher.py --x64` its launcher. It is not released yet: the zip
+is the 32-bit build, so the x64-only options above (Renderer, FSR 3.1, DLSS, DirectStorage) are only in a build of
+your own for now.
 
 The first build has no `data/` yet, so its exe keeps the game's tables and can read the disc into `data/`; every build
 after that takes them out (`tools/asset_scan.py`) and writes `dw2003.fill`. `python tools/smoke.py` builds and boots the
