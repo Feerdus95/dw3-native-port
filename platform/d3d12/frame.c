@@ -214,7 +214,8 @@ void dx_present(const SDL_Surface *menu, SDL_Surface **shot) {
 
         IDXGISwapChain3_Present(DXS.swap, g_vsync ? 1 : 0, 0);
         pr = SDL_GetTicksNS() - t0;
-        if (DXS.wait_ns > 14000000 ||DXS.img_ns > 3000000 || pr > 25000000) {
+        /* (the effects' warm-up makes one image a frame, ~4.5 ms for a 1280x960 one: not a long frame) */
+        if (DXS.wait_ns > 14000000 || DXS.img_ns > 8000000 || pr > 25000000) {
             SDL_Log("d3d12: long frame: gpu wait %.1f ms in %d submits, %d images made in %.1f ms, %d vram uploads, present %.1f ms",
                     DXS.wait_ns / 1e6, DXS.nsub, DXS.nimg_made, DXS.img_ns / 1e6, DXS.nup, pr / 1e6);
         }
