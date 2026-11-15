@@ -1,78 +1,10 @@
-/* FSR 3.1's temporal upscaler (AMD FidelityFX, MIT), for d3d12.c: loaded at run time from the two DLLs the player puts next to the exe
+/* FSR 3.1's temporal upscaler (AMD FidelityFX, MIT), for the Direct3D 12 renderer: loaded at run time from the two DLLs the player puts next to the exe
    (amd_fidelityfx_loader_dx12.dll and amd_fidelityfx_upscaler_dx12.dll, from AMD's FidelityFX SDK), so the port carries none of
    AMD's binaries and works without them.
    The structures are laid out as AMD's ffx_api.h, ffx_upscale.h and ffx_api_dx12.h have them (only what is used is declared here;
    tools/fsr3_check.c, kept out of the build, compares them with the real headers). */
-#include <stdbool.h>
-#include <stdint.h>
-
-typedef struct FxHdr {
-    uint64_t type;
-    struct FxHdr *next;
-} FxHdr;
-typedef struct {
-    uint32_t type, format, w, h, d, mips, flags, usage;
-} FxDesc;
-typedef struct {
-    void *res;
-    FxDesc desc;
-    uint32_t state;
-} FxRes;
-typedef struct {
-    FxHdr h;
-    uint32_t flags, rw, rh, uw, uh;
-    void *msg;
-} FxCreate;
-typedef struct {
-    FxHdr h;
-    ID3D12Device *dev;
-} FxBackend;
-typedef struct {
-    FxHdr h;
-    uint32_t version;
-} FxVersion;
-typedef struct {
-    FxHdr h;
-    void *cl;
-    FxRes color, depth, mv, exposure, reactive, comp, out;
-    float jx, jy, msx, msy;
-    uint32_t rw, rh, uw, uh;
-    bool sharp;
-    float sharpness, dt, preexp;
-    bool reset;
-    float near_, far_, fov, meters;
-    uint32_t flags;
-} FxDispatch;
-typedef struct {
-    FxHdr h;
-    uint32_t render_w, display_w;
-    int32_t *out;
-} FxPhases;
-typedef struct {
-    FxHdr h;
-    int32_t index, phases;
-    float *x, *y;
-} FxOffset;
-
-enum {
-    FX_CREATE = 0x10000, FX_DISPATCH = 0x10001, FX_BACKEND_DX12 = 2, FX_VERSION = 0x1000b, FX_PHASES = 0x10004, FX_OFFSET = 0x10005, FX_KEYVALUE = 0x10007, FX_KEY_SHADING = 2, FX_KEY_ACCUMULATION = 3,
-    FX_VERSION_NUMBER = (4 << 22) | (1 << 12) | 2,
-    FX_DEPTH_INFINITE = 1 << 4, FX_NON_LINEAR = 1 << 8, FX_AUTO_EXPOSURE = 1 << 5,
-    FX_SRGB = 1 << 1,
-    FX_R8 = 25, FX_R8G8B8A8 = 10, FX_R16G16F = 18, FX_R32F = 28, FX_TEX2D = 2, FX_USAGE_UAV = 2,
-    FX_ST_UAV = 1 << 1, FX_ST_PIXEL = 1 << 3
-};
-
-typedef uint32_t (*FxCreateFn)(void **ctx, FxHdr *desc, const void *mem);
-typedef uint32_t (*FxDestroyFn)(void **ctx, const void *mem);
-typedef uint32_t (*FxDispatchFn)(void **ctx, const FxHdr *desc);
-typedef uint32_t (*FxQueryFn)(void **ctx, FxHdr *desc);
-typedef uint32_t (*FxConfigureFn)(void **ctx, const FxHdr *desc);
-typedef struct {
-    FxHdr h;
-    uint64_t key, u64;
-    void *ptr;
-} FxKeyValue;
+#include "dx.h"
+#include "fsr3_api.h"
 
 static FxCreateFn s_fx_create;
 static FxDestroyFn s_fx_destroy;
@@ -94,7 +26,7 @@ static void fx_message(uint32_t type, const wchar_t *msg) {
 }
 
 /* The DLLs next to the exe, once: 1 when the API is there */
-static int fx_load(void) {
+int fx_load(void) {
     char path[600];
     SDL_SharedObject *so;
 
@@ -177,7 +109,7 @@ static FxRes fx_res(ID3D12Resource *r, int w, int h, uint32_t fmt, uint32_t stat
 
 /* One frame: color, depth and motion (all the render size, in the state of a pixel shader's view) into out (the output size, a UAV).
    The command list's heaps and bindings are the caller's to set again after it. 1 when it ran */
-static int fx_run(ID3D12Device *dev, ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Resource *depth, ID3D12Resource *mv, ID3D12Resource *out,
+int fx_run(ID3D12Device *dev, ID3D12GraphicsCommandList *cl, ID3D12Resource *color, ID3D12Resource *depth, ID3D12Resource *mv, ID3D12Resource *out,
                   int rw, int rh, int uw, int uh, float jx, float jy, int reset, float fov, float ms) {
     FxDispatch d;
     uint32_t r;
@@ -203,4 +135,14 @@ static int fx_run(ID3D12Device *dev, ID3D12GraphicsCommandList *cl, ID3D12Resour
         return 0;
     }
     return 1;
+}
+
+/* 1 once AMD's DLLs are loaded (fx_load) */
+int fx_loaded(void) {
+    return s_fx_create != NULL;
+}
+
+/* Frame INDEX's jitter in render pixels, for the context there is (one of 640 to 1280 before it is made) */
+void fx_jitter_now(unsigned index, float *x, float *y) {
+    fx_jitter(index, s_fx_rw > 0 ? s_fx_rw : 640, s_fx_uw > 0 ? s_fx_uw : 1280, x, y);
 }

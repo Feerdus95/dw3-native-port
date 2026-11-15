@@ -349,10 +349,8 @@ def main():
         sys.exit(f"{len(failed)} game files failed")
 
     platform = []
-    renderer = [] if D3D12 else sorted((NATIVE / "platform" / "gl").glob("*.c"))  # one renderer behind renderer.h
+    renderer = sorted((NATIVE / "platform" / ("d3d12" if D3D12 else "gl")).glob("*.c"))  # one renderer behind renderer.h
     for src in sorted((NATIVE / "platform").glob("*.c")) + renderer:
-        if src.name == "d3d12.c" and not D3D12:
-            continue
         rel = src.relative_to(NATIVE / "platform")
         obj = OUT / "platform" / rel.with_suffix(".o")
         obj.parent.mkdir(parents=True, exist_ok=True)

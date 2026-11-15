@@ -1,7 +1,6 @@
-// Compares the structures of platform/d3d12_dlss.h with NVIDIA's own headers (Streamline, in third_party/streamline). Not part of the build:
+// Compares the structures of platform/d3d12/dlss_api.h with NVIDIA's own headers (Streamline, in third_party/streamline). Not part of the build:
 //   clang++ --target=x86_64-w64-mingw32 -std=c++17 -Wno-invalid-offsetof -Ithird_party/SDL3-3.4.16/include -Ithird_party/streamline/include -fsyntax-only tools/sl_check.cpp
 #define COBJMACROS
-#define SL_STRUCTS_ONLY
 #include <stddef.h>
 #include <SDL3/SDL.h>
 #include <windows.h>
@@ -11,7 +10,7 @@
 #include <sl.h>
 #include <sl_consts.h>
 #include <sl_dlss.h>
-#include "../platform/d3d12_dlss.h"
+#include "../platform/d3d12/dlss_api.h"
 
 #define SAME(a, b) static_assert(sizeof(a) == sizeof(b), #a " size")
 #define AT(a, am, b, bm) static_assert(offsetof(a, am) == offsetof(b, bm), #a "." #am)

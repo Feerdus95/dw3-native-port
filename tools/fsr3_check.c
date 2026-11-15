@@ -1,4 +1,4 @@
-/* Compares the structures of platform/d3d12_fsr3.h with AMD's own headers (the FidelityFX SDK, in third_party/fidelityfx-sdk). Not part of the build:
+/* Compares the structures of platform/d3d12/fsr3_api.h with AMD's own headers (the FidelityFX SDK, in third_party/fidelityfx-sdk). Not part of the build:
    clang --target=x86_64-w64-mingw32 -Ithird_party/SDL3-3.4.16/include -Ithird_party/fidelityfx-sdk/src/Kits/FidelityFX/api/include
          -Ithird_party/fidelityfx-sdk/src/Kits/FidelityFX/upscalers/include -fsyntax-only tools/fsr3_check.c */
 #define COBJMACROS
@@ -10,7 +10,7 @@
 #include "ffx_api.h"
 #include "ffx_upscale.h"
 #include "dx12/ffx_api_dx12.h"
-#include "../platform/d3d12_fsr3.h"
+#include "../platform/d3d12/fsr3_api.h"
 
 #define SAME(a, b) _Static_assert(sizeof(a) == sizeof(b), #a " size")
 #define AT(a, am, b, bm) _Static_assert(offsetof(a, am) == offsetof(b, bm), #am)
