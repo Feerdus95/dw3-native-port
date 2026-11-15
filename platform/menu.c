@@ -42,13 +42,30 @@ static int s_renderer_was = -1;      /* native.ini's renderer at start, once the
 
 static void save(void);
 
-static int tab_count(int tab) {
-    int n = 0;
+/* Upscaler mode sets FSR 3.1's and DLSS's render size alone: hidden with the others */
+static int shown(int item) {
+    return item != UP_MODE || g_fsr >= 2;
+}
 
-    while (n < MAX_ITEMS && TAB_ITEMS[tab][n] >= 0) {
-        n++;
+static int tab_count(int tab) {
+    int n = 0, i;
+
+    for (i = 0; i < MAX_ITEMS && TAB_ITEMS[tab][i] >= 0; i++) {
+        n += shown(TAB_ITEMS[tab][i]);
     }
     return n;
+}
+
+/* the tab's nth row shown */
+static int tab_item(int tab, int n) {
+    int i;
+
+    for (i = 0; i < MAX_ITEMS && TAB_ITEMS[tab][i] >= 0; i++) {
+        if (shown(TAB_ITEMS[tab][i]) && n-- == 0) {
+            return TAB_ITEMS[tab][i];
+        }
+    }
+    return -1;
 }
 
 int menu_active(void) {
@@ -411,7 +428,8 @@ static void move(int up, int down, int left, int right, int ok, int tab) {
     if (tab) s_tab = (s_tab + tab + TABS) % TABS;
     if (up) *c = (*c + n - 1) % n;
     if (down) *c = (*c + 1) % n;
-    if (left || right || ok) change(TAB_ITEMS[s_tab][*c], left ? -1 : 1);
+    if (left || right || ok) change(tab_item(s_tab, *c), left ? -1 : 1);
+    *c = SDL_min(*c, tab_count(s_tab) - 1); /* a row hidden by the change (Preset, Upscaling) */
 }
 
 /* 1 when the event was the menu's */
@@ -620,7 +638,7 @@ void menu_draw(SDL_Renderer *r) {
         *top = s_cursor[s_tab] - ROWS + 1;
     }
     for (i = *top; i < n && i < *top + ROWS; i++) {
-        int item = TAB_ITEMS[s_tab][i];
+        int item = tab_item(s_tab, i);
         float y = box.y + 32 + (i - *top) * 14;
 
         if (i == s_cursor[s_tab]) {

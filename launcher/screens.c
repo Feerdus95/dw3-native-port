@@ -55,19 +55,20 @@ SDL_Rect update_button(int tool)
     return (SDL_Rect){a.x + a.w - 6 - w, 0, w, ROW_H - 2};
 }
 
-/* The 32-bit game has OpenGL alone: no renderer to pick, nor Direct3D 12's upscalers and DirectStorage */
+/* The 32-bit game has OpenGL alone: no renderer to pick, nor Direct3D 12's upscalers and DirectStorage.
+   Upscaler mode shows only with FSR 3.1 or DLSS picked, the two it sets */
 static const Row *for_this_game(const Row *r)
 {
     static Row out[32];
+    const bool x64 = game_x64();
     int n = 0;
-    if (game_x64()) {
-        return r;
-    }
     for (; r->kind != R_END; r++) {
-        if (!(r->kind == R_OPTION && (r->id == O_RENDERER || r->id == O_UP_MODE)) &&
-            !(r->kind == R_ACTION && (r->id == S_FSR_DLL || r->id == S_DS_DLL || r->id == S_DLSS_DLL))) {
-            out[n++] = *r;
+        const bool opt = r->kind == R_OPTION, act = r->kind == R_ACTION;
+        if ((opt && r->id == O_UP_MODE && (!x64 || option_int(O_FSR) < 2)) ||
+            (!x64 && ((opt && r->id == O_RENDERER) || (act && (r->id == S_FSR_DLL || r->id == S_DS_DLL || r->id == S_DLSS_DLL))))) {
+            continue;
         }
+        out[n++] = *r;
     }
     out[n] = (Row){R_END, 0};
     return out;

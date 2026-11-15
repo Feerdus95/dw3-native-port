@@ -181,3 +181,4 @@ void option_value(int o, const Lang *l, char *out, int size)
 }
 
 bool option_is_off(int o) { return (DEF[o].kind == K_BOOL && !s_value[o]); }
+int option_int(int o) { return s_value[o]; }

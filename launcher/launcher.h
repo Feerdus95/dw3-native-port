@@ -95,6 +95,7 @@ bool options_save(void);
 void option_step(int option, int dir);
 void option_value(int option, const Lang *lang, char *out, int size);
 bool option_is_off(int option);
+int option_int(int option); /* its value as kept */
 
 /* binds.c: the controls, as the game's own menu sets them */
 enum { BIND_COUNT = 16 };
