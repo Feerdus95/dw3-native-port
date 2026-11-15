@@ -84,7 +84,7 @@ PLATFORM_CFLAGS = ["-std=c11", "-c", "-O2", "-g", "-Wall", "-Wno-unused-paramete
 LDFLAGS = ["-g", "-Wl,--no-dynamicbase",
            f"-L{SDL / 'lib'}", "-lSDL3", "-lbcrypt", *SAN_FLAGS]
 if X64:
-    LDFLAGS += ["-ld3d12", "-ldxgi", "-ldxguid", "-ld3dcompiler_47"]
+    LDFLAGS += ["-ldxguid"]  # the interfaces' ids; Direct3D 12's DLLs are loaded at run time (platform/d3d12/device.c)
     # a low image base, and an address space cut to 2 GB (no large-address-aware): the stack and the heap stay below
     # 2 GB too, so a pointer the game passes through an int still reaches what it pointed at
     LDFLAGS += ["-Wl,--image-base=0x400000", "-Wl,--disable-high-entropy-va"]
@@ -386,7 +386,7 @@ def main():
         for s in u:
             undefined[s] += 1
     host_libs = [TC.parent / f"{ARCH}-w64-mingw32/lib" / f"lib{name}.a"
-                 for name in ("msvcrt", "bcrypt", *(("d3d12", "dxgi", "dxguid", "d3dcompiler_47") if X64 else ()))]
+                 for name in ("msvcrt", "bcrypt", *(("dxguid",) if X64 else ()))]
     host = set(run([NM, "--format=just-symbols", "--defined-only", "--extern-only", *host_libs]).stdout.split())
     host = {cname(s) for s in host}
     missing = sorted(s for s in undefined if s not in defined and s not in host

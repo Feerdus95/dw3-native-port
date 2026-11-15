@@ -254,13 +254,13 @@ int dx_init(SDL_Window *window) {
         return 0;
     }
     DXS.dlss = g_fsr == 3 && sl_start(); /* (before the device and the swap chain) */
-    if (hwnd == NULL || !OK(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, (void **)&DXS.dev))) {
+    if (hwnd == NULL || !OK(p_D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, (void **)&DXS.dev))) {
         SDL_Log("d3d12: no device");
         return 0;
     }
     DXS.dlss = DXS.dlss && sl_device(&DXS.dev);
     if (!OK(ID3D12Device_CreateCommandQueue(DXS.dev, &qd, &IID_ID3D12CommandQueue, (void **)&s_queue)) ||
-        !OK(CreateDXGIFactory1(&IID_IDXGIFactory4, (void **)&fac))) {
+        !OK(p_CreateDXGIFactory1(&IID_IDXGIFactory4, (void **)&fac))) {
         SDL_Log("d3d12: no device");
         return 0;
     }
@@ -406,8 +406,20 @@ int dx_scale(void) {
     return SDL_max(DXS.scale, 1);
 }
 
+#define X(dll, f) __typeof__(f) *p_##f;
+DX_FUNCS(X)
+#undef X
+
+/* The system's DLLs and their calls there, and a device that can be made */
 int dx_available(void) {
-    return SUCCEEDED(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, NULL));
+#define X(dll, f)                                                                         \
+    if ((p_##f = (__typeof__(f) *)SDL_LoadFunction(SDL_LoadObject(dll), #f)) == NULL) { \
+        SDL_Log("d3d12: no %s in %s", #f, dll);                                           \
+        return 0;                                                                         \
+    }
+    DX_FUNCS(X)
+#undef X
+    return SUCCEEDED(p_D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, NULL));
 }
 
 const struct Gfx GFX_D3D12 = GFX_TABLE(dx, "Direct3D 12");

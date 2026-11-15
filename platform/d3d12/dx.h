@@ -17,6 +17,13 @@
 #include "fsr3.h"
 #include "dlss.h"
 
+/* The system's calls, loaded by dx_available: the exe starts on a Windows without them, with OpenGL */
+#define DX_FUNCS(X) \
+    X("d3d12.dll", D3D12CreateDevice) X("d3d12.dll", D3D12SerializeRootSignature) X("dxgi.dll", CreateDXGIFactory1) X("d3dcompiler_47.dll", D3DCompile)
+#define X(dll, f) extern __typeof__(f) *p_##f;
+DX_FUNCS(X)
+#undef X
+
 GFX_DECLARE(dx) /* renderer.h's, dx_* (gfx.c calls them through GFX_D3D12) */
 
 #define FRAMES 2
