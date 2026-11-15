@@ -66,7 +66,7 @@ void audio_vblank(int rate) {
             LOG("voices: %d playing, %d releasing", active, rel);
         }
     }
-    if (s_muted) {
+    if (s_muted || native_skip_blank() == 255) { /* a skip under way is silent (mods.c) */
         SDL_memset(buf, 0, frames * 4);
     }
     if (s_stream != NULL) {

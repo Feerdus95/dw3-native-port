@@ -15,17 +15,32 @@ static void color(SDL_Renderer *r, Uint8 red, Uint8 green, Uint8 blue) {
     SDL_SetRenderDrawColor(r, red, green, blue, 255);
 }
 
+/* The panel's shape, filled up to its cut corner's diagonal and no further, offset by d */
+static void shape(SDL_Renderer *r, const SDL_FRect *box, float d, SDL_FColor c) {
+    float x = box->x + d, y = box->y + d, x1 = x + box->w, y1 = y + box->h;
+    SDL_Vertex v[5] = {{{x, y}, c, {0, 0}}, {{x1, y}, c, {0, 0}}, {{x1, y1}, c, {0, 0}},
+                       {{x + CUT + 0.5f, y1}, c, {0, 0}}, {{x, y1 - CUT - 0.5f}, c, {0, 0}}};
+    int idx[9] = {0, 1, 2, 0, 2, 3, 0, 3, 4};
+
+    SDL_RenderGeometry(r, NULL, v, 5, idx, 9);
+}
+
 void skin_panel(SDL_Renderer *r, const SDL_FRect *box) {
     float right = box->x + box->w - 1, bottom = box->y + box->h - 1;
 
-    color(r, FILL);
-    SDL_RenderFillRect(r, box);
+    shape(r, box, 0, (SDL_FColor){0x00 / 255.0f, 0x00 / 255.0f, 0x21 / 255.0f, 1}); /* FILL */
     color(r, BORDER);
     SDL_RenderLine(r, box->x, box->y, right, box->y);
     SDL_RenderLine(r, right, box->y, right, bottom);
     SDL_RenderLine(r, right, bottom, box->x + CUT, bottom);
     SDL_RenderLine(r, box->x + CUT, bottom, box->x, bottom - CUT);
     SDL_RenderLine(r, box->x, bottom - CUT, box->x, box->y);
+}
+
+void skin_panel_shadow(SDL_Renderer *r, const SDL_FRect *box) {
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    shape(r, box, 2, (SDL_FColor){0, 0, 8 / 255.0f, 1}); /* the field menu's: 2 px, opaque */
+    skin_panel(r, box);
 }
 
 void skin_rule(SDL_Renderer *r, float x0, float x1, float y) {
@@ -73,6 +88,13 @@ typedef struct GlyphMap {
 extern GlyphMap FONT_GLYPH_MAP[];
 extern GlyphMap FONT_ICON_MAP[];
 extern uint8_t FONT_ICONS_3[];
+extern uint8_t FONT_GLYPHS_1[]; /* FONT_STYLES[1], 14 px lines: the field menu's rows (skin_font) */
+extern uint8_t FONT_ICONS_1[];
+static int s_big;
+
+void skin_font(int big) {
+    s_big = big;
+}
 
 #define FONT_X 0x140
 #define GLYPH_SIZE 11
@@ -115,14 +137,14 @@ static const uint8_t *glyph_of(int c) {
 
     for (j = 4; code != 0 && FONT_GLYPH_MAP[j].code != 0xFFFF && j < 1000; j++) {
         if (FONT_GLYPH_MAP[j].code == code) {
-            const uint8_t *gl = FONT_GLYPHS_3 + (FONT_GLYPH_MAP[j].index - 4) * GLYPH_SIZE;
+            const uint8_t *gl = (s_big ? FONT_GLYPHS_1 : FONT_GLYPHS_3) + (FONT_GLYPH_MAP[j].index - 4) * GLYPH_SIZE;
 
             return gl[0] == 0xFF ? NULL : gl;
         }
     }
     for (j = 1; code != 0 && FONT_ICON_MAP[j].code != 0xFFFF && j < 1000; j++) {
         if (FONT_ICON_MAP[j].code == code) {
-            const uint8_t *gl = FONT_ICONS_3 + (FONT_ICON_MAP[j].index - 1) * GLYPH_SIZE;
+            const uint8_t *gl = (s_big ? FONT_ICONS_1 : FONT_ICONS_3) + (FONT_ICON_MAP[j].index - 1) * GLYPH_SIZE;
 
             return gl[0] == 0xFF ? NULL : gl;
         }
@@ -348,7 +370,7 @@ void skin_text(SDL_Renderer *r, float x, float y, const char *s) {
     static struct {
         char s[48];
         SDL_Texture *t;
-        int w;
+        int w, big;
     } cache[SLOTS];
     static int used;
     Uint8 red, green, blue, alpha;
@@ -358,7 +380,7 @@ void skin_text(SDL_Renderer *r, float x, float y, const char *s) {
         SDL_RenderDebugText(r, x, y, s);
         return;
     }
-    for (i = 0; i < used && SDL_strcmp(cache[i].s, s) != 0; i++) {
+    for (i = 0; i < used && (SDL_strcmp(cache[i].s, s) != 0 || cache[i].big != s_big); i++) {
     }
     if (i == used) {
         if (used == SLOTS) { /* full: start over */
@@ -370,6 +392,7 @@ void skin_text(SDL_Renderer *r, float x, float y, const char *s) {
         w = (int)skin_text_width(s) + 2;
         SDL_strlcpy(cache[used].s, s, sizeof cache[used].s);
         cache[used].w = w;
+        cache[used].big = s_big;
         cache[used].t = line_texture(r, s, w);
         i = used++;
     }

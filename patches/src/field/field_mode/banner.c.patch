@@ -22,3 +22,41 @@
      for (i = 0; FIELDSTG_areaNames[i].mode != 0; i++) {
          if (FIELDSTG_areaNames[i].mode == mode) {
              windows->area = createTextWindow(FIELD_LAYER_BANNER, 1, 0x80, 0x1A);
+@@ -136,6 +151,13 @@
+     switch (task->state) {
+     default:
+     case TASK_INIT:
++#ifdef NATIVE
++        if (task->key1 == 1 && native_skip_banner()) { /* skip_scenes: none during a skip (native.h); it */
++            task->key1 = 3;                                /* waits, done for the field, for the skip to end */
++            task->setState(task, TASK_DONE);
++            break;
++        }
++#endif
+         if (task->key1 != 0) {
+             s32 j;
+ 
+@@ -190,6 +212,23 @@
+         break;
+     case TASK_DONE:
+         layer = GFX.funcs.getLayer(FIELD_LAYER_BANNER);
++#ifdef NATIVE
++        if (task->key1 == 3) {
++            Task *field = TASK_REGISTRY.funcs.find(FIELD_TASK_FIELD, -1, -1);
++
++            /* skip_scenes: the field running free of events stops the skip, as the player's control would */
++            if (native_skip_waiting(field != NULL && field->state == TASK_RUN && FIELDSTG_state.menuOpen == 0 &&
++                                    FIELDSTG_state.busy == 0 && FIELDSTG_state.battleStarting == 0)) {
++                break;
++            }
++            task->key1 = 2; /* then it shows, and closes on its own */
++            task->setState(task, TASK_INIT);
++            break;
++        }
++        if (task->key1 == 2 && task->substate == 0) {
++            task->setSubstate(task, 1);
++        }
++#endif
+         /* the match depends on the empty case 0 */
+         switch (task->substate) {
+         case 0:

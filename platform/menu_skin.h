@@ -9,6 +9,9 @@
 /* A panel: the game's navy fill and its frame, the bottom-left corner cut */
 void skin_panel(SDL_Renderer *r, const SDL_FRect *box);
 
+/* The same with the field menu's black shadow (2 px, opaque) below and to the right (the skip and fast forward corners) */
+void skin_panel_shadow(SDL_Renderer *r, const SDL_FRect *box);
+
 /* A thin rule across a panel, from x0 to x1 */
 void skin_rule(SDL_Renderer *r, float x0, float x1, float y);
 
@@ -25,6 +28,9 @@ void skin_thumb(SDL_Renderer *r, const SDL_FRect *thumb);
    width. The debug font stands in until the game's sheets are in VRAM. */
 void skin_text(SDL_Renderer *r, float x, float y, const char *s);
 float skin_text_width(const char *s);
+
+/* The font's size for skin_text: 0 the small one (FONT_STYLES[3]), 1 the field menu's (FONT_STYLES[1]) */
+void skin_font(int big);
 
 /* Text colours: the label, the dimmed label, the value, the header */
 void skin_ink(SDL_Renderer *r, int which);

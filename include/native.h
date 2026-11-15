@@ -124,6 +124,18 @@ void native_bladegarurumon_setup(void);
    (platform/mods.c; WFIGHTMN and STFGTREP patches). */
 extern int g_full_exp_share;
 extern int g_skip_press_start; /* skip_press_start = 1: the title has no PRESS START (STDWTITL menu.c) */
+/* skip_scenes = 1: square held about two thirds of a second skips an event's script to its end
+   (FIELDSTG event.c) and the welcome before the name (STPLNMET welcome.c) */
+extern int g_skip_scenes;
+int native_skip_held(int held); /* 1 while a skip is under way, which a hold starts */
+void native_skip_stop(void);    /* the name screen, a battle */
+int native_skip_running(void);  /* a skip under way, which keeps it going (the movies: STDWTITL movie.c) */
+void native_skip_free(void);    /* the player's control (FIELDSTG actor_control.c) */
+int native_skip_banner(void);   /* 1: a skip under way skips the area banner (FIELDSTG banner.c) */
+int native_skip_waiting(int idle); /* 1 while the skipped banner waits for the skip to end (FIELDSTG banner.c) */
+#define NATIVE_SKIP_HELD() native_skip_held(PAD_HELD(PAD_SQUARE))
+extern void *g_wide_sheet;     /* the name entry's arrow keys a pixel wider (engine/gfx sprite_drawer.c) */
+extern int g_wide_frames[2], g_wide_moved, g_wide_shift;
 extern int g_heal_on_levelup; /* heal_on_levelup = 1: a partner that levels up is healed (STFGTREP growth.c) */
 extern int g_save_anywhere;
 extern int g_save_from_menu;

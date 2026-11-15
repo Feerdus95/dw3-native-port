@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **Skip scenes** (Options, Input, and the launcher; `skip_scenes`, off by default; #15). Square held about two thirds of a second in a cutscene that takes the controls runs the rest of its script at once: no dialogues or waits, walks and the camera at their ends, and the scene's poses, commands, story flags and map changes as it has them. One hold goes on through the scenes, map changes and movies that follow, until the player has the controls back, the name screen opens or a battle starts. While it runs the screen stays black and silent and the game runs at x8; the picture fades back in once, where the player takes over. A cue at the bottom left (the skip button's icon in a ring that fills while it is held, and the word in the game's language) shows whenever a skip is possible, in a panel and font of the field menu's. A field's area banner ("Main Lobby") waits for the skip to end and shows as the picture comes back. The welcome text that opens the name entry screen ("Welcome to Digimon Online...") is skipped the same way. Suggested by Hucaru.
+- **Fast forward's corner** in a panel and font of the field menu's, with two arrows before the speed, instead of the debug font on black.
+- **Name entry's arrow keys** two pixels wider, with OK four pixels to the left to make room, so the arrows sit in their boxes.
+- **Disc reads without a thread**: when the reader thread can't start, every read stays synchronous instead of hanging the next one.
+- **Direct3D 12 start-up** releases what it made when a step fails, and the objects it no longer needs once it is up.
+- **Launcher's DLL rows** (FSR 3.1, DLSS, DirectStorage) count a file as installed only while its SHA-256 matches; a wrong one is offered for download again.
+
 ## v0.20.0 (beta)
 
 - **Sharpen, Brightness, Gamma, Saturation** (Options, Graphics; `sharpen` 0 to 10, `brightness`, `gamma`, `saturation` -10 to 10; all 0 by default, the game's own picture). A post-process pass over the game's picture on its way to the window, not over the movies or the options menu. The sharpening is contrast-adaptive, after AMD's FidelityFX CAS.

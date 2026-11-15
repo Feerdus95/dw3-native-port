@@ -43,7 +43,9 @@ static void vblank(void) {
 
     perf_enter(period_ns() / 1e6);
     soft_age();
-    s_real = g_ff_speed <= 1 || movie_playing() || ++s_ff_tick >= g_ff_speed;
+    int speed = native_skip_blank() == 255 ? 8 : g_ff_speed; /* a skip runs unseen at x8 (mods.c) */
+
+    s_real = speed <= 1 || movie_playing() || ++s_ff_tick >= speed;
     if (s_real) {
         s_real_time += NTSC_MODE ? 0x100 : 0x133;
         s_ff_tick = 0;

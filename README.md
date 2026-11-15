@@ -169,6 +169,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Menus in fast forward | with fast forward on, a menu's cursor keeps its normal pace while a direction is held, instead of racing at x2, x3 or x5 |
 | Menu cursor wraps | up from the first row goes to the last and down from the last to the first, in the field menu, the item lists, the shops and the techniques list; the other menus keep stopping at their ends |
 | Skip PRESS START | the title screen shows New game / Continue at once, without waiting for Start (and without its ten seconds' timeout) |
+| Skip scenes | square held about two thirds of a second in a cutscene that takes the controls skips the rest of its dialogues and moves; what the scene does (story flags, a map change) still happens. Also the welcome text that opens the name entry screen |
 | Vibration, Stick deadzone | the gamepad |
 | Fast text | holding X advances the texts, outside battles and card games. After [Dmw2003FastText](https://github.com/markisha64/Dmw2003FastText), by markisha64 |
 | Fast travel | on the map screen (the field menu's Map), X on a visited area asks, and Yes takes you there at once, through one of the game's own doors into it that is open at that point of the story. It only works from where you could walk out to another area at that moment (not from a room only an event lets you leave). Once you have been to Amaterasu, Square switches between the two servers' maps. Off by default. After [Flawe's Mod](https://www.romhacking.net/hacks/9376/), by Flawe |

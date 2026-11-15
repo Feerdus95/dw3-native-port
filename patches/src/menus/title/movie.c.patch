@@ -1,0 +1,16 @@
+--- a/src/menus/title/movie.c
++++ b/src/menus/title/movie.c
+@@ -170,7 +170,13 @@
+         DecDCTout(STDWTITL_decEnv.imgbuf[STDWTITL_decEnv.imgid], STDWTITL_decEnv.slice.w * STDWTITL_decEnv.slice.h / 2);
+         STDWTITL_decodeNextFrame(&STDWTITL_decEnv);
+         STDWTITL_waitFrameDecoded(&STDWTITL_decEnv, 0);
++#ifdef NATIVE
++        /* skip_scenes (native.h): a skip under way from the field ends the movie as Start does; a movie
++           itself offers none */
++        if (STDWTITL_movieEnded == 1 || (PAD.getPressed(0) & (1 << PAD_START)) || native_skip_running()) {
++#else
+         if (STDWTITL_movieEnded == 1 || (PAD.getPressed(0) & (1 << PAD_START))) {
++#endif
+             task->setState(task, TASK_KILL);
+         }
+         break;

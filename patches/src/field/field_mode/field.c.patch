@@ -1,6 +1,6 @@
 --- a/src/field/field_mode/field.c
 +++ b/src/field/field_mode/field.c
-@@ -278,8 +278,17 @@
+@@ -280,8 +280,17 @@
          if (task->width > SCREEN_WIDTH / 2) {
              GAME.funcs.requestMode(task->nextMode, task->nextModeArg);
              GAME.fieldMode = GAME.funcs.getMode();
@@ -18,7 +18,7 @@
              task->nextSubstate(task);
          }
          FIELDSTG_drawCover(FIELD_LAYER_COVER, 0x8000);
-@@ -490,7 +499,11 @@
+@@ -494,7 +503,11 @@
      s32 mode;
  
      if (FIELDSTG_keepsFileCache() == 0) {
@@ -30,7 +30,7 @@
      }
      setUpFieldScreen();
      if (FIELDSTG_keepsFileCache() == 0) {
-@@ -507,7 +520,14 @@
+@@ -511,7 +524,14 @@
      if (FIELDSTG_state.stageInit != NULL) {
          children->stage = FIELDSTG_state.stageInit(task);
      }
@@ -45,7 +45,7 @@
      FLAGS_00.applyAction(FIELD_VISITED_FLAG(GAME.funcs.getMode()), 1);
      mode = GAME.funcs.getPrevMode();
      /* from other than a field (0x2xx, 0x3xx), STDWTITL,
-@@ -628,6 +648,13 @@
+@@ -635,6 +655,13 @@
          switch (task->substate) {
          case 0:
          default:
@@ -59,7 +59,17 @@
              openFieldMenu(task, children);
              break;
          case 1:
-@@ -1012,7 +1039,12 @@
+@@ -974,6 +1001,9 @@
+     if (task != NULL) {
+         FIELDSTG_state.busy = 1;
+         FIELDSTG_state.battleStarting = 1;
++#ifdef NATIVE
++        native_skip_stop(); /* skip_scenes: a battle stops a skip under way (native.h) */
++#endif
+         next = MODE_BATTLE_MOVIE;
+         if (GAME.progress != STORY_MOVIE_BATTLES) {
+             next = MODE_BATTLE;
+@@ -1020,7 +1050,12 @@
      FieldTask *field = TASK_REGISTRY.funcs.find(FIELD_TASK_FIELD, -1, -1);
      FieldChildren *children = field->children;
  

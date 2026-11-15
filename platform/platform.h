@@ -234,6 +234,9 @@ extern int g_battle_form_name; /* battle_form_name = 1: the battle HUD names the
 extern int g_menu_wrap;      /* menu_wrap = 1: a menu's cursor goes round at its ends (mods.c) */
 extern int g_ff_menu_speed;  /* ff_menu_speed = 1: menus repeat at their normal pace in fast forward (mods.c) */
 extern int g_skip_press_start; /* skip_press_start = 1: no PRESS START on the title (mods.c) */
+extern int g_skip_scenes;      /* skip_scenes = 1: square held skips the cutscenes' dialogues (mods.c) */
+int native_skip_cue(float *ring); /* 0 none, 1 offered, 2 skipping; the ring filled 0-1 (mods.c) */
+int native_skip_blank(void);      /* the black over the picture while skipping, 0-255 (mods.c) */
 extern int g_heal_on_levelup; /* heal_on_levelup = 1: a partner that levels up is healed in full (mods.c) */
 extern int g_full_exp_share; /* full_exp_share = 1: full rewards for non-KO party members (mods.c) */
 extern int g_technique_visuals; /* technique_visuals = 1: mapped player technique effects (mods.c) */
