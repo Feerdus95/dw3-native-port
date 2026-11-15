@@ -92,7 +92,24 @@ bool game_start(void)
     /* so that a game that finds no data reports it, instead of opening a launcher again */
     SDL_SetEnvironmentVariable(SDL_GetEnvironment(), "DW3_FROM_LAUNCHER", "1", true);
     const char *args[] = {path, NULL};
-    s_game = process_start(args, SDL_GetBasePath(), false);
+    char log[1200];
+    path_in_root(log, sizeof log, "log.txt");
+    SDL_IOStream *out = SDL_IOFromFile(log, "w"); /* what the game reports, for Tools' log.txt */
+    SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, (void *)args);
+    SDL_SetStringProperty(props, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, SDL_GetBasePath());
+    if (out) {
+        SDL_SetNumberProperty(props, SDL_PROP_PROCESS_CREATE_STDERR_NUMBER, SDL_PROCESS_STDIO_REDIRECT);
+        SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_STDERR_POINTER, out);
+    }
+    s_game = SDL_CreateProcessWithProperties(props);
+    SDL_DestroyProperties(props);
+    if (out) {
+        SDL_CloseIO(out); /* the game keeps its own copy of the handle */
+    }
+    if (!s_game) {
+        native_log("can't start %s: %s", path, SDL_GetError());
+    }
     return s_game != NULL;
 }
 
