@@ -349,18 +349,20 @@ def main():
         sys.exit(f"{len(failed)} game files failed")
 
     platform = []
-    for src in sorted((NATIVE / "platform").glob("*.c")):
-        if src.name == ("gl.c" if D3D12 else "d3d12.c"):  # one renderer behind renderer.h
+    renderer = [] if D3D12 else sorted((NATIVE / "platform" / "gl").glob("*.c"))  # one renderer behind renderer.h
+    for src in sorted((NATIVE / "platform").glob("*.c")) + renderer:
+        if src.name == "d3d12.c" and not D3D12:
             continue
-        obj = OUT / "platform" / src.with_suffix(".o").name
+        rel = src.relative_to(NATIVE / "platform")
+        obj = OUT / "platform" / rel.with_suffix(".o")
         obj.parent.mkdir(parents=True, exist_ok=True)
-        deps = [src, *(NATIVE / "platform").glob("*.h")]
+        deps = [src, *(NATIVE / "platform").glob("*.h"), *src.parent.glob("*.h")]
         if src.name == "launch_slots.c":
             deps.append(manifest)
         if clean or not obj.exists() or obj.stat().st_mtime < max(h.stat().st_mtime for h in deps):
             r = run([CC, *PLATFORM_CFLAGS, src, "-o", obj])
             if r.returncode != 0:
-                sys.exit(f"FAILED {src.name}\n{r.stderr}")
+                sys.exit(f"FAILED {rel}\n{r.stderr}")
             if r.stderr:
                 print(r.stderr)
         platform.append(obj)
