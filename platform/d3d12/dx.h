@@ -6,6 +6,7 @@
 
 #define RECT PSX_RECT /* windows.h has its own */
 #include "../platform.h"
+#include "../gfx.h"
 #undef RECT
 #define COBJMACROS
 #define WIDL_C_INLINE_WRAPPERS /* mingw's d3d12.h: the getters that return a struct */
@@ -15,6 +16,8 @@
 #include <dxgi1_4.h>
 #include "fsr3.h"
 #include "dlss.h"
+
+GFX_DECLARE(dx) /* renderer.h's, dx_* (gfx.c calls them through GFX_D3D12) */
 
 #define FRAMES 2
 #define MENU_W 1280

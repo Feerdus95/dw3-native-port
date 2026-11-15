@@ -49,8 +49,8 @@ smaa = 0
 # 1: with render_scale below the window's size, the 3D (the battles) is
 # enlarged to the window by AMD's FSR 1 rather than plainly smoothed;
 # for slow graphics cards. Best with some sharpen.
-# 2: FSR 3.1, AMD's temporal upscaler, in the Direct3D 12 build (x64) only.
-# 3: DLSS, NVIDIA's, in the same build, on an RTX card, with NVIDIA's Streamline files next to the exe.
+# 2: FSR 3.1, AMD's temporal upscaler, with the Direct3D 12 renderer (x64) only.
+# 3: DLSS, NVIDIA's, the same, on an RTX card, with NVIDIA's Streamline files next to the exe.
 # It needs AMD's two DLLs next to the exe (amd_fidelityfx_loader_dx12.dll and
 # amd_fidelityfx_upscaler_dx12.dll, from the FidelityFX SDK) and a Resolution
 # below the window's size; without them it works as 1. Takes the place of
@@ -79,6 +79,11 @@ soft_shadows = 0
 
 # 0: no vsync: frames shown at once, which can tear in fullscreen
 vsync = 1
+
+# The 64-bit build's renderer: auto (Direct3D 12 where the graphics card has
+# it, else OpenGL), d3d12 or gl. OpenGL takes over if Direct3D 12 can't start.
+# The 32-bit build is OpenGL only. Needs a restart
+renderer = auto
 
 # 0: the movies with sharp pixels instead of smoothed when scaled up
 smooth_movies = 1

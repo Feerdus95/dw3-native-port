@@ -7,10 +7,13 @@
 
 #define RECT PSX_RECT /* windows.h, through SDL_opengl.h, has its own */
 #include "../platform.h"
+#include "../gfx.h"
 #undef RECT
 #define GL_GLEXT_PROTOTYPES
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
+
+GFX_DECLARE(gl) /* renderer.h's, gl_* (gfx.c calls them through GFX_GL) */
 
 /* --- the functions, through SDL (opengl32 only exports 1.1) --- */
 #define GL_FUNCS(X)                                                                                                  \

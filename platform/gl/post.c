@@ -416,7 +416,7 @@ static GLuint picture(const PSX_RECT *d, int w, int h, float uv[4]) {
 
 /* The frame: the display area of the copy (or the 1x VRAM's 24-bit movie)
    letterboxed to 4:3, then the menu (a 1280x960 RGBA surface, or NULL) */
-void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
+void gl_present(const SDL_Surface *menu, SDL_Surface **shot) {
     PSX_RECT d = g_disp.disp;
     int w, h, vp[4], menu_vp[4], game;
     GLuint tex = 0;

@@ -57,12 +57,12 @@ void dx_need_rect(uint16_t need[8], int x, int y, int w, int h) {
     }
 }
 
-void gfx_vram_dirty(int x, int y, int w, int h) {
+void dx_vram_dirty(int x, int y, int w, int h) {
     dx_need_rect(g_vram_dirty, x, y, w, h);
 }
 
 /* 1 when FSR 3.1 or DLSS is chosen (and was at the start): then the upscaler mode, not Resolution, sets the render */
-int gfx_scale_tied(void) {
+int dx_scale_tied(void) {
     return (g_fsr == 2 && DXS.fsr3 && !DXS.dlss && fx_loaded()) || (g_fsr == 3 && DXS.dlss && sl_state() > 0);
 }
 
@@ -72,14 +72,14 @@ static int render_scale(void) {
     static const float SHARE[4] = {1.0f, 0.667f, 0.58f, 0.5f};
     int pic = DXS.w * 3 >= DXS.h * 4 ? DXS.h : DXS.w * 3 / 4, top = SDL_max(1, pic / 240); /* (the picture is 4:3 in the window, at most) */
 
-    if (!gfx_scale_tied() || pic <= 0) {
+    if (!dx_scale_tied() || pic <= 0) {
         return SDL_clamp(g_res_scale, 1, MAX_SCALE);
     }
     return SDL_clamp((int)(pic * SHARE[SDL_clamp(g_up_mode, 0, 3)] / 240.0f + 0.5f), 1, SDL_min(top, MAX_SCALE));
 }
 
 /* The render scale in use, made to follow render_scale: the copy, its depth, the temporary of the copies */
-void gfx_sync(int force) {
+void dx_sync(int force) {
     int want = render_scale();
 
     if (!DXS.ready || g_vram == NULL) { /* VRAM comes with ResetGraph */
@@ -179,5 +179,5 @@ void gfx_sync(int force) {
         return;
     }
     soft_all();
-    gfx_refresh(0, 0, VRAM_W, VRAM_H);
+    dx_refresh(0, 0, VRAM_W, VRAM_H);
 }

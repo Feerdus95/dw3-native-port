@@ -6,24 +6,6 @@ GL_FUNCS(X)
 #undef X
 static SDL_GLContext s_ctx;
 
-int g_depth = 1;
-
-int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1; /* true_color, perspective, smooth_3d, the menu */
-
-int g_sharpen, g_brightness, g_gamma, g_saturation; /* sharpen 0 to 10; the others -10 to 10, 0 as the game's */
-
-int g_scanlines, g_integer_scale; /* scanlines 0 to 10; integer_scale = 1: the picture a whole multiple of 240 rows */
-
-int g_smaa, g_fsr, g_up_mode = 1;                  /* smaa, fsr = 1: the picture's edges smoothed; upscaled to the window by FSR 1 */
-
-int g_soft_shadows;
-
-int g_vsync = 1; /* vsync, the menu */
-
-int g_battle_shadows = 1; /* battle_shadows, the menu (native.h) */ /* soft_shadows = 1, the menu (native.h) */
-
-int g_battle_sky;                    /* battle_sky, the menu (native.h) */
-
 static GLint s_prop_depth_loc, s_prop_fog_loc, s_prop_fogz_loc;
 
 static GLuint s_q[QSLOTS][QMAX];
@@ -84,25 +66,21 @@ void gl_query_frame(void) {
     s_qslot = old;
 }
 
-int g_res_scale = 1; /* native.ini, the menu */
-
-int gfx_fsr3_status(void) {
+int gl_fsr3_status(void) {
     return -1;
 }
 
-int gfx_scale_tied(void) {
+int gl_scale_tied(void) {
     return 0;
 }
 
-int gfx_dlss_status(void) {
+int gl_dlss_status(void) {
     return -1;
 }
 
-int gfx_scale(void) {
+int gl_scale(void) {
     return SDL_max(GLS.scale, 1);
 }
-
-uint16_t g_vram_dirty[8]; /* 64x64 blocks of VRAM written since they were uploaded */
 
 GLuint gl_texture(GLint internal, int w, int h, GLenum format, GLenum type, GLint filter) {
     GLuint t;
@@ -132,7 +110,7 @@ GLuint gl_framebuffer(GLuint tex) {
 
 /* Follows render_scale: a new copy, made from the 1x VRAM; force: VRAM
    changed under it (a loaded state) */
-void gfx_sync(int force) {
+void gl_sync(int force) {
     int want = SDL_clamp(g_res_scale, 1, GLS.max_scale);
 
     if (GLS.main == 0 || g_vram == NULL) { /* VRAM comes with ResetGraph */
@@ -188,10 +166,10 @@ void gfx_sync(int force) {
         return;
     }
     soft_all();
-    gfx_refresh(0, 0, VRAM_W, VRAM_H);
+    gl_refresh(0, 0, VRAM_W, VRAM_H);
 }
 
-uint64_t gfx_window_flags(void) {
+uint64_t gl_window_flags(void) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -199,7 +177,7 @@ uint64_t gfx_window_flags(void) {
     return SDL_WINDOW_OPENGL;
 }
 
-int gfx_init(SDL_Window *window) {
+int gl_init(SDL_Window *window) {
     GLint max = 0;
 
     GLS.window = window;
@@ -310,5 +288,7 @@ int gfx_init(SDL_Window *window) {
     }
     return 1;
 }
+
+const struct Gfx GFX_GL = GFX_TABLE(gl, "OpenGL");
 
 struct GlState GLS = {.mask_box = {VRAM_W, VRAM_H, -1, -1}, .max_scale = 8, .semi = -1, .clip = {0, 0, 1023, 511}};

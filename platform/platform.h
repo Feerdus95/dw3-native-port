@@ -119,6 +119,7 @@ extern int g_log;
 
 /* native.ini switches (main.c) */
 extern int g_debug;         /* debug = 1: the debug keys (state.c) */
+extern int g_renderer;      /* renderer = auto 0, d3d12 1, gl 2: the 64-bit build's choice (gfx.c) */
 extern int g_depth; /* the options menu's Depth buffer: the 3D models' polygons by their depth, not the PSX's order (gl.c) */
 extern int g_subpixel; /* the options menu's Sub-pixel 3D: 0 snaps vertices to the 1x pixel (gte.c), for comparing */
 extern int g_dither_on;     /* dither = 0: no GPU dithering (gpu_draw.c) */

@@ -19,7 +19,7 @@ static void movie_rgba(const PSX_RECT *d) {
 }
 
 /* The frame: the display area of the copy (or the 1x VRAM's 24-bit movie) letterboxed to 4:3, then the menu (a 1280x960 RGBA surface, or NULL) */
-void gfx_present(const SDL_Surface *menu, SDL_Surface **shot) {
+void dx_present(const SDL_Surface *menu, SDL_Surface **shot) {
     PSX_RECT d = g_disp.disp;
     int w, h, vp[4], menu_vp[4], game, movie, i, slot = S_RT;
     float puv[4] = {0, 0, 1, 1};

@@ -83,14 +83,14 @@ static int image_tex(const SDL_Surface *img, unsigned *tex) {
 }
 
 /* An image's texture made ahead of its first use (effects.c's warm-up), not in the frame it first shows */
-int gfx_image_prepare(const SDL_Surface *img, unsigned *tex) {
+int dx_image_prepare(const SDL_Surface *img, unsigned *tex) {
     return DXS.scale != 0 && img != NULL && image_tex(img, tex); /* 0: the card isn't up yet */
 }
 
 /* An image of the port's own over the copy (platform.h): premultiplied over, or added; cut to the drawing area */
 static void image_draw(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2);
 
-void gfx_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
+void dx_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
     int prev = dx_mark(C_IMAGE);
 
     image_draw(img, tex, x0, y0, x1, y1, add, cx1, cy1, cx2, cy2);
@@ -127,26 +127,26 @@ static void image_draw(const SDL_Surface *img, unsigned *tex, float x0, float y0
     ID3D12GraphicsCommandList_DrawInstanced(DXS.list, 4, 1, 0, 0);
 }
 
-void gfx_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo) {
+void dx_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo) {
     (void)img, (void)tex, (void)v, (void)n, (void)x1, (void)y1, (void)x2, (void)y2, (void)fogo;
 }
 
-unsigned gfx_inst_make(const PInst *v, int n) { (void)v, (void)n; return 0; }
+unsigned dx_inst_make(const PInst *v, int n) { (void)v, (void)n; return 0; }
 
-void gfx_inst_free(unsigned b) { (void)b; }
+void dx_inst_free(unsigned b) { (void)b; }
 
-unsigned gfx_buf_make(const void *p, unsigned long bytes) { (void)p, (void)bytes; return 0; }
+unsigned dx_buf_make(const void *p, unsigned long bytes) { (void)p, (void)bytes; return 0; }
 
-void gfx_mesh_make(GMesh *g, const float *v, int n) { (void)v, (void)n; g->n = 0; }
+void dx_mesh_make(GMesh *g, const float *v, int n) { (void)v, (void)n; g->n = 0; }
 
-void gfx_props_model(const SDL_Surface *img, unsigned *tex, const GMesh *g, float miny, float h, unsigned inst, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+void dx_props_model(const SDL_Surface *img, unsigned *tex, const GMesh *g, float miny, float h, unsigned inst, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
     (void)img, (void)tex, (void)g, (void)miny, (void)h, (void)inst, (void)first, (void)n, (void)cam, (void)x1, (void)y1, (void)x2, (void)y2, (void)fogo;
 }
 
-void gfx_props_inst(const SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+void dx_props_inst(const SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
     (void)img, (void)tex, (void)b, (void)first, (void)n, (void)cam, (void)x1, (void)y1, (void)x2, (void)y2, (void)fogo;
 }
 
-void gfx_props_part(const SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+void dx_props_part(const SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
     (void)img, (void)tex, (void)p, (void)cam, (void)x1, (void)y1, (void)x2, (void)y2, (void)fogo;
 }

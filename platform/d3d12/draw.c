@@ -42,7 +42,7 @@ static void flush_batch(void) {
     SDL_memcpy(p, DXS.batch, bytes);
     dx_trans(&DXS.vram, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     vb.BufferLocation = ID3D12Resource_GetGPUVirtualAddress(DXS.ring_res) + off, vb.SizeInBytes = bytes, vb.StrideInBytes = sizeof(GVtx);
-    if (DXS.semi == 5) { /* a battle shadow: into the mask (gfx_shadows_resolve) */
+    if (DXS.semi == 5) { /* a battle shadow: into the mask (dx_shadows_resolve) */
         D3D12_CPU_DESCRIPTOR_HANDLE mrtv = dx_rtv_at(R_MASK);
 
         dx_trans(&DXS.mask, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -111,7 +111,7 @@ void dx_flush(void) {
 }
 
 /* Triangles (n a multiple of 3) for the copy, with gpu_draw.c's state: the drawing area, the semi-transparency mode (4: a soft shadow's) */
-void gfx_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {
+void dx_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {
     int semi_prim = (v[0].mode & 8) != 0, deep = v[0].z > 0;
 
     if (DXS.scale == 0) {
@@ -165,7 +165,7 @@ void gfx_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int sem
 /* An ordering table drawn: the battle shadows in the mask, blurred, darken the copy, and the mask is emptied */
 static void shadows_resolve(void);
 
-void gfx_shadows_resolve(void) {
+void dx_shadows_resolve(void) {
     int prev = dx_mark(C_RESOLVE);
 
     shadows_resolve();
@@ -223,7 +223,7 @@ static void shadows_resolve(void) {
 
 static void depth_clear(void);
 
-void gfx_depth_clear(void) {
+void dx_depth_clear(void) {
     int prev = dx_mark(C_DEPTH);
 
     depth_clear();
@@ -248,7 +248,7 @@ static void depth_clear(void) {
 /* A quad of the copy that shows the 1x VRAM under it: after the CPU wrote VRAM (an image, a fill) */
 static void refresh(int x, int y, int w, int h);
 
-void gfx_refresh(int x, int y, int w, int h) {
+void dx_refresh(int x, int y, int w, int h) {
     int prev = dx_mark(C_REFRESH);
 
     refresh(x, y, w, h);
@@ -282,7 +282,7 @@ static void refresh(int x, int y, int w, int h) {
 }
 
 /* A battle's sky drawn (gpu_draw.c), its colour at the horizon the fog's: the stage's background colour (the OpenGL renderer has the notes) */
-void gfx_battle_fog(int r, int g, int b) {
+void dx_battle_fog(int r, int g, int b) {
     DXS.bg[0] = r / 8.0f, DXS.bg[1] = g / 8.0f, DXS.bg[2] = b / 8.0f;
     DXS.fog_on = 1;
 }
@@ -313,14 +313,14 @@ static void quad_sc(int slot, const int vp[4], const float uv[4], ID3D12Pipeline
 }
 
 /* VRAM to VRAM, in the copy */
-void gfx_copy(int sx, int sy, int w, int h, int dx, int dy) {
-    gfx_copy_to(sx, sy, w, h, (float)dx, dy, (float)w);
+void dx_copy(int sx, int sy, int w, int h, int dx, int dy) {
+    dx_copy_to(sx, sy, w, h, (float)dx, dy, (float)w);
 }
 
 /* The same, to dw pixels across from dx (a widescreen battle's menus) */
 static void copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw);
 
-void gfx_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
+void dx_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
     int prev = dx_mark(C_COPY);
 
     copy_to(sx, sy, w, h, dx, dy, dw);

@@ -1,28 +1,6 @@
 /* The Direct3D 12 renderer's device: the queue, the frames in flight, resources and their states, the GPU's timestamps, set up */
 #include "dx.h"
 
-int g_res_scale = 1;
-
-int g_depth = 1;
-
-int g_true_color = 1, g_perspective = 1, g_smooth_3d = 1;
-
-int g_sharpen, g_brightness, g_gamma, g_saturation;
-
-int g_scanlines, g_integer_scale;
-
-int g_smaa, g_fsr, g_up_mode = 1; /* g_up_mode: 0 DLAA, 1 Quality, 2 Balanced, 3 Performance */
-
-int g_soft_shadows;
-
-int g_vsync = 1;
-
-int g_battle_shadows = 1;
-
-int g_battle_sky;
-
-uint16_t g_vram_dirty[8];
-
 static ID3D12CommandQueue *s_queue;
 
 static ID3D12Fence *s_fence;
@@ -245,11 +223,11 @@ static void backbuffers(void) {
     DXS.read = dx_buffer(D3D12_HEAP_TYPE_READBACK, (UINT64)DXS.read_pitch * (UINT)DXS.h, D3D12_RESOURCE_STATE_COPY_DEST, &DXS.read_ptr);
 }
 
-uint64_t gfx_window_flags(void) {
+uint64_t dx_window_flags(void) {
     return 0; /* no GL: the window is plain */
 }
 
-int gfx_init(SDL_Window *window) {
+int dx_init(SDL_Window *window) {
     HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
     D3D12_COMMAND_QUEUE_DESC qd = {D3D12_COMMAND_LIST_TYPE_DIRECT, 0, 0, 0};
     D3D12_DESCRIPTOR_HEAP_DESC rd = {D3D12_DESCRIPTOR_HEAP_TYPE_RTV, R_COUNT, 0, 0};
@@ -362,7 +340,9 @@ int gfx_init(SDL_Window *window) {
     DXS.pso_img = blit_pso(bvs, bps, 4, DXGI_FORMAT_R8G8B8A8_UNORM);
     DXS.pso_add = blit_pso(bvs, bps, 5, DXGI_FORMAT_R8G8B8A8_UNORM);
     for (i = 0; i < 6 * 3; i++) { /* all the main shader's states now: made in the middle of a fight they would be a hitch */
-        dx_main_pso(i / 3 - 1, i % 3);
+        if (dx_main_pso(i / 3 - 1, i % 3) == NULL) {
+            return 0;
+        }
     }
     DXS.pso_blur = blit_pso(bvs, bpsb, 1, DXGI_FORMAT_R8_UNORM);
     DXS.pso_dark = blit_pso(bvs, bpsb, 3, DXGI_FORMAT_R8G8B8A8_UNORM);
@@ -407,23 +387,29 @@ void dx_resize(int w, int h) {
     backbuffers();
 }
 
-/* DLSS: -1 not here (no DLLs, or a GPU that isn't an RTX), 0 after a restart, 1 on, 2 the Resolution is too high for it, 3 running (as gfx_fsr3_status) */
-int gfx_dlss_status(void) {
+/* DLSS: -1 not here (no DLLs, or a GPU that isn't an RTX), 0 after a restart, 1 on, 2 the Resolution is too high for it, 3 running (as dx_fsr3_status) */
+int dx_dlss_status(void) {
     if (sl_state() < 0 || (sl_state() == 0 && !sl_files_here())) {
         return -1;
     }
     return !DXS.dlss ? 0 : DXS.f3_state != 0 ? DXS.f3_state : 1;
 }
 
-int gfx_fsr3_status(void) {
+int dx_fsr3_status(void) {
     if (!fx_load()) {
         return -1;
     }
     return !DXS.fsr3 ? 0 : DXS.f3_state != 0 ? DXS.f3_state : 1;
 }
 
-int gfx_scale(void) {
+int dx_scale(void) {
     return SDL_max(DXS.scale, 1);
 }
+
+int dx_available(void) {
+    return SUCCEEDED(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, NULL));
+}
+
+const struct Gfx GFX_D3D12 = GFX_TABLE(dx, "Direct3D 12");
 
 struct DxState DXS = {.semi = -1, .clip = {0, 0, 1023, 511}, .mask_box = {VRAM_W, VRAM_H, -1, -1}, .depth_used = 1};

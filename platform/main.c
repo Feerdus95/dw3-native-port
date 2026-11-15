@@ -132,6 +132,8 @@ static void read_ini(int data_only) {
             g_true_color = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "vsync") == 0) {
             g_vsync = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "renderer") == 0) {
+            g_renderer = SDL_strcasecmp(value, "d3d12") == 0 ? 1 : SDL_strcasecmp(value, "gl") == 0 ? 2 : 0;
         } else if (SDL_strcasecmp(key, "widescreen") == 0) {
             g_widescreen = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "battle_shadows") == 0) {

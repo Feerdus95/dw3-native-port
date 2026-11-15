@@ -41,7 +41,7 @@ static void need_rect(uint16_t need[8], int x, int y, int w, int h) {
     }
 }
 
-void gfx_vram_dirty(int x, int y, int w, int h) {
+void gl_vram_dirty(int x, int y, int w, int h) {
     need_rect(g_vram_dirty, x, y, w, h);
 }
 
@@ -133,7 +133,7 @@ void gl_flush(void) {
 
 /* Triangles (n a multiple of 3) for the copy, with gpu_draw.c's state: the
    drawing area, the semi-transparency mode (4: a soft shadow's) */
-void gfx_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {
+void gl_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int semi) {
     int semi_prim = (v[0].mode & 8) != 0, deep = v[0].z > 0;
 
     if (GLS.scale == 0) {
@@ -187,7 +187,7 @@ void gfx_triangles(const GVtx *v, int n, int x1, int y1, int x2, int y2, int sem
 
 /* An ordering table drawn: the battle shadows in the mask, blurred, darken
    the copy, and the mask is emptied */
-void gfx_shadows_resolve(void) {
+void gl_shadows_resolve(void) {
     static const float QUAD[16] = {-1, -1, 0, 0, 1, -1, 0, 0, -1, 1, 0, 0, 1, 1, 0, 0};
     int s = GLS.scale, step = SDL_max(1, s * 3 / 4), pad = 5 * step, r[4];
 
@@ -238,7 +238,7 @@ void gfx_shadows_resolve(void) {
 
 /* The depth buffer emptied: an ordering table's 3D models are drawn by their
    depth among themselves, over what earlier tables drew */
-void gfx_depth_clear(void) {
+void gl_depth_clear(void) {
     if (GLS.scale == 0 || !GLS.fbo_depth) {
         return;
     }
@@ -252,7 +252,7 @@ void gfx_depth_clear(void) {
 
 /* A quad of the copy that shows the 1x VRAM under it: after the CPU wrote
    VRAM (an image, a fill) */
-void gfx_refresh(int x, int y, int w, int h) {
+void gl_refresh(int x, int y, int w, int h) {
     GVtx q[6];
     int i;
 
@@ -284,18 +284,18 @@ void gfx_refresh(int x, int y, int w, int h) {
    ponytail: the fog spans the farthest opaque 3D of the last frames (the
    stage's edge), as the stages' sizes are not known; a per-stage range
    when one looks wrong */
-void gfx_battle_fog(int r, int gg, int b) {
+void gl_battle_fog(int r, int gg, int b) {
     GLS.bg[0] = r / 8.0f, GLS.bg[1] = gg / 8.0f, GLS.bg[2] = b / 8.0f;
     GLS.fog_on = 1;
 }
 
 /* VRAM to VRAM, in the copy */
-void gfx_copy(int sx, int sy, int w, int h, int dx, int dy) {
-    gfx_copy_to(sx, sy, w, h, (float)dx, dy, (float)w);
+void gl_copy(int sx, int sy, int w, int h, int dx, int dy) {
+    gl_copy_to(sx, sy, w, h, (float)dx, dy, (float)w);
 }
 
 /* The same, to dw pixels across from dx (a widescreen battle's menus) */
-void gfx_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
+void gl_copy_to(int sx, int sy, int w, int h, float dx, int dy, float dw) {
     int s = GLS.scale;
 
     if (s == 0 || w <= 0 || h <= 0) {

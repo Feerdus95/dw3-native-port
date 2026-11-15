@@ -25,12 +25,12 @@ static int image_tex(const SDL_Surface *img, unsigned *tex) {
 }
 
 /* An image's texture made ahead of its first use (effects.c's warm-up), not in the frame it first shows */
-int gfx_image_prepare(const SDL_Surface *img, unsigned *tex) {
+int gl_image_prepare(const SDL_Surface *img, unsigned *tex) {
     return GLS.scale != 0 && img != NULL && image_tex(img, tex); /* 0: the card isn't up yet */
 }
 
 /* An image of the port's own over the copy (platform.h) */
-void gfx_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
+void gl_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float x1, float y1, int add, int cx1, int cy1, int cx2, int cy2) {
     int s = GLS.scale;
     float q[16] = {x0, y0, 0, 0, x1, y0, 1, 0, x0, y1, 0, 1, x1, y1, 1, 1};
     int i;
@@ -67,7 +67,7 @@ void gfx_image(const SDL_Surface *img, unsigned *tex, float x0, float y0, float 
 
 /* The depth buffer as the stage's table left it, before the models' table
    empties it: what the props are hidden by (stagefx.c) */
-void gfx_depth_save(void) {
+void gl_depth_save(void) {
     int s = GLS.scale;
 
     GLS.sd_valid = 0;
@@ -83,7 +83,7 @@ void gfx_depth_save(void) {
 }
 
 /* The depth buffer as the fighters' table left it (it started empty): the grass is trodden down where a fighter is */
-void gfx_depth_models(void) {
+void gl_depth_models(void) {
     int s = GLS.scale;
 
     GLS.fd_valid = 0;
@@ -157,7 +157,7 @@ static void props_end(void) {
     GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
 }
 
-void gfx_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo) {
+void gl_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, int x1, int y1, int x2, int y2, const float *fogo) {
     if (n <= 0 || !props_begin(GLS.prop, img, tex, x1, y1, x2, y2, fogo)) {
         return;
     }
@@ -169,7 +169,7 @@ void gfx_props(const SDL_Surface *img, unsigned *tex, const PropVtx *v, int n, i
 }
 
 /* A table of billboards, uploaded once (the card keeps it); 0 when it can't */
-unsigned gfx_inst_make(const PInst *v, int n) {
+unsigned gl_inst_make(const PInst *v, int n) {
     GLuint b = 0;
 
     if (GLS.scale == 0 || n <= 0) {
@@ -181,7 +181,7 @@ unsigned gfx_inst_make(const PInst *v, int n) {
     return b;
 }
 
-void gfx_inst_free(unsigned b) {
+void gl_inst_free(unsigned b) {
     if (b != 0) {
         GL(glDeleteBuffers)(1, &b);
     }
@@ -197,7 +197,7 @@ static void props_cam(const PCam *c) {
 }
 
 /* N billboards of the table B from FIRST, with image IMG, by the camera */
-void gfx_props_inst(const SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+void gl_props_inst(const SDL_Surface *img, unsigned *tex, unsigned b, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
     const size_t st = sizeof(PInst);
 
     if (n <= 0 || b == 0 || !props_begin(GLS.pinst, img, tex, x1, y1, x2, y2, fogo)) {
@@ -223,7 +223,7 @@ void gfx_props_inst(const SDL_Surface *img, unsigned *tex, unsigned b, int first
 }
 
 /* A table (PInst, PModel...) uploaded once; 0 when it can't */
-unsigned gfx_buf_make(const void *p, unsigned long bytes) {
+unsigned gl_buf_make(const void *p, unsigned long bytes) {
     GLuint b = 0;
 
     if (GLS.scale == 0 || bytes == 0) {
@@ -236,7 +236,7 @@ unsigned gfx_buf_make(const void *p, unsigned long bytes) {
 }
 
 /* A mesh kept on the card: position, texture coordinate, normal */
-void gfx_mesh_make(GMesh *g, const float *v, int n) {
+void gl_mesh_make(GMesh *g, const float *v, int n) {
     const GLsizei st = 8 * sizeof(float);
 
     g->n = 0;
@@ -258,7 +258,7 @@ void gfx_mesh_make(GMesh *g, const float *v, int n) {
 }
 
 /* N instances of the mesh G, from FIRST of the table INST (PModel), with image IMG: one draw */
-void gfx_props_model(const SDL_Surface *img, unsigned *tex, const GMesh *g, float miny, float h, unsigned inst, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+void gl_props_model(const SDL_Surface *img, unsigned *tex, const GMesh *g, float miny, float h, unsigned inst, int first, int n, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
     const size_t st = sizeof(PModel);
 
     if (n <= 0 || g->n <= 0 || inst == 0 || !props_begin(GLS.pinst, img, tex, x1, y1, x2, y2, fogo)) {
@@ -283,7 +283,7 @@ void gfx_props_model(const SDL_Surface *img, unsigned *tex, const GMesh *g, floa
 }
 
 /* An emitter's particles, or the stage's leaves (P->leaf): no data at all, each one's place is worked out from its number */
-void gfx_props_part(const SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
+void gl_props_part(const SDL_Surface *img, unsigned *tex, const PPart *p, const PCam *cam, int x1, int y1, int x2, int y2, const float *fogo) {
     GLint loc;
 
     if (p->count <= 0 || !props_begin(GLS.pinst, img, tex, x1, y1, x2, y2, fogo)) {

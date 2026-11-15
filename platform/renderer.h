@@ -1,5 +1,6 @@
 /* The renderer: what the platform layer asks of the graphics backend. platform/gl/ (OpenGL 3.3) and, in the 64-bit
-   build, platform/d3d12/ (Direct3D 12) implement these same functions, and nothing else of the port changes. The rest of the port
+   build, platform/d3d12/ (Direct3D 12) implement these same functions; gfx.c calls the one picked at start (gfx.h), and
+   nothing else of the port changes. The rest of the port
    (gpu.c, gpu_draw.c, stagefx.c, effects.c, postcards.c, video.c, state.c) calls only what is declared here, and
    the tests link doubles for it (tools/test_*.c). The drawing is render_scale times finer than VRAM; the GTE keeps
    each vertex's fraction for it (gte.c). Included by platform.h. */
@@ -13,6 +14,7 @@ struct SDL_Surface;
 
 /* The window's flags for this backend, with its attributes set (video.c creates the window with them, before gfx_init) */
 uint64_t gfx_window_flags(void);
+int gfx_fallback(void); /* gfx_init failed: OpenGL next, on a new window; 0 when it was OpenGL (gfx.c) */
 /* The drawing on the graphics card (gl.c), render_scale times finer than
    VRAM; the GTE keeps each vertex's fraction for it (gte.c) */
 extern int g_res_scale;  /* render_scale = 1-8 */

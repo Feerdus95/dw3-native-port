@@ -1,4 +1,4 @@
-/* The window: an OpenGL one, where gl.c draws the display area (the last
+/* The window, where the renderer (gfx.c) draws the display area (the last
    PutDispEnv) and the options menu over it. */
 #include <SDL3/SDL.h>
 #include "platform.h"
@@ -35,15 +35,22 @@ int video_init(int scale, int fullscreen) {
         LOG("SDL_Init: %s", SDL_GetError());
         return 0;
     }
-    s_window = SDL_CreateWindow("Digimon World 2003", video_window_width(scale), 240 * scale,
-                                gfx_window_flags() | SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0) | (g_render_sounds ? SDL_WINDOW_HIDDEN : 0));
-    if (s_window == NULL) {
-        LOG("window: %s", SDL_GetError());
-        return 0;
-    }
-    if (!gfx_init(s_window)) {
-        LOG("this needs OpenGL 3.3");
-        return 0;
+    for (;;) { /* the renderer picked, or OpenGL when it can't start: a new window, as its flags differ */
+        s_window = SDL_CreateWindow("Digimon World 2003", video_window_width(scale), 240 * scale,
+                                    gfx_window_flags() | SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0) | (g_render_sounds ? SDL_WINDOW_HIDDEN : 0));
+        if (s_window == NULL) {
+            LOG("window: %s", SDL_GetError());
+            return 0;
+        }
+        if (gfx_init(s_window)) {
+            break;
+        }
+        SDL_DestroyWindow(s_window);
+        if (!gfx_fallback()) {
+            LOG("this needs OpenGL 3.3");
+            return 0;
+        }
+        LOG("renderer: failed, OpenGL instead");
     }
     /* the menu in 320x240 units, four times as fine: its icons sharp */
     s_menu = SDL_CreateSurface(1280, 960, SDL_PIXELFORMAT_ABGR8888);

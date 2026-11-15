@@ -35,11 +35,11 @@ static void depth_keep(Tex *to, int rtv, int *valid, int org[2]) {
     *valid = 1, org[0] = DXS.clip[0], org[1] = DXS.clip[1];
 }
 
-void gfx_depth_save(void) {
+void dx_depth_save(void) {
     depth_keep(&DXS.sd, R_SD, &DXS.sd_valid, DXS.sd_org);
 }
 
-void gfx_depth_models(void) {
+void dx_depth_models(void) {
     depth_keep(&DXS.fd, R_FD, &DXS.fd_valid, DXS.fd_org);
 }
 

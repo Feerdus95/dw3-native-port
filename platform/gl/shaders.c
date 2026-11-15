@@ -73,7 +73,7 @@ const char *MAIN_FS =
     "    bool semi = (md & 8u) != 0u;\n"
     "    vec3 c8 = col, c5;\n"
     "    float cover = 1.0;\n"
-    "    if ((md & 1024u) != 0u) {\n" /* a battle shadow: into the mask (gfx_shadows_resolve) */
+    "    if ((md & 1024u) != 0u) {\n" /* a battle shadow: into the mask (gl_shadows_resolve) */
     "        if (pass == 1) discard;\n"
     "        frag = vec4(1.0);\n"
     "        return;\n"
@@ -143,7 +143,7 @@ const char *BLIT_FS =
 /* The world's props (stagefx.c): a textured billboard or mesh with its own RGBA
    image, drawn over the models. Cut out by alpha, and hidden by the stage where
    the stage is nearer (the stage's depth, saved before the models' table clears
-   the depth buffer: gfx_depth_save) and by the fighters (the depth buffer) */
+   the depth buffer: gl_depth_save) and by the fighters (the depth buffer) */
 const char *PROP_VS =
     "#version 330 core\n"
     "layout(location = 0) in vec3 p;\n" /* VRAM pixels, view depth */
@@ -336,7 +336,7 @@ const char *PINST_VS =
     "}\n";
 
 /* Battle shadows: the mask blurred one way into another, then the other way
-   as it darkens the copy (gfx_shadows_resolve) */
+   as it darkens the copy (gl_shadows_resolve) */
 const char *SOFT_FS =
     "#version 330 core\n"
     "uniform sampler2D src;\n"
