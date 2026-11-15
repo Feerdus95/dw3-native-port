@@ -15,6 +15,7 @@ gets a stub that logs once and returns 0; native/build/report.md lists them.
 """
 import collections
 import concurrent.futures as cf
+import filecmp
 import os
 import re
 import shutil
@@ -98,13 +99,20 @@ def run(cmd, **kw):
 def apply_patches():
     """native/patches/<path in dw3_decomp>.patch -> build/patched/<path>. The
     whole include/ is mirrored there, since a quoted #include looks in the
-    including header's own directory first and would miss a patched copy."""
+    including header's own directory first and would miss a patched copy.
+    A patch deleted leaves no trace: its source's copy goes (with its object,
+    which the older original would not make stale), its header's is the
+    original again (copied fresh, so what includes it is rebuilt)."""
     for h in (DECOMP / "include").rglob("*"):
         out = PATCHED / "include" / h.relative_to(DECOMP / "include")
         if h.is_file() and not (NATIVE / "patches" / f"{out.relative_to(PATCHED).as_posix()}.patch").exists():
-            if not out.exists() or out.stat().st_mtime < h.stat().st_mtime:
+            if not out.exists() or not filecmp.cmp(h, out, shallow=False):
                 out.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(h, out)
+                shutil.copy(h, out)
+    for out in (PATCHED / "src").rglob("*"):
+        if out.is_file() and not (NATIVE / "patches" / f"{out.relative_to(PATCHED).as_posix()}.patch").exists():
+            out.unlink()
+            (OUT / "obj" / out.relative_to(PATCHED / "src")).with_suffix(".o").unlink(missing_ok=True)
     for patch in (NATIVE / "patches").rglob("*.patch"):
         rel = patch.relative_to(NATIVE / "patches").with_suffix("")
         out = PATCHED / rel
