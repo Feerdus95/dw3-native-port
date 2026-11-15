@@ -97,7 +97,7 @@ struct DxState {
     int mask_box[4]; /* what the mask holds, in VRAM pixels */
     float bg[3], fog[3], fog_amount, fog_from, zfar, zframe;
     int fog_on, fog_shown, depth_used; /* DXS.depth_used: some 3D has written depth since the last clear */
-    Uint64 wait_ns, img_ns;
+    Uint64 wait_ns, img_ns, compile_ns; /* compile_ns: the shaders compiled at start (D3DCompile), for dx_init's log */
     int nsub, nimg_made, nup;
     ID3D12QueryHeap *qheap;
     ID3D12Resource *qread; /* FIF frames' timestamps */

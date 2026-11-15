@@ -238,6 +238,7 @@ int dx_init(SDL_Window *window) {
     D3D12_DESCRIPTOR_RANGE range = {D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, 0};
     D3D12_ROOT_PARAMETER rp[2] = {0};
     D3D12_STATIC_SAMPLER_DESC ss[2] = {0};
+    Uint64 t_init = SDL_GetTicksNS();
     D3D12_ROOT_SIGNATURE_DESC rsd = {0};
     ID3DBlob *bvs = NULL, *bps = NULL, *bpsn = NULL, *bpsb = NULL;
     static const struct { const char *name; UINT idx; DXGI_FORMAT fmt; UINT off; } L[9] = {
@@ -369,7 +370,7 @@ int dx_init(SDL_Window *window) {
     dx_srv(&DXS.vram, S_VRAM, DXGI_FORMAT_R16_UINT);
     backbuffers();
     DXS.ready = 1;
-    SDL_Log("d3d12: ready, %dx%d", DXS.w, DXS.h);
+    SDL_Log("d3d12: ready, %dx%d, in %.0f ms (shaders compiled in %.0f)", DXS.w, DXS.h, (SDL_GetTicksNS() - t_init) / 1e6, DXS.compile_ns / 1e6);
     return 1;
 }
 

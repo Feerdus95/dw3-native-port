@@ -268,8 +268,11 @@ ID3D12RootSignature *dx_root(const D3D12_ROOT_SIGNATURE_DESC *rsd) {
 
 int dx_compile(const char *src, const char *entry, const char *target, ID3DBlob **out) {
     ID3DBlob *err = NULL;
+    Uint64 t0 = SDL_GetTicksNS();
+    HRESULT hr = p_D3DCompile(src, SDL_strlen(src), NULL, NULL, NULL, entry, target, 0, 0, out, &err);
 
-    if (!OK(p_D3DCompile(src, SDL_strlen(src), NULL, NULL, NULL, entry, target, 0, 0, out, &err))) {
+    DXS.compile_ns += SDL_GetTicksNS() - t0;
+    if (!OK(hr)) {
         SDL_Log("d3d12: shader %s: %s", entry, err != NULL ? (const char *)ID3D10Blob_GetBufferPointer(err) : "?");
         return 0;
     }
