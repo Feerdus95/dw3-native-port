@@ -1,0 +1,57 @@
+--- a/src/engine/gfx/sprite_drawer.c
++++ b/src/engine/gfx/sprite_drawer.c
+@@ -5,6 +5,14 @@
+ 
+ /* Small variables, addressed through $gp (see the Makefile) */
+ static SpriteDrawer *SPRITE_DRAWER;
++#ifdef NATIVE
++/* Two frames of one sheet drawn WIDE_BY pixels wider, the column at WIDE_AT of the frame repeated, and a
++   third one moved by g_wide_shift (native.h) */
++#define WIDE_AT 7
++#define WIDE_BY 2
++void *g_wide_sheet;
++int g_wide_frames[2], g_wide_moved, g_wide_shift;
++#endif
+ 
+ /* Makes `obj` the sprite drawer the methods work on */
+ void bindSpriteDrawer(SpriteDrawer *obj) {
+@@ -66,6 +74,11 @@
+     u8 v;
+ 
+     transform = 0;
++#ifdef NATIVE
++    if (sheet == g_wide_sheet && frame == g_wide_moved) {
++        x += g_wide_shift;
++    }
++#endif
+     /* the sheet starts with byte offsets: to its parts, its frame ids, then
+        each frame's list of parts */
+     ids = (u8 *)sheet + sheet[1];
+@@ -139,6 +152,27 @@
+             prim.sprt->w = part->w;
+             prim.sprt->h = part->h;
+             prim.sprt->clut = clut;
++#ifdef NATIVE
++            if (sheet == g_wide_sheet && (frame == g_wide_frames[0] || frame == g_wide_frames[1]) &&
++                p[1] + part->w > WIDE_AT) {
++                if (p[1] > WIDE_AT) {
++                    prim.sprt->x0 += WIDE_BY;
++                } else { /* the part across the column: up to it, the column again WIDE_BY times, the rest */
++                    s32 left = WIDE_AT - p[1] + 1;
++
++                    for (k = 0; k <= WIDE_BY; k++) {
++                        prim.sprt[1] = prim.sprt[0];
++                        prim.sprt->w = k == 0 ? left : 1;
++                        addPrim(SPRITE_DRAWER->ot, prim.any);
++                        prim.sprt++;
++                        prim.sprt->x0 += k == 0 ? left : 1;
++                        prim.sprt->u0 += k == 0 ? left - 1 : 0;
++                    }
++                    prim.sprt->u0 += 1;
++                    prim.sprt->w = part->w - left;
++                }
++            }
++#endif
+             addPrim(SPRITE_DRAWER->ot, prim.any);
+             prim.sprt++;
+             p -= 3;

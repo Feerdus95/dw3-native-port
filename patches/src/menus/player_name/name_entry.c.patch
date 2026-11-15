@@ -1,0 +1,27 @@
+--- a/src/menus/player_name/name_entry.c
++++ b/src/menus/player_name/name_entry.c
+@@ -9,7 +9,24 @@
+ #include "shared/update_fade.inc.c"
+ #include "shared/name_entry/create_name_windows.inc.c"
+ #include "shared/name_entry/show_name_windows.inc.c"
++#ifdef NATIVE
++#define STPLNMET_drawKeyboard STPLNMET_drawKeyboardGame
++#endif
+ #include "shared/name_entry/draw_keyboard.inc.c"
++#ifdef NATIVE
++#undef STPLNMET_drawKeyboard
++/* The keyboard with its two arrow keys (and their cursor), frames 0x2C and 0x2D, two pixels wider (the
++   column in their middle repeated), and OK with its cursor 4 pixels left to make room (sprite_drawer.c.patch) */
++void STPLNMET_drawKeyboard(NameEntry *task) {
++    g_wide_sheet = FILE_CACHE.getEntry(NAME_ENTRY_SPRITES);
++    g_wide_frames[0] = 0x2C;
++    g_wide_frames[1] = 0x2D;
++    g_wide_moved = NAME_ENTRY_TEXT_SPRITE(0x4C);
++    g_wide_shift = -4;
++    STPLNMET_drawKeyboardGame(task);
++    g_wide_sheet = NULL;
++}
++#endif
+ #include "shared/name_entry/update_keyboard.inc.c"
+ #include "shared/name_entry/update_name_entry.inc.c"
+ #include "shared/name_entry/set_name_vram.inc.c"
