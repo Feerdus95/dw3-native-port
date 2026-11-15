@@ -263,8 +263,9 @@ void dx_post_init(void) {
             DXS.pso_dout = dx_blit_pso_on(DXS.smaa_root, vs, po, 1, DXGI_FORMAT_R32_FLOAT);
             DXS.pso_dview = blit_pso(vs, pv, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
         }
-        vs = NULL;
+        dx_unblob(&pk), dx_unblob(&po), dx_unblob(&pv);
     }
+    dx_unblob(&vs);
 
     if (DXS.data_motion && dx_compile(MOTION_HLSL, "vs", "vs_5_0", &vs)) {
         ID3DBlob *pc = NULL;
@@ -275,15 +276,17 @@ void dx_post_init(void) {
         if (DXS.data_mshow && dx_compile(MOTION_HLSL, "mview", "ps_5_0", &ps)) {
             DXS.pso_mview = blit_pso(vs, ps, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
         }
+        dx_unblob(&pc);
     }
-    vs = ps = NULL;
+    dx_unblob(&vs), dx_unblob(&ps);
     if (dx_compile(POST_HLSL, "vs", "vs_5_0", &vs) && dx_compile(POST_HLSL, "pp", "ps_5_0", &ps)) {
         DXS.pso_post = blit_pso(vs, ps, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
     }
-    vs = ps = NULL;
+    dx_unblob(&vs), dx_unblob(&ps);
     if (dx_compile(EASU_HLSL, "vs", "vs_5_0", &vs) && dx_compile(EASU_HLSL, "ps", "ps_5_0", &ps)) {
         DXS.pso_easu = blit_pso(vs, ps, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
     }
+    dx_unblob(&vs), dx_unblob(&ps);
 }
 
 /* one of SMAA's tables, uploaded and waited for (once) */
@@ -338,12 +341,18 @@ static void smaa_init(void) {
     SDL_free(src);
     DXS.area = smaa_table(areaTexBytes, AREATEX_WIDTH, AREATEX_HEIGHT, 2, DXGI_FORMAT_R8G8_UNORM);
     DXS.search = smaa_table(searchTexBytes, SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, 1, DXGI_FORMAT_R8_UNORM);
-    if (!ok || DXS.smaa_root == NULL || DXS.area.r == NULL || DXS.search.r == NULL) {
+    ok = ok && DXS.smaa_root != NULL && DXS.area.r != NULL && DXS.search.r != NULL;
+    if (!ok) {
         SDL_Log("d3d12: SMAA does not build here");
-        return;
     }
     for (i = 0; i < 3; i++) {
-        DXS.pso_smaa[i] = dx_blit_pso_on(DXS.smaa_root, vs[i], ps[i], 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+        if (ok) {
+            DXS.pso_smaa[i] = dx_blit_pso_on(DXS.smaa_root, vs[i], ps[i], 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+        }
+        dx_unblob(&vs[i]), dx_unblob(&ps[i]);
+    }
+    if (!ok) {
+        return;
     }
     dx_srv(&DXS.area, S_AREA, DXGI_FORMAT_R8G8_UNORM);
     dx_srv(&DXS.search, S_SEARCH, DXGI_FORMAT_R8_UNORM);

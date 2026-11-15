@@ -463,6 +463,7 @@ int dx_init(SDL_Window *window) {
     if (DXS.fsr3) {
         gte_motion_enable(); /* (here, once nothing can fail: OpenGL taking over doesn't make the motion) */
     }
+    rel(&bvs), rel(&bps), rel(&bpsn), rel(&bpsb), rel(&sc), rel(&fac); /* (the PSOs and DXS.swap hold what they need) */
     DXS.ready = 1;
     SDL_Log("d3d12: ready, %dx%d, in %.0f ms (shaders compiled in %.0f)", DXS.w, DXS.h, (SDL_GetTicksNS() - t_init) / 1e6, DXS.compile_ns / 1e6);
     return 1;
