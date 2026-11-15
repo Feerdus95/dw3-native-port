@@ -25,12 +25,13 @@ static const char *LABELS[ITEMS] = {
 #define MAX_ITEMS 20
 static const char *TAB_NAMES[TABS] = {"Display", "Graphics", "Input", "Mods"};
 static const int TAB_ITEMS[TABS][MAX_ITEMS + 1] = {
-#ifdef _WIN64 /* the 32-bit build has OpenGL alone */
+#ifdef _WIN64 /* the 32-bit build has OpenGL alone: no Renderer, no Upscaler mode (FSR 3.1 and DLSS are Direct3D 12's) */
     {FPS, RENDERER, FULLSCREEN, WINDOW, INTEGER_SCALE, WIDESCREEN, VSYNC, MOVIES, INACTIVE, QUIT_GAME, -1},
+    {PRESET, SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, SMAA, FSR, UP_MODE, SHARPEN, BRIGHTNESS, GAMMA, SATURATION, SCANLINES, -1},
 #else
     {FPS, FULLSCREEN, WINDOW, INTEGER_SCALE, WIDESCREEN, VSYNC, MOVIES, INACTIVE, QUIT_GAME, -1},
+    {PRESET, SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, SMAA, FSR, SHARPEN, BRIGHTNESS, GAMMA, SATURATION, SCANLINES, -1},
 #endif
-    {PRESET, SCALE, SUBPIXEL, DEPTH, PERSPECTIVE, SMOOTH_3D, TRUE_COLOR, DITHER, SOFT_SHADOWS, BATTLE_SHADOWS, BATTLE_SKY, BATTLE_FORM_NAME, SMAA, FSR, UP_MODE, SHARPEN, BRIGHTNESS, GAMMA, SATURATION, SCANLINES, -1},
     {ICONS, CONTROLS, FAST_FORWARD, FF_MENUS, SKIP_START, MENU_WRAP, RUMBLE, DEADZONE, -1},
     {FAST_TEXT, FAST_TRAVEL, MAP_OBJECTIVE, JOURNAL, EXTRA_PACKS, BLADEGARURUMON, FULL_EXP_SHARE, TECHNIQUE_VISUALS, HEAL_LEVELUP, SAVE_ANYWHERE, FIX_EQUIP, CUSTOM_EFFECTS, CUSTOM_SOUNDS, CUSTOM_SCRIPTS, -1},
 };
@@ -129,7 +130,12 @@ static void value(int item, char *out, size_t size) {
         }
         return;
     }
-    case UP_MODE: SDL_snprintf(out, size, "%s", g_up_mode == 0 ? (g_fsr == 2 ? "Native AA" : "DLAA") : g_up_mode == 1 ? "Quality" : g_up_mode == 2 ? "Balanced" : "Performance"); return;
+    case UP_MODE:
+        if (gfx_fsr3_status() < 0 && gfx_dlss_status() < 0) { /* OpenGL running: kept for Direct3D 12 */
+            SDL_snprintf(out, size, "(not here)");
+            return;
+        }
+        SDL_snprintf(out, size, "%s", g_up_mode == 0 ? (g_fsr == 2 ? "Native AA" : "DLAA") : g_up_mode == 1 ? "Quality" : g_up_mode == 2 ? "Balanced" : "Performance"); return;
     case SCANLINES: SDL_snprintf(out, size, g_scanlines ? "%d" : "Off", g_scanlines); return;
     case INTEGER_SCALE: on = g_integer_scale; break;
     case BRIGHTNESS: SDL_snprintf(out, size, g_brightness ? "%+d" : "0", g_brightness); return;
