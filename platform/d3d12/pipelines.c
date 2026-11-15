@@ -186,7 +186,8 @@ ID3D12PipelineState *dx_main_pso(int semi, int depth) {
     d.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
     d.InputLayout.pInputElementDescs = DXS.layout, d.InputLayout.NumElements = 9;
     d.SampleMask = 0xFFFFFFFFu, d.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    d.NumRenderTargets = DXS.data_motion ? 2 : 1, d.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM, d.RTVFormats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    d.NumRenderTargets = DXS.data_motion ? 2 : 1, d.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; /* past NumRenderTargets: UNKNOWN, or no state */
+    d.RTVFormats[1] = DXS.data_motion ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_UNKNOWN;
     d.DSVFormat = DXGI_FORMAT_D32_FLOAT, d.SampleDesc.Count = 1;
     if (!OK(ID3D12Device_CreateGraphicsPipelineState(DXS.dev, &d, &IID_ID3D12PipelineState, (void **)&DXS.pso_main[k]))) {
         SDL_Log("d3d12: pipeline %d", k);
