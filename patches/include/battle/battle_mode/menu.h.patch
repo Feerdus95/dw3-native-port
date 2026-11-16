@@ -1,0 +1,45 @@
+--- a/include/battle/battle_mode/menu.h
++++ b/include/battle/battle_mode/menu.h
+@@ -249,6 +249,10 @@
+     /* 0x44 */ TextWindow *name[2];
+     /* 0x4C */ TextWindow *message;
+ } SwitchMenuWindows;
++
++#ifdef NATIVE
++#define CONFUSED_MENU_ITEM 2 /* the fixed Item row's result; 0 attack, 1 lost turn */
++#endif
+ 
+ /* A confused partner's command menu (FIGHTSTG_createConfusedMenu): a cursor
+    over six of the shuffled lines; unless the fighter shakes off the
+@@ -276,11 +280,15 @@
+     /* 0xC0 */ void (*show)(); /* like BattleMessageBox's, but never set: the queue ends first */
+ } ConfusedMenu;
+ 
+-/* Its children: the cursor, then its six lines; the first two are the
+-   message's after a pick */
++/* Its children: the cursor, then six confused lines and, in native builds,
++   an Item line; the first two are the message's after a pick */
+ typedef struct ConfusedMenuWindows {
+     /* 0x00 */ struct MenuCursor *cursor;
++#ifdef NATIVE
++    /* 0x04 */ TextWindow *lines[7];
++#else
+     /* 0x04 */ TextWindow *lines[6];
++#endif
+ } ConfusedMenuWindows;
+ 
+ /* A menu cursor's layout, which FIGHTSTG_createCursor copies into its task: a
+@@ -306,8 +314,13 @@
+     /* 0x58 */ CursorLayout params;
+     /* 0x78 */ s32 prevSel; /* where the bar was drawn last */
+     /* 0x7C */ s32 frame; /* of the bar, 0-11 */
++#ifdef NATIVE
++    /* 0x80 */ s32 blink[7]; /* the seventh confused-menu row also blinks */
++    /* 0x9C */ u8 pad[0x0C]; /* preserve the original task size */
++#else
+     /* 0x80 */ s32 blink[6]; /* the time of each line's sprite */
+     /* 0x98 */ u8 pad[0x10]; /* never read or written: createTask allocates 0xA8 bytes */
++#endif
+ } MenuCursor;
+ 
+ /* One of FIGHTSTG_updateTechMenu's children: the cursor first, then the text windows */

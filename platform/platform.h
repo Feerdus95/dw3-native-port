@@ -240,6 +240,7 @@ int native_skip_blank(void);      /* the black over the picture while skipping, 
 extern int g_heal_on_levelup; /* heal_on_levelup = 1: a partner that levels up is healed in full (mods.c) */
 extern int g_full_exp_share; /* full_exp_share = 1: full rewards for non-KO party members (mods.c) */
 extern int g_technique_visuals; /* technique_visuals = 1: mapped player technique effects (mods.c) */
+extern int g_sober_disk_shops; /* sober_disk_shops = 1: Sober Disk shops and Item while confused (mods.c) */
 extern int g_full_exp_eligible[3]; /* battle-end reward eligibility by party slot (mods.c) */
 extern int g_full_exp_report; /* the option captured for the current report (mods.c) */
 /* a file an option makes anew, whole, or NULL for the game's (mods.c; packs.c, bladegaru.c) */

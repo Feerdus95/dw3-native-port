@@ -152,6 +152,11 @@ full_exp_share = 0
 # setting without restarting.
 technique_visuals = 1
 
+# 1: Wizardmon sells Sober Disk at all ten city item shops, and confused
+# partners can choose Item beneath the six confused commands. Reopen the shop
+# after changing this option in the Mods tab to refresh its Buy list.
+sober_disk_shops = 0
+
 # 1: a menu's cursor goes round at its ends: up from the first row to the last,
 # down from the last to the first (the field menu, the item lists and shops, the
 # techniques list). The other menus keep stopping at their ends.

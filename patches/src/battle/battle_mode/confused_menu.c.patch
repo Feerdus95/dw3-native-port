@@ -1,0 +1,103 @@
+--- a/src/battle/battle_mode/confused_menu.c
++++ b/src/battle/battle_mode/confused_menu.c
+@@ -2,18 +2,31 @@
+ 
+ #include "battle/battle_mode.h"
+ 
+-/* Shows the confused menu's six lines once, in FIGHTSTG_confusedLines's order */
++/* Shows six shuffled confused lines, plus a fixed Item line when enabled */
+ void FIGHTSTG_showConfusedCommands(ConfusedMenu *task) {
+     ConfusedMenuWindows *w = task->children;
+     char *text;
+     s32 i;
++    s32 y;
+ 
+     if (w->lines[0] == NULL) {
+         text = FILE_CACHE.load(TEXT_FILE(TEXT_BATTLE_MENU));
+         for (i = 0; i < 6; i++) {
+-            w->lines[i] = createTextWindow(BATTLE_LAYER_MENUS, 1, 0x24, i * 0x13 + 0x6D);
++            y = i * 0x13 + 0x6D;
++#ifdef NATIVE
++            if (w->cursor->params.count == 7) {
++                y -= 0x13; /* leave the former bottom row for Item */
++            }
++#endif
++            w->lines[i] = createTextWindow(BATTLE_LAYER_MENUS, 1, 0x24, y);
+             w->lines[i]->setString(w->lines[i], text, FIGHTSTG_confusedLines[i] + 0x6B);
+         }
++#ifdef NATIVE
++        if (w->cursor->params.count == 7) {
++            w->lines[6] = createTextWindow(BATTLE_LAYER_MENUS, 1, 0x24, 5 * 0x13 + 0x6D);
++            w->lines[6]->setString(w->lines[6], text, BATTLE_COMMAND_ITEM + 1);
++        }
++#endif
+     }
+ }
+ 
+@@ -129,19 +142,31 @@
+     6, 17, 110, 19, 34, 16, 109, 19,
+ };
+ 
+-/* The confused menu's task: shuffles the lines, then on cross attacks
+-   (*result 0) when FIGHTSTG_battleFuncs.testConfusion fails; else closes the
+-   lines, the partner view and the camera and shows one of the picked line's
+-   two messages at random, giving 1 when it is done */
++/* The confused menu's task: shuffles the six original lines. The native
++   seventh row opens Item; the six original picks still attack (*result 0)
++   or show a confused message and lose the turn (*result 1). */
+ void FIGHTSTG_updateConfusedMenu(ConfusedMenu *task, ConfusedMenuWindows *w) {
+     s32 i;
+     s32 j;
+     s16 line;
++#ifdef NATIVE
++    CursorLayout cursorLayout;
++#endif
+ 
+     switch (task->state) {
+     case TASK_INIT:
+     default:
++#ifdef NATIVE
++        cursorLayout = FIGHTSTG_confusedCursor;
++        if (g_sober_disk_shops) {
++            cursorLayout.count = 7;
++            cursorLayout.y -= 0x13;
++            cursorLayout.spriteY -= 0x13;
++        }
++        w->cursor = FIGHTSTG_createCursor(&cursorLayout);
++#else
+         w->cursor = FIGHTSTG_createCursor(&FIGHTSTG_confusedCursor);
++#endif
+         w->cursor->sel = task->firstLine;
+         for (i = 0; i < 8; i++) {
+             j = RANDOM.next() % 8;
+@@ -157,12 +182,18 @@
+         case 0:
+             if (PAD.getPressed(0) & (1 << PAD_CROSS)) {
+                 SOUND.playSound(SOUND_MENU_CONFIRM);
++#ifdef NATIVE
++                if (w->cursor->params.count == 7 && w->cursor->sel == 6) {
++                    *task->result = CONFUSED_MENU_ITEM;
++                    task->setState(task, 3);
++                } else
++#endif
+                 if (FIGHTSTG_battleFuncs.testConfusion(0) == 0) {
+                     *task->result = 0;
+                     task->setState(task, 3);
+                 } else {
+                     task->picked = w->cursor->sel;
+-                    for (i = 0; i < 6; i++) {
++                    for (i = 0; i < w->cursor->params.count; i++) {
+                         w->lines[i]->setState(w->lines[i], 3);
+                     }
+                     w->cursor->setState(w->cursor, 3);
+@@ -193,8 +224,8 @@
+     }
+ }
+ 
+-/* Opens a confused partner's command menu; *result gets 0 for an attack
+-   or 1 for a lost turn */
++/* Opens a confused partner's command menu; *result gets 0 for attack,
++   1 for a lost turn, or CONFUSED_MENU_ITEM for the native Item row */
+ ConfusedMenu *FIGHTSTG_createConfusedMenu(s32 *result, Task *partnerView, Task *shotCamera) {
+     ConfusedMenu *task = createTask(FIGHTSTG_updateConfusedMenu, sizeof(ConfusedMenu), sizeof(ConfusedMenuWindows));
+ 

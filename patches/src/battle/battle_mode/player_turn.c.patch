@@ -1,0 +1,51 @@
+--- a/src/battle/battle_mode/player_turn.c
++++ b/src/battle/battle_mode/player_turn.c
+@@ -97,7 +97,12 @@
+         case -1:
+             break;
+         case -2:
++#ifdef NATIVE
++            /* The confused Item route is substate 5; return to its menu. */
++            task->setSubstate(task, task->substate == 5 ? 3 : 2);
++#else
+             task->setSubstate(task, 2);
++#endif
+             break;
+         default:
+             task->action = 3;
+@@ -209,6 +214,11 @@
+             task->action = 0;
+             task->setSubstate(task, 0);
+             break;
++#ifdef NATIVE
++        case CONFUSED_MENU_ITEM:
++            task->setSubstate(task, 5); /* open the existing item menu */
++            break;
++#endif
+         default:
+             task->action = -1;
+             task->setSubstate(task, 0);
+@@ -261,8 +271,9 @@
+ 
+ /* The player's turn: substate 2 opens the command menu (runCommandMenu)
+    and then the menu of its command (runDigivolveMenu, runItemMenu,
+-   runTechMenu, runSwitchMenu), 3 the confused menu (runConfusedMenu) and 4
+-   the switch menu after a knockout (runKnockOutSwitchMenu); each sets action
++   runTechMenu, runSwitchMenu), 3 the confused menu (runConfusedMenu), 4
++   the switch menu after a knockout (runKnockOutSwitchMenu), and native 5
++   the item menu opened from confusion; each sets action
+    and goes back to substate 0, which closes the children. The match depends on the menus'
+    results being switches with case -1 first and on each of the two endings
+    of the command menu's last step being written out. */
+@@ -325,6 +336,11 @@
+         case 4:
+             runKnockOutSwitchMenu(task, children);
+             break;
++#ifdef NATIVE
++        case 5:
++            runItemMenu(task, children);
++            break;
++#endif
+         }
+         break;
+     case 2:

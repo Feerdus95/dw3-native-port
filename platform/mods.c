@@ -25,6 +25,7 @@ int g_skip_scenes = 0; /* skip_scenes = 1: square held skips an event's script (
 int g_heal_on_levelup = 0; /* heal_on_levelup = 1: a partner that levels up gets its HP and MP back (patches: stfgtrep/growth.c) */
 int g_full_exp_share = 0; /* full_exp_share = 1: full rewards for every non-KO party member */
 int g_technique_visuals = 1; /* technique_visuals = 1: use mapped player technique effects (scripts 9/13) */
+int g_sober_disk_shops = 0; /* sober_disk_shops = 1: Sober Disk stock and item use while confused */
 int g_full_exp_eligible[3]; /* battle-end HP > 0, including partners who stayed on the bench */
 int g_full_exp_report; /* the option captured once when a reward report starts */
 
