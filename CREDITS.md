@@ -27,7 +27,7 @@ The native port of Digimon World 2003 builds on the work of others:
 - **[psx-spx](https://psx-spx.consoledev.net)** (the PlayStation specifications, after Martin Korth's nocash docs).
   The hardware behaviour the platform layer reproduces, including two data tables of the chips: the SPU's Gaussian
   interpolation weights and its reverb resampling filter.
-- **Zaw Htet Naing** (PR #21). Tech visual upgrade: the technique visuals map, the prepared launch slots of the players' scripts 9 and 13, and their option.
+- **Zaw Htet Naing** (PRs #21, #24). Tech visual upgrade: the technique visuals map, the prepared launch slots of the players' scripts 9 and 13, and their option. Items while confused: Sober Disk in Wizardmon's shops and the confused menu's Item row.
 - **Hucaru** (issue #15). The idea of Skip scenes: holding a button to jump the cutscenes, for repeated runs.
 - **AMD FidelityFX Contrast Adaptive Sharpening** (CAS, MIT). The idea behind the Sharpen option: a sharpening
   weighted by the local contrast. The shader here is written for this renderer, not AMD's code.
