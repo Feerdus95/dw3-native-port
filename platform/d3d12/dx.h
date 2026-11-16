@@ -126,6 +126,7 @@ ID3D12PipelineState *dx_mask_pso(int depth);
 ID3D12PipelineState *dx_blit_pso_on(ID3D12RootSignature *rs, ID3DBlob *vs, ID3DBlob *ps, int write_alpha, DXGI_FORMAT fmt);
 ID3D12RootSignature *dx_root(const D3D12_ROOT_SIGNATURE_DESC *rsd);
 int dx_compile(const char *src, const char *entry, const char *target, ID3DBlob **out);
+void dx_unblob(ID3DBlob **b); /* (released and NULL; NULL is fine) */
 void dx_resize(int w, int h);
 void dx_upload(int x, int y, int w, int h);
 void dx_upload_blocks(const uint16_t need[8]);

@@ -2,6 +2,7 @@
    PutDispEnv) and the options menu over it. */
 #include <SDL3/SDL.h>
 #include "platform.h"
+#include "menu_skin.h"
 
 static SDL_Window *s_window;
 static SDL_Surface *s_menu;            /* the menu, drawn by SDL in software */
@@ -227,34 +228,119 @@ static void save_screenshot(SDL_Surface *shot) {
     SDL_DestroySurface(shot);
 }
 
+/* skip_scenes' cue (mods.c), bottom left: the skip button's icon in a ring that fills while it is
+   held, and the word in the game's language (LANGUAGE: 0-2 English, French, Italian, German,
+   Spanish), in the game's font; the black over the picture while a skip runs, and its fade back */
+extern int LANGUAGE;
+
+static void skip_ring(SDL_Renderer *r, float cx, float cy, float rad, float share, SDL_FColor c) {
+    SDL_Vertex v[2 * 49];
+    int i, n = (int)(48 * share + 0.5f);
+
+    for (i = 0; i <= n; i++) {
+        float a = -SDL_PI_F / 2 + 2 * SDL_PI_F * i / 48;
+
+        v[2 * i] = (SDL_Vertex){{cx + SDL_cosf(a) * (rad - 1), cy + SDL_sinf(a) * (rad - 1)}, c, {0, 0}};
+        v[2 * i + 1] = (SDL_Vertex){{cx + SDL_cosf(a) * (rad + 1), cy + SDL_sinf(a) * (rad + 1)}, c, {0, 0}};
+    }
+    for (i = 0; i < n; i++) {
+        int idx[6] = {2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2};
+
+        SDL_RenderGeometry(r, NULL, v, 2 * (n + 1), idx, 6);
+    }
+}
+
+static void skip_draw(SDL_Renderer *r, int cue, float ring) {
+    static const char *const WORDS[7] = {"Skip", "Skip", "Skip", "Passer", "Salta", "Auslassen", "Saltar"};
+    static SDL_Surface *last;
+    static SDL_Texture *tex;
+    const char *word = WORDS[LANGUAGE >= 0 && LANGUAGE < 7 ? LANGUAGE : 0];
+    SDL_Surface *img = NULL;
+    unsigned *unused;
+    int blank = native_skip_blank();
+    SDL_FRect box;
+    float cx, cy;
+
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    if (blank > 0) {
+        SDL_SetRenderDrawColor(r, 0, 0, 0, (Uint8)blank);
+        SDL_RenderFillRect(r, NULL);
+    }
+    if (cue == 0) {
+        return;
+    }
+    /* a panel of the field menu's, bottom left: the button in the hold's ring, the word in its font */
+    skin_font(1);
+    box = (SDL_FRect){6, 240 - 8 - 24, 30 + skin_text_width(word), 24};
+    skin_panel_shadow(r, &box);
+    cx = box.x + 12, cy = box.y + 12;
+    skip_ring(r, cx, cy, 9, 1, (SDL_FColor){0x32 / 255.0f, 0x32 / 255.0f, 0x8B / 255.0f, 1}); /* the panel's rule */
+    skip_ring(r, cx, cy, 9, ring, (SDL_FColor){0x34 / 255.0f, 0xC5 / 255.0f, 0xF4 / 255.0f, 1}); /* its accent */
+    if (controls_game_icon(15 /* square */, &img, &unused) && img != last) {
+        SDL_DestroyTexture(tex);
+        tex = SDL_CreateTextureFromSurface(r, img);
+        last = img;
+    }
+    if (tex != NULL && img != NULL) {
+        SDL_FRect d = {cx - 6, cy - 6, 12, 12};
+
+        SDL_RenderTexture(r, tex, NULL, &d);
+    }
+    skin_ink(r, INK_LABEL);
+    skin_text(r, box.x + 25, box.y + 6, word);
+    skin_font(0);
+}
+
+/* Fast forward's speed, top right: a panel of the field menu's, two arrows and the speed in its font */
+static void ff_draw(SDL_Renderer *r) {
+    const SDL_FColor white = {1, 1, 1, 1};
+    char text[8];
+    SDL_FRect box;
+    float x, cy;
+    int i;
+
+    SDL_snprintf(text, sizeof text, "x%d", g_ff_speed);
+    skin_font(1);
+    box = (SDL_FRect){0, 6, 25 + skin_text_width(text), 20};
+    box.x = 320 - 8 - box.w;
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    skin_panel_shadow(r, &box);
+    x = box.x + 5, cy = box.y + 10;
+    for (i = 0; i < 2; i++, x += 6) {
+        SDL_Vertex v[3] = {{{x, cy - 4}, white, {0, 0}}, {{x + 6, cy}, white, {0, 0}}, {{x, cy + 4}, white, {0, 0}}};
+
+        SDL_RenderGeometry(r, NULL, v, 3, NULL, 0);
+    }
+    skin_ink(r, INK_LABEL);
+    skin_text(r, box.x + 20, box.y + 4, text);
+    skin_font(0);
+}
+
 void present_frame(void) {
     SDL_Surface *shot = NULL;
     int n = dump_due(), screenshot = s_screenshot && !menu_active();
 
     int ff = !menu_active() && g_ff_speed > 1, pf = !menu_active() && perf_on();
+    float ring;
+    int cue = menu_active() ? 0 : native_skip_cue(&ring), sk = !menu_active() && (cue || native_skip_blank() > 0);
 
     gfx_sync(0);
     if (s_boot_shown && !g_disp_on && !menu_active() && n == 0) { /* main()'s black frames before its SetDispMask(1): boot_image's stays */
         return;
     }
     s_boot_shown = 0;
-    if (menu_active() || ff || pf) {
+    if (menu_active() || ff || pf || sk) {
         SDL_SetRenderDrawColor(s_menu_renderer, 0, 0, 0, 0);
         SDL_RenderClear(s_menu_renderer);
         menu_draw(s_menu_renderer);
-        if (ff) { /* fast forward's speed, in a corner */
-            char text[8];
-            SDL_FRect bg = {320 - 54, 6, 48, 14};
-
-            SDL_snprintf(text, sizeof text, ">> x%d", g_ff_speed);
-            SDL_SetRenderDrawBlendMode(s_menu_renderer, SDL_BLENDMODE_BLEND);
-            SDL_SetRenderDrawColor(s_menu_renderer, 0, 0, 0, 160);
-            SDL_RenderFillRect(s_menu_renderer, &bg);
-            SDL_SetRenderDrawColor(s_menu_renderer, 255, 255, 255, 255);
-            SDL_RenderDebugText(s_menu_renderer, bg.x + 4, bg.y + 3, text);
+        if (ff) {
+            ff_draw(s_menu_renderer);
         }
         if (pf) {
             perf_draw(s_menu_renderer);
+        }
+        if (sk) {
+            skip_draw(s_menu_renderer, cue, ring);
         }
         SDL_RenderPresent(s_menu_renderer);
     }
@@ -266,7 +352,7 @@ void present_frame(void) {
         }
         shot = NULL;
     }
-    gfx_present(menu_active() || ff || pf ? s_menu : NULL, n ? &shot : NULL);
+    gfx_present(menu_active() || ff || pf || sk ? s_menu : NULL, n ? &shot : NULL);
     if (n) {
         dump_vram(n, shot);
     }

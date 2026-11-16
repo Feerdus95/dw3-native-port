@@ -1,9 +1,45 @@
 /* A tool's download: which release is newer than what's installed, and putting it in the tool's folder. */
 #include <windows.h> /* before launcher.h, whose L and enums its headers would trip on */
+#include <bcrypt.h>
 #include "launcher.h"
 #include "tools.h"
 
 static bool exists(const char *path) { return SDL_GetPathInfo(path, NULL); }
+
+bool sha256_is(const char *path, const char *want)
+{
+    size_t size = 0;
+    unsigned char *data = SDL_LoadFile(path, &size), sum[32];
+    char hex[65];
+    bool ok = false;
+    BCRYPT_ALG_HANDLE alg = NULL;
+    BCRYPT_HASH_HANDLE hash = NULL;
+
+    if (data && BCryptOpenAlgorithmProvider(&alg, BCRYPT_SHA256_ALGORITHM, NULL, 0) == 0 && BCryptCreateHash(alg, &hash, NULL, 0, NULL, 0, 0) == 0 &&
+        BCryptHashData(hash, data, (ULONG)size, 0) == 0 && BCryptFinishHash(hash, sum, sizeof sum, 0) == 0) {
+        for (int b = 0; b < 32; b++) {
+            SDL_snprintf(hex + 2 * b, 3, "%02x", sum[b]);
+        }
+        ok = SDL_strcmp(hex, want) == 0;
+    }
+    if (hash) {
+        BCryptDestroyHash(hash);
+    }
+    if (alg) {
+        BCryptCloseAlgorithmProvider(alg, 0);
+    }
+    SDL_free(data);
+    return ok;
+}
+
+/* a DLL next to the game whose hash is the one expected; checked once per launcher run (*state: 0 not yet, 1 right, -1 missing or another) */
+bool dll_valid(signed char *state, const char *path, const char *want)
+{
+    if (*state == 0) {
+        *state = sha256_is(path, want) ? 1 : -1;
+    }
+    return *state > 0;
+}
 
 /* the version in where /releases/latest of `repo` points, ".../releases/tag/v1.2.3"; a repo without releases points elsewhere */
 static bool tag_from_location(const char *location, const char *repo, char *out, int size)

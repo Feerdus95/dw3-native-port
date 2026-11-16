@@ -175,6 +175,12 @@ ff_menu_speed = 0
 # Start on PRESS START (the ten seconds' timeout goes with it).
 skip_press_start = 0
 
+# 1: square held about two thirds of a second during a cutscene that takes
+# the controls skips the rest of its dialogues and moves at once; what the scene
+# does (the story, a map change) still happens. Also the welcome text that
+# opens the name entry screen.
+skip_scenes = 0
+
 # 1: a partner that levels up in a battle gets its HP and MP back in full
 # (not its Digimon's levels).
 heal_on_levelup = 0

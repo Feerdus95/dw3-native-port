@@ -1,0 +1,86 @@
+--- a/src/menus/country_select/country_select.c	2026-11-15 21:28:01.498710700 -0300
++++ b/src/menus/country_select/country_select.c	2026-11-15 21:28:39.128671100 -0300
+@@ -1,5 +1,12 @@
+ #include "menus/country_select.h"
+ 
++#ifdef NATIVE
++/* The screen's sprites with a sixth row, Japanese (platform/language.c) */
++#define CNTY_SEL_SHEET() ((void *)native_cnty_bank(FILE_CACHE.getEntry(CNTY_SEL_SPRITES)))
++#else
++#define CNTY_SEL_SHEET() FILE_CACHE.getEntry(CNTY_SEL_SPRITES)
++#endif
++
+ RECT CNTY_SEL_screenRect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+ RECT CNTY_SEL_vramRect = {0, 0, 1024, 512};
+ /* A little larger than the screen */
+@@ -26,8 +33,13 @@
+ 
+ #if VERSION_EU
+ /* The language of each option */
++#ifdef NATIVE
++/* option 5 is Japanese, the sixth row */
++u8 CNTY_SEL_languages[] = {2, 3, 5, 4, 6, 0, 0};
++#else
+ u8 CNTY_SEL_languages[] = {2, 3, 5, 4, 6, 1, 0};
+ #endif
++#endif
+ 
+ /* The mode's root task: once the sound bank is loaded, sets up the display and the layer,
+    uploads the images, creates the screen's controller and starts the music; stops the
+@@ -89,7 +101,7 @@
+     sprite.setTexture(0x280, 0);
+     /* The background repeats every 96 pixels */
+     offset = (s16)((s16)(task->scroll / 2) % 96);
+-    sprite.draw(FILE_CACHE.getEntry(CNTY_SEL_SPRITES), SPRITE_BACKGROUND, offset, offset);
++    sprite.draw(CNTY_SEL_SHEET(), SPRITE_BACKGROUND, offset, offset);
+ }
+ 
+ /* How dark the fade-out is on its frame `time`: 0 to 255 over 30 frames */
+@@ -194,7 +206,7 @@
+     sprite.setLayerId(CNTY_SEL_LAYER, 1);
+     sprite.setTexture(0x280, 0);
+     sprite.setClutRow(task->frame);
+-    sprite.draw(FILE_CACHE.getEntry(CNTY_SEL_SPRITES), SPRITE_OPTIONS + task->selection, 0, 0);
++    sprite.draw(CNTY_SEL_SHEET(), SPRITE_OPTIONS + task->selection, 0, 0);
+ }
+ 
+ /* Moves the highlight to option `selection` (CursorTask.setSelection) */
+@@ -267,7 +279,7 @@
+     sprite.setTexture(0x280, 0);
+     sprite.setPivot(148, 0);
+     sprite.setScale(task->scaleX, task->scaleY, ONE);
+-    sprite.draw(FILE_CACHE.getEntry(CNTY_SEL_SPRITES), SPRITE_TOP_PANEL, 148, 0);
++    sprite.draw(CNTY_SEL_SHEET(), SPRITE_TOP_PANEL, 148, 0);
+ }
+ 
+ /* The top panel's task: draws it; each TASK_DONE from the controller opens it, the
+@@ -338,7 +350,7 @@
+     sprite.setTexture(0x280, 0);
+     sprite.setPivot(320, 20);
+     sprite.setScale(task->scaleX, task->scaleY, ONE);
+-    sprite.draw(FILE_CACHE.getEntry(CNTY_SEL_SPRITES), SPRITE_RIGHT_PANEL, 320, 20);
++    sprite.draw(CNTY_SEL_SHEET(), SPRITE_RIGHT_PANEL, 320, 20);
+ }
+ 
+ /* The right panel's task: draws it; each TASK_DONE from the controller opens it, the
+@@ -411,7 +423,7 @@
+     sprite.setAltClut(0, 0x1F0);
+     sprite.setPivot(0, 158);
+     sprite.setScale(task->scaleX, task->scaleY, ONE);
+-    sprite.draw(FILE_CACHE.getEntry(CNTY_SEL_SPRITES), SPRITE_LEFT_PANEL, 0, 158);
++    sprite.draw(CNTY_SEL_SHEET(), SPRITE_LEFT_PANEL, 0, 158);
+ }
+ 
+ /* The left panel's task: draws it; each TASK_DONE from the controller opens it, the
+@@ -473,7 +485,11 @@
+                 task->selection--;
+             }
+         } else if (PAD_PRESSED(PAD_DOWN) || PAD_REPEATED(PAD_DOWN)) {
++#ifdef NATIVE
++            if (task->selection < 5) { /* down to the sixth row, Japanese */
++#else
+             if (task->selection < 4) {
++#endif
+                 SOUND.playSound(SOUND_MENU_MOVE);
+                 task->selection++;
+             }

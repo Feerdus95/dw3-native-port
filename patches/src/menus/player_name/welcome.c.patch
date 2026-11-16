@@ -58,7 +58,21 @@
                      windows->text->setString(windows->text, FILE_CACHE.load(TEXT_FILE(TEXT_ONLINE)), 1);
                      windows->text->setPalette(windows->text, PALETTE_BLUE);
                      windows->text->setTypeDelay(windows->text, 6);
-@@ -64,7 +108,11 @@
+@@ -41,7 +85,13 @@
+             }
+             break;
+         case 2:
++#ifdef NATIVE
++            /* skip_scenes (native.h): the skip button held closes the welcome as its end does */
++            if (windows->text->isFinished(windows->text) != 0 || NATIVE_SKIP_HELD()) {
++                native_skip_stop(); /* the name is the player's to enter */
++#else
+             if (windows->text->isFinished(windows->text) != 0) {
++#endif
+                 task->setSubstate(task, 3);
+                 task->step = GFX.funcs.getTime();
+                 task->clutRow = 4;
+@@ -64,7 +114,11 @@
                  windows->arrow->setVisible(windows->arrow, 1);
                  task->step = GFX.funcs.getTime();
              }

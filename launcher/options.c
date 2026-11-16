@@ -33,6 +33,7 @@ static const struct { const char *key; Uint8 kind; short def, min, max, step; } 
     [O_BATTLE_FORM_NAME] = {"battle_form_name", K_BOOL, 0},
     [O_MENU_WRAP] = {"menu_wrap", K_BOOL, 0},
     [O_SKIP_START] = {"skip_press_start", K_BOOL, 0},
+    [O_SKIP_SCENES] = {"skip_scenes", K_BOOL, 0},
     [O_ICONS] = {"icons", K_ICONS, 4, 0, 9, 1},
     [O_RUMBLE] = {"rumble", K_BOOL, 1},
     [O_DEADZONE] = {"deadzone", K_PERCENT, 10, 0, 50, 5},

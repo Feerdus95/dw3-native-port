@@ -13,9 +13,9 @@ int g_extra_packs = 1; /* extra_packs = 0: the choice has the game's three */
    5 Guilmon, 6 Renamon, 7 Patamon) of packs 3, 4 and 5 */
 const int NATIVE_EXTRA_PACKS[3][3] = {{3, 5, 4}, {0, 2, 7}, {1, 6, 4}};
 
-/* The texts' file in the game's language (LANGUAGE: 2 English to 6 Spanish) */
+/* The texts' file in the game's language (LANGUAGE: 0 Japanese, 2 English to 6 Spanish) */
 const void *native_packs_text(int language) {
-    static const uint32_t *const BY_LANGUAGE[] = {PACKS_TEXT_ENG, PACKS_TEXT_ENG, PACKS_TEXT_ENG, PACKS_TEXT_FRA,
+    static const uint32_t *const BY_LANGUAGE[] = {PACKS_TEXT_JPN, PACKS_TEXT_ENG, PACKS_TEXT_ENG, PACKS_TEXT_FRA,
                                                   PACKS_TEXT_ITA, PACKS_TEXT_GER, PACKS_TEXT_SPN};
 
     return BY_LANGUAGE[language >= 0 && language < 7 ? language : 2];

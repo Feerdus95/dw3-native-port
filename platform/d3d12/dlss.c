@@ -229,6 +229,14 @@ unsigned sl_phases(void) {
     return (unsigned)SDL_clamp(8.0f * k * k + 0.5f, 8.0f, 64.0f);
 }
 
+/* Streamline shut down, before the proxies it gave are released (dx_release: the device's start failed) */
+void sl_stop(void) {
+    if (s_sl_state > 0) {
+        s_sl_shutdown();
+        s_sl_state = -1;
+    }
+}
+
 /* 0 not tried, 1 initialised, -1 not there or refused */
 int sl_state(void) {
     return s_sl_state;

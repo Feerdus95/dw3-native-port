@@ -263,6 +263,7 @@ ID3D12RootSignature *dx_root(const D3D12_ROOT_SIGNATURE_DESC *rsd) {
     if (OK(p_D3D12SerializeRootSignature(rsd, D3D_ROOT_SIGNATURE_VERSION_1, &rs, &err))) {
         ID3D12Device_CreateRootSignature(DXS.dev, 0, ID3D10Blob_GetBufferPointer(rs), ID3D10Blob_GetBufferSize(rs), &IID_ID3D12RootSignature, (void **)&r);
     }
+    dx_unblob(&rs), dx_unblob(&err);
     return r;
 }
 
@@ -274,7 +275,16 @@ int dx_compile(const char *src, const char *entry, const char *target, ID3DBlob 
     DXS.compile_ns += SDL_GetTicksNS() - t0;
     if (!OK(hr)) {
         SDL_Log("d3d12: shader %s: %s", entry, err != NULL ? (const char *)ID3D10Blob_GetBufferPointer(err) : "?");
+        dx_unblob(&err);
         return 0;
     }
+    dx_unblob(&err);
     return 1;
+}
+
+void dx_unblob(ID3DBlob **b) {
+    if (*b != NULL) {
+        ID3D10Blob_Release(*b);
+        *b = NULL;
+    }
 }

@@ -77,7 +77,7 @@ static int load_boot_image(void) {
    scale = <window size in 320x240 steps>, dither = 0/1, smooth_movies = 0/1,
    debug = 0/1, perf = 0/1 (the battle's performance meter; F10), log = <subsystems>, deadzone = <0..32767>, rumble = 0/1, fps = 50/60,
    render_scale = 1-8, fast_text = 0/1, fast_travel = 0/1, map_objective = 0/1, journal = 0/1, extra_packs = 0/1,
-   bladegarurumon = 0/1, full_exp_share = 0/1, technique_visuals = 0/1, sober_disk_shops = 0/1 (Items while confused), heal_on_levelup = 0/1, skip_press_start = 0/1, ff_menu_speed = 0/1, menu_wrap = 0/1, battle_form_name = 0/1, fix_equip_stacking = 0/1, save_anywhere = 0/1, soft_shadows = 0/1, true_color = 0/1, perspective = 0/1,
+   bladegarurumon = 0/1, full_exp_share = 0/1, technique_visuals = 0/1, sober_disk_shops = 0/1 (Items while confused), heal_on_levelup = 0/1, skip_press_start = 0/1, skip_scenes = 0/1, ff_menu_speed = 0/1, menu_wrap = 0/1, battle_form_name = 0/1, fix_equip_stacking = 0/1, save_anywhere = 0/1, soft_shadows = 0/1, true_color = 0/1, perspective = 0/1,
    smooth_3d = 0/1, battle_shadows = 0/1, battle_sky = 0/1, widescreen = 0/1,
    sharpen = 0-10, brightness, gamma, saturation = -10 to 10, scanlines = 0-10, integer_scale = 0/1, smaa = 0/1, fsr = 0/1,
    vsync = 0/1, inactive_window = 0 nothing / 1 mute / 2 pause;
@@ -209,6 +209,8 @@ static void read_ini(int data_only) {
             g_ff_menu_speed = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "skip_press_start") == 0) {
             g_skip_press_start = atoi(value) != 0;
+        } else if (SDL_strcasecmp(key, "skip_scenes") == 0) {
+            g_skip_scenes = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "heal_on_levelup") == 0) {
             g_heal_on_levelup = atoi(value) != 0;
         } else if (SDL_strcasecmp(key, "save_anywhere") == 0) {

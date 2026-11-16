@@ -180,6 +180,7 @@ const Lang LANG_ES = {
         [O_DEADZONE] = {"Zona muerta del stick", "Cuánto se mueven los sticks y gatillos antes de contar."},
         [O_FF_MENUS] = {"Menús en avance rápido", "Con el avance rápido activo, mantener una dirección mueve el cursor del menú a su ritmo normal."},
         [O_SKIP_START] = {"Saltar PRESS START", "La pantalla de título muestra Nueva partida y Continuar al instante, sin esperar a Start."},
+        [O_SKIP_SCENES] = {"Saltar escenas", "Mantén Cuadrado en una escena que quita el control para saltar sus diálogos; la historia sigue como si la hubieras visto. También el texto de bienvenida al elegir nombre."},
         [O_MENU_WRAP] = {"El cursor da la vuelta", "Arriba desde la primera fila va a la última y abajo desde la última a la primera: menú de campo, listas de objetos, tiendas y técnicas."},
         [O_FAST_TEXT] = {"Texto rápido (mantén X)", "Mantener X avanza los diálogos sin pulsar en cada línea, fuera de combates y juegos de cartas, donde X confirma órdenes. Basado en Dmw2003FastText, de markisha64."},
         [O_FAST_TRAVEL] = {"Viaje rápido (mapa, X)", "En el mapa, X sobre una zona visitada te lleva allí al momento, por una de las puertas del propio juego abiertas en ese punto de la historia. Basado en Flawe's Mod, de Flawe."},

@@ -39,7 +39,7 @@ void art_flag(int x, int y, int lang); /* 16x10: en, es, fr, de, it */
 enum {
     O_FPS, O_FULLSCREEN, O_WINDOW, O_WIDESCREEN, O_VSYNC, O_MOVIES, O_INACTIVE, O_RENDERER,
     O_RESOLUTION, O_PERSPECTIVE, O_SMOOTH_3D, O_TRUE_COLOR, O_DITHER, O_SOFT_SHADOWS, O_BATTLE_SHADOWS, O_BATTLE_SKY, O_BATTLE_FORM_NAME, O_SHARPEN, O_BRIGHTNESS, O_GAMMA, O_SATURATION, O_SCANLINES, O_INTEGER, O_SMAA, O_FSR, O_UP_MODE,
-    O_ICONS, O_RUMBLE, O_DEADZONE, O_FF_MENUS, O_SKIP_START, O_MENU_WRAP,
+    O_ICONS, O_RUMBLE, O_DEADZONE, O_FF_MENUS, O_SKIP_START, O_SKIP_SCENES, O_MENU_WRAP,
     O_FAST_TEXT, O_FAST_TRAVEL, O_OBJECTIVE, O_JOURNAL, O_PACKS,
     O_BLADEGARURUMON, O_FULL_EXP_SHARE, O_TECH_VISUALS, O_HEAL_LEVELUP, O_SAVE_ANYWHERE, O_FIX_EQUIP, O_CUSTOM_EFFECTS, O_CUSTOM_SOUNDS, O_CUSTOM_SCRIPTS,
     O_COUNT
@@ -144,6 +144,8 @@ void tool_update_activate(int tool);
 void tool_update_fake(const char *tag);
 bool tool_update_now(int tool); /* --tool-update: blocking, for the tests */
 bool tools_busy(void);
+bool sha256_is(const char *path, const char *want); /* the file there and its SHA-256 that one (tools_install.c) */
+bool dll_valid(signed char *state, const char *path, const char *want);
 void fsr_dll_activate(void);                     /* download FSR 3.1's two DLLs (fsr_dll.c) */
 void fsr_dll_value(char *out, int size);
 bool fsr_dll_busy(void);

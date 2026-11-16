@@ -1,6 +1,16 @@
 --- a/src/field/field_mode/actor_control.c
 +++ b/src/field/field_mode/actor_control.c
-@@ -823,9 +823,14 @@
+@@ -393,6 +393,9 @@
+     s32 forced;
+ 
+     if (FIELDSTG_state.menuOpen == 0 && FIELDSTG_state.busy == 0 && FIELDSTG_state.battleStarting == 0) {
++#ifdef NATIVE
++        native_skip_free(); /* skip_scenes: the player has the controls, a skip under way stops (native.h) */
++#endif
+         pad = (PAD.getHeld(0) >> PAD_UP) & 0xF;
+         pressed = (PAD.getPressed(0) & (1 << PAD_CROSS)) != 0;
+         forced = FLAGS_00.checkCondition(FIELD_FLAG_TALK_AHEAD, 1);
+@@ -823,9 +826,14 @@
              prim.sprt->w = 0x20;
              prim.sprt->h = 0x10;
              prim.sprt->clut = getClut(shadow->shadow.clutX, shadow->shadow.clutY);

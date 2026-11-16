@@ -14,6 +14,7 @@ enum { N = SDL_arraysize(FILES) };
 
 static SDL_Thread *s_thread;
 static SDL_AtomicInt s_done, s_stop, s_percent;
+static signed char s_valid[N]; /* dll_valid's, per file: filled by fsr_dll_have before the thread starts, which only reads it */
 
 typedef struct { SDL_IOStream *io; BCRYPT_HASH_HANDLE hash; } Sink;
 
@@ -77,9 +78,7 @@ static int SDLCALL thread(void *unused)
     (void)unused;
     int result = S_FSR_DONE;
     for (int i = 0; i < N && result == S_FSR_DONE; i++) {
-        char dest[1300];
-        file_path(i, dest, sizeof dest, "");
-        if (!SDL_GetPathInfo(dest, NULL)) {
+        if (s_valid[i] <= 0) { /* missing or not AMD's: fetched, over it */
             result = fetch(i);
         }
     }
@@ -90,13 +89,12 @@ static int SDLCALL thread(void *unused)
 bool fsr_dll_have(void)
 {
     char dest[1300];
-    for (int i = 0; i < N; i++) {
+    bool all = true;
+    for (int i = 0; i < N; i++) { /* each one checked: the thread fetches only the ones that aren't right */
         file_path(i, dest, sizeof dest, "");
-        if (!SDL_GetPathInfo(dest, NULL)) {
-            return false;
-        }
+        all = dll_valid(&s_valid[i], dest, FILES[i].sha256) && all;
     }
-    return true;
+    return all;
 }
 
 void fsr_dll_activate(void)
@@ -133,6 +131,7 @@ void fsr_dll_poll(void)
         int result = S_T_FAILED;
         SDL_WaitThread(s_thread, &result);
         s_thread = NULL;
+        SDL_memset(s_valid, 0, sizeof s_valid); /* the files may have changed: checked again, once */
         g_app.note = L->s[result];
     }
 }

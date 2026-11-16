@@ -21,6 +21,7 @@ int g_battle_form_name = 0; /* battle_form_name = 1: the HUD names the partner's
 int g_menu_wrap = 0; /* menu_wrap = 1: a menu's cursor goes round at its ends (patches: native.h helpers) */
 int g_ff_menu_speed = 0; /* ff_menu_speed = 1: menus repeat at their normal pace in fast forward (patches: main/pad/port.c) */
 int g_skip_press_start = 0; /* skip_press_start = 1: the title shows its two options, not PRESS START (patches: stdwtitl/menu.c) */
+int g_skip_scenes = 0; /* skip_scenes = 1: square held skips an event's script (patches: field_mode/event.c, player_name/welcome.c) */
 int g_heal_on_levelup = 0; /* heal_on_levelup = 1: a partner that levels up gets its HP and MP back (patches: stfgtrep/growth.c) */
 int g_full_exp_share = 0; /* full_exp_share = 1: full rewards for every non-KO party member */
 int g_technique_visuals = 1; /* technique_visuals = 1: use mapped player technique effects (scripts 9/13) */
@@ -57,6 +58,104 @@ int native_long_held(int held) {
         last = now;
     }
     return out;
+}
+
+/* skip_scenes (native.h): a skip under way, from a hold of the skip button
+   (HELD down 40 shown vsyncs without a break, fast forward doesn't shorten it;
+   a gap of more than a few vsyncs since the last call starts the count again)
+   until the player has the controls back, the name screen or a battle */
+#define SKIP_HOLD 40 /* shown vsyncs */
+#define SKIP_FADE 24 /* the picture's fade back in after a skip, in shown vsyncs */
+#define SKIP_LOST 60 /* shown vsyncs with nothing to skip that end a skip anyway */
+static int s_skipping, s_offered = -1000, s_held, s_fade_from = -1000;
+
+int native_skip_held(int held) {
+    static int start, last = -100;
+    int now = VSync(-1);
+
+    if (!g_skip_scenes) {
+        return s_skipping = 0;
+    }
+    s_offered = native_real_time();
+    if (s_skipping) {
+        return 1;
+    }
+    if (!held) {
+        last = -100;
+        s_held = 0;
+        return 0;
+    }
+    if (now - last > 4) {
+        start = native_real_time();
+    }
+    last = now;
+    s_held = native_real_time() - start;
+    return s_skipping = s_held >= SKIP_HOLD;
+}
+
+void native_skip_stop(void) {
+    if (s_skipping) {
+        s_fade_from = native_real_time();
+    }
+    s_skipping = 0;
+    s_held = 0;
+}
+
+int native_skip_running(void) {
+    if (s_skipping) {
+        s_offered = native_real_time();
+    }
+    return s_skipping;
+}
+
+/* The area banner (FIELDSTG banner.c) as a field opens: 1 while a skip is under way, which skips it
+   (the field doesn't wait for it) and has it wait (native_skip_waiting) */
+int native_skip_banner(void) {
+    return s_skipping;
+}
+
+/* The skipped banner, each vsync: 1 while the skip goes on. A field free of events (idle) counts as the
+   player's control, which the banner freezes: 10 vsyncs of it stop the skip and the banner shows */
+int native_skip_waiting(int idle) {
+    if (s_skipping && idle) {
+        native_skip_free();
+    }
+    return s_skipping;
+}
+
+/* The skip's cue (video.c): 0 none, 1 offered (the hold's share of the ring in *ring), 2 skipping.
+   Offered stays shown 8 shown vsyncs after the last offer: the game's tasks needn't ask every vsync */
+int native_skip_cue(float *ring) {
+    *ring = s_skipping ? 1.0f : SDL_min(s_held, SKIP_HOLD) / (float)SKIP_HOLD;
+    return s_skipping ? 2 : native_real_time() - s_offered <= 8 ? 1 : 0;
+}
+
+/* The black over the picture (each vsync, etc.c): 255 while skipping, then fading out. A skip with
+   nothing to skip for SKIP_LOST ends there, whatever holds the game (a scene of its own, a title) */
+int native_skip_blank(void) {
+    int t;
+
+    if (s_skipping && native_real_time() - s_offered > SKIP_LOST) {
+        native_skip_stop();
+    }
+    t = native_real_time() - s_fade_from;
+
+    return s_skipping ? 255 : t < SKIP_FADE ? 255 - 255 * t / SKIP_FADE : 0;
+}
+
+/* The player's control, each frame it runs: 10 vsyncs of it in a row stop the
+   skip (one alone may be the gap between two events of a scene) */
+void native_skip_free(void) {
+    static int since, last = -100;
+    int now = VSync(-1);
+
+    if (now - last > 4) {
+        since = now;
+    }
+    last = now;
+    if (now - since >= 10) {
+        native_skip_stop();
+    }
 }
 
 /* Tab or R3: x1, x2, x3, x5 and round */

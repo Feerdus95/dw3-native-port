@@ -17,39 +17,14 @@ enum { N = SDL_arraysize(FILES) };
 
 static SDL_Thread *s_thread;
 static SDL_AtomicInt s_done;
-
-static bool sha256_is(const char *path, const char *want)
-{
-    size_t size = 0;
-    unsigned char *data = SDL_LoadFile(path, &size), sum[32];
-    char hex[65];
-    bool ok = false;
-    BCRYPT_ALG_HANDLE alg = NULL;
-    BCRYPT_HASH_HANDLE hash = NULL;
-
-    if (data && BCryptOpenAlgorithmProvider(&alg, BCRYPT_SHA256_ALGORITHM, NULL, 0) == 0 && BCryptCreateHash(alg, &hash, NULL, 0, NULL, 0, 0) == 0 &&
-        BCryptHashData(hash, data, (ULONG)size, 0) == 0 && BCryptFinishHash(hash, sum, sizeof sum, 0) == 0) {
-        for (int b = 0; b < 32; b++) {
-            SDL_snprintf(hex + 2 * b, 3, "%02x", sum[b]);
-        }
-        ok = SDL_strcmp(hex, want) == 0;
-    }
-    if (hash) {
-        BCryptDestroyHash(hash);
-    }
-    if (alg) {
-        BCryptCloseAlgorithmProvider(alg, 0);
-    }
-    SDL_free(data);
-    return ok;
-}
+static signed char s_valid[N]; /* dll_valid's, per file: written by the main thread only */
 
 bool dlss_dll_have(void)
 {
     char dest[1300];
     for (int i = 0; i < N; i++) {
         path_in_root(dest, sizeof dest, FILES[i].name);
-        if (!SDL_GetPathInfo(dest, NULL)) {
+        if (!dll_valid(&s_valid[i], dest, FILES[i].sha256)) {
             return false;
         }
     }
@@ -113,6 +88,7 @@ void dlss_dll_poll(void)
         int result = S_T_FAILED;
         SDL_WaitThread(s_thread, &result);
         s_thread = NULL;
+        SDL_memset(s_valid, 0, sizeof s_valid); /* the files may have changed: checked again, once */
         g_app.note = L->s[result];
     }
 }

@@ -169,6 +169,7 @@ button can be changed in the options menu's Input tab, **Controls**.
 | Menus in fast forward | with fast forward on, a menu's cursor keeps its normal pace while a direction is held, instead of racing at x2, x3 or x5 |
 | Menu cursor wraps | up from the first row goes to the last and down from the last to the first, in the field menu, the item lists, the shops and the techniques list; the other menus keep stopping at their ends |
 | Skip PRESS START | the title screen shows New game / Continue at once, without waiting for Start (and without its ten seconds' timeout) |
+| Skip scenes | square held about two thirds of a second in a cutscene that takes the controls skips the rest of its dialogues and moves; what the scene does (story flags, poses, a map change) still happens. One hold goes on through the scenes and movies that follow, until you have the controls back, the name entry screen opens or a battle starts, so a new game goes straight to the name entry. A cue at the bottom left fills while it is held. Battle summons and a few scenes the game runs in code are not skipped yet. Off by default |
 | Vibration, Stick deadzone | the gamepad |
 | Fast text | holding X advances the texts, outside battles and card games. After [Dmw2003FastText](https://github.com/markisha64/Dmw2003FastText), by markisha64 |
 | Fast travel | on the map screen (the field menu's Map), X on a visited area asks, and Yes takes you there at once, through one of the game's own doors into it that is open at that point of the story. It only works from where you could walk out to another area at that moment (not from a room only an event lets you leave). Once you have been to Amaterasu, Square switches between the two servers' maps. Off by default. After [Flawe's Mod](https://www.romhacking.net/hacks/9376/), by Flawe |
@@ -232,7 +233,7 @@ button can be changed in the options menu's Input tab, **Controls**.
                          ;    F5 / F9 save / load a state (saves/quick.state)
     log =                ; extra logs: cd, snd, pad, mc, ovl, gpu or all (into log.txt when started from the launcher)
 
-**DirectStorage** (x64 build): with Microsoft's `dstorage.dll` and `dstoragecore.dll` next to the exe, the game reads its files through DirectStorage; without them, or if it fails, it reads them as before. There is no option: the launcher's Tools screen, **DirectStorage files**, downloads the two DLLs from Microsoft's NuGet package, each checked by its SHA-256.
+**DirectStorage** (x64 build): with Microsoft's `dstorage.dll` and `dstoragecore.dll` next to the exe, the game reads its files through DirectStorage; without them, or if it fails, it reads them as before. There is no option: the launcher's Tools screen, **DirectStorage files**, downloads the two DLLs from Microsoft's NuGet package, each checked by its SHA-256. The same goes for **FSR 3.1 files** and **DLSS files**: the launcher counts them as installed only while their SHA-256 matches, so a damaged or different DLL is offered for download again, and the download replaces it.
 
 ### Effects' own images (mods)
 
