@@ -190,6 +190,7 @@ const Lang LANG_DE = {
         [O_BLADEGARURUMON] = {"BladeGarurumon", "Ein 45. Digimon, das jeder Partner lernen kann, ab Growlmon und Grizzmon auf Level 40, mit eigenem Modell (aus deiner Disc), Techniken und Signatur, Solar Laser. Spielstände bleiben normale Memory Cards."},
         [O_FULL_EXP_SHARE] = {"Volle EXP für alle", "Jeder Partner, der nach einem Kampf noch steht, erhält die volle EXP, auch ohne gekämpft zu haben, und seine gewählten oder benutzten Digitationen die volle Digimon-EXP. Besiegte Partner erhalten nichts."},
         [O_TECH_VISUALS] = {"Bessere Technik-Effekte", "Die Magie-Techniken deiner Partner nutzen neue Geschosse, Starts und Einschläge statt der gewöhnlichen Lichtkugel. Aus: die Effekte des Spiels."},
+        [O_SOBER_DISK] = {"Items bei Verwirrung", "Wizardmon verkauft Sober Disk in jedem Stadtladen, und ein verwirrter Partner kann unter den sechs Befehlen Item wählen, um sich zu heilen."},
         [O_HEAL_LEVELUP] = {"Heilen bei Levelaufstieg", "Ein Partner, der im Kampf aufsteigt, erhält seine KP und MP zurück."},
         [O_FIX_EQUIP] = {"Emblem-Korrektur", "Such- und Konter-Emblem wirken weiter mit einer Waffe, die vergiftet, lähmt, verwirrt, K.O. schlägt oder aussaugt (Such nicht mit einer Krit-Waffe). Das Dreifach-Emblem bleibt."},
         [O_SAVE_ANYWHERE] = {"Überall speichern", "Fügt dem Feldmenü eine Zeile SPEICHERN hinzu: speichern, wo du stehst, nicht nur an Speicherpunkten. Beim Laden stehst du wieder dort."},
