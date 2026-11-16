@@ -29,3 +29,19 @@
              if (partner >= 0) {
                  if ((FIGHTSTG_battle.state.fighters[0] + member)->hp <= 0) {
                      GAME.partners[partner].info.stats[STAT_HP] = 1;
+@@ -814,2 +824,2 @@
+ /* A confused partner's turn (FIGHTER_CONFUSED): the player's turn at step 3,
+-   where only an attack does anything */
++   where an attack or item can run */
+@@ -825,6 +835,11 @@
+             if (children->commands->action == 0) {
+                 children->task.attack = FIGHTSTG_startFirstTech(0);
+                 task->setSubstate(task, 2);
++#ifdef NATIVE
++            } else if (children->commands->action == 3) {
++                children->task.item = FIGHTSTG_startItem(children->commands->arg);
++                task->setSubstate(task, 2);
++#endif
+             } else {
+                 task->setSubstate(task, 0);
+             }
