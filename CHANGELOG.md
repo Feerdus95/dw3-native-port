@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Japanese** on the language screen, as a sixth row (NIHONGO, with Japan's flag). The European disc has every text in Japanese too, and the game the option for it, which its screen never shows; the rows close up to make room, and the label is made of the other labels' letters. Saves stay the European ones and the buttons are the same as in the other languages (✕ confirms). The port's own texts (DIGILOG, the starter packs, the Quit menu) have a Japanese version in kana, like the game's.
+
 ## v0.21.0 (beta)
 
 - **Skip scenes** (Options, Input, and the launcher; `skip_scenes`, off by default; #15). Square held about two thirds of a second in a cutscene that takes the controls runs the rest of its script at once: no dialogues or waits, walks and the camera at their ends, and the scene's poses, commands, story flags and map changes as it has them. One hold goes on through the scenes, map changes and movies that follow, until the player has the controls back, the name screen opens or a battle starts. While it runs the screen stays black and silent and the game runs at x8; the picture fades back in once, where the player takes over. A cue at the bottom left (the skip button's icon in a ring that fills while it is held, and the word in the game's language) shows whenever a skip is possible, in a panel and font of the field menu's. A field's area banner ("Main Lobby") waits for the skip to end and shows as the picture comes back. The welcome text that opens the name entry screen ("Welcome to Digimon Online...") is skipped the same way. Suggested by Hucaru.

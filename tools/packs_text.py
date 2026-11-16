@@ -19,7 +19,7 @@ import tempfile
 from pathlib import Path
 
 NATIVE = Path(__file__).resolve().parents[1]
-LANGUAGES = ["eng", "fra", "ita", "ger", "spn"]
+LANGUAGES = ["eng", "fra", "ita", "ger", "spn", "jpn"]
 
 
 def main():

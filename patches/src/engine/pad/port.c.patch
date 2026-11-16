@@ -1,7 +1,7 @@
---- a/src/engine/pad/port.c
-+++ b/src/engine/pad/port.c
+--- a/src/engine/pad/port.c	2026-11-15 21:28:11.768069800 -0300
++++ b/src/engine/pad/port.c	2026-11-15 21:28:43.453761800 -0300
 @@ -1,6 +1,15 @@
- #include "game.h"
+ #include "engine/game.h"
  #include <libpad.h>
  
 +#ifdef NATIVE
@@ -16,7 +16,19 @@
  /*
   * The libpad state of a port while it can be read (0 otherwise); a stable pad gets its actuators
   * aligned
-@@ -119,17 +128,17 @@
+@@ -75,7 +84,11 @@
+         /* the Japanese language keeps the buttons as they are (the Japanese
+            version's only one, LANGUAGE 0) */
+         buttons = ~data->buttons;
++#ifdef NATIVE
++        if (1) { /* Japanese (platform/language.c) too: the buttons as in the other languages */
++#else
+         if (LANGUAGE != 0) {
++#endif
+             b = buttons;
+             circle = (b >> RAW_CIRCLE) & 1;
+             cross = (b >> RAW_CROSS) & 1;
+@@ -120,17 +133,17 @@
  
          if ((buttons >> bit) & 1) {
              if (PAD.repeatRate > 0) {

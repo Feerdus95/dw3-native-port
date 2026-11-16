@@ -103,6 +103,7 @@ extern const int NATIVE_EXTRA_PACKS[3][3]; /* their partners */
    greeting, 12-13 the word of the intro and the one replacing it; and the
    port's other texts: 14 fast travel's question */
 const void *native_packs_text(int language);
+const void *native_cnty_bank(const void *bank); /* CNTY_SEL's sprites with a sixth row, Japanese (platform/language.c) */
 /* The journal's picture of a field (data/postcards, tools/postcards.py): whether there is one. It is drawn by a
    primitive of its own, three words: 0x1B000000 | mode, the place (y << 16 | x) and the size (h << 16 | w) */
 int native_postcard(int mode);

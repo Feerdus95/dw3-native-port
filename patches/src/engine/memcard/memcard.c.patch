@@ -1,6 +1,19 @@
---- a/src/engine/memcard/memcard.c
-+++ b/src/engine/memcard/memcard.c
-@@ -174,7 +174,7 @@
+--- a/src/engine/memcard/memcard.c	2026-11-15 21:28:06.351714200 -0300
++++ b/src/engine/memcard/memcard.c	2026-11-15 21:28:41.262442200 -0300
+@@ -58,7 +58,12 @@
+     switch (LANGUAGE) {
+     default:
+     case 0:
++#ifdef NATIVE
++        /* Japanese (platform/language.c) keeps the European saves */
++        MEMCARD.fileName = SAVE_FILE_NAMES[1];
++#else
+         MEMCARD.fileName = SAVE_FILE_NAME_JP;
++#endif
+         break;
+     case 1:
+         MEMCARD.fileName = SAVE_FILE_NAMES[0];
+@@ -185,7 +190,7 @@
      return 0;
  }
  
@@ -9,7 +22,7 @@
  s32 readSave(s32 port, void *buf, s32 size, s32 section) {
      u8 *dst;
  
-@@ -212,7 +212,7 @@
+@@ -223,7 +228,7 @@
                  MEMCARD.offset = MEMCARD.iconCount * CARD_SECTOR_SIZE + CARD_SECTOR_SIZE + MEMCARD.infoSize + MEMCARD.dataSize * 2;
                  break;
              }
@@ -18,7 +31,7 @@
                  syncMemCard();
              }
              MEMCARD.state = MEMCARD_READING;
-@@ -226,13 +226,13 @@
+@@ -237,13 +242,13 @@
          if (syncMemCard() != 0) {
              switch (MEMCARD.result) {
              case CARD_ERR_NONE:
@@ -34,7 +47,7 @@
                          return 0;
                      }
                      syncMemCard();
-@@ -245,7 +245,7 @@
+@@ -256,7 +261,7 @@
          if (MEMCARD.restart != 0) {
              MEMCARD.restart = 0;
              MEMCARD.progress = 0;
@@ -43,7 +56,7 @@
                  syncMemCard();
              }
              return 0;
-@@ -293,7 +293,7 @@
+@@ -304,7 +309,7 @@
                  MEMCARD.offset = MEMCARD.iconCount * CARD_SECTOR_SIZE + CARD_SECTOR_SIZE + MEMCARD.infoSize + MEMCARD.dataSize * 2;
                  break;
              }
@@ -52,7 +65,7 @@
                  syncMemCard();
              }
              MEMCARD.state = MEMCARD_WRITING;
-@@ -307,13 +307,13 @@
+@@ -318,13 +323,13 @@
          if (syncMemCard() != 0) {
              switch (MEMCARD.result) {
              case CARD_ERR_NONE:
@@ -68,7 +81,7 @@
                          return 0;
                      }
                      syncMemCard();
-@@ -326,7 +326,7 @@
+@@ -337,7 +342,7 @@
          if (MEMCARD.restart != 0) {
              MEMCARD.restart = 0;
              MEMCARD.progress = 0;
