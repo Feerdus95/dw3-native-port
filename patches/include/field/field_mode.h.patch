@@ -1,0 +1,17 @@
+--- a/include/field/field_mode.h
++++ b/include/field/field_mode.h
+@@ -291,7 +291,14 @@
+ typedef struct EventChildren {
+     /* 0x00 */ struct Task *task; /* start's */
+     /* 0x04 */ struct Speech *boxes[3]; /* the script's message boxes */
++#ifdef NATIVE
++    /* a slot per task: runChildTasks reads the array as pointers, so in 64 bits two s32
++       would make one slot and its task an address of two halves (#25). The values are
++       still the s32 the commands return, the port's pointers being below 2 GB */
++    __INTPTR_TYPE__ scripts[10];
++#else
+     /* 0x10 */ s32 scripts[10]; /* FIELDSTG_createScriptCommand's tasks */
++#endif
+ } EventChildren;
+ 
+ /* --- script.c --- */
