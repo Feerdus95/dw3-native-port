@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.21.1 (beta)
 
 - **x64: no crash in the opening scene of a new game** (#25). An event kept the tasks of its script commands in 32-bit slots, so in 64 bits two of them shared one 8-byte child slot, and running the event's children read them together as one address; it crashed as soon as a scene ran two commands at once, right after Junior's first line. Reported by j0an2.
 
