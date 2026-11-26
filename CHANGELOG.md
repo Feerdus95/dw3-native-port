@@ -2,9 +2,12 @@
 
 ## Unreleased
 
-- **x64: no crash in the opening scene of a new game** (#25). An event kept the tasks of its script commands in 32-bit slots, so in 64 bits two of them shared one 8-byte child slot, and running the event's children read them together as one address; it crashed as soon as a scene ran two commands at once, right after Junior's first line. Reported by j0an2.
 - **Items while confused** (Options, Mods, and the launcher; `sober_disk_shops`, off by default; #24). Wizardmon sells Sober Disk in all ten city item shops, and a confused partner gets a fixed Item row below the six confused commands, which opens the battle's item menu (a healing item, Sober Disk or Energy Disk cures the confusion); cancelling it goes back to the confused menu. Reopen a shop after switching the option. By Zaw Htet Naing.
 - **Japanese** on the language screen, as a sixth row (NIHONGO, with Japan's flag). The European disc has every text in Japanese too, and the game the option for it, which its screen never shows; the rows close up to make room, and the label is made of the other labels' letters. Saves stay the European ones and the buttons are the same as in the other languages (✕ confirms). The port's own texts (DIGILOG, the starter packs, the Quit menu) have a Japanese version in kana, like the game's.
+
+## v0.21.1 (beta)
+
+- **x64: no crash in the opening scene of a new game** (#25). An event kept the tasks of its script commands in 32-bit slots, so in 64 bits two of them shared one 8-byte child slot, and running the event's children read them together as one address; it crashed as soon as a scene ran two commands at once, right after Junior's first line. Reported by j0an2.
 
 ## v0.21.0 (beta)
 
